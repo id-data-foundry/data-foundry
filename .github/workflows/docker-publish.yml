@@ -39,8 +39,8 @@ jobs:
       - name: Build and push production image
         uses: docker/build-push-action@v5
         with:
-          context: DataFoundry
-          file: Dockerfile
+          context: .
+          file: ./Dockerfile
           target: production
           push: true
           tags: ${{ steps.meta.outputs.tags }}
