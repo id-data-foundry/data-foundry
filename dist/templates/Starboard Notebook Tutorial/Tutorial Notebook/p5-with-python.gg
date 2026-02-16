@@ -1,0 +1,95 @@
+# %% [markdown]
+# 🐍 Python support in Starboard Notebook
+
+Python support is built on top of [Pyodide](https://hacks.mozilla.org/2019/04/pyodide-bringing-the-scientific-python-stack-to-the-browser/), a WebAssembly powered Python runtime in the browser that supports most of the common scientific packages such as Numpy, Pandas and Matplotlib.
+
+Using Starboard you can create a Python notebook without any backend server.
+
+> New to Starboard? Check out the [Starboard introduction notebook](https://starboard.gg/#introduction) for an overview of Starboard itself.
+# %% [python]
+# When you first run this cell it will load the Python runtime.
+# This runtime is a few megabytes in size. Your browser should cache it, so the next time it should load faster.
+message = "Hello Python!"
+print(message)
+
+x = [i**2 for i in range(5)]
+x
+# %% [js]
+// Python variables in global scope are automatically converted to Javascript variables.
+// They can be accessed from the pyodide.globals object:
+console.log(pyodide.globals.get("message"));
+
+// Aso we can import Javascript variables into Python, let's try that
+var myFavoriteNumber = 22;
+# %% [python]
+from js import document, myFavoriteNumber
+
+el = document.createElement("h3")
+el.innerText = "My favorite number is " + str(myFavoriteNumber)
+
+# Note we created this HTML element in Python!
+el
+# %% [markdown]
+## Visualizing car data using pandas and matplotlib
+
+Analyzing, explaining and visualizing data is a great usecase for Starboard notebooks.
+
+In this example we'll load datasets from [Selva Prabhakaran's ML dataset repository on Github](https://github.com/selva86/datasets) and visualize them. The code below is based on examples from their matplotlib examples [blog post](https://www.machinelearningplus.com/plots/top-50-matplotlib-visualizations-the-master-plots-python/).
+
+> Matplotlib plots are not really made for mobile devices, interactivity can be a bit buggy and they may overflow.
+
+> Consider viewing below examples on a desktop.
+# %% [python]
+# You can import many of the common scientific Python packages such as numpy or pandas
+# A full list can be found here https://github.com/iodide-project/pyodide/tree/master/packages
+# Packages are downloaded and installed dynamically, they are cached afterwards.
+import pandas as pd
+import matplotlib.pyplot as plt
+import pyodide
+
+url = "https://raw.githubusercontent.com/selva86/datasets/master/mtcars.csv"
+
+# Prepare Data
+df = pd.read_csv(pyodide.open_url(url))
+
+x = df.loc[:, ['mpg']]
+df['mpg_z'] = (x - x.mean())/x.std()
+df['colors'] = ['red' if x < 0 else 'green' for x in df['mpg_z']]
+df.sort_values('mpg_z', inplace=True)
+df.reset_index(inplace=True)
+
+df
+# %% [python]
+# Draw plot
+plt.figure(figsize=(10,8), dpi= 80)
+plt.hlines(y=df.index, xmin=0, xmax=df.mpg_z, color=df.colors, alpha=0.4, linewidth=5)
+
+# Decorations
+plt.gca().set(ylabel='$Model$', xlabel='$Mileage$ (standard deviations)')
+plt.yticks(df.index, df.cars, fontsize=8)
+plt.title('Diverging Bars of Car Mileage', fontdict={'size':16})
+plt.grid(linestyle='--', alpha=0.5)
+plt.show()
+# %% [python]
+# By using micropip we can install additional packages that don't ship with Pyodide by default.
+# Most pure python package work in the browser, here we install "squarify"
+import micropip
+micropip.install("squarify")
+# %% [python]
+import squarify 
+
+url = "https://raw.githubusercontent.com/selva86/datasets/master/mpg_ggplot2.csv"
+
+df = pd.read_csv(pyodide.open_url(url))
+df = df.groupby('class').size().reset_index(name='counts')
+labels = df.apply(lambda x: str(x[0]) + "\n (" + str(x[1]) + ")", axis=1)
+sizes = df['counts'].values.tolist()
+colors = [plt.cm.Spectral(i/float(len(labels))) for i in range(len(labels))]
+
+# Draw Plot
+plt.figure(figsize=(8,5), dpi= 80)
+squarify.plot(sizes=sizes, label=labels, color=colors, alpha=.8)
+
+plt.title('Treemap of Vehicle Class')
+plt.axis('off')
+plt.show()
