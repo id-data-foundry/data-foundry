@@ -1,0 +1,26 @@
+[Unit]
+Description=Data Foundry application
+
+[Service]
+Type=simple
+Restart=on-failure
+RestartSec=5
+User=data
+# add GraalVM to the PATH
+Environment="PATH=/opt/graalvm/graalvm-21.2.0-java11/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+# use current working directory
+WorkingDirectory=/home/data/foundry/current
+# set PID file
+PIDFile=RUNNING_PID
+# clean PID file for every start, otherwise Play will block
+ExecStartPre=/bin/rm -f RUNNING_PID
+# run with full path to GraalVM, link to conf and log files, auto-apply evolutions
+ExecStart=/home/data/foundry/current/bin/datafoundry -Dhttp.port=8888 -Dconfig.file=/home/data/foundry/conf/application.conf -Dlogger.file=/home/data/foundry/conf/logback.xml -Dplay.evolutions.db.default.autoApply=true
+ExecStop=/bin/sleep 20
+ExecStop=/bin/kill $MAINPID
+
+# See http://serverfault.com/a/695863
+SuccessExitStatus=143
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,16 @@
+# from: https://aur.archlinux.org/cgit/aur.git/tree/h2.service?h=h2-systemd
+
+[Unit]
+Description=H2 Database server
+
+[Service]
+Type=simple
+User=data
+# set correct working directory
+WorkingDirectory=/home/data/scripts
+# run with full path to GraalVM, only open local ports
+ExecStart=/opt/graalvm/graalvm-21.2.0-java11/bin/java -Xms256m -Xmx1000m -cp /home/data/scripts/database/com.h2database.h2-1.4.199.jar org.h2.tools.Server -baseDir /home/data/foundry/data -tcp -ifNotExists
+ExecStop=/opt/graalvm/graalvm-21.2.0-java11/bin/java -cp /home/data/scripts/database/h2-1.4.200.jar org.h2.tools.Server -tcpShutdown tcp://localhost
+
+[Install]
+WantedBy=multi-user.target
