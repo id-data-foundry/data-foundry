@@ -22,3 +22,48 @@
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+
+# macOS hidden files
+.DS_Store
+
+# DF specific
+**/tools/**/*.jar
+
+# IDE files
+*.iml
+.bsp/
+.settings
+.classpath
+.project
+.metadata/
+.github
+.gitlab
+.idea
+.vscode
+.externalToolBuilders/
+src/
+bin/
+
+# Play project
+project/target/
+target/
+data/
+logs/
+generated.keystore
+test/utils/data
+
+# deployment files
+dist/domain/google*
+
+# generated documentation artifacts
+dist/documentation
+
+# generated API clients
+/clients/java
+/clients/python
+/clients/js
+/clients/build/.*
+
+# vendor files
+modules/common/public/vendor/*/src
+modules/common/public/vendor/*/test
