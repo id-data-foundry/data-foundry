@@ -1,0 +1,11 @@
+services:
+  datafoundry:
+    image: datafoundrydocker:production
+    container_name: datafoundrydocker
+    ports:
+      - "9000:9000"
+    volumes:
+    # You can change this to change the data directory on the host system (E.g: /home/diede/database:/home/datafoundry/data)
+      - .data/production:/app/datafoundry/data
+    # Keep this path the same, it is referring to the configuration files.
+      - ./conf:/app/datafoundry/conf

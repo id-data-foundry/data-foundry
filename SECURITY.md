@@ -1,0 +1,2 @@
+# Security Policy
+If you manage to find a security flaw in the way Data Foundry was built, please get in contact with us directly at `security@datafoundry.net`. Please do not report security vulnerabilities through public GitHub issues. Thank you for your effort!
