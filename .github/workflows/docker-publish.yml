@@ -1,0 +1,50 @@
+name: Build and Publish Docker Images
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 1. Build and tag the base image
+      - name: Build Base Image
+        run: |
+          docker build 
+            -t datafoundrydocker:basecontainer 
+            -f DataFoundry/.devcontainer/Dockerfile.base 
+            DataFoundry/.devcontainer
+
+      # 2. Build the production image using the base image
+      - name: Build Production Image
+        run: |
+          docker build 
+            --tag ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest 
+            --target production 
+            -f DataFoundry/Dockerfile 
+            DataFoundry
+
+      # 3. Push the production image to GHCR
+      - name: Push Production Image
+        run: |
+          docker push ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest

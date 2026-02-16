@@ -36,8 +36,6 @@ replay_pid*
 .classpath
 .project
 .metadata/
-.github
-.gitlab
 .idea
 .vscode
 .externalToolBuilders/
