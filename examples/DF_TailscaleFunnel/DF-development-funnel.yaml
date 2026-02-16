@@ -1,0 +1,32 @@
+services:
+  datafoundry-ts:
+    image: tailscale/tailscale
+    container_name: datafoundry-tailscale
+    hostname: datafoundrytailscale
+    environment:
+      - TS_AUTHKEY=tskey-auth-krsQg7aQ7421CNTRL-ssrzPiJ7tUFuuT3ydByZUFnmXVNeEkg7
+      - "TS_EXTRA_ARGS=--advertise-tags=tag:container --reset"
+      - TS_SERVE_CONFIG=/config/mealie.json
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_USERSPACE=false
+    volumes:
+      - ${PWD}/state:/var/lib/tailscale
+      - ${PWD}/config:/config
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - net_admin
+    restart: unless-stopped
+
+  datafoundry:
+    stdin_open: true   # Keep STDIN open (interactive)
+    tty: true          # Allocate a pseudo-TTY
+    image: datafoundrydocker:development
+    container_name: datafoundrydocker
+    ports:
+      - "9000:9000"
+      - "8001:8001"
+      - "9092:9092"
+    volumes:
+    # Change this to change the data directory on the host system (E.g: /home/diede/database:/home/datafoundry/data)
+      - .data/development:/app/data

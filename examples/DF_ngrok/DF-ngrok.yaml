@@ -1,0 +1,32 @@
+services:
+  datafoundry:
+    image: datafoundrydocker:production
+    container_name: datafoundrydocker
+    ports:
+      - "9000:9000"
+      - "8001:8001"
+      - "9092:9092"
+    volumes:
+    # Change this to change the data directory on the host system (E.g: /home/diede/database:/home/datafoundry/data)
+      - ./.data/development:/app/datafoundry/data
+          # Keep this path the same, it is referring to the configuration files.
+      - ./localtest.conf:/app/datafoundry/conf
+    depends_on:
+      - ngrok
+    networks:
+      DF-network:
+
+  ngrok:
+    image: ngrok/ngrok:latest
+    command:
+      - "http"
+      - "http://datafoundrydocker:9000"
+    env_file: ngrok.env
+    ports:
+      - 4040:4040
+    networks:
+      DF-network:
+
+networks:
+  DF-network:
+    driver: "bridge"

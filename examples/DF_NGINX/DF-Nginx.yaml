@@ -1,0 +1,33 @@
+services:
+  datafoundry:
+    stdin_open: true   # Keep STDIN open (interactive)
+    tty: true          # Allocate a pseudo-TTY
+    image: datafoundrydocker:production
+    container_name: datafoundrydocker
+    ports:
+      - "9000:9000"
+      - "8001:8001"
+      - "9092:9092"
+    volumes:
+    # Change this to change the data directory on the host system (E.g: /home/diede/database:/home/datafoundry/data)
+      - .data/development:/app/data
+    depends_on:
+      - nginx
+    networks:
+      DF-network:
+
+
+  nginx:
+    image: nginx:latest
+    container_name: production_nginx
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf
+    ports:
+      - 80:80
+      - 443:443
+    networks:
+      DF-network:
+
+networks:
+  DF-network:
+    driver: "bridge"

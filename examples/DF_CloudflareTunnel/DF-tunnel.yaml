@@ -1,0 +1,31 @@
+services:
+  datafoundry:
+    stdin_open: true   # Keep STDIN open (interactive)
+    tty: true          # Allocate a pseudo-TTY
+    image: datafoundrydocker:production
+    container_name: datafoundrydocker
+    ports:
+      - "9000:9000"
+      - "8001:8001"
+      - "9092:9092"
+    volumes:
+    # Change this to change the data directory on the host system (E.g: /home/diede/database:/home/datafoundry/data)
+      - .data/development:/app/data
+                # Keep this path the same, it is referring to the configuration files.
+      - .conf:/app/datafoundry/conf
+    depends_on:
+      - cloudflared
+    networks:
+      DF-network:
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate run
+    restart: unless-stopped
+    env_file: tunnel.env
+    networks:
+      DF-network:
+
+networks:
+  DF-network:
+    driver: "bridge"
