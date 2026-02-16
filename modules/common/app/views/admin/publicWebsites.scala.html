@@ -1,0 +1,58 @@
+@(pagedDatasets: io.ebean.PagedList[Dataset], csrfToken: String)
+@administrator("Public Websites", "publicWebsites") {
+
+<div class="row">
+	<div class="col s12">
+		<h4>Public Websites</h4>
+	</div>
+</div>
+
+<div class="row">
+	<div class="col s12 right-align">
+		<ul class="pagination">
+			<li class="@if(!pagedDatasets.hasPrev){disabled}"><a href="@if(pagedDatasets.hasPrev){?page=@(pagedDatasets.getPageIndex - 1)}else{#!}">&lt;</a></li>
+			
+			@if(pagedDatasets.getTotalPageCount > 1) {
+				@for(i <- 0 until pagedDatasets.getTotalPageCount) {
+					<li class="@if(i == pagedDatasets.getPageIndex){active blue}else{waves-effect}"><a href="?page=@i">@(i + 1)</a></li>
+				}
+			}
+			
+			<li class="@if(!pagedDatasets.hasNext){disabled}"><a href="@if(pagedDatasets.hasNext){?page=@(pagedDatasets.getPageIndex + 1)}else{#!}">&gt;</a></li>
+		</ul>
+	</div>
+</div>
+
+<div class="row">
+	<div class="col s12">
+		<table class="highlight">
+			<thead>
+				<tr>
+					<td>ID</td>
+					<td>Name</td>
+					<td>Project</td>
+					<td>Owner</td>
+					<td>Link</td>
+				</tr>
+			</thead>
+
+		@for(ds <- pagedDatasets.getList()) {
+			<tr>
+				<td><a href="@controllers.routes.DatasetsController.view(ds.getId())">@ds.getId()</a></td>
+				<td>@ds.getName()</td>
+				<td><a href="@controllers.routes.ProjectsController.view(ds.getProject().getId())">@ds.getProject().getName()</a></td>
+				<td>@ds.getProject().getOwner().getName()</td>
+				<td>
+				    @if(ds.isWebsiteLive()) {
+				        <a href="@controllers.routes.DatasetsController.webToken(ds.configuration(models.Dataset.WEB_ACCESS_TOKEN, ""), "")" target="_blank">Open</a>
+				    } else {
+				        -
+				    }
+				</td>
+			</tr>
+		}
+		</table>
+	</div>
+</div>
+
+}

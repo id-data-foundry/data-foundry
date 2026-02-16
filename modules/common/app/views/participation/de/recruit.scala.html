@@ -1,0 +1,79 @@
+@(participant : sr.Participant, project: Project, token : String, csrfToken : String)
+@participating("Studienteilnahme", token) {
+  <br><br>
+  <div class="row">
+    <div class="col s12">
+      <h3>Einschreiben und loslegen</h3>
+      <div class="right-align">
+        <a  class="btn white green-text" 
+            href="@routes.ParticipationController.switchLanguage(token, "nl")">
+          Nederlands
+        </a>
+        <a  class="btn white green-text" 
+            href="@routes.ParticipationController.switchLanguage(token, "en")">
+          English
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col s12 white">
+      
+      <h5>Hallo,</h5>
+      <p>
+        @if(participant != null) { Wir haben Ihnen eine Email an @participant.getEmail() geschickt. }
+        Wir laden Sie ein an dieser Studie teilzunehmen. Bitte nehmen Sie sich einen Moment Zeit und lesen die untenstehenden Informationen. 
+        Falls Sie mit den Bedingungen einverstanden sind, klicken Sie auf "Teilnehmen". Falls Sie nicht einverstanden sind, klicken Sie auf "Nicht teilnehmen". 
+        Falls Sie Fragen zu der Studie haben, wenden Sie sich bitte an @project.getOwner().getName() (@project.getOwner().getEmail()).
+        <br><br>
+        Vielen Dank!
+      </p>
+
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col s12">
+
+      @elements.project.informedConsent(project, "de")
+
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col s12">
+    	<form action="@routes.ParticipationController.signup(token)" method="POST">
+        <div class="row">
+          <div class="input-field col s12 m7">
+            <p>
+              <label>
+                <input id="isDataProcessingAgreed" name="isDataProcessingAgreed" type="checkbox" required="required" class="validate">
+                <span>Ich verstehe und akzeptiere, dass eine begrenzte Menge meiner persönlich identifizierbaren Informationen auf Data Foundry für die im Projekt beschriebenen Zwecke verarbeitet werden darf. Dies kann Informationen wie meinen Namen und meine E-Mail-Adresse umfassen, die verwendet werden, um mich im Rahmen der Studie zu kontaktieren und mir Zugang zu dieser Plattform zu gewähren. Außerdem akzeptiere ich, dass die von mir erhobenen Daten für zukünftige Forschungszwecke genutzt und in anonymisierter Form über das Data Foundry-Repository zur Verfügung gestellt werden können.</span>
+              </label>
+            </p>
+          </div>
+          <div class="input-field col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+            <p>
+              Data Foundry übernimmt als sogenannter Auftragsverarbeiter (im Sinne der DSGVO und GDPR) die Verarbeitung der persönlich identifizierbaren Daten, die die Projektverantwortlichen und rechtlichen Datenverantwortlichen ausgewählt haben, um sie auf der Plattform zu speichern. Die Projektverantwortlichen sind sich bewusst, was genau unter persönlich identifizierbaren Informationen zu verstehen ist und wissen, wie diese Daten nach den nationalen und europäischen Datenschutzbestimmungen richtig behandelt werden müssen.
+            </p>
+          </div>
+        </div>
+        <div class="row">
+          <div class="input-field col s12">
+            <p>
+              <label>
+                <input id="isStudyParticipationAgreed" name="isStudyParticipationAgreed" type="checkbox" required="required" class="validate">
+                <span>Ich habe die oben genannten Informationen gelesen und verstanden. Ich stimme zu, an dieser Studie teilzunehmen. Mir ist auch bewusst, dass ich jederzeit und ohne negative Folgen aus der Studie aussteigen kann. In diesem Fall werden meine persönlich identifizierbaren Daten gelöscht.</span>
+              </label>
+            </p>
+          </div>
+        </div>
+
+        <input type="hidden" name="csrfToken" value="@csrfToken">
+	    	<button type="submit" id="acceptBtn" class="btn">Teilnehmen</button> oder 
+	    	<a id="declineBtn" href="@routes.ParticipationController.decline(token)" class="btn">Nicht teilnehmen</a>
+    	</form>
+    </div>
+  </div>
+}

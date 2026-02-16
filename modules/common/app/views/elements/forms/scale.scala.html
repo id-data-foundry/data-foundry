@@ -1,0 +1,8 @@
+@(itemCount: Int, start: Int, end: Int, startLabel : String, endLabel : String)
+<p class="left-align" style="height: 4em;">
+	<label>
+		<input type="range" id="numerical_@itemCount" name="numerical_@itemCount" data="numerical_@itemCount" min="@start" max="@end" value="" class="validate" required />
+	</label>
+	<small style="float: left">@startLabel</small>
+    <small style="float: right">@endLabel</small>
+</p>

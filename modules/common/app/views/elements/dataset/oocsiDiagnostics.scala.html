@@ -1,0 +1,26 @@
+@(od: services.inlets.OOCSIService.OOCSIDiagnostics)
+<div class="row">
+	<div class="col s12">
+		<b>OOCSI Diagnostics</b>
+		<p>Last successful event: @od.lastSuccessfulEvent</p>
+		@if(!od.eventInletThrottleMessage.isEmpty 
+				|| !od.eventInletLoopDetectedMessage.isEmpty 
+				|| !od.eventInletDeviceIdMessage.isEmpty 
+				|| !od.eventInletErrorMessage.isEmpty) {
+		<div class="" style="">
+			@if(!od.eventInletThrottleMessage.isEmpty) {
+			<p>⚠️ @od.eventInletThrottleMessage</p>
+			}
+			@if(!od.eventInletLoopDetectedMessage.isEmpty) {
+			<p>⛔️ @od.eventInletLoopDetectedMessage</p>
+			}
+			@if(!od.eventInletDeviceIdMessage.isEmpty) {
+			<p>⛔️ @od.eventInletDeviceIdMessage</p>
+			}
+			@if(!od.eventInletErrorMessage.isEmpty) {
+			<p>⛔️ @od.eventInletErrorMessage</p>
+			}
+		</div>
+		}
+	</div>
+</div>

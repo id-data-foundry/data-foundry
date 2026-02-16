@@ -1,0 +1,310 @@
+@(user: Person, dataset: Dataset, files: List[controllers.tools.ChatbotController.FileWithIndexStatus], localModelMetadata: services.api.ai.LocalModelMetadata, csrfToken: String)
+@main(dataset.getName(), "profile") {
+
+  <style>
+    .file-uploader {
+      border: 2px dashed #aaa;
+      padding: 30px;
+      text-align: center;
+      border-radius: 8px;
+      cursor: pointer;
+      margin-bottom: 1em;
+    }
+    .file-uploader.dragover {
+      border-color: #333;
+      background: #f0f0f0;
+    }
+    input[type="file"] {
+      display: none;
+    }
+    #file-list p a[download] {
+      color: black;
+      text-decoration: underline;
+    }
+  </style>
+
+  <!-- navigation -->
+  <nav class="">
+    <div class="row">
+      <div class="col s12">
+        <a id="homeBtn" href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+        <a href="@routes.ProjectsController.view(dataset.getProject().getId())" class="breadcrumb">@dataset.getProject().getName()</a>
+        <a href="#" class="breadcrumb">@dataset.getName()</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="row">
+    <div class="col s12">
+      <h2>@dataset.getName()</h2>
+    </div>
+  </div>
+
+  <form hx-post="@controllers.tools.routes.ChatbotController.save(dataset.getId(), "save")"
+    hx-target="#results"
+    hx-swap="innerHTML"
+    hx-disabled-elt="button,a"
+    hx-indicator="#settings-indicator">
+    <input type="hidden" name="csrfToken" value="@csrfToken">
+    <div class="row">
+      <div class="col s12 m2" style="line-height: 5rem;">
+        <b>Bot Name:</b>
+      </div>
+      <div class="input-field col s12 m6">
+        <input name="@Dataset.CHATBOT_NAME" style="font-family: monospace;" value="@dataset.getName()">
+      </div>
+      <div class="input-field col s12 m4" style="text-align: right;">
+        <a href="@controllers.tools.routes.ChatbotController.test(dataset.getId())" class="btn">Test Bot</a>
+        <a href="@controllers.tools.routes.ChatbotController.chat(dataset.getId())" class="btn">Start Chat</a>
+      </div>
+      <div class="input-field col s12">
+        <p>
+          <b>Description:</b><br>
+          Briefly describe what this bot does (for yourself and other users).
+        </p>
+        <textarea name="@Dataset.CHATBOT_INTRODUCTION" style="height: 10rem; background: white; padding: 0.5rem; font-family: monospace;">@dataset.configuration(Dataset.CHATBOT_INTRODUCTION, "")</textarea>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col s12">
+        <p>
+          <b>Instructions (System Prompt):</b><br>
+          Define how the bot should behave, what its role is, and how it should answer. <br>
+          <small>Need inspiration? Check <a href="https://github.com/LouisShark/chatgpt_system_prompt" target="_blank">this repository</a>.</small>
+        </p>
+        <textarea name="@Dataset.CHATBOT_SYSTEM_PROMPT" style="height: 20rem; background: white; padding: 0.5rem; font-family: monospace;">@dataset.configuration(Dataset.CHATBOT_SYSTEM_PROMPT, "")</textarea>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col s12 m6">
+        <p>
+          <b>AI Model</b>
+        </p>
+        <div class="row">
+          <div class="col s12">
+            Choose the AI brain for your bot:
+          </div>
+          <div class="input-field col s12">
+            <select id="model" name="@Dataset.CHATBOT_MODEL" required="required" class="validate">
+              <option value="" disabled>Choose AI model</option>
+              @for(model <- localModelMetadata.getModelNames()) {
+                <option @option(model._1)>@model._2</option>
+              }
+            </select>
+            <label>AI Model</label>
+          </div>
+          <div class="col s12">
+            <p>
+            <b>Access Control</b><br>
+            If you make this bot public, anyone logged into Data Foundry can use it via <a href="@controllers.tools.routes.ChatbotController.chat(dataset.getId())" target="_blank">this link</a>.
+            </p>
+          </div>
+          <div class="input-field col s12">
+            <div class="switch">
+              <label>
+                Private (Only me)
+                <input type="checkbox" name="@Dataset.CHATBOT_PUBLIC" @if(!dataset.configuration(Dataset.CHATBOT_PUBLIC, "").isEmpty()){checked}>
+                <span class="lever"></span>
+                Public (Shared)
+              </label>
+            </div>
+          </div>
+          <div class="col s12">
+             <br><b>Conversation History</b>
+          </div>
+          <div class="input-field col s12">
+            <div class="switch">
+              <label>
+                Don't save
+                <input type="checkbox" name="@Dataset.CHATBOT_STORE_CHATS" @if(!dataset.configuration(Dataset.CHATBOT_STORE_CHATS, "").isEmpty()){checked}>
+                <span class="lever"></span>
+                Save all chats
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col s12 m6">
+        <details open>
+          <summary><b>Advanced Options (Model temperature & Knowledge Base)</b></summary>
+          <div>
+            <p>
+              <b>Model temperature</b><br>              
+            </p>
+          </div>
+          <div class="input-field">
+            <input type="number" name="@Dataset.CHATBOT_TEMPERATURE" min="0.0" max="2.0" step="0.1" value="@dataset.configuration(Dataset.CHATBOT_TEMPERATURE, "")">
+            <label>
+              Model Temperature (higher is more "creative")
+            </label>
+          </div>
+          <div>
+            <p>
+              <b>Knowledge Base (RAG)</b><br>
+              You can upload PDF documents below to create a knowledge base. The bot will search these files to find relevant information for its answers.
+            </p>
+          </div>
+          <div class="input-field">
+            <input type="number" name="@Dataset.CHATBOT_RAG_MAX_HITS" min="1" max="50" value="@dataset.configuration(Dataset.CHATBOT_RAG_MAX_HITS, "")">
+            <label>
+              Max References (Chunks to read)
+            </label>
+          </div>
+          <div class="input-field">
+            <input type="number" name="@Dataset.CHATBOT_RAG_SCORE_THRESHOLD" min="0.0" max="1.0" step="0.05" value="@dataset.configuration(Dataset.CHATBOT_RAG_SCORE_THRESHOLD, "")">
+            <label>
+              Relevance Threshold (0.0 - 1.0)
+            </label>
+          </div>
+        </details>
+        <details>
+          <summary><b>Behavior options</b></summary>
+          <p>
+            <b>Greeting Message</b><br>
+            Optional: The first message the bot sends to start the conversation.
+          </p>
+          <textarea name="@Dataset.CHATBOT_ASSISTANT_PROMPT" style="height: 10rem; background: white; padding: 0.5rem; font-family: monospace;">@dataset.configuration(Dataset.CHATBOT_ASSISTANT_PROMPT, "")</textarea>
+          <p>
+            <b>Suggested User Input</b><br>
+            Optional: Text that will appear in the user's input box, ready to be sent or edited.
+          </p>
+          <textarea name="@Dataset.CHATBOT_USER_PROMPT" style="height: 10rem; background: white; padding: 0.5rem; font-family: monospace;">@dataset.configuration(Dataset.CHATBOT_USER_PROMPT, "")</textarea>
+
+        </details>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col s12">
+        <button type="submit" class="btn">Save Settings</button>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col s12">
+        <div id="settings-indicator" class="progress htmx-indicator">
+          <div class="indeterminate"></div>
+        </div>
+      </div>
+      <div class="col s12" id="results"></div>
+    </div>
+  </form>
+
+  <hr>
+
+  <div class="row">
+    <div class="col s12 m6">
+      <div id="file-list">
+      <p>
+        <b>Knowledge Base Files</b><br>
+        @if(files.isEmpty()) {
+          No knowledge base contents yet. You can upload them on the right side. 👉
+        } else {
+          The bot uses these files to answer questions. It reads the content and uses it as context.
+        }
+      </p>
+      @for(fileWithStatus <- files) {
+        @if(!fileWithStatus.file.link.startsWith("chat_")) {
+        <p>
+          <a href="@api.routes.CompleteDSController.downloadFile(dataset.getId(),fileWithStatus.file.getId())" download>@fileWithStatus.file.link</a>
+          @if(fileWithStatus.hasIndex) {
+            ✅
+          } else {
+            ⚙️
+          }
+          <a hx-delete="@controllers.tools.routes.ChatbotController.deleteFile(dataset.getId(),fileWithStatus.file.getId())"
+            hx-target="closest p"
+            hx-swap="outerHTML"
+            hx-trigger="click"
+            hx-confirm="Are you sure you want to delete this file? This cannot be reversed. Click OK to delete, cancel to abort."
+            hx-vals='{"csrfToken": "@csrfToken"}'
+            class="red-text" style="cursor: pointer;">
+            delete
+          </a>
+        </p>
+        }
+      }
+      </div>
+      <div id="file-list-indicator" class="progress htmx-indicator">
+        <div class="indeterminate"></div>
+      </div>
+    </div>
+    <div class="col s12 m6">
+      <form id="fileUploadForm" hx-encoding="multipart/form-data" hx-post="@controllers.tools.routes.ChatbotController.uploadFile(dataset.getId())"
+        hx-target="#file-list" hx-select="#file-list" hx-swap="outerHTML" hx-trigger="submit" hx-indicator="#file-list-indicator">
+        <p>
+          <b>Upload Documents</b><br>
+          Add PDF files to the knowledge base.
+        </p>
+        <div class="file-uploader">
+          <input type="file" id="file-input" name="file" multiple accept="application/pdf">
+          <label for="file-input">Drag & drop PDF files here or click to upload</label>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <hr>
+
+  <div class="row">
+    <div class="col s12">
+      <p>
+        <b>Saved Conversations</b><br>
+        Below are the archived chat sessions.
+      </p>
+      <div id="chat-list">
+      @for(fileWithStatus <- files) {
+        @if(fileWithStatus.file.link.startsWith("chat_")) {
+        <p>
+          <a href="@api.routes.CompleteDSController.downloadFile(dataset.getId(),fileWithStatus.file.getId())" download>@fileWithStatus.file.link</a>
+          (@if(fileWithStatus.file.timestamp != null) {@fileWithStatus.file.timestamp.format("yyyy-MM-dd HH:mm")} else {unknown date})
+          <a hx-delete="@controllers.tools.routes.ChatbotController.deleteFile(dataset.getId(),fileWithStatus.file.getId())"
+            hx-target="closest p"
+            hx-swap="outerHTML"
+            hx-trigger="click"
+            hx-confirm="Are you sure you want to delete this chat log? This cannot be reversed. Click OK to delete, cancel to abort."
+            hx-vals='{"csrfToken": "@csrfToken"}'
+            class="red-text" style="cursor: pointer;">
+            delete
+          </a>
+        </p>
+        }
+      }
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const uploader = document.querySelector('.file-uploader');
+    const input = document.getElementById('file-input');
+
+    // Highlight on drag
+    uploader.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      uploader.classList.add('dragover');
+    });
+    uploader.addEventListener('dragleave', () => {
+      uploader.classList.remove('dragover');
+    });
+    uploader.addEventListener('drop', (e) => {
+      e.preventDefault();
+      uploader.classList.remove('dragover');
+      const files = Array.from(e.dataTransfer.files);
+      const pdfs = files.filter(file => file.type === 'application/pdf');
+      input.files = createFileList(pdfs);
+      htmx.trigger('#fileUploadForm', 'submit');
+    });
+
+    // Helper to create a FileList from an array of Files
+    function createFileList(files) {
+      const dataTransfer = new DataTransfer();
+      files.forEach(file => dataTransfer.items.add(file));
+      return dataTransfer.files;
+    }
+  </script>
+}
+
+
+@option(o: String) = {
+  value="@o" @if(dataset.configuration(Dataset.CHATBOT_MODEL, "").equals(o)) {selected}
+}
+

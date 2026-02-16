@@ -1,0 +1,12 @@
+@(token: String, ds : Dataset)
+
+@form("Data Foundry Survey") {
+  <br><br>
+  <form action="@api.routes.FormDSController.record(ds.getId())" method="POST">
+    @Html(ds.getConfiguration().get("form_html_text"))
+    <div style="padding-top: 3rem;">
+      <input name="csrfToken" value="@token" type="hidden">
+      <button class="btn" type="submit">Submit</button>
+    </div>
+  </form>
+}

@@ -1,0 +1,278 @@
+@(p : Project, user: Person, token : String, viewLink : String, obm : Optional[utils.components.OnboardingMessage], configurator: utils.conf.Configurator)
+
+@main(p.getName() + " Home", "profile") {
+
+@projects.perspectives.projectHeader(p, user)
+
+@if(p.editableBy(user)) {
+<div class="row">
+	<div class="col s12">
+		<ul class="tabs">
+			<li class="tab col" id="mainPage"><a href="@routes.ProjectsController.view(p.getId())" class="active" target="_self">🏡 General</a></li>
+			<li class="tab col" id="sourcesTab"><a href="@routes.ProjectsController.viewResources(p.getId())" target="_self">🐝 Sources</a></li>
+			<li class="tab col" id="studySetupTab"><a href="@routes.ProjectsController.viewStudyManagement(p.getId())" target="_self">🧑‍🔬 Study Setup</a></li>
+			<li class="tab col" id="timeLineTab"><a href="@routes.ProjectsController.viewTimeline(p.getId())" target="_self">📈 Timeline</a></li>
+			@if(p.getNarrativeSurveyDataset().isPresent()) {
+			<li class="tab col"><a href="@routes.ProjectsController.viewNarrativeSurvey(p.getId())" target="_self">🔖 Narrative Surveys</a></li>
+			}
+			@if(p.hasProjectWebsite()){
+			<li class="tab col"><a href="/@p.getName()" target="_blank" rel="noopener">🧑‍💻 Project site</a></li>
+			}
+@*
+			<li class="tab col"><a href="#ded">🎂 Data-enabled Design</a></li>
+			<li class="tab col"><a href="#chatbot">🤖 Chatbot</a></li>
+*@
+		</ul>
+	</div>
+</div>
+}
+
+<!-- first row -->
+<div class="row">
+	<div class="col s12 m7">
+		<div class="row">
+			@if(p.isApproachingDeidentifiable) {
+			<!-- notification: deidentification -->
+			<div class="col s12">
+				<div class="card-panel white" style="border: rgba(255,0,0, 0.2) solid 2px;">
+					<span class="red-text">
+						🚨 This project will soon be deidentified. This means that the system will automatically clear <u>personally identifiable information</u> such as 
+						participant information, device information, and linked wearables. 
+						You can extend the project (via "Timeline") to postpone automatic deidentification.
+					</span>
+				</div>
+			</div>
+			}
+			@if(p.isApproachingOutdated) {
+			<!-- notification: freeze -->
+			<div class="col s12">
+				<div class="card-panel white" style="border: rgba(0,0,200, 0.2) solid 2px;">
+					<span class="blue-text">
+						❄️ This project will soon be frozen. This means that the system will automatically export the project data into a separate dataset and then clear all project data from the database.
+						You can extend the project (via "Timeline") to postpone automatic freezing.
+					</span>
+				</div>
+			</div>
+			}
+			<!-- project tags + intro -->
+			<div class="col s12"> 
+				@if(p.getKeywords() != null && p.getKeywords().length() > 0) {
+				<p class="keywordTags">
+				@for(k <- p.getKeywordList()) {
+					<span class="keywordTag">@k</span>
+				}
+				</p>
+				}
+				<p class="" style="">
+					@p.getIntro()
+				</p>
+				<p>
+				@metadata("Remarks", p.getRemarks())
+				</p>
+			</div>
+
+			<!-- datasets + scripts list -->
+			<div class="col s12">
+				<div class="row" id="datasetList">
+					<div class="col s12">
+						@elements.dataset.datasetCollection(p, utils.DatasetUtils.scriptsAndChatbotsExcluded(p.getOperationalDatasets()), user)
+					</div>
+				</div>
+				@if(p.editableBy(user)) {
+				<div class="row" id="scriptsList">
+					<div class="col s12">
+						@elements.scripts.scriptCollection(p, utils.DatasetUtils.scriptsAndChatbotsOnly(p.getOperationalDatasets()), user)
+					</div>
+				</div>
+				}
+			</div>
+		</div>
+	</div>
+	<div class="col s12 m4 offset-m1">
+		<div class="row">
+
+			<!-- project info -->
+			<div class="col s12" id="projectInfo">
+				<ul class="collection with-header">
+					<li class="collection-header">
+						<h6 style="display: inline-block;">Info</h6>
+						<span class="idtag" title="@p.getRefId()" style="float: right; margin-top: 0.6rem;">
+							PROJECT ID: @p.getId()
+						</span>
+		@*
+						<div>
+							@if(p.isApproved()) {
+							<span class="typetag black-text white">APPROVED</span>
+							}
+						</div>
+		*@
+					</li>
+					<li class="collection-item">
+						<div>
+							<p>
+								<b>Visibility: </b>@if(p.isPublicProject()) { Public } else { Private }
+							</p>
+							@if(p.getTimeProgress() < 100) {
+							<div class="progress green lighten-3">
+						    	<div class="determinate green" style="width: @p.getTimeProgress()%"></div>
+				  		</div>
+				  		} else {
+							<div class="progress red lighten-3">
+						    	<div class="determinate red" style="width: @p.getTimeProgress()%"></div>
+				  		</div>
+				  		}
+							@metadata("Project duration", p.startDate() + " - " + p.endDate())
+						</div>
+					</li>
+					<li class="collection-item">
+						<div>
+							@metadata("License", p.getLicense())
+							@metadata("Relation", p.getRelation())
+							@metadata("Organization", p.getOrganization())
+							@metadata("Digital object identifier", p.getDoi())
+						</div>
+					</li>
+					<li class="collection-item">
+						@if(p.editableBy(user)) {
+						<a id="exportBtn" href="@routes.ProjectsController.publish(p.getId())" class="btn-outline">Publish</a>
+						}
+@*
+						@if(p.belongsTo(user)) {
+							@if(p.metadataCompleteness() > 50 && !p.isArchivedProject()) {
+							<a id="reviewBtn" href="@routes.ProjectsController.requestReview(p.getId())" class="btn-outline grey-text">Review request</a>
+							} else {
+							<a id="reviewBtn" href="#" class="btn-outline grey-text tooltipped" data-tooltip="The project is only @{p.metadataCompleteness()}% documented.<br>Get to 100% by adding information to project and dataset metadata.">Review request</a>
+							}
+							@if(p.isArchivedProject()) {
+							<a id="reopenBtn" href="@routes.ProjectsController.reopen(p.getId())" class="btn-outline black-text">Reopen project</a>
+							} else if(!p.isActive()){
+							<a href="@routes.ProjectsController.edit(p.getId())#archiveProject" class="btn-outline black-text">Archive project</a>
+							}
+						}
+*@
+					</li>
+				</ul>
+			</div>
+
+			<!-- people -->
+			<div class="col s12" id="collaboratorSection">
+				<ul class="collection with-header">
+					<li class="collection-header"><h6>Researchers</h6></li>
+					<li class="collection-item">
+						<div>
+							<a href="@routes.UsersController.view(p.getOwner().getId())"><b>@p.getOwner().getName()</b></a>
+						</div>
+					</li>
+					@for(col <- p.getCollaborators()) {
+					<li class="collection-item">
+						<div>
+							<a href="@routes.UsersController.view(col.getCollaborator().getId())">@col.getCollaborator().getName()</a>
+							@if(p.belongsTo(user)) {
+							<a onclick="return confirm('Are you sure you want to remove this collaborator? Click OK to remove, cancel to stop.')" href="@routes.ProjectsController.removeCollaborator(p.getId(),col.getCollaborator().getId())" class="secondary-content green-text">@elements.icon("delete")</a>
+							}
+						</div>
+					</li>
+					}
+					@if(p.belongsTo(user)) {
+					<li class="collection-item"><div>Add collaborator<a href="#modal_add_collaborator" class="secondary-content green-text modal-trigger">@elements.icon("add")</a>
+					</div></li>
+					}
+				</ul>
+
+				@if(!p.getSubscribers().isEmpty() && p.editableBy(user)) {
+				<ul class="collection with-header">
+					<li class="collection-header"><h6>Subscribers</h6></li>
+					@for(sub <- p.getSubscribers()) {
+					<li class="collection-item">
+						<div>
+							<a href="@routes.UsersController.view(sub.getSubscriber().getId())">@sub.getSubscriber().getName()</a>
+							@if(p.editableBy(user)) {
+							<a onclick="return confirm('Are you sure you want to remove this subscriber? Click OK to remove, cancel to stop.')" href="@routes.ProjectsController.removeSubscription(p.getId(),sub.getSubscriber().getId())" class="secondary-content green-text">@elements.icon("delete")</a>
+							}
+						</div>
+					</li>
+					}
+				</ul>
+				}
+				<p>
+					@if(p.collaboratesWith(user)) {
+					<a href="@routes.ProjectsController.removeCollaboration(p.getId())" class="btn-outline red-text">Quit collaboration</a>
+					}
+					@if(p.subscribedBy(user)) {
+					<a href="@routes.ProjectsController.unsubscribe(p.getId())" class="btn-outline red-text">Unsubscribe</a>
+					}
+					@if(!p.editableBy(user) && !p.subscribedBy(user) && user != null) {
+					<a href="#modal_subscribe" class="btn-outline modal-trigger">Subscribe</a>
+					}
+				</p>
+			</div>
+
+		</div>
+	</div>
+</div>
+
+@if(p.editableBy(user)) {
+
+<!-- Modal for adding new collaborator -->
+<div id="modal_add_collaborator" class="modal">
+	<div class="modal-content">
+		<h4 class="center-align">Enter your new collaborator's email address:</h4>
+		<div class="row">
+			<form action="@routes.ProjectsController.addCollaborator(p.getId())" method="GET">
+				<div class="input-field col s12 m12 l12">
+					<div class="row">
+						<input placeholder="Email address" id="email" name="email" type="email" class="validate" required="required">
+						<label for="email">Email address</label>
+					</div>
+					<div class="row center">
+						<a href="#!" class="modal-close btn-flat green-text center">Cancel</a>
+						<button type="submit" class="btn green white-text center">Add</button>
+					</div>
+				</div>
+			</form>
+		</div>
+	</div>
+</div>
+}
+
+@if(!p.subscribedBy(user) && user != null) {
+<!-- Modal for adding new subscription -->
+<div id="modal_subscribe" class="modal">
+	<div class="modal-content">
+		<form action="@routes.ProjectsController.subscribe(p.getId())" method="GET">
+			<div class="row">
+				<div class="col 12 flowtext">
+					<h4>Accept the project license</h4>
+					<p>
+						This project falls under the <a href="@p.getLicenseLink()" target="_blank" rel="noopener">@p.getLicense()</a>. Click the link to read read the license text and find more information about its application.
+					</p>
+				</div>
+				<div class="input-field col s12">
+					<p>
+						<label>
+							<input name="acceptedLicense" type="checkbox" class="validate" required>
+							<span>I have read the project license and accept its terms</span>
+						</label>
+					</p>
+				</div>
+				<div class="col s12 center">
+					<button type="submit" class="btn">Subscribe</button>
+					<a href="#!" class="modal-close btn-flat green-text">Cancel</a>
+				</div>
+			</div>
+		</form>
+	</div>
+</div>
+}
+
+@elements.dialog.onBoardingDialog(obm, -1L)
+}
+
+@metadata(key : String, data : String) = {
+	@if(data != null && data.length() > 0) {
+	<p>
+		<b>@key:</b> 
+		@if(data.startsWith("http")) { <a href="@data" target="_blank">@data</a> } else { @data }
+	</p>
+	}
+}

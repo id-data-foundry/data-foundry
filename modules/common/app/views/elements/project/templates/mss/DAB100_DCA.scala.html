@@ -1,0 +1,775 @@
+@()
+# %% [markdown]
+# A1. Data Cleaning and Aggregation
+# %% [markdown]
+This notebook helps you refresh some basic data analytics concepts and Python programming skills that are useful for working with sensor data. It contains explanations, examples, exercises and pointers to external resources that may help or inspire you.
+
+It is assumed that you followed (and passed) the *Data Analytics for Engineers* basic course. If this is not the case, it is a good idea to first follow:
+
+* a basic [introduction in working with Jupyter Notebook](https://www.dataquest.io/blog/jupyter-notebook-tutorial/), and
+* modules 1 and 2 of [this Python tutorial](https://www.sololearn.com/Course/Python/).
+
+It is useful to keep a list of [Jupyter Notebook Keyboard shortcuts](https://cheatography.com/weidadeyue/cheat-sheets/jupyter-notebook/) next to you as reference while working in this notebook. Check more on the [Python Resources](https://canvas.tue.nl/courses/12766/pages/python-resources?module_item_id=177262) page on Canvas.
+
+As in the DAE course, you will get automatic feedback via **Momotor**. Make sure you write your solutions only between the markers.
+
+
+\:::info
+While you read this notebook, execute all code cells in linear order from the beginning
+\:::
+# %% [markdown]
+## How to use this template notebook
+
+First make sure you are working in a **copy** of `A1-template.ipynb`, **renamed** to `A1-yourIDnr.ipynb`,
+where `yourIDnr` is your TU/e identification number.
+Proceed in this notebook as follows:
+
+* **Read** the explanations and exercises.
+* **Fill in** your solutions in Python code between the `BEGIN_TODO` and `END_TODO` marker lines.
+
+\:::warning
+Do NOT modify or delete these marker lines and do NOT write your code outside the marked blocks.  However, you may introduce several new cells of your own between the markers, there is no restriction on that.
+
+\:::
+
+* **Run** *all* code cells (also the ones *without* your code),
+  *in linear order* from the first code cell. There should not be any errors - if there are, fix them by editing the code inside the markers.
+* **Submit** the completed notebook on Canvas - see detailed instructions at the end of this notebook
+
+
+
+# %% [markdown]
+### Make it yours
+
+
+1. Copy the following three lines of code:
+
+```python
+AUTHOR_NAME = 'Your Full Name'
+AUTHOR_ID_NR = '1234567'
+AUTHOR_DATE = 'YYYY-MM-DD'  # when notebook was first modified, e.g. '2019-02-26'
+```
+
+
+1. Paste them between the marker lines in the next code cell.
+2. Fill in your *full name*, *identification number*, and the current *date* as strings between quotes.
+3. Run the code cell by putting the cursor there and typing **Control-Enter**.
+
+
+
+# %% [python]
+#// BEGIN_TODO [Author] Name, Id.nr., Date, as strings (1 point)
+#// END_TODO [Author]
+
+AUTHOR_NAME, AUTHOR_ID_NR, AUTHOR_DATE
+# %% [markdown]
+### Learning Objectives
+
+After reading and completing the work in this notebook, you should be able to:
+
+* import/export (your) datasets in/from a Jupyter notebook
+* assess data reliability and clean it if needed
+* apply useful transformations like timestamps to/from single digits
+* inspect the data using basic statistics (mean, medium..)
+* aggregate data using filters and groups
+* combine different datasets into one
+
+
+
+# %% [markdown]
+## 0. Setting up the work environment
+
+[Go to the Table of Contents](#toc)
+
+### The Xiaomi Mi band and the YODL kit
+
+To learn the proper usage and get familiar with all options of the hardware, the best place to start is the **Technical Information** module on Canvas.
+
+After you collect the data you are interested in, in order to process and analyze it further, you will need to export it from the devices as one or more CSV files.
+
+### Example datasets
+
+The examples and explanations in the first two assignments will be using existing sensor data. Due to the diverse origins of this data, the columns (data fields) in these files are not precisely those you get when downloading your own sensor data via Apple Health or Google Fit. However, all the techniques and commands are applicable to your own data.
+
+The example datasets are located in the folder `datasets` in the current folder. See below a description of their contents.
+
+# %% [markdown]
+#### 2bands.csv
+
+This is stepcount data from 2 Xiaomi bands, worn several days by 2 different persons. A record is the total number of steps measured on one of the devices from the start until the given timestamp.
+
+
+* Part - 1 or 2, indicating to which participant this entry belongs
+* Datum - the date of the entry
+* Unix timestamp - the number of seconds since Jan 01, 1970; this way of tracking time is location-independent
+* Tijd - the (local) time stamp of this measurement
+
+
+
+# %% [markdown]
+#### group-steps.csv
+
+This is stepcount data from 5 Xiaomi bands, worn several days by 5 different persons. A data entry records the number of steps of one person in 10 minutes.
+
+
+* Participant - 1 to 5, indicating to which participant this entry belongs
+* Date - the date of the entry
+* Start Time (GMT+1) - the start of this measurement
+* End Time (GMT+1) - the end of this measurement
+* Amount of steps (per 10 minutes) - number of steps recorded between the Start Time and the End Time
+
+
+
+# %% [markdown]
+#### group-phoneusage.csv
+
+This is phoneusage data from 5 Xiaomi bands, worn several days by the same 5 persons as above. A data entry represents one \* person-phone interaction (like a call, using an app etc).
+
+* Participant - 1 to 5, indicating to which participant this entry belongs
+* Date - the date of the entry
+* Start Time (GMT+1) -  participant opened the phone
+* End Time (GMT+1) - participant closed the phone
+
+
+
+# %% [markdown]
+#### xiaomi-raw.csv
+
+This is raw sensor data, one entry per minute, from one Xiaomi band of one person.
+
+* time - timestamp of the entry
+* description - Run,Walk,Idle
+* steps - number of steps since previous entry
+* WalkDistance, RunDistance - distance (meters) covered when walking or running
+* WalkCalories, RunCalories - calories consumed when walking or running
+* RawActivity, RawSensorData - original accelerometer data from which the previous fields are derived
+* HeartRate - recorded number of heartbeats/minute
+
+
+
+# %% [markdown]
+Let us store the paths to these datasets in handy Python variables.
+
+# %% [python]
+file_bands = 'http://data.id.tue.nl/web/S2dhZWZhOWRuV3VzRloxeGE5UkhFYlJZY3FNUmllRlJIMTVrNlRXYThJYz0=/2bands.csv'
+file_steps = 'http://data.id.tue.nl/web/S2dhZWZhOWRuV3VzRloxeGE5UkhFYlJZY3FNUmllRlJIMTVrNlRXYThJYz0=/group-steps.csv'
+file_phoneusage = 'http://data.id.tue.nl/web/S2dhZWZhOWRuV3VzRloxeGE5UkhFYlJZY3FNUmllRlJIMTVrNlRXYThJYz0=/group-phoneusage.csv'
+file_raw = 'http://data.id.tue.nl/web/S2dhZWZhOWRuV3VzRloxeGE5UkhFYlJZY3FNUmllRlJIMTVrNlRXYThJYz0=/xiaomi-raw.csv'
+print("done")
+
+# %% [markdown]
+### Importing the libraries
+
+Let's first import the most useful Python libraries.
+`pandas` is built on top of `numpy`, a powerful library of math functions for arrays.
+
+# %% [python]
+import numpy as np
+import pyodide
+
+# make sure that the Pandas library is up-to-date
+
+import pandas as pd
+print(pd.__version__)
+
+from datetime import datetime
+
+# %% [markdown]
+
+## 1. Data sources, importing<a name="1"></a>
+[Go to the Table of Contents](#toc)
+
+### Data sources
+
+As the title suggests, in this course you will mainly work with _self-created sensor data_. Other interesting data sources, that may be used to possibly enrich your own data, are _public sources_
+like for instance [Open Data Eindhoven](https://data.eindhoven.nl/pages/home/)
+You might also consider using your own data that is stored by Google, Facebook, Twitter etc.
+[Google Takeout](https://takeout.google.com/settings/takeout) is the place to start if you want to download your own data, for instance timestamped _location_ data.
+
+### Data formats
+
+The **comma-separated values** (**CSV**) format is arguably the most widely used
+file format for storing data. A CSV file usually has:
+
+* one header line with column labels,
+* each row on a line of its own,
+* commas to separate the fields in each row
+    (in some cases, you may encounter semicolons or TABs as separators),
+* strings enclosed in double quotes
+    (in some case, strings are not enclosed), and
+* floating-point numbers using a decimal point (not a comma).
+
+This is not the only data format, however. You may encounter data in Excel format, XML, Json, Sql etc. Python can work with all of them!
+
+### `Pandas` dataframes
+
+In order to process the collected CSV data in Python, we need to import it in an appropriate Python data structure. This will be the `DataFrame` type provided by the `pandas` library. A dataframe is basically a table with rows and columns.
+
+**Example** We read the first example dataset into a dataframe, then we inspect the first rows.
+
+# %% [python]
+
+df_bands =pd.read_csv(pyodide.open_url(file_bands))
+df_bands.head()
+
+# %% [markdown]
+This doesn't look too good, we were expecting 5 columns in the dataframe, but 3 were created. Moreover, the data looks incorrectly parsed. That is because `;` is a different separator than the default CSV separator `,` (comma).
+The elegant and safe way to solve the problem is to specify the actual separator as a parameter, like this:
+
+# %% [python]
+df_bands = pd.read_csv(pyodide.open_url(file_bands), sep=';')
+df_bands.head()
+
+# %% [markdown]
+Better! As you can see above, a dataframe is basically a table with rows and columns. The columns have names (Part., Datum etc.) and the rows have indexes (0,1,2 etc.). You can create dataframes out of various input data formats such as CSV, JSON, Python dictionaries, or generate it randomly.
+We would like, however, custom names for the columns. They can be defined via the names parameter, and we then also need to skip the first row, which will otherwise be filled with the original column names.
+
+# %% [python]
+df_bands = pd.read_csv(pyodide.open_url(file_bands), sep=';', names = ['Participant','Date','Steps','UnixTime','Time'], skiprows=1)
+df_bands.head()
+
+# %% [markdown]
+You might want to consult the many more options and examples for `read_csv` here:
+
+* [The official Pandas read_csv documentation](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.read_csv.html)
+* [A clear detailed discussion of the read_csv options, with examples](https://honingds.com/blog/pandas-read_csv/)
+
+### Exercise Import more sensor data
+
+Using the file names and Python functions introduced above, read the group datasets (**group-steps.csv** and **group-phoneusage.csv**) into dataframes called `df_steps` and `df_phoneusage`.
+For reading comfort, rename the last three columns of the steps data to `StartTime`, `EndTime`, `StepsCount`, respectively. Also rename the last two columns of the phoneusage data to `StartTime`, `EndTime`.
+
+</div>
+# %% [python]
+#// BEGIN_TODO [DCA_1a] Import more sensor data (4 points)
+
+# %% [python]
+#// END_TODO [DCA_1a]
+df_steps.shape, df_phoneusage.shape
+
+# %% [python]
+df_phoneusage['Date'].unique()
+
+# %% [markdown]
+
+---
+
+
+
+# %% [markdown]
+## 2. Data inspection and cleaning
+
+### Basic inspection
+
+For a DataFrame object `df`, several functions are available for providing basic insights in how the data looks like.
+
+The function `info()` returns
+an overview of a data frame, including its `RangeIndex`, number of `non-null` elements per column, types of the values in each column, and memory usage.
+
+The function `head(n)` returns the first `n` rows of the data frame `df`,
+regardless of how the rows are indexed.
+The default value for `n` is 5.
+
+The following attributes provide more specific information.
+
+* `df.shape` : the number of rows and number of columns
+* `df.index` : the row index
+* `df.columns` : the column labels
+* `df.dtype` : the types of the values in each column
+
+
+
+# %% [python]
+df_bands.shape
+
+# %% [markdown]
+Let us show some more relevant information about `df_bands`. Note also the print function and some easy ways to format the output.
+
+# %% [python]
+print("(number of rows, number of columns)=",df_bands.shape, "and the column names are",', '.join(df_bands.columns))
+
+print("\n",df_bands.dtypes)
+
+print("There are {0} participants\nThe vaslue on the 3rd row in the Steps column is {1}\n".
+      format(df_bands['Participant'].nunique(),
+             df_bands.loc[3,'Steps'])
+     )
+
+# %% [markdown]
+### Summary statistics
+
+Summary statistics for **numeric columns** in a data frame `df`
+can be obtained by **`df.describe()`**.
+
+# %% [python]
+df_bands.describe()
+
+# %% [markdown]
+There are also functions to obtain separate statistics for `DataFrame df`:
+
+* `df.count()` : Return the **number** of values
+* `df.sum()` : Return the **sum** of the values
+* `df.mean()` : Return the **mean** of the values
+* `df.std()` : Return the **sample standard deviation** of the numeric values,
+  normalized by $N-1$, where $N$ is the number of values
+* `df.min()` : Return the **minimum** of the values
+* `df.max()` : Return the **maximum** of the values
+* `df.median()` : Return the **median** of the values
+* `df.quantile(q)` : Return the value at the given **percentile** `q`;
+  `q=0.5` is default, giving the **median**
+
+Notes:
+
+* **NaN/null values** are skipped by default.
+* If the data frame has more than one column with relevant data,
+  then a `Series` object is returned with the statistic for each column.
+
+
+
+# %% [python]
+print("There are {0} participants\nThe total number of steps recorded is {1}\n".
+      format(df_bands['Participant'].nunique(),
+             df_bands['Steps'].sum()),
+     )
+
+# %% [markdown]
+To sort a data frame `df` by the values in column `'c'` use **`df.sort_values(by='c')`**.
+Note that this does not modify the data frame,
+but rather returns a new data frame. You can use the argument **`inplace=True`** to prevent this behavior.
+
+A series is sorted by the same function,
+but it does not need the `by` argument.
+
+To sort in **descending order**, supply the argument **`ascending=False`**.
+
+# %% [python]
+df_raw = pd.read_csv(pyodide.open_url(file_raw))
+df_raw.sort_values(by='RunDistance', ascending=False, inplace=True)
+df_raw.head()
+
+# %% [markdown]
+As you can see, the index (left-most column) labels are sorted along as well.
+If you want to have a new index for the result, in sorted order,
+then you can use the function **`reset_index()`**.
+The old index is preserved as well in the column labeled `'index'`.
+
+**Example** Let's sort the raw sensor data by _time_,
+reset the index, and assign the result to variable `raw_data_sorted_by_time`:
+
+# %% [python]
+raw_data_sorted_by_time = df_raw.sort_values(by='time', ascending=False).reset_index()
+raw_data_sorted_by_time.head()
+
+# %% [python]
+df_phoneusage.info()
+
+# %% [markdown]
+
+### Exercise 2.a
+
+Inspect the dataframes `df_steps` and `df_phoneusage` using any of the methods above, and assign the right values to the following variables:
+
+* ```n_steps_records``` = number of rows in df_steps
+
+* ```n_phone_participants``` = number of participants in the phoneusage group study
+
+*```median_stepcount``` = the median number of steps in 10 minutes
+
+# %% [python]
+#// BEGIN_TODO [DCA_2a] Numbers (5 points)
+
+# %% [python]
+#// END_TODO [DCA_2a]
+n_steps_records, n_phone_participants, median_stepcount
+
+# %% [markdown]
+### Missing data
+Sensor data is not always complete, there will sometimes be missing or even incorrect values. When left unaddressed, this problem can seriously influence the results of the data analysis.
+Luckily, there is good support for solving this problem in `pandas`.
+Let's see how many missing values are there in `df_raw`, by using the **isnull()** function to identify the missing values, and **sum()** to count them per column.
+
+# %% [python]
+print(df_raw.isnull().sum())
+
+# %% [markdown]
+Let's solve the HeartRate column first. One option is to fill the missing/corrupted values with a default value. For instance 60 would be a good default in the heartrate case.
+
+# %% [python]
+df_raw['HeartRate'] = df_raw['HeartRate'].fillna(60)
+print("done")
+# %% [markdown]
+However, more than 95% of the total data entries miss the HeartRate field! In this case, a better option is to remove the column completely.
+
+# %% [python]
+df_raw.drop('HeartRate', axis = 1, inplace=True)
+print("done")
+# %% [markdown]
+To solve the other missing values, we isolate the entries with missing 'steps' values.
+
+# %% [python]
+df_raw[df_raw['steps'].isnull()]
+print("done")
+# %% [markdown]
+Apparently, the 14 bad values in the _steps_ column correspond to bad values in the other corrupted columns. So it makes sense to drop those data rows completely:
+
+# %% [python]
+df_raw.dropna(inplace=True)
+print("done")
+# %% [markdown]
+Let us count the missing values again, this time for all columns together:
+
+# %% [python]
+print(df_raw.isnull().sum().sum())
+
+# %% [markdown]
+Good cleaning :-)
+
+### Exercise 2.b Clean the group data
+
+Find out how many incomplete rows are there in the `df_steps` dataframe. Fill in the number in the variable `number_of_bad_entries`. If that number is lower than 5 percent of the total number of entries, remove them from the dataframe. Otherwise remove all columns containing missing values.
+
+# %% [python]
+#// BEGIN_TODO [DCA_2b] Clean the group data (5 points)
+
+# %% [python]
+#// END_TODO [DCA_2b]
+number_of_bad_entries
+
+# %% [markdown]
+## 3. Working with Time
+Most sensor data is timestamped and being able to work with that time information is quite important. Pandas offers good support for date and time data via the `Datetime` datatype, so it is convenient to immediately convert all time data to this dedicated type.
+
+In `df_raw`, for instance, there is a **time** column, with the generic "object" as data type (check that this is the case). To convert it, the Pandas function to use is `pd.to_datetime()`.
+
+# %% [python]
+# Convert the time column in df_raw to the Datetime data type, store the result in place
+df_raw['time'] = pd.to_datetime(df_raw['time'])
+
+# has the type indeed changed?
+print(df_raw.dtypes)
+
+# %% [markdown]
+From Datetime data, we can easily extract possibly interesting features like the day of the month and the weekday, via the `dt` accessor. On a side note: each Series object has three accessors - cat, str and dt - that support common operations with categorical data (cat), strings (str) and datetimelike properties (dt). The accessors are available or not, depending on the data types of the Series. `df_raw['time']` is now a Series of Datetime values, so `dt` will work.
+
+# %% [python]
+# loop through the _time_ column (for t in df_raw['time']),
+# get the day of the month and the weekday corresponding to each timestamp t.
+# Store the new features in new columns _day_ and _WeekDay_
+
+df_raw['day'] = df_raw['time'].dt.day
+df_raw['WeekDay'] = df_raw['time'].dt.weekday
+
+df_raw.head(2)
+
+# %% [markdown]
+#### More useful time functions
+Several more examples of possibly useful time functions:
+
+# %% [python]
+crttime = datetime.now()
+print("Current time is ", crttime)
+print("It is the {}th hour of the day".format(crttime.hour ))
+print("It is the {}th day of the week".format(crttime.weekday()) )
+
+# %% [markdown]
+**Example** By inspecting `df_steps` and `df_phoneusage`, we have seen that the timestamps in the first dataset are 10 minutes apart, while the timestamps in the second dataset are scattered, as they refer to the actual phone interaction. If we want to overlay the physical activity with the phone activity, we need a common time structure. An easy way to achieve this is to sum up both stepcounts and phoneusage _per hour of the day_. So let us start by adding an _Hour_ column in both dataframes.
+
+# %% [python]
+df_steps['StartTime'] = pd.to_datetime(df_steps['StartTime'])
+df_steps['Hour'] = df_steps['StartTime'].dt.hour
+df_steps.head(2)
+# %% [python]
+#
+df_phoneusage['StartTime'] = pd.to_datetime(df_phoneusage['StartTime'])
+df_phoneusage['Hour'] = df_phoneusage['StartTime'].dt.hour
+df_phoneusage.head(2)
+
+# %% [markdown]
+Great. Below, in Section 4, we will do the actual aggregation of all the steps and phoneusage per hour.
+
+For now, let us see how we could use time to classify entries in an slightly more elaborated way.
+
+**Example** In `df_bands`, let us add a column _DayPeriod_ that should classify the timestamps into 4 categories {morning, afternoon, evening, night}.
+
+# %% [python]
+df_bands['Time'] = pd.to_datetime(df_bands['Time'])
+print("done")
+
+# %% [python]
+# define a dictionary that maps the hours to a day period
+dayperiod_dict = {0:"night", 1:"night", 2:"night", 3:"night", 4:"night", 5:"night",
+      6: "morning", 7: "morning", 8: "morning", 9: "morning", 10: "morning", 11: "morning",
+     12: "afternoon", 13: "afternoon", 14: "afternoon", 15: "afternoon", 16: "afternoon", 17: "afternoon",
+     18: "evening", 19: "evening", 20: "evening", 21: "evening", 22: "evening", 23: "evening"}
+
+# loop through the Time Column, translate each value create a new column DayPeriod
+hours = df_bands['Time'].dt.hour
+print("done")
+
+# %% [python]
+df_bands['DayPeriod'] = hours.map(dayperiod_dict)
+print("done")
+
+# %% [python]
+# check what happened
+df_bands.head(3)
+
+# %% [markdown]
+### Exercise 3.a Day of the week
+In each of the dataframes `df_phoneusage` and `df_steps`, add a column _WeekDay_ to represent the day of the week in which the entry was created. The weekdays should be numbers, 0=Monday, 1=Tuesday etc.
+
+Hint: check the [Datetimelike](https://pandas.pydata.org/pandas-docs/stable/reference/series.html#api-series-dt) properties.
+
+# %% [python]
+#// BEGIN_TODO [DCA_3a] Day of the week (10 points)
+
+# %% [python]
+#// END_TODO [DCA_3a]
+len(df_phoneusage['WeekDay']), len(df_steps['WeekDay'])
+
+# %% [python]
+print(df_phoneusage[df_phoneusage['WeekDay']==6].count())
+
+# %% [markdown]
+## 4. Data Transformation and Aggregation
+### Derived columns
+
+Sometimes, the exact data needed is not present in the dataset and it needs to be computed as a derived feature/column.  The _Hour_ , _DayPeriod_ and _WeekDay_ columns in the previous section are examples of such derived columns. See one more example below.
+
+**Example** The _Steps_ field in `df_bands` records the total number of steps for the current day, until the current moment. It might be useful to also have the number of steps in the last 10 minutes, that is from the previous entry until the current one. Let's add a computed column _StepsInLast10min_.
+
+# %% [python]
+df_bands['StepsInLast10min'] = 0
+
+for i in range(1, len(df_bands)):
+    # if same participant and same date as previous entry, then compute the difference
+    if ((df_bands.loc[i, 'Participant'] == df_bands.loc[i-1, 'Participant'])
+    and (df_bands.loc[i, 'Date'] == df_bands.loc[i-1,'Date'])):
+        df_bands.loc[i, 'StepsInLast10min'] = df_bands.loc[i, 'Steps'] - df_bands.loc[i-1, 'Steps']
+    # else, leave it at 0
+
+df_bands.head()
+
+# %% [markdown]
+### Exercise 4.a On the phone
+
+Add in `df_phoneusage` a new column **Duration**, containing the length (in seconds) of every phone interaction.
+
+Hint: transform the time columns to the correct type first.
+
+# %% [python]
+#// BEGIN_TODO [DCA_4a] On the phone (10 points)
+#// END_TODO [DCA_4a]
+len(df_phoneusage['Duration'])
+
+# %% [markdown]
+### Basic aggregations
+There are many ways to summarize a set of data values in a meaningful way: average (mean), sum, minimum etc. The Pandas library provides ready to use functions for all of them. See below some examples.
+
+# %% [python]
+# some aggregations
+print("Total number of steps recorded: ", df_steps['StepsCount'].sum())
+print("Most steps in 10 minutes: ", df_steps['StepsCount'].max())
+print("Average steps in 10 minutes: ", df_steps['StepsCount'].mean())
+
+# %% [markdown]
+### Filtering
+Sometimes we might want to focus the analysis on a selection of the data, and ignore the rest. Think of focusing on one participant in the study, or one particular setting, like the mornings.
+
+The most elegant way to achieve this is by defining **boolean masks**, which are dataframes with True/False values,
+indicating which items to select from a dataframe containing actual data.
+
+**Example** Suppose we continue looking at `df_steps` and wish to isolate the entries hinting to sportive activity of Participant 2. We might define "sportive activity" as anything with stepcount higher than 1000 (corresponding to 100 steps/minute).
+# %% [python]
+# define a boolean mask for the condition "Participant 2"
+part2 = df_steps['Participant'] == 2
+# define a boolean mask for the condition "more than 1000 steps"
+sport = df_steps['StepsCount'] > 1000
+
+# selecting the entries that satisfy both conditions
+selection = df_steps[part2 & sport]
+selection.head()
+
+# %% [markdown]
+Boolean masks are simple predicates like `part2` above, or formulas constructed from simple predicates and boolean operators `&`,`|`,`~` (and, or, negation, respectively), like `part2 & sport` or `~ ( ~part2 | ~sport )` 😉
+
+# %% [markdown]
+### Exercise 4.b Only the weekends
+
+Define a boolean mask `weekend`, describing the phoneusage entries recorded on Saturdays and Sundays, then use it to separate the data from `df_phoneusage` in Monday-to Friday data and weekend data. Store the results in two new dataframes `df_phoneusage_week` and `df_phoneusage_weekend`.
+
+# %% [python]
+#// BEGIN_TODO [DCA_4b] Only the weekends (5 points)
+#// END_TODO [DCA_4b]
+df_phoneusage_week.shape, df_phoneusage_weekend.shape
+
+# %% [python]
+type(df_phoneusage_week)==pd.DataFrame
+
+# %% [markdown]
+### Grouping
+To get overviews of data from different perspectives, it can be very useful to group it in categories. That way one can easily compare, for instance, the average daily stepcount of people, or see in one glance the phoneusage per day.
+
+The easiest way to achieve this is by using the **groupby** command.
+
+Let us group the data in `df_steps` by participant and check the same aggregations as above, but now refined per participant.
+
+# %% [python]
+# make the grouped dataframe
+grouped = df_steps.groupby(['Participant'])
+
+# some aggregations
+print("\nTotal number of steps per participant\n", grouped['StepsCount'].sum())
+print("\nMost steps in 10 minutes\n", grouped['StepsCount'].max())
+print("\nAverage steps in 10 minutes\n", grouped['StepsCount'].mean())
+
+# %% [markdown]
+Groups can also be made on several levels at once, for instance let us aggregate the phoneusage by participant, date and hour.
+
+# %% [python]
+grouped = df_phoneusage.groupby(['Participant', 'Date','Hour'])
+df_phoneusage_agg = grouped['Duration'].sum().reset_index()
+df_phoneusage_agg.head()
+
+# %% [python]
+grouped = df_steps.groupby(['Participant', 'Date','Hour'])
+df_steps_agg = grouped['StepsCount'].sum().reset_index()
+df_steps_agg.head()
+
+# %% [markdown]
+Note the use of **reset_index()** in order to get a flat dataframe as a result. Try it without reset_index() to see the difference.
+
+# %% [markdown]
+### Exercise 4.c Average daily activity
+
+Find out, by making use of groupby, what is the average (that is, mean) daily stepcount per participant. In other words, per participant: how many steps/day, on average?
+The result should be a dataframe named `df_ada` with two columns, called _Participant_ and _AvgDailyStepsCount_.
+
+# %% [python]
+#// BEGIN_TODO [DCA_4c] Average daily activity (10 points)
+
+# %% [python]
+#// END_TODO [DCA_4c]
+df_ada.shape
+
+# %% [markdown]
+## 5. Combining datasets
+
+Combining information from various data sources is a common and useful operation.
+
+### Joining along rows
+You may want to gather similarly structured data in one large dataset, for instance when your app exports one file per day, with exactly the same data but (probably!) different values. An easy way to join such files into one large one, is by using the pandas function **concat()**. See the simple example below.
+
+# %% [python]
+# heartrate on Monday
+df_monday = pd.DataFrame([['8:00:00', 60],['13:00:00',90],['20:00:00',80]], columns = ['time', 'heartrate'])
+df_monday.head()
+
+# %% [python]
+# heartrate on Tuesday
+df_tuesday = pd.DataFrame([['8:00:00', 50],['13:00:00',90],['20:00:00',70]], columns = ['time', 'heartrate'])
+df_tuesday.head()
+
+# %% [python]
+# heartrate on Monday and Tuesday
+df_mo_tue = pd.concat([df_monday, df_tuesday]).reset_index()
+df_mo_tue.head()
+
+# %% [markdown]
+### Joining along columns
+
+Alternatively, you might consider joining different types of information into one richer dataset. For example, by combining heartrate data with location data recorded by your phone, you might find answers to questions like "Am I more stressed at school than at home?".
+For this combination to be meaningful, a **key** is needed, that is one or more features that are found in both original datasets. Location, time, person ids are examples of features that usually work as keys.
+
+The recommended way to do perform this join is by using the pandas function **merge()**, which provides many options and is well documented.
+
+The following code will combine the stepcount and phoneusage data into one new dataset, which could be used to study the link between someone's physical activity and phone behavior, or just to keep all relevant data in one place.
+
+# %% [python]
+df_all = df_steps_agg.copy()
+df_all = pd.merge(df_all, df_phoneusage_agg,
+                  left_on=['Participant','Date','Hour'],
+                  right_on = ['Participant','Date','Hour'],
+                  how='inner')
+df_all.head()
+
+# %% [markdown]
+This is a rather compact dataset, still it is not straightforward to find any correlations just by looking at the numbers. Visualizations are more helpful, so we'll just save it to a file (see below) and look at it later (see Assignment 2).
+
+Check this page for a good overview of options to combine dataframes, with examples: [Join and merge](https://chrisalbon.com/python/data_wrangling/pandas_join_merge_dataframe/)
+
+
+
+# %% [markdown]
+## 6. Your experience
+
+Please fill in this short questionnaire to help us improve this assignment for the next year. Your feedback will be anonymized and will not affect your grade in any way!
+
+#### How many hours did you spend on these Exercises?
+
+Assign a number to `feedback_time`.
+# %% [python]
+#// BEGIN_TODO [Feedback_1] (0 point)
+#// END_TODO [Feedback_1] (0 point)
+import numbers
+assert isinstance(feedback_time, numbers.Number), "Please assign a number to feedback_time"
+feedback_time
+
+# %% [markdown]
+#### How difficult did you find these Exercises?
+
+Assign an integer to `feedback_difficulty`, on a scale 1 - 10, with 1 being very easy.
+
+# %% [python]
+#// BEGIN_TODO [Feedback_2] (0 point)
+#// END_TODO [Feedback_2] (0 point)
+assert isinstance(feedback_difficulty, numbers.Number), "Please assign a number to feedback_difficulty"
+feedback_difficulty
+
+# %% [markdown]
+#### (Optional) What did you like?
+
+Assign a string to `feedback_like`.
+
+# %% [python]
+#// BEGIN_TODO [Feedback_3] (0 point)
+#// END_TODO [Feedback_3] (0 point)
+
+# %% [markdown]
+#### (Optional) What can be improved?
+
+Assign a string to `feedback_improve`.
+
+# %% [python]
+#// BEGIN_TODO [Feedback_4] (0 point)
+#// END_TODO [Feedback_4] (0 point)
+
+# %% [markdown]
+
+
+
+## How to submit your work
+
+1. **Before submitting**, you must run your notebook by doing **Kernel > Restart & Run All**.
+   Make sure that your notebook runs without errors **in linear order**.
+
+2. Remember to rename the notebook, replacing `...-template.ipynb` with `...-yourIDnr.ipynb`, where `yourIDnr` is your TU/e identification number.
+
+3. Submit the executed notebook with your work
+   for the appropriate assignment in **Canvas**.
+
+* In the **Momotor** tab in Canvas,
+  you can select that assignment again to find some feedback on your submitted work.
+
+* If there are any problems reported by Momotor,
+  then you may fix those and **resubmit the fixed notebook**.  There are no restrictions enforced on the number of times you may submit, but try to keep it low, as you learn more by constructing the solution yourself rather than by trial and error with Momotor.
+
+In case of a high workload on our server
+(because many students submit close to the deadline),
+it may take longer to receive the feedback. Start early!
+
+---
+
+# (End of Notebook)
+
+&copy; 2025 - **TU/e** - Eindhoven University of Technology - **Industrial Design**

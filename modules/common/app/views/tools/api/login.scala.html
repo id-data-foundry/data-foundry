@@ -1,0 +1,41 @@
+@(token : String, email: String, service: String)
+@main("Login for API authentication") {
+
+<br><br>
+
+<h2 class="center-align">API authentication</h2>
+<h3 class="center-align">Login</h3>
+<br>
+<div class="row">
+  <div class="col s12 m6 offset-m3 l6 offset-l3" >
+    <form action="@api2.routes.AuthApiController.authenticateMe(service)" method="POST">
+
+      <p>
+        <b>By signing in you will get access to your personal API authentication token.</b>
+        Please note that an API authentication token will give the client access to your projects and datasets.
+      </p>
+
+      <input type="hidden" name="csrfToken" value="@token"/>
+      <div class="row">
+        <div class="input-field col s12">
+          <label for="username">Email</label>
+          <input value="@email" placeholder="Your email" id="username" name="username" type="email" autocomplete="username email" class="validate">
+        </div>
+      </div>
+      <div class="row">
+        <div class="input-field col s12">
+          <label for="password">Password</label>
+          <input placeholder="Your password" id="password" name="password" type="password" autocomplete="current-password" class="validate">
+        </div>
+      </div>
+      <div class="row">
+        <div class="col s12 center-align" >
+          <a id="cancelBtn" onclick="history.back();" class="btn-flat cancelBtn">Cancel</a>
+          <button id="submitBtn" class="btn" type="submit">Login</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+}

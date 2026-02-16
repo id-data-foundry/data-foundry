@@ -1,0 +1,103 @@
+@(request: Http.Request, message: Optional[String], error: Optional[String], tourContent: Optional[utils.components.TourManager.Tour])
+@if(!message.isEmpty() || !error.isEmpty() || !tourContent.isEmpty()) {
+window.addEventListener('DOMContentLoaded', () => {
+@*
+@if(request.session().get("feedback_link").isPresent()) {
+  $('body').append(`
+<div class="fixed-action-btn">
+  <a class="btn-floating btn-large green darken-2">
+    <i class="large material-icons">mode_edit</i>
+  </a>
+  <ul>
+    <li><a href="@request.session().get("feedback_link").get()" class="btn-floating green">@elements.icon("format_quote")give us feedback</a></li>
+  </ul>
+</div>
+`);
+}
+*@
+@if(message.isPresent() || error.isPresent()){
+    @if(message.isPresent()){
+     M.toast({html: '@Html(message.get())', classes: 'green darken-2'})
+    }
+    @if(error.isPresent()){
+     M.toast({html: '@Html(error.get())', classes: 'red darken-2'})
+    }
+}
+@if(tourContent.isPresent) {
+  // there is a tour for you!
+  @Html(tourContent.get().code)
+}
+})
+}
+(function() {
+  let overlay;
+  const checkLoginStatus = () => {
+    fetch('/loggedIn')
+      .then(response => {
+        if (response.status === 403) {
+          showLogoutOverlay(); // Show overlay if logged out
+        } else if (response.status === 200) {
+          hideLogoutOverlay(); // Hide overlay if logged in
+        }
+      })
+      .catch(error => {
+        console.error('Error checking login status:', error);
+      });
+  };
+  const showLogoutOverlay = () => {
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.innerHTML = `
+        <div style="
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background-color: rgba(0, 0, 0, 0.3);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 1000;
+        ">
+          <div style="text-align: center; color: black; background: white; padding: 2rem; border-radius: 1rem;">
+            <p>
+              <b>Oops, you are logged out.</b>
+              <br>
+              <span>
+                Click below to log in on a different tab, 
+                <br>
+                after which you can come back here.
+              </span>
+            </p>
+            <a href="/login" target="_blank" style="
+              padding: 10px 20px;
+              margin-top: 20px;
+              background-color: #4CAF50;
+              color: white;
+              text-decoration: none;
+              border-radius: 3px;
+              display: inline-block;
+            ">Login again</a>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(overlay);
+    }
+    overlay.style.display = 'flex'; // Show overlay
+  };
+
+  const hideLogoutOverlay = () => {
+    if (overlay) {
+      overlay.style.display = 'none'; // Hide overlay
+    }
+  };
+
+  // Check login status every 30 seconds and also when the tab/window becomes active
+  setInterval(checkLoginStatus, 30000);
+  window.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      checkLoginStatus();
+    }
+  });
+})();

@@ -1,0 +1,112 @@
+@(title: String, route: String = "")(content: Html)
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#81c784">
+        <title>Data Foundry Admin: @title</title>
+        <link rel="stylesheet" media="screen" href="@routes.Assets.versioned("stylesheets/main.css")">
+        <link rel="shortcut icon" type="image/png" href="@routes.Assets.versioned("images/favicon.png")">
+        <script src="@routes.Assets.versioned("javascripts/jquery.min.js")" type="text/javascript"></script>
+        <script src="@routes.Assets.versioned("javascripts/materialize.min.js")" type="text/javascript"></script>
+    </head>
+    <body>
+        <nav style="max-width: 50%;">
+            <div>
+                <a href="#" data-target="sidenav" class="sidenav-trigger" style="float: right;">@elements.icon("menu")</a>
+                <ul class="right hide-on-med-and-down" style="font-size: 0.8rem;">
+                    <li>
+                        <div id="df-activity"></div>
+                    </li>
+                </ul>
+            </div>
+        </nav>
+        <ul class="sidenav sidenav-fixed lighten-4" id="sidenav" hx-boost="true" hx-swap="transition:true">
+            <li style="background: white; border: 0;">
+                <div class="" style="height: 64px; line-height: 64px; margin-bottom: 0;">
+                    <a href="@routes.HomeController.index()" class="">
+                        <img src="@routes.Assets.versioned("images/logo.png")" style="height: 48px; margin: 8px 12px;" />
+                    </a>
+                </div>
+            </li>
+            <li @if(route.equals("overview")){class="active"}>
+                <a href="@routes.AdminController.index()" hx-boost="true">
+                    Data overview
+                </a>
+            </li>
+            <li @if(route.equals("users")){class="active"}>
+                <a href="@routes.AdminController.users()" hx-boost="true">
+                    Users
+                </a>
+            </li>
+            <li @if(route.equals("projects")){class="active"}>
+                <a href="@routes.AdminController.projects()" hx-boost="true">
+                    Projects
+                </a>
+            </li>
+            <li @if(route.equals("publicDatasets")){class="active"}>
+                <a href="@routes.AdminController.publicDatasets()" hx-boost="true">
+                    Public Datasets
+                </a>
+            </li>
+            <li @if(route.equals("publicWebsites")){class="active"}>
+                <a href="@routes.AdminController.publicWebsites()" hx-boost="true">
+                    Public Websites
+                </a>
+            </li>
+            <li @if(route.equals("chatbots")){class="active"}>
+                <a href="@routes.AdminController.chatbots()" hx-boost="true">
+                    Chatbots
+                </a>
+            </li>
+            <li @if(route.equals("api")){class="active"}>
+                <a href="@routes.AdminController.api()" hx-boost="true">
+                    API management
+                </a>
+            </li>
+            <li @if(route.equals("config")){class="active"}>
+                <a href="@routes.AdminController.configuration()" hx-boost="true">
+                    Configuration
+                </a>
+            </li>
+            <li @if(route.equals("database")){class="active"}>
+                <a href="@routes.AdminController.database()" hx-boost="true">
+                    Database management
+                </a>
+            </li>
+
+            <li @if(route.equals("user")){class="active"} style="position: absolute; bottom: 48px; width: 240px;">
+                <a href="@routes.UsersController.edit()">
+                    Profile
+                </a>
+            </li>
+
+            <li style="position: absolute; bottom: 0; width: 240px;">
+                <a href="@routes.HomeController.logout()">
+                    Logout
+                </a>
+            </li>
+        </ul>
+
+        <div class="container">
+            <!-- navigation -->
+            <nav class="">
+                <div class="row">
+                    <div class="col s12">
+                        <a id="homeBtn" href="@routes.AdminController.index()" class="breadcrumb">Administration</a>
+                        <a href="#" class="breadcrumb">@title</a>
+                    </div>
+                </div>
+            </nav>
+
+        @content
+        </div>
+        @elements.footer()
+    </body>
+    <script src="@routes.Assets.versioned("javascripts/common.min.js")" type="text/javascript"></script>
+    <script src="@routes.Assets.versioned("javascripts/htmx.min.js")" type="text/javascript"></script>
+    <link rel="stylesheet" media="screen" href="@routes.Assets.versioned("stylesheets/datatables.min.css")">
+    <script src="@routes.Assets.versioned("javascripts/jquery.csv.min.js")" type="text/javascript"></script>
+    <script src="@routes.Assets.versioned("javascripts/datatables.min.js")" type="text/javascript"></script>
+    <script src="@routes.HomeController.getFlashes()" type="text/javascript"></script>
+</html>

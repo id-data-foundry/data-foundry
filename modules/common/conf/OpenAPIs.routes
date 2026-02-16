@@ -1,0 +1,26 @@
+## OpenAPI/Swagger ROUTES ## 
+## basic path:/api/v2 ##
+
+## User ##
+-> /users                   User.Routes
+
+## Project ##
+-> /projects                Project.Routes
+
+## Dataset ##
+-> /datasets                Dataset.Routes
+
+## Cluster ##
+-> /clusters                Cluster.Routes
+
+## Participant ##
+-> /participants            Participant.Routes
+
+## Device ##
+-> /devices                 Device.Routes
+
+## Wearable ##
+-> /wearables               Wearable.Routes
+
+## Script ##
+-> /scripts                 Script.Routes

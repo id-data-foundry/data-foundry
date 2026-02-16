@@ -1,0 +1,113 @@
+@(user: Person, dataset: Dataset, conversationId: String, csrfToken: String)
+@main(dataset.getName(), "profile") {
+
+  <style>
+    #results h1, #results h2, #results h3, #results h4, #results h5 {
+      font-size: 1rem;
+      font-weight: 700;
+    }
+    #results p {
+      margin: 0;
+      padding: 0;
+    }
+    #results div > div {
+      display: flex;
+    }
+    #results div > div.user, #results div > div.assistant {
+      background: white;
+    }
+    #results div > div.user > span.role, #results div > div.assistant > span.role {
+      font-weight: 700;
+    }
+
+    #results span {
+      flex: 1;
+      font-style: italic;
+    }
+    #results div > pre {
+      flex: 6;
+      max-width: 84%;
+      margin: 0;
+      font-size: 0.75rem;
+    }
+    #results div > article {
+      flex: 6;
+      max-width: 84%;
+      overflow: scroll;
+    }
+  </style>
+
+  <!-- navigation -->
+  <nav class="">
+    <div class="row">
+      <div class="col s12">
+        <a id="homeBtn" href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+        <a href="@routes.ProjectsController.view(dataset.getProject().getId())" class="breadcrumb">@dataset.getProject().getName()</a>
+        <a href="#" class="breadcrumb">@dataset.getName()</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="row">
+    <div class="col s12 m6">
+      <h2>@dataset.getName()</h2>
+    </div>
+    <div class="col s12 m6" style="margin: 1.9466666667rem 0 1.168rem 0; text-align: right;">
+      <a href="@controllers.tools.routes.ChatbotController.view(dataset.getId())" class="btn">Edit Bot</a>
+      <a href="@controllers.tools.routes.ChatbotController.test(dataset.getId())" class="btn">Reset test</a>
+      <a href="@controllers.tools.routes.ChatbotController.chat(dataset.getId())" class="btn">Start Chat</a>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col s12" id="results"></div>
+    <div class="col s12">
+      <div class="progress htmx-indicator">
+        <div class="indeterminate"></div>
+      </div>
+    </div>
+  </div>
+
+  <form hx-post="@controllers.tools.routes.ChatbotController.testProcess(dataset.getId(), conversationId)"
+    hx-target="#results"
+    hx-swap="beforeend"
+    hx-indicator=".htmx-indicator"
+    hx-disabled-elt="button,a">
+    <input type="hidden" name="csrfToken" value="@csrfToken">
+    <div class="row">
+      <div class="col s12">
+        Please enter your user prompt to test: <br>
+        <textarea name="@Dataset.CHATBOT_USER_PROMPT" style="height: 4rem; background: white; padding: 0.5rem; font-family: monospace;">@dataset.configuration(Dataset.CHATBOT_USER_PROMPT, "")</textarea>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col s12">
+        <button type="submit" class="btn">Submit user prompt</button>
+      </div>
+    </div>
+  </form>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const textarea = document.querySelector('textarea[name="@Dataset.CHATBOT_USER_PROMPT"]');
+      const form = textarea ? textarea.closest('form') : null; // Get the parent form
+
+      if (textarea && form) {
+        // Existing keydown listener for Enter
+        textarea.addEventListener('keydown', function(event) {
+          if (event.key === 'Enter' && !event.shiftKey) {
+            event.preventDefault(); // Prevent new line
+            form.requestSubmit(); // Submit the form
+            // Textarea will be cleared by the htmx:afterRequest listener
+          }
+        });
+
+        // New listener for HTMX after request
+        form.addEventListener('htmx:afterRequest', function() {
+          textarea.value = ''; // Clear the textarea after any form submission via HTMX
+        });
+      }
+    });
+  </script>
+}

@@ -1,0 +1,379 @@
+@(projectName: String, datasetRecordUrl: String, deviceId: String)
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" type="text/css" href="@routes.Assets.versioned("stylesheets/picoCSS/pico.indigo.min.css")">
+  <script type="text/javascript" src="@routes.Assets.versioned("javascripts/p5.min.js")"></script>
+  <script type="text/javascript" src="@routes.Assets.versioned("javascripts/p5.sound.min.js")"></script>
+  <script type="text/javascript" src="@routes.Assets.versioned("javascripts/oocsi-web.js")"></script>
+  <style type="text/css">
+    body {
+        touch-action: none;
+        overflow: hidden;
+    }
+
+    * {
+      -webkit-user-select: none; 
+      -ms-user-select: none; 
+      user-select: none;
+    }
+
+    #header {
+      position: fixed;
+      width: 100%;
+      display: block;
+      padding: 0.1rem 0.5rem;
+      background: rgba(0, 0, 0, 0.5);
+      color: #fff9c1;
+      cursor: pointer;
+    }
+
+    #header span:hover {
+      position: relative; top: -2px;
+    }
+
+    #activity, #connection { opacity: 0; }
+    #header .grey { color: #777; }
+    #header .red { color: #f35588; }
+    #header .green { color: #78dec7; }
+    #header .purple { color: #c244fb; }
+    #header .blue { color: #84e9ff; }
+  </style>
+</head>
+<body>
+  <div id="header">
+    DED data logger (<span id="device"></span>) 
+    <span title="${outV}" class="blue">&uarr;&uarr;&uarr;&uarr;&uarr;</span>
+    <span id="activity">&starf;</span>
+  </div>
+  <div id="canvasContainer"></div>
+</body>
+<script type="text/javascript">
+
+  const PROJECT_NAME = '@projectName';
+  const DEVICE_ID = '@deviceId';
+
+  let deviceMotionSupported;
+
+  let volume = 0;
+  let vol;
+  let amp;
+  let mic;
+  let acceleration = 0;
+
+  let itemsize = 0;
+  let drag;
+  let button1 = 0;
+  let button2 = 0;
+  let slider1 = 0;
+  let soundAccel = 0;
+
+  function setup() {
+    let canvas = createCanvas(windowWidth, windowHeight);
+    canvas.parent('canvasContainer');
+
+    document.querySelector('#device').innerHTML = PROJECT_NAME  + ': ' + DEVICE_ID;
+
+    rectMode(CENTER)
+    ellipseMode(CENTER)
+
+    itemsize = min(width, height)/2 * 0.66
+
+    // start sensors
+    requestDeviceMotion();
+    requestMicrophoneAccess();
+  }
+
+  function draw() {
+    background(0)
+    strokeWeight(1)
+
+
+    // button 1
+    button1 = max(0, button1-1)
+    if(button1 > 0) {
+      fill(255, 255, map(button1, 60, 0, 0, 255), map(button1, 60, 0, 255, 55))
+    } else {
+      fill(55)
+    }
+    stroke(color('#78dec7'))
+    rect(width/4, height/4, itemsize, itemsize, 10)
+    noFill();
+    text("Button 1", width/4 - itemsize/2, height/4 - itemsize/2 - 5)
+
+    // if there is a microphone attached
+    if (amp) {
+      vol = amp.getLevel();
+      console.log("Volume:", vol);
+      volume += vol;
+    }
+
+    // map current volume to visual expressions
+    let soundSize = map(vol, 0, 1, 50, itemsize);
+    let soundAlpha = map(vol, 0, 1, 55, 20);
+
+    soundAccel = max(0, soundAccel-1)
+    if(soundAccel > 0) {
+      fill(255, 255, map(soundAccel, 60, 0, 0, 155))
+    } else {
+      fill(255, soundAlpha)
+    }
+    noStroke();
+    circle(3*width/4, height/4, soundSize, soundSize)
+    noFill();
+    stroke(color('#78dec7'));
+    circle(3*width/4, height/4, volume * itemsize/10, volume * itemsize/10)
+    text("Sound", 3*width/4 - itemsize/2, height/4 - itemsize/2 - 5)
+
+
+    // slider
+    slider1 = max(0, slider1-1)
+    fill(55)
+    stroke(color('#c244fb'))
+
+    if(!drag) {
+      line(width/10, height/2, width - width/10, height/2)
+      fill(map(slider1, 60, 0, 255, 55), map(slider1, 60, 0, 255, 55), map(slider1, 60, 0, 0, 55))
+      stroke(color('#c244fb'))
+      rect(width/2, height/2, width/10, height/8, 10)
+    } else {
+      strokeWeight(map(constrain(mouseX, width/10, width-width/10), width/10, width-width/10, 1, 20))
+      line(width/10, height/2, width - width/10, height/2)
+      fill(255, 255, 0)
+      noStroke()
+      rect(constrain(mouseX, width/10, width-width/10), height/2, width/10, height/8, 10)
+      strokeWeight(1)
+    }
+    noFill();
+    text("Slider", width/10, height/2 - 5)
+
+
+    // button 2
+    button2 = max(0, button2-1)
+    if(button2 > 0) {
+      fill(255, 255, map(button2, 60, 0, 0, 255), map(button2, 60, 0, 255, 55))
+    } else {
+      fill(55)
+    }
+    stroke(color('#84e9ff'))
+    rect(width/4, 3*height/4, itemsize, itemsize, 10)
+    noFill();
+    text("Button 2", width/4 - itemsize/2, 3*height/4 - itemsize/2 - 5)
+
+
+    // acceleration
+    if(!deviceMotionSupported) {
+      fill(255, 55, 55)
+      noStroke()
+      circle(3*width/4, 3*height/4, itemsize/10, itemsize/10)
+      noFill();
+      stroke(255, 55, 55);
+      text("Acceleration not supported", 3*width/4 - itemsize/2, 3*height/4 - itemsize/2 - 5)
+    } else {
+      if(soundAccel > 0) {
+        fill(155, 155, map(soundAccel, 60, 0, 0, 155))
+      } else {
+        fill(55)
+      }
+      noStroke()
+      circle(3*width/4, 3*height/4, itemsize, itemsize)
+
+      noFill();
+      stroke(color('#84e9ff'));
+      circle(3*width/4, 3*height/4, acceleration * itemsize/10, acceleration * itemsize/10)
+      text("Acceleration", 3*width/4 - itemsize/2, 3*height/4 - itemsize/2 - 5)
+    }
+  }
+
+  function touchStarted() {
+    if(slider1 > 0) { return; }
+
+    // check slider
+    if(mouseX > width/10 && mouseX < width-width/10 && mouseY > height/2 - height/16 && mouseY < height/2 + height/16) {
+      drag = createVector(mouseX, mouseY)
+      console.log(mouseX, mouseY)
+    } else {
+      drag = undefined;
+    }
+  }
+
+  function touchEnded() {
+    if(drag) {
+      sendData({
+        slider: round(map(pmouseX, width/10, width-width/10, 0, 100))
+      })
+
+      slider1 = 60;
+      // post data?
+      drag = undefined;
+    } else {
+      // could be a button press ?
+      // check button 1
+      if(button1 == 0 && mouseX > width/4-itemsize/2 && mouseX < width/4+itemsize/2 && mouseY > height/4 - itemsize/2 && mouseY < height/4 + itemsize/2) {
+        button1 = 60;
+        sendData({
+          button1: 1
+        })
+      }
+
+      // check button 2
+      if(button2 == 0 && mouseX > width/4-itemsize/2 && mouseX < width/4+itemsize/2 && mouseY > 3*height/4 - itemsize/2 && mouseY < 3*height/4 + itemsize/2) {
+        button2 = 60;
+        sendData({
+          button2: 1
+        })
+      }
+    }
+  }
+
+  function windowResized() {
+    resizeCanvas(windowWidth, windowHeight);
+    itemsize = min(width, height)/2 * 0.66;
+  }
+
+  function sendData(data) {
+    activity();
+    let jsonBody = {
+      activity: 'activity tracking',
+      source_id: DEVICE_ID,
+      data: JSON.stringify(data)
+    }
+    fetch(`@datasetRecordUrl`, {
+        method: 'POST',
+        mode: 'cors',
+        cache: 'no-cache',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        redirect: 'follow',
+        referrerPolicy: 'no-referrer',
+        body: JSON.stringify(jsonBody)
+    }).then(response => {
+      if(!response.ok) {
+        console.error("Problem sending data.")
+      }
+    });
+  }
+
+  function activity() {
+    document.querySelector('#activity').style.opacity = '1.0';
+    setTimeout(() => {
+      document.querySelector('#activity').style.opacity = '0';
+    }, 200)
+  }
+
+  function deviceMoved() {
+      acceleration += Math.cbrt(abs(accelerationX/10) * abs(accelerationY/10) * abs(accelerationZ/10))/10;
+  }
+
+  function requestDeviceMotion() {
+    if(deviceMotionSupported !== undefined) {
+      return deviceMotionSupported;
+    }
+    
+    if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+      // try a first attempt to request motion sensor access
+      DeviceMotionEvent.requestPermission()
+        .then(response => {
+            if (response === 'granted') {
+              // Permission granted, proceed with event listener
+              deviceMotionSupported = true;
+            }
+        })
+        .catch((e) => {
+          // otherwise, insert div with button to request the device motion
+          const newDiv = `
+            <div id="requestMotionElement" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.8); display: flex; justify-content: center; align-items: center; z-index: 1000;">
+              <button>Request device motion</button>
+            </div>
+          `;
+
+          // Insert the new div after the header
+          const header = document.querySelector('#header');
+          header.insertAdjacentHTML('afterend', newDiv);
+
+          // Add click event to the button to remove the new div
+          const button = document.querySelector('#requestMotionElement button');
+          button.onclick = function () {
+            DeviceMotionEvent.requestPermission()
+              .then(response => {
+                  if (response === 'granted') {
+                    // Permission granted, proceed with event listener
+                    deviceMotionSupported = true;
+                  }
+                  document.querySelector('#requestMotionElement').remove();
+              })
+              .catch((e) => {
+                deviceMotionSupported = false;
+                console.error(e);
+              });
+          };
+        });
+    } else {
+      deviceMotionSupported = false;
+      console.error('DeviceMotionEvent not supported');
+    }
+
+    return deviceMotionSupported;
+  }
+
+  function requestMicrophoneAccess() {
+    // Create and display a full-screen overlay with a button
+    const newDiv = `
+        <div id="requestMicrophoneElement" style="position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background-color: rgba(0, 0, 0, 0.8); display: flex; justify-content: center; align-items: center; z-index: 1000;">
+            <button id="startButton">Request Microphone Access</button>
+        </div>
+    `;
+
+    // insert the new div after the header
+    const header = document.querySelector('#header');
+    if (header) {
+        header.insertAdjacentHTML('afterend', newDiv);
+    } else {
+        document.body.insertAdjacentHTML('afterbegin', newDiv); // In case header doesn't exist
+    }
+
+    // add event listener to the button
+    document.getElementById('startButton').addEventListener('click', function () {
+        // check if the audio context is not running and resume it
+        if (getAudioContext().state !== 'running') {
+            getAudioContext().resume();
+        }
+
+        // create the microphone and amplitude objects
+        mic = new p5.AudioIn();
+        amp = new p5.Amplitude();
+
+        // start the microphone input
+        mic.start(
+            () => {
+                // console.log("Microphone started");
+                amp.setInput(mic);
+            },
+            (err) => {
+                console.error("Microphone error:", err);
+            }
+        );
+
+        // remove the overlay after access
+        document.querySelector('#requestMicrophoneElement').remove();
+    });
+  }
+
+  // start sound and acceleration measurement interval
+  setInterval(() => {
+    sendData({
+      acceleration: acceleration,
+      sound: volume
+    })
+
+    // reset
+    soundAccel = 60;
+    volume = 0;
+    acceleration = 0;
+  }, 10 * 1000)
+
+</script>
+</html>

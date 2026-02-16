@@ -1,0 +1,48 @@
+@(chatbots: List[Dataset], csrfToken: String)
+@administrator("Chatbots", "chatbots") {
+
+<div class="row">
+	<div class="col s12">
+		<h4>Chatbots</h4>
+	</div>
+</div>
+
+<div class="row">
+	<div class="col s12">
+		<table class="highlight">
+			<thead>
+				<tr>
+					<td>ID</td>
+					<td>Name</td>
+					<td>Project</td>
+					<td>Owner</td>
+					<td>Model</td>
+					<td>Visibility</td>
+				</tr>
+			</thead>
+
+		@for(bot <- chatbots) {
+			<tr>
+				<td><a href="@controllers.tools.routes.ChatbotController.view(bot.getId())">@bot.getId()</a></td>
+				<td>@bot.getName()</td>
+				<td><a href="@controllers.routes.ProjectsController.view(bot.getProject().getId())">@bot.getProject().getName()</a></td>
+				<td>@bot.getProject().getOwner().getName()</td>
+				<td><code>@bot.configuration(models.Dataset.CHATBOT_MODEL, "")</code></td>
+				<td>
+					@if(bot.configuration(models.Dataset.CHATBOT_PUBLIC, "") == "true") {
+						<a href="@controllers.tools.routes.ChatbotController.chat(bot.getId())" target="_blank" 
+							class="btn-small blue" 
+							style="text-transform: none;">
+							Chat
+						</a>
+					} else {
+						<span class="new badge grey left" data-badge-caption="" 
+								style="border-radius: 10px; margin-left: 0;">Private</span>
+					}
+				</td>
+			</tr>
+		}
+		</table>
+	</div>
+</div>
+}

@@ -1,0 +1,195 @@
+@(ds: Dataset, token : String, projection : Array[String], devices : List[sr.Device])
+
+@mobile("IoT dataset mobile dashboard") {
+
+	<div class="nav" _="init call requestToday()">
+		👀
+		<a _="init add .active to me on click call showValues() remove .active from <a.active/> remove .hidden from <div.hidden/> add .active to me add .hidden to #devices" class="btn">values</a>
+		<a _="on click call showDevices() remove .active from <a.active/> remove .hidden from <div.hidden/> add .active to me add .hidden to #values" class="btn">devices</a>
+		⏳
+		<a _="init add .data to me on click call requestToday() remove .data from <a.data/> add .data to me" class="btn">1d</a>
+		<a _="on click call requestWeek() remove .data from <a.data/> add .data to me" class="btn">7d</a>
+		<a _="on click call requestMonth() remove .data from <a.data/> add .data to me" class="btn">30d</a>
+		<a _="on click call requestAll() remove .data from <a.data/> add .data to me" class="btn">all</a>
+	</div>
+	
+	<div _="init add .hidden to #devices">
+		<div id="devices">
+			@for(d <- devices){
+			<h3>@d.getName()</h3>
+			<div id="d@d.getId()" class="ct-chart ct-major-twelfth"></div>
+			}
+		</div>
+
+		<div id="values">
+			@for(p <- projection){
+			<h3>@p</h3>
+			<div id="p@p" class="ct-chart ct-major-twelfth"></div>
+			}
+		</div>
+	</div>
+
+	<script type="text/javascript">
+
+		function refresh(start, end) {
+			fetch('@routes.DatasetsController.downloadJsonPublic(token, -1L, -1L, -1L, -1L)' + (start && end ? '?start=' + start + '&end=' + end : ''))
+		    	.then(response => response.json())
+		    	.then(data => { process(data) } );
+		}
+
+	    function requestToday() {
+			var start = new Date();
+			start.setHours(0,0,0,0);
+
+			var end = new Date();
+			end.setHours(23,59,59,999);
+			options.axisX.divisor = 8;
+			options.axisX.labelInterpolationFnc = function(value) {
+		      let d = new Date(value);
+		      return d.getHours() + ":" + d.getMinutes();
+		    }
+			refresh(start.getTime(), end.getTime());
+	    }
+
+	    function requestWeek() {
+			var start = new Date();
+			start.setHours(0,0,0,0);
+
+			var end = new Date();
+			end.setHours(23,59,59,999);
+			options.axisX.divisor = 7;
+			options.axisX.labelInterpolationFnc = function(value) {
+		      let d = new Date(value);
+		      return days[d.getDay()] + " " + d.getHours() + ":00";
+		    }
+			refresh(start.getTime() - (7*24*3600*1000), end.getTime());
+	    }
+
+	    function requestMonth() {
+			var start = new Date();
+			start.setHours(0,0,0,0);
+
+			var end = new Date();
+			end.setHours(23,59,59,999);
+			options.axisX.divisor = 5;
+			options.axisX.labelInterpolationFnc = function(value) {
+		      let d = new Date(value);
+		      return months[d.getMonth()] + ' ' + d.getDate();
+		    }
+			refresh(start.getTime() - (30*24*3600*1000), end.getTime());
+	    }
+
+	    function requestAll() {
+			options.axisX.divisor = 5;
+			options.axisX.labelInterpolationFnc = function(value) {
+		      let d = new Date(value);
+		      return months[d.getMonth()] + ' ' + d.getDate();
+		    }
+		    refresh();
+	    }
+
+	    var showValueCharts = true;
+	    var data;
+	    function process(d) {
+	    	data = d;
+	    	if(showValueCharts) {
+	    		showValues()
+	    	} else {
+	    		showDevices()
+	    	}
+	    }
+
+
+	    function showValues() {
+	    	showValueCharts = true;
+
+			// build the values charts
+
+		    @for(p <- projection) {
+				{ //////////////////////////////////////////////////////////////////////
+
+		    	// value @p
+
+			    let device_series = [];
+				@for(d <- devices) {
+					
+					{ //////////////////////////////
+					
+					// device @d.getId()
+
+					let dp = {name: '@d.getName()', data: []};
+					device_series.push(dp);
+		    		data
+		    			.filter((d,i) => { return d.device_id == '@d.getId()'})
+		    			.forEach((d,i) => {
+							dp.data.unshift({
+								x: new Date(d.ts), y: d['@p']
+							})
+		    			})
+
+					} //////////////////////////////
+		    	}
+		   		new Chartist.Line('#p@p', {series: device_series}, options);
+
+		   		} //////////////////////////////////////////////////////////////////////
+		    }
+		}
+
+		function showDevices() {
+	    	showValueCharts = false;
+
+		    // build the device charts
+			@for(d <- devices) {
+		    
+				{ //////////////////////////////////////////////////////////////////////
+
+				// device @d.getId()
+
+			    let value_series = [];
+				@for(p <- projection) {
+					
+					{ //////////////////////////////
+					
+			    	// value @p
+
+					let dp = {name: '@p', data: []};
+					value_series.push(dp);
+		    		data
+		    			.filter((d,i) => { return d.device_id == '@d.getId()'})
+		    			.forEach((d,i) => {
+							dp.data.unshift({
+								x: new Date(d.ts), y: d['@p']
+							})
+		    			})
+
+					} //////////////////////////////
+		    	}
+		   		new Chartist.Line('#d@d.getId()', {series: value_series}, options);
+
+		   		} //////////////////////////////////////////////////////////////////////
+		    }
+	    }
+
+		let months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+		let days = ["Sun", "Mon", "Tue", "Wed", "Fri", "Sat"];
+		let options = {
+		  // Don't draw the line chart points
+  		  showPoint: false,
+  		  // Disable line smoothing
+  		  lineSmooth: false,
+		  plugins: [
+			    Chartist.plugins.legend({})
+		  ],
+		  axisX: {
+		    type: Chartist.FixedScaleAxis,
+		    divisor: 5,
+		    labelInterpolationFnc: function(value) {
+		      let d = new Date(value);
+		      return months[d.getMonth()] + ' ' + d.getDate();
+		    }
+		  }
+		};
+
+	</script>
+
+}

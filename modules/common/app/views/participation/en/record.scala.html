@@ -1,0 +1,51 @@
+@(token: String, token_invite: String, ds : Dataset)
+
+@participating("Add diary entry", token_invite) {
+
+    <br><br>
+    
+    <div class="row">
+      <div class="input-field col s12 l8 offset-l2">
+        <h3>Add new diary entry</h3>
+      </div>
+    </div>
+    
+    <div class="row">
+      <form class="col s12 l8 offset-l2" action="@routes.ParticipationController.recordDiary(ds.getId(),token_invite)" method="POST">
+        <input name="test_form" value="true" type="hidden">
+        <div class="row">
+          <div class="input-field col s12">
+            <input id="title" name="title" type="text" class="">
+            <label for="title">Title</label>
+          </div>
+        </div>        
+        <div class="row">
+          <div class="input-field col s12">
+            <textarea placeholder="Entry text" id="text" name="text" type="text" class="materialize-textarea validate" required="" style="height: 10em;">@ds.getConfiguration().get("diary_template_text")</textarea>
+            <label for="text">Entry text</label>
+          </div>
+        </div>
+        <div class="row">
+          You can choose to enter a date and time for the entry, or leave it out for "right now":
+          <div class="input-field col s12 m6">
+            <input id="ts-date" name="ts-date" type="text" class="datepicker">
+            <label for="ts-date">Date</label>
+          </div>
+          <div class="input-field col s12 m6">
+            <input id="ts-time" name="ts-time" type="text" class="timepicker">
+            <label for="ts-time">Time</label>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col s12">
+            <div class="input-field">
+              <input name="csrfToken" value="@token" type="hidden">
+              <button class="btn" type="submit">Record entry</button>
+              <a href="@routes.ParticipationController.view("")" class="btn-flat grey-text">Cancel</a>
+            </div>
+          </div>
+        </div>
+      </form>
+      
+    </div>
+}

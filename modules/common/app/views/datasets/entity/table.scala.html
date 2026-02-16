@@ -1,0 +1,209 @@
+@(ds : Dataset)(implicit request: Http.Request)
+@main("Form to access items in Entity dataset", "profile") {
+		<link rel="stylesheet" media="screen" href="@routes.Assets.versioned("stylesheets/datatables.min.css")">
+		<script src="@routes.Assets.versioned("javascripts/datatables.min.js")" type="text/javascript"></script>
+		<script src="@routes.DatasetsController.jsRoutes()" type="text/javascript"></script>
+    <!-- navigation -->
+    <nav class="">
+      <div class="row">
+        <div class="col s12">
+          <a href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+          <a href="@routes.ProjectsController.view(ds.getProject().getId())" class="breadcrumb">@ds.getProject().getName()</a>
+          <a href="@routes.DatasetsController.view(ds.getId())" class="breadcrumb">@ds.getName()</a>
+          <a href="#" class="breadcrumb">Data table</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="row">
+      <div class="col s12">
+        <a href="@api.routes.EntityDSController.tableTree(ds.getId())" class="btn right white black-text" style="margin-top: 2rem;">
+        	Tree View 🌳
+        </a>
+        <h2>@ds.getName()</h2>
+      </div>
+    </div>
+
+		<div class="row">
+			<div class="col s12">
+				<table id="datatable"></table>
+			</div>
+			<div class="col s6">
+				<p>
+					<a id="deleteBtn" class="btn red disabled">Delete entry</a>
+					@if(ds.configuration("api_token", "").isEmpty()) {
+					<a class="btn" hx-get="@routes.DatasetsController.configureWithToken(ds.getId(), "api_token")" hx-swap="none" onclick="setTimeout(function(){location.reload();},800)">Enable direct editing</a>
+					}
+				</p>
+			</div>
+			<div class="col s6">
+				<p>
+					@if(!ds.configuration("api_token", "").isEmpty()) {
+					Double-click cells to edit their contents (from column 6 onwards).
+					}
+				</p>
+				<p>
+					Initialize the entity dataset with your project resources: add a row per <a href="@api.routes.EntityDSController.tableAddParticipants(ds.getId())">participant</a>, <a href="@api.routes.EntityDSController.tableAddWearables(ds.getId())">wearable</a>, or <a href="@api.routes.EntityDSController.tableAddDevices(ds.getId())">device</a>.
+				</p>
+			</div>
+		</div>
+
+    <script type="text/javascript">
+    	
+		$(document).ready(function() {
+			
+			var data = [];
+			var headers;
+			var selectedRow;
+			var table;
+			
+			downloadData();
+			
+			function initTable(input) {
+				
+			  table = $('#datatable').DataTable(input);
+
+				$('#datatable tbody').on('dblclick', 'td', function (e) {
+					if($(this).index() > 5) {
+						var newValue = window.prompt("Enter new value for this cell", $(this).text());
+						if(newValue !== null) {
+							var uuid = $("#datatable tbody tr:eq(" + $(this).parent().index() + ") td:eq(1)").text();
+							console.log("changing", uuid, $(this).text(), newValue);
+
+							var dataObject = {};
+							try {
+								dataObject[headers[$(this).index()]] = JSON.parse(newValue);
+							} catch {
+								dataObject[headers[$(this).index()]] = newValue;
+							}
+
+							var r = jsRoutes.controllers.api.EntityDSController.updateItem(@ds.getId());
+							$.ajax(
+								{
+									url: r.url, 
+									headers: {
+										'api_token': '@ds.getConfiguration().get("api_token")',
+										'resource_id': uuid,
+										'token': ''
+									},
+								contentType: "application/json",
+								type: r.type,
+								data: JSON.stringify(dataObject),
+								success: function(data) {
+									downloadData();
+									M.toast({html: 'Item edited.', classes: 'green darken-2'})
+							  },
+							  error: function() {
+									M.toast({html: 'Item edit errorr.', classes: 'red darken-2'})
+							  }
+							});
+
+						}
+					}
+					e.preventDefault();
+					return false;
+				});
+
+				table.on('select', function ( e, dt, type, indexes ) {
+					selectedRow = indexes;
+					$("#deleteBtn").removeClass("disabled");
+				});
+				table.on('deselect', function ( e, dt, type, indexes ) {
+					selectedRow = -1;
+					$("#deleteBtn").addClass("disabled");
+				});
+
+			}
+		
+			function downloadData() {
+				let r = jsRoutes.controllers.DatasetsController.downloadJson(@ds.getId());
+	          $.ajax({
+	        		url: r.url,
+	        		type: r.type,
+	        		success: function(json) {
+	        			if(json.length == 0) {
+	        				data = [];
+	        				return;
+	        			} else {
+		        			temp = json;
+		        			headers = ["id", "resource_id", "ts", "pp1", "pp2", "pp3"@for(s <- ds.configuration(Dataset.DATA_PROJECTION, "").split(",")) {, "@s"}];
+									data = [];
+									temp.forEach(function(d, i) {
+										data.push(headers.map(e => {
+											let item = d[e]
+											if(item !== undefined) {
+												return (item === Object(item)) ? JSON.stringify(item) : item
+											} else { 
+												return "" 
+											}
+										}))
+									});
+	        			}
+
+								// fill table with data
+								if(!! table) {
+									// reset table if it exists
+									table.clear();
+									table.rows.add(data).draw();
+								} else {
+									// prepare the data
+									let input = {
+										data: data,
+					        			columns: [],
+					        			select: {
+											style: 'single'
+										}
+							    };
+									headers.forEach(function(d,i) {
+										input.columns.push({"title": d});
+									});
+
+									initTable(input);
+		                		}
+			        		},
+            	error: function() {}
+	          });
+			}
+
+			$("#deleteBtn").click(function(e) {
+				var token = '@ds.getConfiguration().get("api_token")';
+
+				if(token.length == 0) {
+					alert('No access token set yet. Aborting.');
+					return;
+				}
+
+				if(selectedRow > -1) {
+					if(confirm('Are you sure you want to remove this entry? Click OK to remove, cancel to stop.')) {
+						var row = table.rows({selected: true});
+						var uuid = data[row[0]][1];
+						var r = jsRoutes.controllers.api.EntityDSController.deleteItem(@ds.getId());
+						$.ajax({
+								url: r.url, 
+								headers: {
+									'api_token': '@ds.getConfiguration().get("api_token")',
+									'resource_id': uuid,
+									'token': ''
+								},
+							contentType: "application/json",
+							type: r.type,
+							success: function(data) {
+						    downloadData();
+								M.toast({html: 'Item deleted.', classes: 'green darken-2'})
+						  },
+						  error: function() {
+						  	M.toast({html: 'Item delete error.', classes: 'red darken-2'})
+						  }
+						});
+
+						selectedRow = -1;
+						$("#deleteBtn").addClass("disabled");
+						e.preventDefault();
+						return false;
+					}
+				}
+			})
+		});
+
+	</script>
+}

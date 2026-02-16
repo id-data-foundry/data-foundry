@@ -1,0 +1,644 @@
+
+# administration ------------------------------------------------------------------------------------------------------
+
+GET 		/			   										controllers.HomeController.index(request: Request)
+GET			/login												controllers.HomeController.login(request: Request, username: String ?= "", redirectUrl: String ?= "")
+GET			/loggedIn											controllers.HomeController.amILoggedInRightNow(request: Request)
+GET			/logout												controllers.HomeController.logout(request: Request)
+GET			/auth/login											controllers.HomeController.ssoLogin()
+GET			/auth/login-oidc										controllers.HomeController.ssoLoginOIDC()
+GET         /auth/callback										@org.pac4j.play.CallbackController.callback(request: Request)
+POST        /auth/callback										@org.pac4j.play.CallbackController.callback(request: Request)
+GET         /auth/logout											@org.pac4j.play.LogoutController.logout(request: Request)
+GET         /auth/centralLogout									controllers.CentralLogoutController.logout(request: Request)
+GET			/ui/login											controllers.HomeController.uiLogin(request: Request)
+GET	 		/resetPW											controllers.HomeController.requestResetPW(request: Request, username: String ?= "")
+
+GET 		/dev/data											controllers.DBController.index(request: Request)
+POST		/dev/data											controllers.DBController.generateData(request: Request)
+
+GET 		/.well-known/security.txt							controllers.HomeController.securityTxt(request: Request)
+
+# users ---------------------------------------------------------------------------------------------------------------
+
+GET 		/users/profile										controllers.UsersController.edit(request: Request)
+POST	 	/users/profileMe										controllers.UsersController.editMe(request: Request)
+GET		 	/users/generateToken									controllers.UsersController.generateToken(request: Request, service: String ?= "")
+GET		 	/users/generateToken/:service						controllers.UsersController.generateToken(request: Request, service: String)
+GET			/users/register										controllers.UsersController.register(request: Request, token: String ?= "")
+GET			/users/register/*token								controllers.UsersController.register(request: Request, token: String)
+POST		/users/registerMe									controllers.UsersController.registerMe(request: Request)
+POST		/users/resetTG										controllers.UsersController.resetTelegramSession(request: Request)
+GET			/users/resetPW/*token								controllers.UsersController.resetPW(request: Request, token: String)
+POST		/users/resetPW/:username								controllers.UsersController.resetPWMe(request: Request, username: String)
+POST		/users/setState/										controllers.UsersController.setState(request: Request)
+#GET		 	/users/viewUpdates								controllers.UsersController.viewUpdates(request: Request, date: String ?= "")
+#GET		 	/users/viewUpdates/*date							controllers.UsersController.viewUpdates(request: Request, date: String)
+#GET		 	/users/viewPrevWeekUpdates/*date					controllers.UsersController.viewPrevWeekUpdates(request: Request, date: String)
+#GET		 	/users/viewPrevWeekUpdates/     					controllers.UsersController.viewPrevWeekUpdates(request: Request, date: String ?= "")
+#GET		 	/users/viewNextWeekUpdates/*date					controllers.UsersController.viewNextWeekUpdates(request: Request, date: String)
+#GET		 	/users/viewNextWeekUpdates/     					controllers.UsersController.viewNextWeekUpdates(request: Request, date: String ?= "")
+GET			/users/search										controllers.UsersController.search(request: Request, query: String ?= "")
+GET			/users/invite										controllers.UsersController.invite(request: Request)
+GET			/users/bulkTeams										controllers.UsersController.bulkTeams(request: Request)
+POST		/users/bulkTeams										controllers.UsersController.bulkTeamsMe(request: Request)
+GET	 		/users/:id											controllers.UsersController.view(request: Request, id: Long)
+
+GET			/qr/:key/*url										controllers.HomeController.qrCode(request: Request, key: String, url: String)
+
+# admin ----------------------------------------------------------------------------------------------------------
+
+GET			/admin												controllers.AdminController.index(request: Request)
+GET			/admin/users											controllers.AdminController.users(request: Request)
+GET			/admin/projects										controllers.AdminController.projects(request: Request)
+GET			/admin/api											controllers.AdminController.api(request: Request)
+GET			/admin/database										controllers.AdminController.database(request: Request)
+GET			/admin/configuration									controllers.AdminController.configuration(request: Request)
+GET			/admin/publicDatasets									controllers.AdminController.publicDatasets(request: Request, type: String ?= "", page: Int ?= 0)
+GET			/admin/publicWebsites									controllers.AdminController.publicWebsites(request: Request, page: Int ?= 0)
+GET			/admin/chatbots											controllers.AdminController.chatbots(request: Request)
+
+POST		/admin/users/role									controllers.AdminController.userRole(request: Request)
+POST 		/admin/resetPW										controllers.AdminController.resetPasswordTokenLink(request: Request)
+GET 		/admin/projects/stats								controllers.AdminController.allStats(request: Request)
+POST 		/admin/projects/stats								controllers.AdminController.generateStats(request: Request)
+GET 		/admin/backupDB										controllers.AdminController.backupDB(request: Request)
+POST		/admin/searchEntity									controllers.AdminController.searchEntity(request: Request)
+GET			/admin/actionableProjects							controllers.AdminController.actionableProjects(request: Request, filter: String ?= "")
+POST		/admin/actionableProjects/full						controllers.AdminController.runFullRetentionChecks(request: Request)
+GET			/admin/actionableProjects/:id						controllers.AdminController.actionableProject(request: Request, id: Long)
+POST		/admin/actionableProjects/:id/deidentify				controllers.AdminController.deidentifyProject(request: Request, id: Long)
+POST		/admin/actionableProjects/:id/archive				controllers.AdminController.archiveProject(request: Request, id: Long)
+POST		/admin/actionableProjects/:id/freeze					controllers.AdminController.freezeProject(request: Request, id: Long)
+
+# navigation ----------------------------------------------------------------------------------------------------------
+
+GET 		/tour/stop											controllers.HomeController.stopTour(request: Request)
+GET 		/tour/:tourName										controllers.HomeController.startTour(request: Request, tourName: String)
+
+GET			/docs												controllers.HomeController.documentation()
+GET			/tools												controllers.HomeController.tools()
+GET			/support											controllers.HomeController.support(request: Request)
+
+
+# projects ------------------------------------------------------------------------------------------------------------
+
+GET			/projects											controllers.ProjectsController.index(request: Request)
+GET			/projects/add										controllers.ProjectsController.add(request: Request, template: String ?= "")
+POST		/projects/addMe										controllers.ProjectsController.addMe(request: Request)
+GET			/projects/search										controllers.ProjectsController.search(request: Request, query: String ?= "", filter: String ?= "")
+GET			/projects/search/:query								controllers.ProjectsController.search(request: Request, query: String, filter: String ?= "")
+GET			/projects/latest										controllers.ProjectsController.latestProject(request: Request)
+
+GET 		/projects/:id										controllers.ProjectsController.view(request: Request, id: Long)
+GET 		/projects/:id/views/resources						controllers.ProjectsController.viewResources(request: Request, id: Long)
+GET 		/projects/:id/views/studymanagement					controllers.ProjectsController.viewStudyManagement(request: Request, id: Long)
+GET 		/projects/:id/views/timeline							controllers.ProjectsController.viewTimeline(request: Request, id: Long)
+GET 		/projects/:id/views/narrativesurvey					controllers.ProjectsController.viewNarrativeSurvey(request: Request, id: Long)
+GET			/projects/:id/edit									controllers.ProjectsController.edit(request: Request, id: Long)
+POST		/projects/:id/editMe									controllers.ProjectsController.editMe(request: Request, id: Long)
+GET         /projects/:id/addDataset                            controllers.ProjectsController.addDataset(request: Request, id: Long)
+GET         /projects/:id/addScript                             controllers.ProjectsController.addScript(request: Request, id: Long)
+GET			/projects/:id/manageResources						controllers.ProjectsController.manageResources(request: Request, id: Long)
+GET			/projects/:id/archive								controllers.ProjectsController.archive(request: Request, id: Long)
+GET			/projects/:id/reopen									controllers.ProjectsController.reopen(request: Request, id: Long)
+POST		/projects/:id/extend									controllers.ProjectsController.extendProjectDuration(request: Request, id: Long)
+GET         /projects/:id/publish          						controllers.ProjectsController.publish(request: Request, id: Long)
+POST        /projects/:id/publish          						controllers.ProjectsController.publishProject(request: Request, id: Long)
+GET			/projects/:id/publish/status/*token					controllers.ProjectsController.publishStatus(token: String, id: Long)
+GET 		/projects/:id/requestReview							controllers.ProjectsController.requestReview(request: Request, id: Long)
+GET			/projects/:id/addCollaborator						controllers.ProjectsController.addCollaborator(request: Request, id: Long, email: String ?= "")
+GET			/projects/:id/removeCollaborator/:colId				controllers.ProjectsController.removeCollaborator(request: Request, id: Long, colId: Long)
+GET			/projects/:id/addCollaboration/*token				controllers.ProjectsController.addCollaboration(request: Request, id: Long, token: String)
+GET			/projects/:id/removeCollaboration					controllers.ProjectsController.removeCollaboration(request: Request, id: Long)
+GET			/projects/:id/addSubscription/*token					controllers.ProjectsController.addSubscription(request: Request, id: Long, token: String)
+GET			/projects/:id/removeSubscription/:subId				controllers.ProjectsController.removeSubscription(request: Request, id: Long, subId: Long)
+GET			/projects/:id/subscribe								controllers.ProjectsController.subscribe(request: Request, id: Long)
+GET			/projects/:id/unsubscribe							controllers.ProjectsController.unsubscribe(request: Request, id: Long)
+GET			/projects/:id/license								controllers.ProjectsController.license(request: Request, id: Long, redirectUrl: String ?= "")
+POST		/projects/:id/acceptLicense							controllers.ProjectsController.acceptLicense(request: Request, id: Long, redirectUrl: String ?= "")
+
+GET 		/projects/:id/labnotes								controllers.ProjectsController.labnotes(request: Request, id: Long)
+GET			/projects/:id/studyManagement						controllers.ProjectsController.studyManagement(request: Request, id: Long)
+GET			/projects/:id/openSignup/:open						controllers.ProjectsController.openSignup(request: Request, id: Long, open: Boolean)
+GET			/projects/:id/selectParticipantDashboard				controllers.ProjectsController.selectParticipantDashboard(request: Request, id: Long, ds_id: Long ?= -1L)
+GET			/projects/:id/selectParticipantPage					controllers.ProjectsController.selectParticipantStudy(request: Request, id: Long, ds_id: Long ?= -1L)
+POST 		/projects/:id/studyManagement/addFile				controllers.ProjectsController.studyManagementAddFile(request: Request, id: Long)
+GET 		/projects/:id/studyManagement/removeFile				controllers.ProjectsController.studyManagementRemoveFile(request: Request, id: Long, fileId: Long, filename: String)
+
+GET 		/projects/:id/timeseries								controllers.ProjectsController.timeseries(request: Request, id: Long)
+GET			/projects/:id/wearables								controllers.ProjectsController.wearable(request: Request, id: Long)
+GET			/projects/:id/datasets/latest						controllers.ProjectsController.latestDataset(request: Request, id: Long)
+
+GET 		/projects/:id/apis									controllers.ProjectsController.projectApiAccess(request: Request, id: Long)
+POST 		/projects/:id/apis/openAI							controllers.ProjectsController.activateOpenAIApiAccess(request: Request, id: Long)
+
+# datasets ------------------------------------------------------------------------------------------------------------
+
+GET 		/datasets/:id										controllers.DatasetsController.view(request: Request, id: Long)
+GET 		/datasets/											controllers.Default.redirect(to = "/projects")
+GET 		/datasets/edit/:id									controllers.DatasetsController.edit(request: Request, id: Long)
+GET 		/datasets/delete/:id									controllers.DatasetsController.delete(request: Request, id: Long)
+GET			/datasets/configure/:id/:key/						controllers.DatasetsController.configure(request: Request, id: Long, key: String, value: String ?= "")
+GET			/datasets/configure/:id/:key/:value					controllers.DatasetsController.configure(request: Request, id: Long, key: String, value: String)
+POST		/datasets/configurePost/:id/:key						controllers.DatasetsController.configurePost(request: Request, id: Long, key: String)
+GET 		/datasets/configureToken/:id/:key					controllers.DatasetsController.configureWithToken(request: Request, id: Long, key: String)
+GET 		/datasets/table/:id									controllers.DatasetsController.table(request: Request, id: Long)
+GET 		/datasets/timeseries/:id.csv							controllers.DatasetsController.timeseries(request: Request, id: Long)
+GET 		/datasets/reset/:id									controllers.DatasetsController.resetDataset(request: Request, id: Long)
+GET         /datasets/hasOOCSIChannel/:id/*targetChannel        controllers.DatasetsController.hasOOCSIChannel(id: Long, targetChannel: String, channelName: String ?= "")
+GET         /datasets/httpPostDiagnostics/:id			        controllers.DatasetsController.httpPostDiagnostics(request: Request, id: Long)
+GET         /datasets/OOCSIDiagnostics/:id				        controllers.DatasetsController.oocsiDiagnostics(request: Request, id: Long)
+
+GET 		/datasets/web/:id/entrypoint							controllers.DatasetsController.webEntryPointSelection(request: Request, id: Long)
+POST 		/datasets/web/:id/entrypoint							controllers.DatasetsController.webEntryPointSelection(request: Request, id: Long)
+
+GET 		/datasets/web/:id/*filepath							controllers.DatasetsController.web(request: Request, id: Long, filepath: String)
+GET 		/datasets/web/:id/									controllers.DatasetsController.web(request: Request, id: Long, filepath: String ?= "")
+GET 		/datasets/web/:id									controllers.DatasetsController.webRedirect(request: Request, id: Long)
+
+GET 		/web/*token/:filepath								controllers.DatasetsController.webToken(request: Request, token: String, filepath: String)
+GET 		/web/*token/											controllers.DatasetsController.webToken(request: Request, token: String, filepath: String ?= "")
+GET 		/web/*token											controllers.DatasetsController.webToken(request: Request, token: String, filepath: String ?= "")
+
+GET 		/datasets/download/									controllers.DatasetsController.allDownloads(request: Request)
+GET 		/datasets/download/json/:id							controllers.DatasetsController.downloadJson(request: Request, id: Long, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
+GET 		/datasets/download/json/:id/:cluster_id				controllers.DatasetsController.downloadJsonCluster(request: Request, id: Long, cluster_id: Long, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
+GET 		/datasets/download/json/:id/device/:device_id		controllers.DatasetsController.downloadJsonDevice(request: Request, id: Long, device_id: Long, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
+GET 		/datasets/downloadPublic/json/*token					controllers.DatasetsController.downloadJsonPublic(request: Request, token: String, cluster_id: Long ?= -1L, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
+GET 		/datasets/download/:id								controllers.DatasetsController.download(request: Request, id: Long, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
+GET 		/datasets/download/:id/:cluster_id					controllers.DatasetsController.downloadCluster(request: Request, id: Long, cluster_id: Long, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
+GET 		/datasets/downloadPublic/*token						controllers.DatasetsController.downloadPublic(request: Request, token: String, cluster_id: Long ?= -1L, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
+GET         /download/*token										controllers.DatasetsController.downloadTemporaryFile(request: Request, token: String)
+
+# reviews -------------------------------------------------------------------------------------------------------------
+
+GET			/review/						 					controllers.ReviewController.view(request: Request, invite_token: String ?= "")
+GET			/review/*invite_token		 						controllers.ReviewController.view(request: Request, invite_token: String)
+POST		/review/approve/*invite_token 						controllers.ReviewController.approve(request: Request, invite_token: String)
+POST		/review/feedback/*invite_token 						controllers.ReviewController.feedback(request: Request, invite_token: String)
+
+# components ----------------------------------------------------------------------------------------------------------
+
+GET 		/components/flash.js									controllers.HomeController.getFlashes(request: Request)
+GET 		/components/notification.js							controllers.HomeController.getExtFlashes(request: Request)
+GET			/components/events									controllers.HomeController.getDFVibe()
+GET			/components/jsroutes									controllers.DatasetsController.jsRoutes(request: Request)
+
+# ---------------------------------------------------------------------------------------------------------------------
+
+# RESOURCES
+
+# ---------------------------------------------------------------------------------------------------------------------
+
+# resource views
+GET			/resources/:id/devices								controllers.ResourcesController.devices(request: Request, id: Long)
+GET			/resources/:id/deviceDataVis							controllers.ResourcesController.deviceDataVis(request: Request, id: Long, dsId: Long, deviceId: Long)
+GET			/resources/:id/deviceData							controllers.ResourcesController.deviceData(request: Request, id: Long, dsId: Long, deviceId: Long)
+GET			/resources/:id/participants							controllers.ResourcesController.participants(request: Request, id: Long)
+GET			/resources/:id/participantDataVis					controllers.ResourcesController.participantDataVis(request: Request, id: Long, participantId: Long)
+GET			/resources/:id/participantData						controllers.ResourcesController.participantData(request: Request, id: Long, dsId: Long, participantId: Long)
+GET			/resources/:id/wearables								controllers.ResourcesController.wearables(request: Request, id: Long)
+
+
+# clusters
+GET			/clusters/view/:id									controllers.ClustersController.view(request: Request, id: Long)
+GET			/clusters/add/:id/:name								controllers.ClustersController.add(request: Request, id: Long, name: String)
+GET			/clusters/rename/:id/:name							controllers.ClustersController.rename(request: Request, id: Long, name: String)
+GET			/clusters/delete/:id									controllers.ClustersController.delete(request: Request, id: Long)
+GET			/clusters/addDevice/:id/:device						controllers.ClustersController.addDevice(request: Request, id: Long, device: Long)
+GET			/clusters/removeDevice/:id/:device					controllers.ClustersController.removeDevice(request: Request, id: Long, device: Long)
+GET			/clusters/addWearable/:id/:wearable					controllers.ClustersController.addWearable(request: Request, id: Long, wearable: Long)
+GET			/clusters/removeWearable/:id/:wearable				controllers.ClustersController.removeWearable(request: Request, id: Long, wearable: Long)
+GET			/clusters/addParticipant/:id/:participant			controllers.ClustersController.addParticipant(request: Request, id: Long, participant: Long)
+GET			/clusters/removeParticipant/:id/:participant			controllers.ClustersController.removeParticipant(request: Request, id: Long, participant: Long)
+GET 		/clusters/timeseries/:id								controllers.ClustersController.timeseries(request: Request, id: Long)
+GET 		/clusters/export/:id 								controllers.ClustersController.exportMetadata(request: Request, id: Long)
+
+# participants
+GET			/participants/view/:id 								controllers.ParticipantsController.view(request: Request, id : Long)
+GET			/participants/add/:id 								controllers.ParticipantsController.add(request: Request, id : Long)
+POST		/participants/addMe/:id 								controllers.ParticipantsController.addMe(request: Request, id : Long)
+GET			/participants/edit/:id								controllers.ParticipantsController.edit(request: Request, id : Long)
+POST		/participants/editMe/:id								controllers.ParticipantsController.editMe(request: Request, id : Long)
+GET			/participants/addInBulk/:id/:quantity				controllers.ParticipantsController.addInBulk(request: Request, id : Long, quantity : Int)
+POST		/participants/addMeInBulk/:id						controllers.ParticipantsController.addMeInBulk(request: Request, id : Long)
+GET			/participants/addInBulkSeparately/:id/  				controllers.ParticipantsController.addInBulkSeparately(request: Request, id : Long)
+POST		/participants/addMeInBulkSeparately/:id				controllers.ParticipantsController.addMeInBulkSeparately(request: Request, id : Long)
+GET			/participants/addByEmail/:id							controllers.ParticipantsController.addByEmail(request: Request, id : Long)
+POST		/participants/addMeByEmail/:id						controllers.ParticipantsController.addMeByEmail(request: Request, id : Long)
+GET			/participants/record/:id								controllers.ParticipantsController.recordForm(request: Request, id : Long)
+POST		/participants/record/:id								controllers.ParticipantsController.recordDiary(request: Request, id : Long, datasetId : Long)
+GET			/participants/sendLink/:id							controllers.ParticipantsController.sendLink(request: Request, id : Long)
+POST		/participants/sendTelegram/:id						controllers.ParticipantsController.sendTelegramMessage(request: Request, id : Long)
+GET			/participants/telegramImage/*id						controllers.ParticipantsController.getTelegramImage(id : String)
+
+# participants are not allowed to access other devices, they just sign up themselves
+GET			/participation/join/*invite_token	 				controllers.ParticipationController.recruit(request: Request, invite_token: String)
+GET			/participation/confirm/*invite_token 				controllers.ParticipationController.confirm(request: Request, invite_token: String)
+GET			/participation/signup/*invite_token					controllers.ParticipationController.edit(request: Request, invite_token: String)
+POST		/participation/signup/*invite_token					controllers.ParticipationController.signup(request: Request, invite_token: String)
+POST		/participation/signMeUp/*invite_token				controllers.ParticipationController.signMeUp(request: Request, invite_token: String)
+GET			/participation/decline/*invite_token 				controllers.ParticipationController.decline(request: Request, invite_token: String)
+GET			/participation/declinedStatus/*invite_token 			controllers.ParticipationController.declinedStatus(request: Request, invite_token: String)
+GET			/participation/anonymous/*invite_token	 			controllers.ParticipationController.recruitAnon(request: Request, invite_token: String)
+GET			/participation/record/:id/*token						controllers.ParticipationController.recordForm(request: Request, id: Long, token: String)
+POST		/participation/record/:id/							controllers.ParticipationController.recordDiary(request: Request, id: Long, token: String ?= "")
+POST		/participation/record/:id/*token						controllers.ParticipationController.recordDiary(request: Request, id: Long, token: String)
+POST		/participation/uploadFile/*token						controllers.ParticipationController.uploadFile(request: Request, id: Long, token: String)
+GET 		/participation/wearable/signup/:id 					controllers.ParticipationController.signupWearable(request: Request, id: Long)
+GET			/participation/language/:lang/*token					controllers.ParticipationController.switchLanguage(request: Request, token: String, lang: String)
+GET			/participation/						 				controllers.ParticipationController.view(request: Request, invite_token: String ?= "")
+GET			/participation/*invite_token		 					controllers.ParticipationController.view(request: Request, invite_token: String)
+
+# wearables
+GET			/wearables/:id/view									controllers.WearablesController.view(request: Request, id: Long)
+GET			/wearables/:id/delete								controllers.WearablesController.delete(request: Request, id: Long)
+GET 		/wearables/signup/fitbit 							controllers.FitbitWearablesController.finishWearableRegistration(request: Request, state: String ?= "0")
+GET 		/wearables/signup/googleFit							controllers.GoogleFitWearablesController.finishWearableRegistration(request: Request, state: String ?= "0")
+
+# FITBIT wearables
+GET			/wearables/fitbit/:id								controllers.FitbitWearablesController.view(request: Request, id: Long)
+GET			/wearables/fitbit/add/:id							controllers.FitbitWearablesController.add(request: Request, id: Long, participant_id: Long ?= -1L)
+GET			/wearables/fitbit/add/:id/:participant_id			controllers.FitbitWearablesController.add(request: Request, id: Long, participant_id: Long)
+POST		/wearables/fitbit/addMe/:id							controllers.FitbitWearablesController.addMe(request: Request, id: Long)
+GET			/wearables/fitbit/edit/:id							controllers.FitbitWearablesController.edit(request: Request, id: Long)
+POST		/wearables/fitbit/editMe/:id							controllers.FitbitWearablesController.editMe(request: Request, id: Long)
+GET			/wearables/fitbit/resetMe/:id 						controllers.FitbitWearablesController.resetMe(request: Request, id: Long)
+DELETE		/wearables/fitbit/delete/:id 						controllers.FitbitWearablesController.delete(request: Request, id: String)
+
+# GoogleFit wearables
+GET			/wearables/googleFit/:id								controllers.GoogleFitWearablesController.view(request: Request, id: Long)
+GET			/wearables/googleFit/add/:id							controllers.GoogleFitWearablesController.add(request: Request, id: Long, participant_id: Long ?= -1L)
+GET			/wearables/googleFit/add/:id/:participant_id			controllers.GoogleFitWearablesController.add(request: Request, id: Long, participant_id: Long)
+POST		/wearables/googleFit/addMe/:id						controllers.GoogleFitWearablesController.addMe(request: Request, id: Long)
+GET			/wearables/googleFit/edit/:id						controllers.GoogleFitWearablesController.edit(request: Request, id: Long)
+POST		/wearables/googleFit/editMe/:id						controllers.GoogleFitWearablesController.editMe(request: Request, id: Long)
+GET			/wearables/googleFit/resetMe/:id 					controllers.GoogleFitWearablesController.resetMe(request: Request, id: Long)
+DELETE		/wearables/googleFit/delete/:id 						controllers.GoogleFitWearablesController.delete(request: Request, id: String)
+
+# devices
+GET			/devices/view/:id 									controllers.DevicesController.view(request: Request, id: Long)
+GET			/devices/add/:id 									controllers.DevicesController.add(request: Request, id: Long, participant_id: Long ?= -1L)
+GET			/devices/add/:id/:participant_id						controllers.DevicesController.add(request: Request, id: Long, participant_id: Long)
+POST		/devices/addMe/:id 									controllers.DevicesController.addMe(request: Request, id: Long)
+GET			/devices/edit/:id									controllers.DevicesController.edit(request: Request, id: Long)
+POST		/devices/editMe/:id									controllers.DevicesController.editMe(request: Request, id: Long)
+DELETE		/devices/delete/:id									controllers.DevicesController.delete(request: Request, id: Long)
+
+# ---------------------------------------------------------------------------------------------------------------------
+
+# DATASETS
+
+# ---------------------------------------------------------------------------------------------------------------------
+
+# IoT/timeseries data
+GET			/datasets/ts/add/:id								controllers.api.TimeseriesDSController.add(request: Request, id: Long)
+POST		/datasets/ts/addMe/:id								controllers.api.TimeseriesDSController.addMe(request: Request, id: Long)
+POST		/datasets/ts/editMe/:id								controllers.api.TimeseriesDSController.editMe(request: Request, id: Long)
+GET			/datasets/ts/record/:id								controllers.api.TimeseriesDSController.recordForm(request: Request, id: Long)
+POST		/datasets/ts/record/:id/*dsApiToken					controllers.api.TimeseriesDSController.record(request: Request, id: Long, dsApiToken: String)
+POST		/datasets/ts/record/:id								controllers.api.TimeseriesDSController.record(request: Request, id: Long, dsApiToken: String ?= "")
+POST		/datasets/ts/log/:id								controllers.api.TimeseriesDSController.log(request: Request, id: Long, activity: String ?= "")
+POST		/datasets/ts/log/:id/								controllers.api.TimeseriesDSController.log(request: Request, id: Long, activity: String ?= "")
+POST		/datasets/ts/log/:id/:activity						controllers.api.TimeseriesDSController.log(request: Request, id: Long, activity: String)
+POST		/datasets/ts/logFile/:id								controllers.api.TimeseriesDSController.logFile(request: Request, id: Long)
+GET			/datasets/ts/tableTree/:id							controllers.api.TimeseriesDSController.tableTree(request: Request, id: Long)
+GET			/datasets/ts/:id/itemsNested						controllers.api.TimeseriesDSController.getItemsNested(request: Request, id: Long)
+GET			/datasets/ts/raw/:id.csv							controllers.api.TimeseriesDSController.downloadRaw(request: Request, id: Long, cluster_id: Long ?= -1L, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
+GET			/datasets/ts/rawPublic/*token						controllers.api.TimeseriesDSController.downloadRawPublic(request: Request, token: String)
+GET			/datasets/ts/:id/vis									controllers.api.TimeseriesDSController.datavis(request: Request, id: Long)
+
+# entity data
+GET			/datasets/entity/add/:id							controllers.api.EntityDSController.add(request: Request, id: Long)
+POST		/datasets/entity/addMe/:id							controllers.api.EntityDSController.addMe(request: Request, id: Long)
+POST		/datasets/entity/editMe/:id							controllers.api.EntityDSController.editMe(request: Request, id: Long)
+GET			/datasets/entity/table/:id							controllers.api.EntityDSController.table(request: Request, id: Long)
+GET			/datasets/entity/tableTree/:id						controllers.api.EntityDSController.tableTree(request: Request, id: Long)
+GET			/datasets/entity/table/addParticipants/:id			controllers.api.EntityDSController.tableAddParticipants(request: Request, id: Long)
+GET			/datasets/entity/table/addWearables/:id				controllers.api.EntityDSController.tableAddWearables(request: Request, id: Long)
+GET			/datasets/entity/table/addDevices/:id				controllers.api.EntityDSController.tableAddDevices(request: Request, id: Long)
+GET			/datasets/entity/record/:id							controllers.api.EntityDSController.recordForm(request: Request, id: Long)
+GET			/datasets/entity/:id/items							controllers.api.EntityDSController.getItems(id: Long)
+GET			/datasets/entity/:id/itemsNested					controllers.api.EntityDSController.getItemsNested(request: Request, id: Long)
+POST		/datasets/entity/:id/items							controllers.api.EntityDSController.getItemsMatching(request: Request, id: Long)
+POST		/datasets/entity/:id/item/							controllers.api.EntityDSController.addItem(request: Request, id: Long)
+GET			/datasets/entity/:id/item/							controllers.api.EntityDSController.getItem(request: Request, id: Long)
+PUT			/datasets/entity/:id/item/							controllers.api.EntityDSController.updateItem(request: Request, id: Long)
+DELETE		/datasets/entity/:id/item/							controllers.api.EntityDSController.deleteItem(request: Request, id: Long)
+GET			/datasets/entity/raw/:id.csv						controllers.api.EntityDSController.downloadRaw(request: Request, id: Long, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
+GET			/datasets/entity/rawPublic/*token					controllers.api.EntityDSController.downloadRawPublic(request: Request, token: String)
+
+# annotations data
+GET			/datasets/annotation/add/:id						controllers.api.AnnotationDSController.add(request: Request, id: Long)
+POST		/datasets/annotation/addMe/:id						controllers.api.AnnotationDSController.addMe(request: Request, id: Long)
+POST		/datasets/annotation/editMe/:id						controllers.api.AnnotationDSController.editMe(request: Request, id: Long)
+GET			/datasets/annotation/edit/:id						controllers.api.AnnotationDSController.edit(request: Request, id: Long)
+GET			/datasets/annotation/record/:id						controllers.api.AnnotationDSController.recordForm(request: Request, id: Long, cluster: String ?= "")
+GET			/datasets/annotation/record/:id/:cluster			controllers.api.AnnotationDSController.recordForm(request: Request, id: Long, cluster: String)
+POST		/datasets/annotation/record/:id						controllers.api.AnnotationDSController.record(request: Request, id: Long)
+POST		/datasets/annotation/recordForProject/:id			controllers.api.AnnotationDSController.recordForProject(request: Request, id: Long)
+
+# diary data
+GET			/datasets/diary/add/:id								controllers.api.DiaryDSController.add(request: Request, id: Long)
+POST		/datasets/diary/addMe/:id							controllers.api.DiaryDSController.addMe(request: Request, id: Long)
+POST		/datasets/diary/editMe/:id							controllers.api.DiaryDSController.editMe(request: Request, id: Long)
+
+# complete data "existing"
+GET			/datasets/existing/add/:id							controllers.api.CompleteDSController.add(request: Request, id: Long)
+POST		/datasets/existing/addMe/:id							controllers.api.CompleteDSController.addMe(request: Request, id: Long)
+POST		/datasets/existing/editMe/:id						controllers.api.CompleteDSController.editMe(request: Request, id: Long)
+POST		/datasets/existing/newFile/:id						controllers.api.CompleteDSController.newFile(request: Request, id: Long)
+POST		/datasets/existing/uploadFile/:id					controllers.api.CompleteDSController.uploadFile(request: Request, id: Long)
+GET			/datasets/existing/import/:id/:fileId/:filename		controllers.api.CompleteDSController.importFile(request: Request, id: Long, fileId: Long, filename: String)
+POST		/datasets/existing/importFile/:id/:fileId			controllers.api.CompleteDSController.importFileMe(request: Request, id: Long, fileId: Long)
+GET			/datasets/existing/importStatus/:uuid				controllers.api.CompleteDSController.importStatus(uuid: String)
+GET			/datasets/existing/delete/:id/:fileId				controllers.api.CompleteDSController.delete(request: Request, id: Long, fileId: Long)
+GET			/datasets/existing/download/:id/:fileId				controllers.api.CompleteDSController.downloadFile(request: Request, id: Long, fileId: Long)
+GET			/datasets/existing/downloadLatest/:id/:fileName		controllers.api.CompleteDSController.downloadLatestFile(request: Request, id: Long, fileName: String)
+GET			/datasets/existing/filePublic/:filename/*token		controllers.api.CompleteDSController.downloadFilePublic(filename: String, token: String)
+GET			/datasets/existing/edit/:id/:fileId					controllers.api.CompleteDSController.editFile(request: Request, id: Long, fileId: Long)
+POST		/datasets/existing/edit/:id/:fileId					controllers.api.CompleteDSController.saveFile(request: Request, id: Long, fileId: Long)
+
+# movement data
+GET			/datasets/movement/add/:id							controllers.api.MovementDSController.add(request: Request, id: Long)
+POST		/datasets/movement/addMe/:id						controllers.api.MovementDSController.addMe(request: Request, id: Long)
+POST		/datasets/movement/editMe/:id						controllers.api.MovementDSController.editMe(request: Request, id: Long)
+GET			/datasets/movement/downloadFile/:id/:fileId/:filename	controllers.api.MovementDSController.downloadFile(request: Request, id: Long, fileId: Long, filename: String)
+POST		/datasets/movement/uploadFile/:id					controllers.api.MovementDSController.uploadFile(request: Request, id: Long)
+
+# media data
+GET			/datasets/media/add/:id								controllers.api.MediaDSController.add(request: Request, id: Long)
+POST		/datasets/media/addMe/:id							controllers.api.MediaDSController.addMe(request: Request, id: Long)
+POST		/datasets/media/editMe/:id							controllers.api.MediaDSController.editMe(request: Request, id: Long)
+GET			/datasets/media/downloadFile/:id/:filename			controllers.api.MediaDSController.downloadFile(request: Request, id: Long, filename: String)
+GET			/datasets/media/image/:id/:scale/:filename			controllers.api.MediaDSController.scaledImage(request: Request, id: Long, filename: String, scale: String)
+GET			/datasets/media/image/:id/:filename					controllers.api.MediaDSController.image(request: Request, id: Long, filename: String)
+POST		/datasets/media/uploadFile/:id						controllers.api.MediaDSController.uploadFile(request: Request, id: Long)
+POST		/datasets/media/:id/file								controllers.api.MediaDSController.addItem(request: Request, id: Long)
+GET			/datasets/media/:id/testUpload						controllers.api.MediaDSController.test(request: Request, id: Long)
+
+# expsampling data
+GET			/datasets/es/add/:id								controllers.api.ExpSamplingDSController.add(request: Request, id: Long)
+POST		/datasets/es/addMe/:id								controllers.api.ExpSamplingDSController.addMe(request: Request, id: Long)
+POST		/datasets/es/editMe/:id								controllers.api.ExpSamplingDSController.editMe(request: Request, id: Long)
+GET			/datasets/es/downloadFile/:id/:filename				controllers.api.ExpSamplingDSController.downloadFile(request: Request, id: Long, filename: String)
+POST		/datasets/es/uploadFile/:id							controllers.api.ExpSamplingDSController.uploadFile(request: Request, id: Long)
+
+# linked data
+GET			/datasets/linked/add/:id							controllers.api.LinkedDSController.add(request: Request, id: Long)
+POST		/datasets/linked/addMe/:id							controllers.api.LinkedDSController.addMe(request: Request, id: Long)
+POST		/datasets/linked/editMe/:id							controllers.api.LinkedDSController.editMe(request: Request, id: Long)
+
+# form data
+GET			/datasets/form/add/:id								controllers.api.FormDSController.add(request: Request, id: Long)
+POST		/datasets/form/addMe/:id							controllers.api.FormDSController.addMe(request: Request, id: Long)
+POST		/datasets/form/editMe/:id							controllers.api.FormDSController.editMe(request: Request, id: Long)
+POST		/datasets/form/transform/:id						controllers.api.FormDSController.transform(request: Request, id: Long)
+GET			/datasets/form/visualize/:id						controllers.api.FormDSController.visualize(request: Request, id: Long)
+GET			/datasets/form/raw/:id.csv							controllers.api.FormDSController.downloadRaw(request: Request, id: Long, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
+GET			/datasets/form/record/:id/*token					controllers.api.FormDSController.recordForm(request: Request, id: Long, token: String)
+POST		/datasets/form/record/:id							controllers.api.FormDSController.record(request: Request, id: Long)
+
+# survey data
+GET			/datasets/survey/add/:id								controllers.api.SurveyDSController.add(request: Request, id: Long)
+POST		/datasets/survey/addMe/:id							controllers.api.SurveyDSController.addMe(request: Request, id: Long)
+POST		/datasets/survey/editMe/:id							controllers.api.SurveyDSController.editMe(request: Request, id: Long)
+GET			/datasets/survey/edit/:id								controllers.api.SurveyDSController.edit(request: Request, id: Long)
+POST		/datasets/survey/transform/:id						controllers.api.SurveyDSController.transform(request: Request, id: Long)
+GET			/datasets/survey/visualize/:id						controllers.api.SurveyDSController.visualize(request: Request, id: Long)
+GET			/datasets/survey/raw/:id.csv						controllers.api.SurveyDSController.downloadRaw(request: Request, id: Long, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
+GET			/datasets/survey/record/:id/*invite_token			controllers.api.SurveyDSController.recordForm(request: Request, id: Long, invite_token: String)
+POST		/datasets/survey/record/:id/*invite_token			controllers.api.SurveyDSController.record(request: Request, id: Long, invite_token: String)
+
+# fitbit data 
+GET			/datasets/fitbit/add/:id							controllers.api.FitbitDSController.add(request: Request, id: Long)
+POST		/datasets/fitbit/addMe/:id							controllers.api.FitbitDSController.addMe(request: Request, id: Long)
+POST		/datasets/fitbit/editMe/:id							controllers.api.FitbitDSController.editMe(request: Request, id: Long)
+GET 		/datasets/fitbit/heartrate/:id 						controllers.api.FitbitDSController.heartrate(request: Request, id: Long)
+
+# googlefit data 
+GET			/datasets/googlefit/add/:id							controllers.api.GoogleFitDSController.add(request: Request, id: Long)
+POST		/datasets/googlefit/addMe/:id						controllers.api.GoogleFitDSController.addMe(request: Request, id: Long)
+POST		/datasets/googlefit/editMe/:id						controllers.api.GoogleFitDSController.editMe(request: Request, id: Long)
+GET 		/datasets/googlefit/heartrate/:id 					controllers.api.GoogleFitDSController.heartrate(request: Request, id: Long)
+
+# ---------------------------------------------------------------------------------------------------------------------
+
+# TOOLS
+
+# ---------------------------------------------------------------------------------------------------------------------
+
+# tools: visualization and export 
+GET			/tools/export										controllers.tools.DataExportController.index(request: Request, id: Long ?= -1L)
+POST		/tools/export/data									controllers.tools.DataExportController.data(request: Request, limit: Long ?= 1000000, samplingFactor: Integer ?= 1, start: Long ?= -1L, end: Long ?= -1L, datasetId: Long ?= -1L)
+POST		/tools/export/save									controllers.tools.DataExportController.save(request: Request, name: String, samplingFactor: Integer ?= 1)
+GET			/tools/export/:id									controllers.tools.DataExportController.index(request: Request, id: Long)
+
+GET			/tools/rawgraphs										controllers.Assets.at(path="/public/lib/commons/vendor/rawgraphs", file="/index.html")
+
+# tools: actors 
+GET			/tools/scripts										controllers.tools.ActorController.index(request: Request)
+POST		/tools/scripts/add									controllers.tools.ActorController.add(request: Request, pid: Long ?= -1L)
+GET			/tools/scripts/:id									controllers.tools.ActorController.view(request: Request, id: Long)
+GET			/tools/scripts/:id/log								controllers.tools.ActorController.log(request: Request, id: Long)
+PUT			/tools/scripts/:id/execute							controllers.tools.ActorController.execute(request: Request, id: Long)
+PUT			/tools/scripts/:id/save								controllers.tools.ActorController.save(request: Request, id: Long)
+PUT			/tools/scripts/:id/install							controllers.tools.ActorController.install(request: Request, id: Long, channelName: String)
+GET			/tools/scripts/:id/files								controllers.tools.ActorController.fileList(request: Request, id: Long)
+GET			/tools/scripts/:id/file/:filename					controllers.tools.ActorController.file(request: Request, id: Long, filename: String)
+
+# tools: chatbots 
+GET			/tools/chatbots										controllers.tools.ChatbotController.index(request: Request)
+POST		/tools/chatbots										controllers.tools.ChatbotController.add(request: Request, id: Long)
+GET			/tools/chatbots/:id/test								controllers.tools.ChatbotController.test(request: Request, id: Long, conversationId: String ?= "")
+POST		/tools/chatbots/:id/test								controllers.tools.ChatbotController.testProcess(request: Request, id: Long, conversationId: String ?= "")
+GET			/tools/chatbots/:id/chat								controllers.tools.ChatbotController.chat(request: Request, id: Long, conversationId: String ?= "")
+POST		/tools/chatbots/:id/chat								controllers.tools.ChatbotController.chatProcess(request: Request, id: Long, conversationId: String ?= "")
++no-csrf
+POST		/api/v1/chatbots/:id/chat								controllers.tools.ChatbotController.chatApi(request: Request, id: Long)
+POST		/tools/chatbots/:id/save/:route						controllers.tools.ChatbotController.save(request: Request, id: Long, route: String)
+POST		/tools/chatbots/:id/file								controllers.tools.ChatbotController.uploadFile(request: Request, id: Long)
+DELETE		/tools/chatbots/:id/file								controllers.tools.ChatbotController.deleteFile(request: Request, id: Long, fileId: Long)
+GET			/tools/chatbots/:id									controllers.tools.ChatbotController.view(request: Request, id: Long)
+
+# tools: speech to text
+GET 		/tools/mediaprocess									controllers.tools.MediaToTextController.index
+GET 		/tools/mediaprocess/									controllers.tools.MediaToTextController.index
+GET			/tools/mediaprocess/result/*token					controllers.tools.MediaToTextController.result(request: Request, token: String)
+POST		/tools/mediaprocess/result							controllers.tools.MediaToTextController.submit(request: Request, lang: String ?= "en", type: String ?= "")
+POST		/tools/mediaprocess									controllers.tools.MediaToTextController.submitAndProcess(request: Request, type: String ?= "")
+
+# tools: mobile dashboard for IoT datasets
+GET			/tools/mobile/dashboard/qr/*token					controllers.tools.MobileDashboard.generateQRCode(request: Request, token: String)
+GET			/tools/mobile/dashboard/*token						controllers.tools.MobileDashboard.view(token: String)
+
+# tools: starboard
+GET 		/tools/starboard										controllers.tools.StarboardController.index(request: Request)
+POST 		/tools/starboard										controllers.tools.StarboardController.addNotebook(request: Request)
+GET 		/tools/starboard/datasets							controllers.tools.StarboardController.datasets(request: Request)
+GET 		/tools/starboard/export/:datasetId/:fileId			controllers.tools.StarboardController.exportJupyterNotebook(request: Request, datasetId: Long, fileId: Long)
+
+# tools: twine
+POST		/tools/twine/:id/activate							controllers.tools.NarrativeSurveysController.addNarrativeSurveyView(request: Request, id: Long)
+POST		/tools/twine/:id/add									controllers.tools.NarrativeSurveysController.addSurvey(request: Request, id: Long)
+GET			/tools/twine/:id/data								controllers.tools.NarrativeSurveysController.viewSurveyAnalysis(request: Request, id: Long, fileId: Long)
+POST		/tools/twine/:id/:dsId/upload						controllers.tools.NarrativeSurveysController.uploadImage(request: Request, id: Long, dsId: Long)
+DELETE		/tools/twine/:dsId/:fid/delete						controllers.tools.NarrativeSurveysController.deleteImage(request: Request, dsId: Long, fid: Long)
+GET			/tools/twine/:dsId/:fid								controllers.tools.NarrativeSurveysController.loadTwee(request: Request, dsId: Long, fid: Long)
+POST		/tools/twine/:dsId/:fid								controllers.tools.NarrativeSurveysController.saveTwee(request: Request, dsId: Long, fid: Long)
+#POST		/tools/twine/:dsId/:fid								controllers.tools.NarrativeSurveysController.saveHTML(request: Request, dsId: Long, fid: Long)
+
+# tools: ESP Web Tools
+GET 		/tools/esp-web-tools									controllers.tools.ESPWebTools.index()
+
+# tools: mobile data logger
+GET 		/tools/datalogger									controllers.tools.DataLogger.index(request: Request)
+GET 		/tools/datalogger/import/:id/*token/:device			controllers.tools.DataLogger.importLog(request: Request, id: Long, token: String, device: String)
+POST		/tools/datalogger/importCSV/:id/*token/:device		controllers.tools.DataLogger.importCSV(request: Request, id: Long, token: String, device: String, selectedColumns: String)
+POST		/tools/datalogger/importJSON/:id/*token/:device		controllers.tools.DataLogger.importJSON(request: Request, id: Long, token: String, device: String, selectedProperties: String)
+GET 		/tools/datalogger/:id/:did/*token/:device			controllers.tools.DataLogger.datalogger(request: Request, id: Long, did: Long, token: String, device: String)
+POST		/tools/datalogger/:id/*token/:device					controllers.tools.DataLogger.log(request: Request, id: Long, token: String, device: String)
+
+# tools: Activity Logger
+GET 		/tools/actilogger									controllers.tools.ActivityLoggerController.index(request: Request)
+POST		/tools/actilogger/:id/updateActivities				controllers.tools.ActivityLoggerController.updateActivities(request: Request, id: Long)
+GET 		/tools/actilogger/logger/:projectId/:datasetId/:datasetToken/:participantId		controllers.tools.ActivityLoggerController.logger(request: Request, projectId: Long, datasetId: Long, datasetToken: String, participantId: String)
+POST		/tools/actilogger/:id/*token/:participantId						controllers.tools.ActivityLoggerController.log(request: Request, id: Long, token: String, participantId: String)
+
+# tools: QR code generator
+GET			/tools/qrcode										controllers.tools.QRCode.index()
+
+
+# list of AI models
+GET			/tools/models										controllers.api2.UnmanagedAIApiController.modelsPage(request: Request)			
+
+
+# -------------------------------------------------------------------------------------------------------------------------
+
+# API
+
+# -------------------------------------------------------------------------------------------------------------------------
+
+# v1 Dataset API
+
+POST		/api/v1/datasets/ts/:id								controllers.api.TimeseriesDSController.logApi(request: Request, id: Long, activity: String ?= "")
+POST		/api/v1/datasets/ts/:id/:dsApiToken					controllers.api.TimeseriesDSController.recordApi(request: Request, id: Long, dsApiToken: String)
+
+POST		/api/v1/datasets/entity/:id							controllers.api.EntityDSController.addItemApi(request: Request, id: Long)
+GET			/api/v1/datasets/entity/:id							controllers.api.EntityDSController.getItemApi(request: Request, id: Long)
+PUT			/api/v1/datasets/entity/:id							controllers.api.EntityDSController.updateItemApi(request: Request, id: Long)
+DELETE		/api/v1/datasets/entity/:id							controllers.api.EntityDSController.deleteItemApi(request: Request, id: Long)
+
+POST		/api/v1/datasets/media/:id							controllers.api.MediaDSController.addItemApi(request: Request, id: Long)
+GET			/api/v1/datasets/media/:id/:filename					controllers.api.MediaDSController.getItemApi(request: Request, id: Long, filename: String)
+
+
+# v1 JS API
+
+# participants JS API
+GET 		/api/v1/participation								controllers.api.js.ParticipationApiController.jsAPI(request: Request)
+GET 		/api/v1/participation.js								controllers.api.js.ParticipationApiController.jsAPI(request: Request)
+POST 		/api/v1/participation/diaryEntry						controllers.api.js.ParticipationApiController.diaryEntry(request: Request)
+POST 		/api/v1/participation/logEntry						controllers.api.js.ParticipationApiController.logEntry(request: Request)
+POST 		/api/v1/participation/uploadImage					controllers.api.js.ParticipationApiController.uploadImage(request: Request)
+GET 		/api/v1/participation/getProfile						controllers.api.js.ParticipationApiController.getItem(request: Request, id: String ?= "")
+GET 		/api/v1/participation/getProfile/:id					controllers.api.js.ParticipationApiController.getItem(request: Request, id: String)
+POST 		/api/v1/participation/setProfile						controllers.api.js.ParticipationApiController.setItem(request: Request, id: String ?= "")
+POST 		/api/v1/participation/setProfile/:id					controllers.api.js.ParticipationApiController.setItem(request: Request, id: String)
+GET 		/api/v1/participation/getData/:id.csv				controllers.api.js.ParticipationApiController.getDataCSV(request: Request, id: Long, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
+GET 		/api/v1/participation/getData/:id.json				controllers.api.js.ParticipationApiController.getDataJson(request: Request, id: Long, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
+
+# alternative participant API entry point: anonymous participation
+GET 		/api/v1/:id/anonymousParticipation					controllers.api.js.ParticipationApiController.anonymousJSAPI(request: Request, id: Long)
+GET 		/api/v1/:id/anonymousParticipation.js				controllers.api.js.ParticipationApiController.anonymousJSAPI(request: Request, id: Long)
+
+# researchers JS API
+GET 		/api/v1/researcher									controllers.api.js.ResearcherApiController.jsAPI(request: Request)
+GET 		/api/v1/researcher.js								controllers.api.js.ResearcherApiController.jsAPI(request: Request)
+GET 		/api/v1/researcher/getData/:id.csv					controllers.api.js.ResearcherApiController.getDataCSV(request: Request, id: Long, filterId: String ?= "", limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
+GET 		/api/v1/researcher/getData/:id.json					controllers.api.js.ResearcherApiController.getDataJson(request: Request, id: Long, filterId: String ?= "", limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
+
+# alternative participant API entry point: anonymous participation
+GET 		/api/v1/:id/user										controllers.api.js.UserApiController.jsAPI(request: Request, id: Long)
+GET 		/api/v1/:id/user.js									controllers.api.js.UserApiController.jsAPI(request: Request, id: Long)
+POST 		/api/v1/:id/user/profile/*token						controllers.api.js.UserApiController.setItem(request: Request, id: Long, token: String)
+
+# -------------------------------------------------------------------------------------------------------------------------
+
+# v1 OpenAI-compatible API
+
++no-csrf
+POST 		/v1/chat/completions									controllers.api2.UnmanagedAIApiController.chatCompletion(request: Request)
+GET 		/v1/models											controllers.api2.UnmanagedAIApiController.models(request: Request)
++no-csrf
+POST		/v1/audio/transcriptions								controllers.api2.UnmanagedAIApiController.audioTranscription(request: Request)
++no-csrf
+POST		/v1/images/generations								controllers.api2.UnmanagedAIApiController.imageGeneration(request: Request)
+GET			/v1/images/*token									controllers.api2.UnmanagedAIApiController.image(request: Request, token: String)
++no-csrf
+POST		/v1/audio/speech										controllers.api2.UnmanagedAIApiController.speechGeneration(request: Request)
+
+# -------------------------------------------------------------------------------------------------------------------------
+
+# v2 API
+
+# Open API Docs
+GET   		/api/v2/swagger.json        							controllers.Assets.at(path:String="/public", file:String="swagger.json")
+GET   		/api/v2/docs/*file        							controllers.Assets.at(path:String="/public/lib/swagger-ui", file:String)
+
+## Authentication ##
+GET 		/api/v2/auth/:service								controllers.api2.AuthApiController.authenticate(request: Request, service: String)
+POST		/api/v2/auth/:service								controllers.api2.AuthApiController.authenticateMe(request: Request, service: String)
+GET			/api/v2/generate/:service							controllers.api2.AuthApiController.generate(request: Request, service: String)
+
+# Open API
+-> 			/api/v2												OpenAPIs.Routes
+
+# -------------------------------------------------------------------------------------------------------------------------
+
+# API API
+
+POST		/api/vendor/openai/:id								controllers.api2.DirectAPIController.submitOpenAIRequest(request: Request, id: Long)
+POST		/api/vendor/localai/:id								controllers.api2.DirectAPIController.submitLocalAIRequest(request: Request, id: Long)
+POST		/api/vendor/s2t/:id									controllers.api2.DirectAPIController.submitS2TRequest(request: Request, id: Long)
+POST		/api/vendor/t2s/:id									controllers.api2.DirectAPIController.submitT2SRequest(request: Request, id: Long)
+POST		/api/vendor/t2s/:id/download							controllers.api2.DirectAPIController.submitAndDownloadT2SRequest(request: Request, id: Long)
+GET 		/api/vendor/t2s/:token								controllers.api2.DirectAPIController.downloadCachedT2SFile(request: Request, token: String)
+
+
+# -------------------------------------------------------------------------------------------------------------------------
+
+GET 			/licenses										controllers.HomeController.licenses()
+
+# ---------------------------------------------------------------------------------------------------------------------
+
+GET 			/documentation									controllers.Default.redirect(to = "/documentation/index")
+GET 			/documentation/									controllers.Default.redirect(to = "/documentation/index")
+#GET				/documentation/v2/*file							controllers.HomeController.minisite(file: String)
+GET 			/documentation/*file								controllers.HomeController.docusite(request: Request, file: String)
+
+# -------------------------------------------------------------------------------------------------------------------------
+
+GET 			/content/*file									controllers.HomeController.publicContent(request: Request, file: String)
+
+# -------------------------------------------------------------------------------------------------------------------------
+
+GET 			/links/*link										controllers.HomeController.configurableLink(request: Request, link: String)
+
+# -------------------------------------------------------------------------------------------------------------------------
+
+# for testing
+GET 			/testing/resetDB									controllers.DBController.resetDB()
+POST			/testing/timeout									controllers.DBController.timeout()
+
+# Map static resources from the /public folder to the /assets URL path
+GET 			/assets/*file									controllers.Assets.versioned(path="/public/lib/commons", file: Asset)
+
+# -------------------------------------------------------------------------------------------------------------------------
+
+# project pages (this needs to be last in the routes)
+#GET 			/:projectname									controllers.ProjectsController.web(request: Request, projectname: String, filename: String ?= "")
+#GET 			/:projectname/:filename							controllers.ProjectsController.web(request: Request, projectname: String, filename: String)
+
+# -------------------------------------------------------------------------------------------------------------------------

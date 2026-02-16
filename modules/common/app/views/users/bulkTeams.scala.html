@@ -1,0 +1,77 @@
+@(csrfToken: String)
+@main("Create project teams", "user") {
+
+<style>
+  .email-missing {
+    padding: 0.1rem 0.3rem;
+    margin: 0 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.8rem;
+    border: 1px solid grey;
+    background: #ddd;
+  }
+
+  .email-ok {
+    padding: 0.1rem 0.3rem;
+    margin: 0 0.5rem;
+    border-radius: 0.25rem;
+    font-size: 0.8rem;
+    border: 1px solid grey;
+    background: #a5d6a7;
+  }
+</style>
+
+<!-- navigation -->
+<nav class="">
+  <div class="row">
+    <div class="col s8">
+      <a href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+      <a href="#" class="breadcrumb">Create project teams</a>
+    </div>
+  </div>    
+</nav>
+
+<div class="row">
+  <div class="col s12">
+    <h4>Create project teams</h4>
+    <p>
+      Here you can create multiple project teams for your course or workshop in one go. Just enter the email addresses of people, separated by ';'. All email address on a row will be added to a team, so one row per team.
+    </p>
+
+    <form 
+          hx-post="@routes.UsersController.bulkTeamsMe()"
+          hx-target="#result"
+          hx-swap="innerHTML"
+          hx-disabled-elt="button,#result">
+      <input type="hidden" name="csrfToken" value="@csrfToken">
+      <div class="row">
+        <div class="input-field col s12">
+          <p>
+            Optional: enter a project title prefix:
+          </p>
+          <input type="text" name="prefix" value="" placeholder="Workshop Project - Team ">
+        </div>
+      </div>
+      <div class="row">
+        <div class="input-field col s12">
+          <p>
+            Optional: enter a project description:
+          </p>
+          <input type="text" name="description" value="" placeholder="This project ...">
+        </div>
+      </div>
+      <div class="row">
+        <div class="input-field col s12">
+          <textarea name="teams" style="width:100%; height: 16rem;" placeholder="bob@@example.org; alice@@example.org; mary@@example.com"></textarea>
+        </div>
+      </div>
+      <div class="progress htmx-indicator">
+        <div class="indeterminate"></div>
+      </div>
+      <button class="btn">Check</button>
+    </form>
+    <div id="result"></div>
+  </div>
+</div>
+
+}

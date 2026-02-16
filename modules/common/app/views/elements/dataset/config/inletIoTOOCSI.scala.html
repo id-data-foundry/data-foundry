@@ -1,0 +1,51 @@
+@(dataset : Dataset, user : String)(implicit request: Http.Request)
+
+    <div id="oocsi_in" class="col s12 tab-contents">
+      <div class="row">
+        <div class="col s12">
+          <p>
+            <b>Subscribe to OOCSI channel and store messages in dataset</b>
+          </p>
+          <p>
+            By setting an OOCSI channel below this dataset will subscribe to this OOCSI channel and store all messages sent there.
+          </p>
+
+          @if(dataset.editableBy(user)) {
+          <p>
+            To subscribe to a channel for incoming data, you need to provide the channel name below. 
+          </p>
+          <div class="input-field col s12 m8">
+            <input id="oocsiChannelInput" type="text" value='@dataset.getConfiguration().get("OOCSI_channel")' class="">
+            <label for="oocsiChannelInput">Channel name</label>
+            Delete the channel name and save to unsubscribe from the channel.
+          </div>
+          <div class="input-field col s12 m4">
+            <a id="saveOOCSIChannelInputBtn" class="btn">Save</a>
+          </div>
+          <script type="text/javascript">
+            // save channel
+            $('#saveOOCSIChannelInputBtn').click(function() {
+              var inputChannel = $('#oocsiChannelInput').val();
+              var r = jsRoutes.controllers.DatasetsController.configure(@dataset.getId(), 'OOCSI_channel', inputChannel);
+              $.ajax({url: r.url, type: r.type, success: function() {
+                M.toast({html: 'Settings saved.', classes: 'green darken-2'})
+              }, error: function() {
+                M.toast({html: 'Settings not saved.', classes: 'red darken-2'})
+              }});
+            });
+          </script>
+          }
+        </div>
+      </div>
+
+      <div hx-get="@routes.DatasetsController.oocsiDiagnostics(dataset.getId())" hx-trigger="load, every 5s" hx-swap="innerHTML"></div>
+
+      <div class="row">
+        <div class="col s12" style="margin-top: 3em;">
+          <p>
+            <b>How to use this?</b>
+          </p>
+          @elements.documentation.howtoOOCSIInIoT()
+        </div>
+      </div>
+    </div>

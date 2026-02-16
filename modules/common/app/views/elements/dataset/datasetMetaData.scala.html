@@ -1,0 +1,56 @@
+@(ds : Dataset)
+
+@if(!ds.getMetaDataProjection().isEmpty()) {
+<script src="@routes.DatasetsController.jsRoutes()" type="text/javascript"></script>
+
+<h5>Meta data fields</h5>
+<p>Fill in a description on the left side and, if applicable, a unit or data attribute on the right side. The fields save automatically after a change.
+<div class="row">
+    <form>
+    	@for(mkey <- ds.getMetaDataProjection()) {
+    	<div class="col s6">
+    		<div class="input-field col s12">
+    			<input id="meta_desc_@mkey.hashCode()" type="text" value='@ds.getConfiguration().get("meta_desc_" + mkey)'>
+    			<label for="meta_desc_@mkey.hashCode()">Description for @mkey</label>
+    		</div>
+        <script type="text/javascript">
+            $('#meta_desc_@mkey.hashCode()').change(
+              function() {
+                var data = $('#meta_desc_@mkey.hashCode()').val();
+                var r = jsRoutes.controllers.DatasetsController.configure(@ds.getId(), 'meta_desc_@mkey', data);
+                $.ajax({
+              		url: r.url,
+              		type: r.type,
+              		success: function(data) {
+                    M.toast({html: 'Meta data saved.', classes: 'green darken-2'})
+                  },
+                });
+              }
+            );
+    		</script>
+    	</div>
+    	<div class="col s6">
+    		<div class="input-field col s12">
+    			<input id="meta_unit_@mkey.hashCode()" type="text" value='@ds.getConfiguration().get("meta_unit_" + mkey)'>
+    			<label for="meta_unit_@mkey.hashCode()">Unit/Data attribute for @mkey</label>
+    		</div>
+        <script type="text/javascript">
+            $('#meta_unit_@mkey.hashCode()').change(
+              function() {
+                var data = $('#meta_unit_@mkey.hashCode()').val();
+                var r = jsRoutes.controllers.DatasetsController.configure(@ds.getId(), 'meta_unit_@mkey', data);
+                $.ajax({
+              		url: r.url,
+              		type: r.type,
+              		success: function(data) {
+                        M.toast({html: 'Meta data saved.', classes: 'green darken-2'})
+                    }
+                });
+              }
+            );
+    		</script>
+    	</div>
+    	}
+    </form>
+</div>
+}

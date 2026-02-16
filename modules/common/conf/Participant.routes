@@ -1,0 +1,231 @@
+## OpenAPI/Swagger ROUTES ## 
+## basic path:/api/v2/participants ##
+
+###
+ #  summary: list all participants of the user 
+ #  responses:
+ #    200:
+ #      description: success
+ #  deprecated: true
+ ###
+GET       /                         controllers.swagger.ParticipantApiController.participants(request: Request)
+
+###
+ #  summary: view a specific participant
+ #  parameters:
+ #    - name: "id"
+ #      in: "path"
+ #      description: "Get information of a specific participant."
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #  responses:
+ #    200:
+ #      description: success
+ #      schema:
+ #        type: object
+ #        properties:
+ #          id:
+ #            description: "Id of user"
+ #            type: integer
+ #            format: "int64"
+ #          name:
+ #            type: string
+ #          firstname:
+ #            type: string
+ #          lastname:
+ #            type: string
+ #          email:
+ #            type: string
+ #          status:
+ #            type: string
+ #          gender:
+ #            type: string
+ #          career:
+ #            type: string
+ #          age_range:
+ #            type: string
+ #          publicParameter1:
+ #            type: string
+ #          publicParameter2:
+ #            type: string
+ #          publicParameter3:
+ #            type: string
+ #          clusters:
+ #            description: "IDs of clusters which the participant includes"
+ #            type: array
+ #            items: 
+ #              type: integer
+ #              format: "int64"
+ #          devices:
+ #            description: "IDs of devices which are in a cluster with the only one participant"
+ #            type: array
+ #            items: 
+ #              type: integer
+ #              format: "int64"
+ #          wearables:
+ #            description: "IDs of wearables which are in a cluster with the only one participant"
+ #            type: array
+ #            items: 
+ #              type: integer
+ #              format: "int64"
+ #    400:
+ #      description: No input.
+ #    403:
+ #      description: Not valid user or mismatched password.
+ ###
+GET       /:id                      controllers.swagger.ParticipantApiController.participant(request: Request, id : Long)
+
+###
+ #  summary: create a participant 
+ #  parameters:
+ #    - in: "body"
+ #      name: "body"
+ #      description: "Participant informations that needs to be created in the system"
+ #      required: true
+ #      schema:
+ #        type: object
+ #        required:
+ #          - "first_name"
+ #          - "last_name"
+ #          - "email"
+ #          - "project_id"
+ #        properties:
+ #          first_name:
+ #            type: "string"
+ #            example: "John"
+ #          last_name:
+ #            type: "string"
+ #            example: "Doe"
+ #          email:
+ #            type: "string"
+ #            example: "jd@example.com"
+ #          project_id:
+ #            description: "The id of the project this participant would be added into"
+ #            type: "integer"
+ #            format: "int64"
+ #  responses:
+ #    200:
+ #      description: success
+ #      schema:
+ #        type: object
+ #        properties:
+ #          id:
+ #            description: "Id of the new participant"
+ #            type: integer
+ #            format: "int64"
+ #    400:
+ #      description: Not valid user.
+ #    403:
+ #      description: User or api-token is not valid or user can't access this operation.
+ #    406:
+ #      description: This email is already in use in this project.
+ ###
+POST      /add                      controllers.swagger.ParticipantApiController.add(request: Request)
+
+###
+ #  summary: edit information of a specific participant
+ #  parameters:
+ #    - name: "id"
+ #      in: "path"
+ #      description: "The id of the participant to update information."
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #    - in: "body"
+ #      name: "body"
+ #      description: "User informations that needs to be created in the system"
+ #      required: true
+ #      schema:
+ #        type: object
+ #        properties:
+ #          first_name:
+ #            type: "string"
+ #            example: "John"
+ #          last_name:
+ #            type: "string"
+ #            example: "Doe"
+ #          email:
+ #            type: "string"
+ #            example: "jd@example.com"
+ #          career:
+ #            type: "string"
+ #          gender:
+ #            description: "0: Prefer not to say; 1: Male; 2: Female; 3: Non-binary; 4: Not given."
+ #            type: "integer"
+ #            format: "int64"
+ #            example: "4"
+ #          age_range:
+ #            description: "1: Under 18; 2: 18-25; 3: 26-50; 4: 50 above; 5: Not given."
+ #            type: "integer"
+ #            format: "int64"
+ #            example: "5"
+ #          public_parameter1:
+ #            type: "string"
+ #          public_parameter2:
+ #            type: "string"
+ #          public_parameter3:
+ #            type: "string"
+ #  responses:
+ #    200:
+ #      description: success
+ #    400:
+ #      description: Not valid user.
+ #    403:
+ #      description: User or api-token is not valid or user can't access this operation.
+ ###
+POST      /edit/:id                 controllers.swagger.ParticipantApiController.edit(request: Request, id : Long)
+
+###
+ #  summary: delete a specific participant
+ #  parameters:
+ #    - name: "id"
+ #      in: "path"
+ #      description: "Id of the Participant to be deleted."
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #  responses:
+ #    200:
+ #      description: success
+ #    400:
+ #      description: Not valid user.
+ #    403:
+ #      description: User or api-token is not valid or user can't access this operation.
+ ###
+DELETE    /delete/:id               controllers.swagger.ParticipantApiController.delete(request: Request, id : Long)
+
+###
+ #  summary: get invite token for the participant
+ #  parameters:
+ #    - name: "id"
+ #      in: "path"
+ #      description: "Id of the participant."
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #  responses:
+ #    200:
+ #      description: success
+ #  deprecated: true
+ ###
+GET       /getInviteToken/:id       controllers.swagger.ParticipantApiController.getInviteToken(id : Long)
+
+###
+ #  summary: send invitation link to participant by email
+ #  parameters:
+ #    - name: "id"
+ #      in: "path"
+ #      description: "Id of the participant."
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #  responses:
+ #    200:
+ #      description: success
+ #    400:
+ #      description: Not valid user.
+ #    403:
+ #      description: User or api-token is not valid or user can't access this operation.
+ ###
+GET       /sendInvitationLink/:id   controllers.swagger.ParticipantApiController.sendInvitationLink(request: Request, id : Long)

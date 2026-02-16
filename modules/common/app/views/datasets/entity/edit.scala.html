@@ -1,0 +1,14 @@
+@(token : String, dataset : Dataset)
+@main("Edit dataset", "profile") {
+  @elements.dataset.datasetEditTitlebar(dataset)
+  <div class="row">
+    <form class="col s12" action="@api.routes.EntityDSController.editMe(dataset.getId())" method="POST" 
+          onsubmit="return checkDate('@dataset.start', '@dataset.end')">
+      @elements.dataset.editFormElements(dataset, token)
+    </form>
+  </div>
+
+  @elements.dataset.datasetMetaData(dataset)
+
+  @elements.dataset.datasetReset(dataset)
+}

@@ -1,0 +1,77 @@
+@(participant : sr.Participant, project: Project, token : String, csrfToken : String)
+@participating("Sign-up and participate", token) {
+  <br><br>
+  <div class="row">
+    <div class="col s12">
+      <h3>Sign-up and participate</h3>
+      <div class="right-align">
+        <a  class="btn white green-text" 
+            href="@routes.ParticipationController.switchLanguage(token, "nl")">
+          Nederlands
+        </a>
+        <a  class="btn white green-text" 
+            href="@routes.ParticipationController.switchLanguage(token, "de")">
+          Deutsch
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col s12 white">
+      
+      <h5>Hello,</h5>
+      <p>
+        @if(participant != null) { We sent you an email to @participant.getEmail(). }
+        We invite you to participate in this study, please take a moment and read the information boxes below. If you agree to all this and want to join the study, click "Accept". If you don't agree, click "Decline". For questions, you may contact @project.getOwner().getName() at @project.getOwner().getEmail().
+        <br><br>
+        Thank you!
+      </p>
+
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col s12">
+
+      @elements.project.informedConsent(project, "en")
+
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col s12">
+    	<form action="@routes.ParticipationController.signup(token)" method="POST">
+        <div class="row">
+          <div class="input-field col s12 m7">
+            <p>
+              <label>
+                <input id="isDataProcessingAgreed" name="isDataProcessingAgreed" type="checkbox" required="required" class="validate">
+                <span>I understand and accept that a limited amount of my personally-identifiable information may be processed on Data Foundry for the purposes described in the project. This can involve information such as my name and email address that is used to contact me in the study and give me access on this platform. I also accept that data gathered from me may be used in future research and made available in anonymized form via the Datafoundry repository.</span>
+              </label>
+            </p>
+          </div>
+          <div class="input-field col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+            <p>
+              Data Foundry acts as a data processor for personally-identifiable data that the project owner and legal data controller chose to store in the platform. The project owner has stated that they are familiar with the definition of personally-identifiable information and how such information must be handled according to national and European data protection laws.
+            </p>
+          </div>
+        </div>
+        <div class="row">
+          <div class="input-field col s12">
+            <p>
+              <label>
+                <input id="isStudyParticipationAgreed" name="isStudyParticipationAgreed" type="checkbox" required="required" class="validate">
+                <span>I have read and understood the above information. I agree to participate in this study. I also understand that I can opt-out (leave) the study at any time and without any negative implications. My personally-identifiable data will be discarded in this case.</span>
+              </label>
+            </p>
+          </div>
+        </div>
+
+        <input type="hidden" name="csrfToken" value="@csrfToken">
+	    	<button type="submit" id="acceptBtn" class="btn">I understand and accept</button> or 
+	    	<a id="declineBtn" href="@routes.ParticipationController.decline(token)" class="btn">I decline</a>
+    	</form>
+    </div>
+  </div>
+}

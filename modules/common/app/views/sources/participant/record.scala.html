@@ -1,0 +1,60 @@
+@(participant : sr.Participant, token: String, ds : Dataset)
+
+@main("New diary entry") {
+
+    <!-- navigation -->
+    <nav class="">
+        <div class="row">
+            <div class="col s12">
+                <a id="homeBtn" href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+                <a href="@routes.ProjectsController.view(participant.getProject().getId())" class="breadcrumb">@participant.getProject().getName()</a>
+                <a href="@routes.ProjectsController.viewResources(participant.getProject().getId())" class="breadcrumb">Sources</a>
+                <a href="@routes.ParticipantsController.view(participant.getId())" class="breadcrumb">@participant.getName()</a>
+                <a href="#" class="breadcrumb">New diary entry</a>
+          </div>
+        </div>
+    </nav>
+    
+    <div class="row center">
+      <div class="input-field col s12 l8 offset-l2">
+        <h2>Add new diary entry</h2>
+      </div>
+    </div>
+    <div class="row">
+      <form class="col s12 l8 offset-l2" action="@routes.ParticipantsController.recordDiary(participant.getId(),ds.getId())" method="POST">
+        <input name="test_form" value="true" type="hidden">
+        <div class="row center">
+          <div class="input-field col s12">
+            <input id="title" name="title" type="text" class="">
+            <label for="title">Title</label>
+          </div>
+        </div>        
+        <div class="row center">
+          <div class="input-field col s12">
+            <textarea placeholder="Entry text" id="text" name="text" type="text" class="materialize-textarea validate" required="" style="height: 10em;">@ds.getConfiguration().get("diary_template_text")</textarea>
+            <label for="text">Entry text</label>
+          </div>
+        </div>
+        <div class="row">
+          You can choose to enter a date and time for the entry, or leave it out for "right now":
+          <div class="input-field col s12 m6">
+            <input id="ts-date" name="ts-date" type="text" class="datepicker">
+            <label for="ts-date">Date</label>
+          </div>
+          <div class="input-field col s12 m6">
+            <input id="ts-time" name="ts-time" type="text" class="timepicker">
+            <label for="ts-time">Time</label>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col s12 center">
+            <div class="input-field center">
+              <input name="csrfToken" value="@token" type="hidden">
+              <button class="btn" type="submit">Record entry</button>
+            </div>
+          </div>
+        </div>
+      </form>
+      
+    </div>
+}

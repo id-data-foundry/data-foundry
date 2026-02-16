@@ -1,0 +1,152 @@
+@(dataset: Dataset, user : String, fileLists : List[vm.TimedMedia], csrfToken: String)(implicit request: Http.Request)
+@main("View dataset", "profile") {
+  <script src='@routes.Assets.versioned("javascripts/vega.min.js")' type="text/javascript"></script>
+  @elements.dataset.datasetTitlebar(dataset, user) {
+    
+  }
+
+  @if(dataset.visibleFor(user)) {
+  @if(dataset.editableBy(user)) {
+  <div class="row">
+    <div class="col s12 m4 offset-m8 right-align">
+        <form hx-post="@api.routes.CompleteDSController.newFile(dataset.getId())" 
+              hx-target="body"
+              hx-trigger="click"
+              hx-prompt="Please the filename of the new file:" style="display: inline;">
+          <input type="hidden" name="csrfToken" value="@csrfToken">
+          <a id="createFileBtn" class="btn">
+            @elements.icon("add")
+            New file
+          </a>
+        </form>
+        <a id="uploadFileBtn" href="#modal_add_file" class="btn modal-trigger">
+          @elements.icon("add")
+          Upload files
+        </a>
+    </div>
+  </div>
+  }
+  <div class="row white" id="existingFileOverview" style="margin-bottom: 2em; padding-bottom: 2em;">
+    <div class="col s12 bottom-line">
+      <h5>Dataset files</h5>
+    </div>
+    <br><br>
+
+    <div class="col s12">
+      <table class="striped" style="table-layout: fixed;">
+        <thead>
+          <tr>
+              <th class="col s12 l5">File name</th>
+              <th class="col s12 l2">Description</th>
+              <th class="col s6 l2">Last changed</th>
+              <th class="col s6 l3"></th>
+          </tr>
+        </thead>
+
+        <tbody>
+        @if(fileLists != null && fileLists.size() > 0) {
+          @for(fileList <- fileLists) {
+          <tr>
+            <td class="col s12 l5">
+              @fileList.link
+              @if(!dataset.configuration(Dataset.WEB_ACCESS_TOKEN, "").isEmpty()) {
+              @if(fileList.link.endsWith(".html") || fileList.link.endsWith(".md")) {
+              (<a href="@routes.DatasetsController.webToken(dataset.configuration(Dataset.WEB_ACCESS_TOKEN, ""), fileList.link).absoluteURL(request)" target="_blank" rel="noopener">open in tab</a>)
+              }
+              }
+            </td>
+            <td class="col s12 l2">@fileList.caption</td>
+            <td class="col s6 l2">@fileList.pretty()</td>
+            <td class="col s6 l3 right-align">
+              <a href="@api.routes.CompleteDSController.downloadFile(dataset.getId(),fileList.getId())" class="green-text">download</a>
+            @if(dataset.editableBy(user)){
+              |
+              @if(fileList.link.endsWith(".csv")) {
+              <a href="@api.routes.CompleteDSController.importFile(dataset.getId(),fileList.getId(),fileList.link)" class="">import</a> |
+              }
+              @if(utils.validators.FileTypeUtils.looksLikeEditableFile(fileList.link)) {
+              <a href="@api.routes.CompleteDSController.editFile(dataset.getId(),fileList.getId())" id="blueEditButton" class="blue-text">edit</a> |
+          	  }
+              <a href="@api.routes.CompleteDSController.delete(dataset.getId(),fileList.getId())" class="red-text" onclick="return confirm('Are you sure you want to delete this file? This action is not reversible! Click OK to delete, cancel to stop.')">delete</a>
+            }
+            </td>
+          </tr>
+          }
+        } else {
+          <tr>
+            <td colspan="4" class="col s12" style="overflow: hidden; padding: 1em; background: white;">
+              🕳 No files in this dataset.
+            </td>
+          </tr>
+        }
+        </tbody>
+      </table>
+    </div>
+  </div>
+  }
+
+  @if(dataset.editableBy(user)){
+  <!-- files upload modal -->
+  <div id="modal_add_file" class="modal">
+    <div class="modal-content">
+      <h4 class="center-align">Upload files</h4>
+      <div class="row">
+        <div class="col s12 m6">
+          <br>
+          <form action="@api.routes.CompleteDSController.uploadFile(dataset.getId())" method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="csrfToken" value="@csrfToken">
+            <p>
+              Choose one or more files to upload:
+            </p>
+            <div class="file-field input-field">
+              <div class="btn">
+                <span>File</span>
+                <input id="files" type="file" name="files" multiple />
+              </div>
+              <div class="file-path-wrapper">
+                <input class="file-path validate" type="text" placeholder="Upload one or more files"></input>
+              </div>
+            </div>
+            <p>
+              Or, upload files from an entire folder:
+            </p>
+            <div class="file-field input-field">
+              <div class="btn">
+                <span>Folder</span>
+                <input id="folder" type="file" name="files" multiple webkitdirectory />
+              </div>
+              <div class="file-path-wrapper">
+                <input class="file-path validate" type="text" placeholder="Upload entire folder"></input>
+              </div>
+            </div>
+            <div id="result" class="col s12"></div>
+            <br>
+            <textarea placeholder="File description" id="description" class="materialize-textarea" name="description" data-length="250" required=""></textarea>
+            <label for="description">File Description</label>
+            <br>
+            <p>
+              <a href="#!" onclick="$('form')[0].reset();" class="modal-close btn-flat grey-text">Cancel</a>
+              <input type="submit" name="submit" id="submit" class="btn green">
+            </p>
+          </form>
+        </div>
+
+        <div class="col s12 m6 card red lighten-4" style="padding: 1em;">
+          <b>Attention</b>
+          <br>
+          <p>
+            Do not upload files that contain <b>private data</b> (e.g., <a href="https://en.wikipedia.org/wiki/Personal_data">personally identifiable information</a>, medical data, financial data and passwords, amongst many other sensitive data).
+            <br><br>
+            Only upload and share data here if you have the right to do so. If in doubt, please check with support.
+            <br><br>
+            Only <b>textual or image data files</b> are allowed.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+  }
+
+  @elements.dataset.config.standard(dataset, user)
+
+}

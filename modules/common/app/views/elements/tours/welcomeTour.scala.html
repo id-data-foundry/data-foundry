@@ -1,0 +1,92 @@
+@()
+(() => {
+
+	// Describe the title of your tour
+	const tourTitle = "New project tour"
+
+	// Define your tour steps:
+	//   element: specifies the element to highlight, use CSS selector syntax (as used by document.querySelector)
+	//   intro: this is the text to show in the popup
+	//   page: this is a regular expression for the page to show this step on
+	const tourSteps = [
+	    { intro: 'Hi welcome to Data Foundry, our data platform to make it easier to work with and collect data. I see you are new to this platform, so lets give you a little tour so that you know your way around!', page: '^/projects$' },
+		{ element: '#HomepageProjects', intro: 'This is is the Data Foundry home page, where you can find all of your projects. Projects allow you to store all relevant data and datasets together.', page: '^/projects$' },
+		{ element: '#sidenav', intro: 'This is the side navigation bar, here you can not only go back to the project overview, but you can also find some account settings, a link back to the documentation and access to some handy data tools like, Transcription, Micropython Programming, Python Notebooks and Extensive Data Visualisation.', page: '^/projects$' },
+		{ element: '#addProjectBtn', intro: 'Let\'s give you a better idea of what a project is, create a new project so we can check it out. To do so you have to press this big green button!', page: '^/projects$' },
+	    { element: '#project_name', intro: 'For every project you have to fill in a project name, I will refer to this project as your tutorial project', page: '^/projects/add' },
+	    { element: '#project_introduction', intro: 'You\'ll also need to add a descriptive summary about the project, something like "Tutorial #1 demo project" will do for now!', page: '^/projects/add' },
+		{ element: '#licenseSelector', intro: 'There are also some options about the project licenses. Which is not relevant for now, but if you are interested there is more info about licenses in the documentation.', page: '^/projects/add' },
+		{ element: 'details', intro: 'In the advanced settings you can find templates, these help you get started with specific courses or tutorials.', page: '^/projects/add' },
+		{ element: '#dataProtectionSection', intro: 'But before we go, please read and agree to the following terms on data anonimization.', page: '^/projects/add' },
+	    { element: '#submitBtn', intro: 'Cool, you\'ve made your first project, Let\'s go take a look!', page: '^/projects/add' },
+		{ intro: 'There we are, this is the homepage of your new project, here you can store all relevant data, tools and settings you need for you next data project.', page: '^/projects/\\d+$' },
+		{ element: '#projectInfo', intro: 'Here you can your project metadata, like your project ID, License and the project expiration date.', page: '^/projects/\\d+$' },
+		{ element: '#collaboratorSection', intro: 'You can also invite other students to join this project, giving them access to the datasets as well.', page: '^/projects/\\d+$' },
+		{ element: '#datasetList', intro: 'These are your datasets, here you can store various types of data. We will go into depth and create a dataset soon.', page: '^/projects/\\d+$' },
+		{ element: '#scriptsList', intro: 'And these are your scripts, an advanced tool that allows you to work with real time data and coordinate your study.', page: '^/projects/\\d+$' },
+		{ element: '#sourcesTab', intro: 'In the sources tab you can setup data sources like participants, data loggers, wearables and even link these together. Making sure that the data is structured properly and participant data won\'t mix.', page: '^/projects/\\d+$' },
+		{ element: '#studySetupTab', intro: 'In the study tab you can find a variety of tools to interact with participants, making it easy to onboard them into your research, ask for data, and get them the right files.', page: '^/projects/\\d+$' },
+		{ element: '#timeLineTab', intro: 'In the timeline tab, there is an overview of all changes to this project, making it easy to reflect on your data gathering process.', page: '^/projects/\\d+$' },
+		{ element: '#editButton', intro: 'At last, in the settings pane you can edit your project settings, archive your project and request project API keys.', page: '^/projects/\\d+$' },
+		{ element: '#addDatasetBtn', intro: 'To continue, lets create your first dataset', page: '^/projects/\\d+$' },
+		{ intro: 'There are may types of datasets and data sources you can work with on data foundry, ranging from fitbit data to iot data. More information on which can be found in the reference section of our documentation', page: '^/projects/\\d+/addDataset' },
+		{ element: '#addDSBtn_IOT', intro: 'For now let\'s pick the IoT dataset, as this is one of the most common and versatile datasets', page: '^/projects/\\d+/addDataset' },
+		{ element: '#dataset_name', intro: 'Here you can give your new dataset a name', page: '^/datasets/ts/add/\\d+$' },
+		{ element: '#description', intro: 'and description describing the data that will be stored in this dataset.', page: '^/datasets/ts/add/\\d+$' },
+		{ element: '#StartDatePicker', intro: 'Here you can pick the date you start with your data collection, by default this will be the day you created the dataset.', page: '^/datasets/ts/add/\\d+$' },
+		{ element: '#EndDatePicker', intro: 'After which you pick the date you stop the data collection, by default this is 3 months after the dataset creation. Incase of working with an ERB update this date accordingly. This can also be done after the dataset creation in the dataset settings.', page: '^/datasets/ts/add/\\d+$' },
+		{ element: '#submitBtn', intro: 'Now the dataset is ready to go!', page: '^/datasets/ts/add/\\d+$' },
+		{ intro: 'This is the dataset section home page, here your data ends up after uploading/sending.', page: '^/datasets/\\d+$' },
+		{ element: '#datasetInfoBar', intro: 'Here on the side you have some dataset metadata', page: '^/datasets/\\d+$' },
+		{ element: '#viz', intro: 'In the center of the dataset page is the data upload visualization, which gives you an overview when data has last been updated.', page: '^/datasets/\\d+$' },
+		{ element: '#postTab', intro: 'Below the dataset are always some instructions and examples how to interact with the dataset, for example showing you how to download and upload (post) data, or explaining you how to access the data through oocsi.', page: '^/datasets/\\d+$' },
+		{ element: '#recordButton', intro: 'Here you can usually find a button to manually upload data or add data points.', page: '^/datasets/\\d+$' },
+		{ element: '#datavisBtn', intro: 'In the datavis menu you can find a simple visual overview of your collected data', page: '^/datasets/\\d+$' },
+		{ intro: 'Phew, that was quite the tour, hopefully you have a rough idea where you can find the most important tools. Dont worry if you are still confused about many things, once you get started using the platform in the second tutorial. Everything will fall into place!', page: '^/datasets/\\d+$' },
+	];
+
+	const currentPage = window.location.pathname;
+	const pageSteps = tourSteps.filter(step => currentPage.match(step.page))
+
+	// Initialize Driver.js
+	const d = driver.js.driver();
+	d.setConfig({
+		allowClose: false,
+		onDestroyed: () => {
+			fetch('@routes.HomeController.stopTour()')
+		},
+		onHighlighted: (elem, step) => {
+			localStorage.setItem('mss_current', step.index)
+			document.querySelector(".driver-popover-close-btn").blur()
+		},
+		onCloseClick: () => {
+			localStorage.removeItem('mss_current')
+			d.destroy()
+		}
+	})
+	d.setSteps(pageSteps.map(step => {
+	let buttons = ["close"]
+	if(pageSteps.indexOf(step) > 0) {
+		// all steps except first in page steps get a previous
+		buttons.push("previous")
+	}
+	if(pageSteps.indexOf(step) < pageSteps.length - 1) {
+		// all steps except for last in page steps get a next
+		buttons.push("next")
+	} else if(tourSteps.indexOf(step) == tourSteps.length - 1) {
+		// final step in tour gets a done
+		buttons.push("next")
+	}
+
+		return {
+			element: step.element,
+			index: step.index,
+			popover: {
+	            title: tourTitle,
+	            description: step.intro,
+	            showButtons: buttons
+	        }
+		};
+	}));
+	d.drive();
+})();

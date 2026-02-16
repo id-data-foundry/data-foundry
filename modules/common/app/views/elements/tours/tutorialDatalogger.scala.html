@@ -1,0 +1,145 @@
+@()
+(() => {
+
+	// Describe the title of your tour
+	const tourTitle = "Tutorial 1: Your first datalogger"
+
+	// Define your tour steps:
+	//   element: specifies the element to highlight, use CSS selector syntax (as used by document.querySelector)
+	//   intro: this is the text to show in the popup
+	//   page: this is a regular expression for the page to show this step on
+	const tourSteps = [
+
+		// Intro + Project Creation
+		{ intro: 'Hi welcome to your first Data Foundry tutorial, lets get started on configuring your new Data Foundry Logger!', page: '^/projects$' },
+	    { element: '#addProjectBtn', intro: 'We first have to create a new project!', page: '^/projects$' },
+	    { element: '#project_name', intro: 'Fill in a name for your new project something like "Tutorial 1" will do', page: '^/projects/add' },
+	    { element: '#project_introduction', intro: 'For the description you can put: "Data Foundry Tutorial datalogger".', page: '^/projects/add' },
+		{ element: '#dataProtectionSection', intro: 'And please read and agree to the following terms on data anonimization.', page: '^/projects/add' },
+	    { element: '#submitBtn', intro: 'Cool, you\'ve made your data logger project, Let\'s go!', page: '^/projects/add' },
+
+        // ADD Dataset Steps
+		{ element: '#addDatasetBtn', intro: 'Now lets create a dataset for our datalogger', page: '^/projects/\\d+$' },
+		{ element: '#addDSBtn_IOT', intro: 'For our datalogger we will need a IoT dataset as we will be working with t ime series data', page: '^/projects/\\d+/addDataset' },
+		{ element: '#dataset_name', intro: 'Let\'s call this dataset "Dataloggerset"', page: '^/datasets/ts/add/\\d+$' },
+		{ element: '#description', intro: 'and in the description put "Data collected with the Data Foundry web logger"', page: '^/datasets/ts/add/\\d+$' },
+		{ element: '#submitBtn', intro: 'after which the dataset is ready to go!', page: '^/datasets/ts/add/\\d+$' },
+
+		// Create a new device
+		{ element: '#backToProjectBtn', intro: 'lets head back to the project page to set up a datalogger device', page: '^/datasets/\\d+$' },
+		{ element: '#sourcesTab', intro: 'In the sources section we can configure a new datalogger', page: '^/projects/\\d+$' },
+		{ element: '#addDeviceBtn', intro: 'You do this by adding a new device', page: '^/projects/\\d+/views/resources' },
+		{ element: '#device_name', intro: 'Every device needs an unique name', page: '^/devices/add/\\d+$' },
+		{ element: '#category', intro: 'and it can be nice to specify a device type like "DF web logger"', page: '^/devices/add/\\d+$' },
+		{ element: '#public_parameter1', intro: 'Additionally you can use public parameters, these are public identifiers that are required to keep the data organised after anonimization such as "Participant 1"', page: '^/devices/add/\\d+$' },
+		{ element: '#submitBtn', intro: 'Perfect, you\'ve now added your first datalogger to Data Foundry!', page: '^/devices/add/\\d+$' },
+		{ intro: 'This leads you to the device information section where you can copy the data logger reference ID. For now we dont have to copy this as we already have created a working example.', page: '^/devices/view/\\d+$' },
+
+		// Datalogger tool
+		{ element: '#dataTools', intro: 'Now we have set up all the necessary datasets and devices we can create you a small logger. This can be done with one of the datatools.', page: '^/devices/view/\\d+$' },
+		{ element: '#dataloggerCard', intro: 'We will need to use the datalogger tool.', page: '^/tools$' },
+		{ element: '#projectSelectContainer', intro: 'To generate our datalogger you have to select your tutorial project.', page: '^/tools/datalogger$' },
+		{ element: '#datasetSelectContainer', intro: 'And select the IoT dataset we created earlier.', page: '^/tools/datalogger$' },
+		{ element: '#deviceSelectContainer', intro: 'At last select the device we have just created.', page: '^/tools/datalogger$' },
+		{ element: '#dataloggerContainer', intro: 'That should\'ve done the trick and generated a new datalogger, try opening it by scanning the QR-code!', page: '^/tools/datalogger$' },
+		{ intro: 'The datalogger collects your button presses and slider movements, additionally it is able to capture the average background sound and average movement of your phone. Try playing around with it for a while. Maybe start labeling the buttons and slider.', page: '^/tools/datalogger$' },
+		{ element: '#openDataLoggerData', intro: 'Once you have generated some data, we can take a look at the collected data', page: '^/tools/datalogger$' },
+
+		// Data inspection
+		{ element: '#tableBtn', intro: 'You can inspect the raw data in the table section', page: '^/datasets/\\d+$' },
+		{ element: '#datatable', intro: 'Every unique datapoint takes up a row, have a look at the data you collected!', page: '^/datasets/table/\\d+$' },
+		{ element: '#backToDataset', intro: 'let\'s go back to the dataset homepage and start with some visualisation.', page: '^/datasets/table/\\d+$' },
+		{ element: '#datavisBtn', intro: 'In the datavis section you can find a simple visual overview of your data', page: '^/datasets/\\d+$' },
+		{ element: '#datavisWrapper', intro: 'By toggling the certain columns you can see how your data has changed over time. You can also select the time range by selecting a portion of the dataset. Try playing around with it!', page: '^/datasets/ts/\\d+/vis$' },
+
+		// Data Visualisation
+		{ element: '#dataTools', intro: 'For more different visualisations or more precise controls we also have a data visualisation tool, in the data tools section.', page: '^/datasets/ts/\\d+/vis$' },
+		{ element: '#DataVisCard', intro: 'This tools is called rawgraphs and allows you to easily make graphs bsased on your datasets.', page: '^/tools$' },
+		{ element: '#datasetsList', intro: 'To start the data visualisation process, look for your data foundry project and click on the dataset you want to visualise', page: '^/tools/rawgraphs$' },
+		{ intro: 'This concludes the end of the tutorial, you can find more data visualisation tips on the wiki itself. But we encourage you to try creating your own graphs and visuals in rawgraphs to familiarise yourself with the tool', page: '^/tools/rawgraphs$' }
+
+	];
+
+	const currentPage = window.location.pathname;
+	let currentStep = parseInt(localStorage.getItem('mss_current') || 0);
+
+	const pageSteps = tourSteps.map((step, index) => {
+	    step.index = index;
+
+	    // Add navigation properties
+	    const nextStep = tourSteps[index + 1];
+	    const prevStep = tourSteps[index - 1];
+
+		// Check if neighbouring steps are on the same page
+	    step.hasNextOnSamePage = nextStep && currentPage.match(nextStep.page);
+	    step.hasPrevOnSamePage = prevStep && currentPage.match(prevStep.page);
+	    step.isLastInTour = index === tourSteps.length - 1;
+
+	    return step;
+	}).filter(step => currentStep <= step.index && currentPage.match(step.page));
+
+	if(pageSteps.length == 0 && currentStep > 0) {
+	    localStorage.removeItem('mss_current');
+	    location.reload();
+	}
+
+	// Initialize Driver.js
+	const d = driver.js.driver();
+
+	d.setConfig({
+		allowClose: false,
+		onDestroyed: () => {
+			fetch('@routes.HomeController.stopTour()')
+		},
+		onHighlighted: (elem, step) => {
+			localStorage.setItem('mss_current', step.index)
+			document.querySelector(".driver-popover-close-btn").blur()
+		},
+		onCloseClick: () => {
+			localStorage.removeItem('mss_current')
+			d.destroy()
+		}
+	})
+	d.setSteps(pageSteps.map(step => {
+	    let buttons = ["close"];
+
+		// Based on neighbouring step flags, display relevant buttons
+	    if (step.hasPrevOnSamePage) {
+	        buttons.push("previous");
+	    }
+
+	    if (step.hasNextOnSamePage) {
+	        buttons.push("next");
+	    } else if (step.isLastInTour) {
+	        buttons.push("finish");
+	    }
+
+	    return {
+	        element: step.element,
+	        index: step.index,
+	        popover: {
+	            title: tourTitle,
+	            description: step.intro,
+	            showButtons: buttons
+	        }
+	    };
+	}));
+	// function to update driverjs overlays when elements change
+	const observeRefresh = new ResizeObserver(() => {
+		d.refresh(); // repositions and resizes highlight
+	});
+	// listen to when the advanced option section expands
+	if (window.location.pathname === '/projects/add') {
+		observeRefresh.observe(document.querySelector('#advancedSettings'));
+	}
+
+	if (window.location.pathname === '/datasets/table/\\d+$'){
+		observeRefresh.observe(document.querySelector('#datatable_wrapper'));
+	}
+
+	if (window.location.pathname === '/tools/datalogger'){
+		observeRefresh.observe(document.querySelector('#projectSelectContainer'));
+	}
+
+	d.drive();
+})();

@@ -1,0 +1,190 @@
+@(token : String, telegramToken : String, user : Person, isActive : Boolean, updates : Integer, lastUpdateDate : String)
+@main("Edit user", "user") {
+  <script src="@routes.DatasetsController.jsRoutes()" type="text/javascript"></script>
+
+<!-- navigation -->
+<nav class="">
+  <div class="row">
+    <div class="col s8">
+      <a href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+      <a href="#" class="breadcrumb">Edit profile</a>
+    </div>
+  </div>    
+</nav>
+
+@*
+  @if(updates > 0) {
+  <div class="row">
+    <div class="col s12">
+      <div class="card-panel grey black-text">
+        <a href="@routes.UsersController.viewUpdates(lastUpdateDate)" class="btn white green-text">
+          <span style="display: inline; line-height: 1.4em; font-size: 1.4em; position: relative; top: 3px;">@elements.icon("notifications")</span>
+        Project status (@updates)
+        </a>
+      </div>
+    </div>
+  </div>
+  }
+*@
+
+<div class="row">
+  <div class="col s8">
+    <h2>Edit profile</h2>
+  </div>
+</div>
+
+<div class="row">
+  <form class="col s12" action="@routes.UsersController.editMe()" method="POST">
+
+    <div class="row">
+      <div class="input-field col s12 m7">
+        <input id="first_name" value="@user.getFirstname()" name="first_name" type="text" class="validate" required="">
+        <label for="first_name">First Name</label>
+      </div>
+      <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+        You can edit your first name here.
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="input-field col s12 m7">
+        <input id="last_name" value="@user.getLastname()" name="last_name" type="text" class="validate" required="">
+        <label for="last_name">Last Name</label>
+      </div>
+      <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+        You can edit your last name here.
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="input-field col s12 m7">
+        <input id="user_website" value="@user.getWebsite()" name="user_website" value="http://" type="text" class="validate">
+        <label for="user_website">Website</label>
+      </div>
+      <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+        If you have a personal website, please enter here. Remember to enter a COMPLETE url which starts with https or http.
+      </div>
+    </div>
+
+    <input type="hidden" name="csrfToken" id="csrfToken" value="@token"/>
+    
+    <div class="row">
+      <div class="col s12">
+        <div class="input-field center">
+          <a id="cancelBtn" href="@routes.ProjectsController.index()" class="btn-flat cancelBtn">Cancel</a>
+          <button class="btn" type="submit">save</button>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+
+  
+<div class="row">
+  <div class="col s12">
+    <h5>User tokens</h5>
+    <br>
+  </div>
+
+  @if(telegramToken.length() > 0) {
+  <div class="col s12 m7">
+    Telegram PIN: <br>
+    <span style="font-size: 3em; font-family: monospace;">@telegramToken</span>
+  </div>
+  <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+    Use this PIN to sign up for the Data Foundry Telegram bot. More information is available in the <a href="/documentation/Guides/Examples/Integrations/telegram.html" target="_blank">documentation</a>.
+    Note that any information you share via the desktop or mobile Telegram application will be also processed by <a href="https://telegram.org/privacy" target="_blank" rel="noopener">Telegram Messenger Inc.</a>
+  </div>
+  } else {
+  <div class="col s12 m7">
+    <a href="#" class="btn red" hx-post="@routes.UsersController.resetTelegramSession()" hx-target="body" hx-include="#csrfToken">Reset Telegram session</a>
+  </div>
+  <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+    Use this reset to clear up a Telegram session with the Data Foundry Telegram bot. Normally, you should not need this, but in some cases, you will need to fully reset the Telegram session for your Data Foundry user account.
+  </div>
+  
+  }
+
+  <div class="col s12">
+    <br>
+  </div>
+
+  <div class="col s12 m7">
+    API v2 access key:
+    <br><br>
+    <textarea style="height: 4em; font-family: monospace;">@user.getAccesscode()</textarea>
+  </div>
+  <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+    @if(user.getAccesscode() != null && user.getAccesscode().length() > 0) {
+  	<p>
+		  Use this API access code with the v2 API for Data Foundry. Click below to generate one (also if you want to invalidate this current).
+		</p>
+    } else {
+  	<p>
+		  No API access code set yet. Click below to generate one.
+		</p>
+	}
+	<a id="generateBtn" href="@routes.UsersController.generateToken("")" class="btn">Generate token</a>
+  </div>
+
+  <div class="col s12">
+    <br><br>
+    <h5>User settings</h5>
+    <br>
+  </div>
+
+  <div class="col s12 m7">
+    <div class="switch" id="switch_main">
+      <label>
+        Off
+        <input type="checkbox" name="switch_main">
+        <span class="lever"></span>
+        On
+      </label>
+    </div>
+  </div>
+  <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+    Switch for on-boarding support
+  </div>
+  <script type="text/javascript">
+
+    $("span.lever").click(function () {          
+      if($(this).hasClass("selected")){
+        $(this).removeClass("selected");
+        setState("main", "never");
+      } else{
+        $(this).addClass("selected");
+        setState("main", "active");
+      }
+    });  
+
+    function setState(target, state) {
+      var r = jsRoutes.controllers.UsersController.setState();
+      $.ajax({
+        url: r.url,
+        data: {
+          'catalog': target,
+          'state': state
+        },
+        type: r.type,
+        success: function(result) {
+          console.log(result);
+          if(state == "finish") {
+            location.reload();
+          }
+        },
+        error: function(error) {
+          console.log(error);
+        }
+      });
+    }
+    
+    $(function() {
+      main_is_active = @isActive;
+      if (main_is_active == true) {
+        $("span.lever").click();
+      }
+    });
+  </script>
+</div>
+}

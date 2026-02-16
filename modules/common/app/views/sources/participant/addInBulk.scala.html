@@ -1,0 +1,67 @@
+@(token : String, p : Project, quantity : Int)
+
+@main("Sign up as a Participant") {
+
+    <!-- navigation -->
+    <nav class="">
+        <div class="row">
+            <div class="col s12">
+                <a id="homeBtn" href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+                <a href="@routes.ProjectsController.view(p.getId())" class="breadcrumb">@p.getName()</a>
+                <a href="#" class="breadcrumb">Add participants in bulk</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="row center">
+        <div class="col s12">  
+            <h2>Sign up for project @p.getName()</h2>
+        </div>
+    </div>
+
+  <div class="row">
+  
+    <form class="col s12" action="@routes.ParticipantsController.addMeInBulk(p.getId())" method="POST">
+    @if(quantity > 0) {
+        @for(num <- 0 until quantity){
+        <div class="row center">
+            <div class="col s1 m2 l3"></div>
+            <div class="input-field col s5 m4 l3">
+                <input id="participants_fname_@(num + 1)" name="participants_fname_@(num + 1)" type="text" class="validate" required="">
+                <label for="participants_fname_@(num + 1)">First Name of Participant @(num + 1)</label>
+            </div>
+            
+            <div class="input-field col s5 m4 l3">
+                <input id="participants_lname_@(num + 1)" name="participants_lname_@(num + 1)" type="text" class="validate" required="">
+                <label for="participants_lname_@(num + 1)">Last Name of Participant @(num + 1)</label>
+            </div>
+            <div class="col s1 m2 l3"></div>
+        </div>
+
+        <div class="row">
+            <div class="col s1 m2 l3"></div>
+            <div class="input-field col s12 m6 l6">
+                <input id="participant_@(num + 1)" name="participants_@(num+1)" type="email" class="validate" required="">
+                <label for="participant_@(num + 1)">Participant @(num+1)</label>
+                <span class="helper-text" data-error="wrong format" data-success="correct">Email check</span>
+            </div>
+            <div class="col s1 m2 l3"></div>
+        </div>
+        }
+    }
+      
+        <input type="hidden" name="csrfToken" value="@token"/>
+        <input type="hidden" name="quantity" value="@quantity"/>
+  
+        <div class="row">
+            <div class="col s12">
+                <div class="input-field center">
+                    <button id="submitBtn" class="btn" type="submit">SignUp</button>
+                </div>
+            </div>
+        </div>
+
+    </form>
+    
+  </div>
+}

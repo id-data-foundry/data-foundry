@@ -1,0 +1,146 @@
+## OpenAPI/Swagger ROUTES ## 
+## basic path:/api/v2/users ##
+
+###
+ #  summary: create an user 
+ #  parameters:
+ #    - in: "body"
+ #      name: "body"
+ #      description: "User informations that needs to be created in the system"
+ #      required: true
+ #      schema:
+ #        type: object
+ #        required:
+ #          - "first_name"
+ #          - "last_name"
+ #          - "email"
+ #          - "password"
+ #          - "re_password"
+ #          - "access_code"
+ #        properties:
+ #          first_name:
+ #            type: "string"
+ #            example: "John"
+ #          last_name:
+ #            type: "string"
+ #            example: "Doe"
+ #          email:
+ #            type: "string"
+ #            example: "jd@example.com"
+ #          password:
+ #            type: "string"
+ #            description: "Please enter more than eight characters"
+ #            example: "password"
+ #          re_password:
+ #            type: "string"
+ #            description: "Please enter more than eight characters"
+ #            example: "password"
+ #          access_code:
+ #            type: "string"
+ #  responses:
+ #    200:
+ #      description: success
+ #      schema:
+ #        type: object
+ #        properties:
+ #          id:
+ #            description: "Id of the new user"
+ #            type: integer
+ #            format: "int64"
+ #    400:
+ #      description: No input or something wrong with the password.
+ #    403:
+ #      description: User is not valid or user can't access the project.
+ #    406:
+ #      description: Not valid email for a new user. Please check.
+ ###
+POST      /register                 controllers.swagger.UserApiController.registerMe(request: Request)
+
+###
+ #  summary: edit user data
+ #  parameters:
+ #    - in: "body"
+ #      name: "body"
+ #      description: "Maintain user information"
+ #      required: true
+ #      schema:
+ #        type: object
+ #        properties:
+ #          first_name:
+ #            type: "string"
+ #            example: "John"
+ #          last_name:
+ #            type: "string"
+ #            example: "Doe"
+ #          password:
+ #            type: "string"
+ #            description: "Please enter more than eight characters"
+ #            example: "password"
+ #          website:
+ #            type: "string"
+ #            description: "Enter your webpage here"
+ #            example: "https://example.com/jd"
+ #  responses:
+ #    200:
+ #      description: success
+ #    400:
+ #      description: No input.
+ #    403:
+ #      description: Not valid user.
+ ###
+POST      /edit                     controllers.swagger.UserApiController.editUser(request: Request)
+
+###
+ #  summary: login an user
+ #  parameters:
+ #    - in: "body"
+ #      name: "body"
+ #      description: "Login a user to the system with username and password"
+ #      required: true
+ #      schema:
+ #        type: object
+ #        required:
+ #          - "username"
+ #          - "password"
+ #        properties:
+ #          username:
+ #            type: "string"
+ #            description: "Please enter the email address of the user"
+ #            example: "bob@research.org"
+ #          password:
+ #            type: "string"
+ #            description: "Password should be more than eight characters"
+ #            example: "bob"
+ #  responses:
+ #    200:
+ #      description: success
+ #      schema:
+ #        type: object
+ #        properties:
+ #          id:
+ #            description: "Id of user"
+ #            type: integer
+ #            format: "int64"
+ #          api-token:
+ #            description: "api-token for accessing API"
+ #            type: string
+ #          first-name:
+ #            type: string
+ #          last-name:
+ #            type: string
+ #          email:
+ #            type: string
+ #    400:
+ #      description: No input.
+ #    403:
+ #      description: Not valid user or mismatched password.
+ ###
+POST      /login                    controllers.swagger.UserApiController.loginUser(request: Request)
+
+###
+ #  summary: logout current user 
+ #  responses:
+ #    200:
+ #      description: success
+ ###
+GET       /logout                   controllers.swagger.UserApiController.logout()

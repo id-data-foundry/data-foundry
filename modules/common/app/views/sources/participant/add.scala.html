@@ -1,0 +1,117 @@
+@(token : String, p : Project)
+@main("Add participant") {
+<!-- navigation -->
+<nav class="">
+	<div class="row">
+		<div class="col s12">
+			<a id="homeBtn" href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+			<a href="@routes.ProjectsController.view(p.getId())" class="breadcrumb">@p.getName()</a>
+			<a href="@routes.ProjectsController.viewResources(p.getId())" class="breadcrumb">Manage resources</a>
+			<a href="#" class="breadcrumb">Add participant</a>
+		</div>
+	</div>
+</nav>
+<div class="row center">
+	<div class="col s12">
+		<h2>Add new participant</h2>
+	</div>
+</div>
+<div class="row">
+	<form class="col s12 m10 offset-m1 l8 offset-l2" action="@routes.ParticipantsController.addMe(p.getId())" method="POST">
+		<div class="row">
+			<div class="input-field col s12 m7">
+				<input id="first_name" name="first_name" type="text">
+				<label for="first_name">First Name</label>
+			</div>
+			<div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+				Please enter participant's first name.
+			</div>
+		</div>
+		<div class="row">
+			<div class="input-field col s12 m7">
+				<input id="last_name" name="last_name" type="text">
+				<label for="last_name">Last Name</label>
+			</div>
+			<div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+				Please enter participant's last name.
+			</div>
+		</div>
+		<div class="row">
+			<div class="input-field col s12 m7">
+				<input id="email" name="email" type="email" class="validate">
+				<label for="email">Email</label>
+				<span class="helper-text" data-error="wrong format" data-success="correct"></span>
+			</div>
+			<div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+				Enter participant's email. We need this to send them an invitation and a consent form.
+			</div>
+		</div>
+		<div class="row">
+			<div class="input-field col s12 m7">
+				<select name="gender">
+					<option value="" selected="selected" disabled>Choose your gender</option>
+					<option value="1">Male</option>
+					<option value="2">Female</option>
+					<option value="3">Non-binary</option>
+					<option value="0">Prefer not to say</option>
+					<option value="4">Not given</option>
+				</select>
+				<label>Gender</label>
+			</div>
+			<div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+				Add gender of participant. This is optional information, only collect this if you are sure you need this data.
+			</div>
+		</div>
+		<div class="row">
+			<div class="input-field col s12 m7">
+				<select name="age_range">
+					<option value="" selected="" disabled>Choose your age</option>
+					<option value="1">Under 18</option>
+					<option value="2">18 - 25</option>
+					<option value="3">26 - 50</option>
+					<option value="4">50 above</option>
+					<option value="5">Not given</option>
+				</select>
+				<label>Age</label>
+			</div>
+			<div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+				Add age of participant. This is optional information, only collect this if you are sure you need this data.
+			</div>
+		</div>
+		<div class="row">
+			<div class="input-field col s12 m7">
+				<input id="public_parameter1" name="public_parameter1" type="text">
+				<label for="public_parameter1">Public Parameter1</label>
+			</div>
+			<div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+				Add a first public parameter of participant. Public parameters are part of participant-related datasets, so don't enter personally-identifiable information here.
+			</div>
+		</div>
+		<div class="row">
+			<div class="input-field col s12 m7">
+				<input id="public_parameter2" name="public_parameter2" type="text">
+				<label for="public_parameter2">Public Parameter2</label>
+			</div>
+			<div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+				Add a second public parameter of participant. Public parameters are part of participant-related datasets, so don't enter personally-identifiable information here.
+			</div>
+		</div>
+		<div class="row">
+			<div class="input-field col s12 m7">
+				<input id="public_parameter3" name="public_parameter3" type="text">
+				<label for="public_parameter3">Public Parameter3</label>
+			</div>
+			<div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+				Add a third public parameter for the participant. Public parameters are part of participant-related datasets, so don't enter personally-identifiable information here.
+			</div>
+		</div>
+		<input type="hidden" name="csrfToken" value="@token"/>
+		<div class="row center">
+			<div class="col s12">
+				<a id="cancelBtn" href="@routes.ProjectsController.viewResources(p.getId())" class="btn-flat cancelBtn">CANCEL</a>
+				<button id="submitBtn" class="btn" type="submit">Add participant</button>
+			</div>
+		</div>
+	</form>
+</div>
+}

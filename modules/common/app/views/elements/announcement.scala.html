@@ -1,0 +1,11 @@
+@()(implicit request: Http.Request)
+
+@if(request.session().get("announcement").isPresent()) {
+	<div class="row">
+		<div class="col s12">
+			<div class="card" style="border: solid 3px #f44336; padding: 1em; color: #b71c1c;">
+			@Html(request.session().get("announcement").orElse(""))
+			</div>
+		</div>
+	</div>
+}

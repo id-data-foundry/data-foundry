@@ -1,0 +1,18 @@
+{
+  "v": "3.viper-ide",
+  "updated": 1728745833,
+  "packages": [{
+          "name":  "OOCSI",
+          "homepage": "https://github.com/iddi/oocsi-micropython",
+          "versions": [{
+              "version": "latest",
+              "url": "https://github.com/iddi/oocsi-micropython/blob/main/oocsi.py"
+          }]},{
+          "name":  "Adafruit-uRTC",
+          "homepage": "https://github.com/adafruit/Adafruit-uRTC",
+          "versions": [{
+              "version": "latest",
+              "url": "https://github.com/adafruit/Adafruit-uRTC/blob/master/urtc.py"
+            }]
+        }]
+}

@@ -1,0 +1,143 @@
+@(csrfToken : String, device : sr.Device)
+
+@main("Edit Wearable Device") {
+
+    <!-- navigation -->
+    <nav class="">
+        <div class="row">
+            <div class="col s12">
+                <a id="homeBtn" href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+                <a href="@routes.ProjectsController.view(device.getProject().getId())" class="breadcrumb">@device.getProject().getName()</a>
+                <a href="@routes.ProjectsController.viewResources(device.getProject().getId())" class="breadcrumb">Sources</a>
+                <a href="#" class="breadcrumb">Edit</a>
+          </div>
+        </div>
+    </nav>
+
+	<div class="row center">
+		<div class="col s12 ">
+			<h3>Edit device @device.getName()</h3>
+		</div>
+	</div>
+
+
+	<div class="row">
+  
+    <form class="col s12" action="@routes.DevicesController.editMe(device.getId())" method="POST">
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input value="@device.getName()" id="device_name" name="name" type="text" class="validate" required="">
+          <label for="wearable_name">Device Name</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          You can edit the name of this device.
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+           <input value="@device.getCategory()" id="category" name="category" type="text" class="validate">
+          <label for="category">Category</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          You can edit category of this device.
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input value="@device.getSubtype()" id="subtype" name="subtype" type="text" class="validate">
+          <label for="subtype">Subtype</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          You can edit subtype of this device.
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input value="@device.getIpAddress()" id="ip_address" name="ip_address" type="text" class="validate">
+          <label for="ip_address">IP Address</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          You can edit IP Address of this device.
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input value="@device.getLocation()" id="location" name="location" type="text" class="validate">
+          <label for="location">Location</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          You can edit location of this device.
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input value="@device.getConfiguration()" id="configuration" name="configuration" type="text" class="validate">
+          <label for="configuration">Configuration</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          You can edit configuration of this device.
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+           <input value="@device.getPublicParameter1()" id="public_parameter1" name="public_parameter1" type="text" class="validate">
+          <label for="public_parameter1">Public Parameter1</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          You can edit public parameter1 of this device.
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input value="@device.getPublicParameter2()" id="public_parameter2" name="public_parameter2" type="text" class="validate">
+          <label for="public_parameter2">Public Parameter2</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          You can edit public parameter2 of this device.
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input value="@device.getPublicParameter3()" id="public_parameter3" name="public_parameter3" type="text" class="validate">
+          <label for="public_parameter3">Public Parameter3</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          You can edit public parameter3 of this device.
+        </div>
+      </div>
+
+      <input id="csrfToken" type="hidden" name="csrfToken" value="@csrfToken"/>
+
+      <div class="row center">
+        <div class="col s10 offset-s1 m8 offset-m2 l6 offset-l3 center">
+          <div class="input-field center">
+            <a id="cancelBtn" href="@routes.DevicesController.view(device.getId())" class="btn-flat cancelBtn">CANCEL</a>
+	      		<button class="btn" type="submit">SAVE</button>
+      	  </div>
+      	</div>
+        <div class="col s12">
+          <a id="deleteDeviceBtn"
+            href="#!"
+            class="btn red white-text btn-delete-source"
+            hx-delete="@routes.DevicesController.delete(device.getId())"
+            hx-confirm="Are you sure you want to reset all data in this dataset? This action is not reversible! Click OK to reset, cancel to stop."
+            hx-include="#csrfToken"
+            hx-swap="none"
+            onclick="setTimeout(function(){location.replace('@routes.ProjectsController.viewResources(device.getProject().getId())')}, 800);">
+            DELETE DEVICE: @device.getName()
+          </a>
+        </div>
+      </div>
+
+    </form>
+
+  </div>
+}

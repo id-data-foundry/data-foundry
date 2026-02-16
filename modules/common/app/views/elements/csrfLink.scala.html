@@ -1,0 +1,2 @@
+@(link: play.api.mvc.Call, label: String, csrfToken: String, css: String)
+<form action="@link" method="GET"><input type="hidden" name="csrfToken" value="@csrfToken" /><button type="submit" class="btn @css">@label</button></form>

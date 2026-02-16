@@ -1,0 +1,80 @@
+@(title: String)(content: Html)
+
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#81c784">
+        <title>@title</title>
+        <link rel="stylesheet" type="text/css" href="@routes.Assets.versioned("stylesheets/picoCSS/pico.min.css")">
+        <style type="text/css">
+            
+            th {
+                width: 20%;
+                text-align: center;
+            }
+
+            .container {
+                margin: 0 auto;
+            }
+
+            .container p + div {
+                margin-top: 0;
+                padding-top: 0;
+            }
+
+            .container p {
+                margin-bottom: 0;
+                padding-bottom: 0;
+            }
+
+        </style>
+    </head>
+    <body>
+        <div class="container" style="min-height: 85vh;">
+        @content
+        </div>
+
+        <footer style="border-top: lightgray solid 1px; background: #efefef; font-size: 0.75rem;">
+            <div class="container">
+                <section style="display: grid; grid-template-columns: 1fr 1fr; row-gap: var(--pico-spacing);">
+                    <div>
+                        <strong>
+                            Data Foundry
+                            <small style="margin-left: 1em;">version @utils.StringUtils.VERSION</small>
+                        </strong>
+                        <p class="grey-text text-darken-1">
+                            Data Foundry is a design-specific infrastructure for prototyping and designing with data.
+                        </p>
+                    </div>
+                    <nav style="justify-content: flex-end;">
+                        <ul >
+                            <li>
+                                <a class="grey-text text-darken-1" href="@routes.HomeController.configurableLink("about")" target="_blank">
+                                    About Data Foundry
+                                </a>
+                            </li>
+                            <li>
+                                <a class="grey-text text-darken-1" href="@routes.HomeController.configurableLink("privacy")" target="_blank">
+                                    Privacy
+                                </a>
+                                +
+                                <a class="grey-text text-darken-1" href="@routes.HomeController.configurableLink("data-protection")" target="_blank">
+                                    Data Protection
+                                </a>
+                            </li>
+                            <li>
+                                <a class="grey-text text-darken-1" href="@routes.HomeController.configurableLink("scientific-integrity")" target="_blank">
+                                    Scientific Integrity
+                                </a>
+                            </li>
+                        </ul>
+                    </nav>
+                </section>
+                <section>
+                    © 2019-2026 Industrial Design, Eindhoven University of Technology
+                </section>
+            </div>
+        </footer>
+    </body>
+</html>

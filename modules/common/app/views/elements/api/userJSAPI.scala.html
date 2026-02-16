@@ -1,0 +1,23 @@
+@(userId : String, projectId: Long, token: String, profile: String)(implicit request: Http.Request)
+var DF = {
+	user: {
+		id: "@userId",
+		profile: {},
+	},
+	getItem: function(key) {
+		return DF.user.profile[key];
+	},
+	setItem: function(key, value) {
+		let data = {
+			key: key,
+			value: value
+		}
+		fetch('/@JavaScript(api.js.routes.UserApiController.setItem(projectId, token).relativeTo("/"))', {
+			method: 'POST',
+			body: JSON.stringify(data),
+			headers: {
+				'Content-Type': 'application/json'
+			}
+		})
+	}
+}		

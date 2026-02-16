@@ -1,0 +1,111 @@
+@()
+@main("Documentation", "documentation") {
+	<style type="text/css">
+		.card .card-content p {
+			height: 5rem;
+		}
+	</style>
+
+	<nav class="">
+		<div class="row">
+			<div class="col s12">
+				<a id="homeBtn" href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+				<a href="#!" class="breadcrumb">Documentation</a>
+			</div>
+		</div>
+	</nav>
+
+	<div class="row">
+		<div class="col s12">
+			<h3>Data Foundry Documentation</h3>
+		</div>
+
+		<div class="col s12 l4">
+			<div class="card">
+				<div class="card-content">
+          			<span class="card-title truncate">Documentation pages</span>
+          			<p>
+          				The documentation pages show how to use the various features of Data Foundry.
+          			</p>
+        		</div>
+        		<div class="card-action">
+					<a href="/documentation/index.html" target="_blank">Open</a>
+				</div>
+			</div>
+		</div>
+
+		<div class="col s12 l4">
+			<div class="card">
+				<div class="card-content">
+          			<span class="card-title">Examples</span>
+          			<p>
+          				Find a series of inspiring example projects for Data Foundry. 
+          				Each case has a comprehensive over and a step-by-step guide how to realize it.
+          			</p>
+        		</div>
+        		<div class="card-action">
+					<a href="/documentation/Guides/Examples/index.html" target="_blank">Open</a>
+				</div>
+			</div>
+		</div>
+
+@*
+		<div class="col s12 l4">
+			<div class="card">
+				<div class="card-content">
+          			<span class="card-title">Videos</span>
+          			<p>
+          				Watch a series of easy introduction videos that showcase most features of Data Foundry.
+          			</p>
+        		</div>
+        		<div class="card-action">
+					<a href="/documentation/videolectures" target="_blank">Open</a>
+				</div>
+			</div>
+		</div>
+
+		<div class="col s12 l4">
+			<div class="card">
+				<div class="card-content">
+          			<span class="card-title">Practice</span>
+          			<p>
+          				You can go through practical examples in this section.
+          			</p>
+        		</div>
+        		<div class="card-action">
+					<a href="/documentation/practice" target="_blank">Open</a>
+				</div>
+			</div>
+		</div>
+*@
+
+		<div class="col s12 l4">
+			<div class="card">
+				<div class="card-content">
+          			<span class="card-title truncate">Developer documentation</span>
+          			<p>
+          				Learn how to prototype smaller and larger applications with Data Foundry.
+          				The API documentation shows how to use the various API of this platform.
+          			</p>
+        		</div>
+        		<div class="card-action">
+					<a href="/documentation/Guides/developerGuide.html" target="_blank">Open</a>
+				</div>
+			</div>
+		</div>
+
+		<div class="col s12 l4">
+			<div class="card">
+				<div class="card-content">
+          			<span class="card-title truncate">Data protection</span>
+          			<p>
+          				More information on data protection and how to use Data Foundry in a compliant way.
+          			</p>
+        		</div>
+        		<div class="card-action">
+					<a href="/links/data-protection" target="_blank">Open</a>
+				</div>
+			</div>
+		</div>
+	</div>
+}

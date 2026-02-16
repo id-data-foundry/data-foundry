@@ -1,0 +1,189 @@
+@()
+(() => {
+
+	// Describe the title of your tour
+	const tourTitle = "Tutorial: My first AI chatbot"
+
+	// Define your tour steps:
+	//   element: specifies the element to highlight, use CSS selector syntax (as used by document.querySelector)
+	//   intro: this is the text to show in the popup
+	//   page: this is a regular expression for the page to show this step on
+	const tourSteps = [
+
+		// Intro + Project Creation
+		{ intro: 'Hi welcome to your first Data Foundry tutorial, In this tutorial we will show you how you can easily deploy and host a simple AI powered website to Data Foundry!', page: '^/projects$' },
+	    { element: '#addProjectBtn', intro: 'We first have to create a new project! This will be the home of your chatbot.', page: '^/projects$' },
+	    { element: '#project_name', intro: 'Fill in a name for your new project something like "AI Tutorial" will do', page: '^/projects/add' },
+	    { element: '#project_introduction', intro: 'For the description you can put anything, like: "Data Foundry Chatbot".', page: '^/projects/add' },
+		{ element: '#dataProtectionSection', intro: 'But before we get started please read and agree to the following terms on data anonimization.', page: '^/projects/add' },
+	    { element: '#submitBtn', intro: 'Cool, you\'ve made your chatbot project, Let\'s go!', page: '^/projects/add' },
+
+        { element: '#editButton', intro: 'Before we create a dataset, we will have to enable the AI api for this project. The api-key will allow us to access the Data Foundry AI models. We can do that in the project settings', page: '^/projects/\\d+$' },
+        { element: '#GenerateAPIKey', intro: 'You can enable the AI API by generating an API key, please generate one and then copy and save the API key in a notepad or empty document', page: '^/projects/\\d+/edit' },
+        { element: '#projectBtn', intro: 'Now you have collected the AI API key, we can head back to the project again and start building our chatbot', page: '^/projects/\\d+/edit' },
+ 
+        // ADD Existing Dataset Steps
+		{ element: '#addDatasetBtn', intro: 'Now lets create a dataset for our chatbot to be built', page: '^/projects/\\d+$' },
+		{ element: '#addDSBtn_Complete', intro: 'To host a simple prototype, we will need to upload our files to an Existing Dataset.', page: '^/projects/\\d+/addDataset' },
+		{ element: '#dataset_name', intro: 'Let\'s call this dataset "Chatbot"', page: '^/datasets/existing/add/\\d+$' },
+		{ element: '#description', intro: 'and in the description put "A simple AI powered website hosted with Data Foundry"', page: '^/datasets/existing/add/\\d+$' },
+		{ element: '#submitBtn', intro: 'after which the dataset is ready to go!', page: '^/datasets/existing/add/\\d+$' },
+
+		// Upload file to Existing Dataset
+		{ intro: 'This is an Existing Dataset, in the existing dataset you can upload your already existing files, datasets or webpages. Additionally the Existing Dataset allows you to make these files accessible over the internet.', page: '^/datasets/\\d+$' },
+		{ element: '#uploadFileBtn', intro: 'To upload your own file to the Existing Dataset, you press this upload files button.', page: '^/datasets/\\d+$' },
+		{ element: '#files', intro: 'Here you can select what files you want to upload, please select the tutorial file we have just downloaded from the documentation.', page: '^/datasets/\\d+$' },
+		{ element: '#description', intro: 'All uploaded files need a description, lets put in "Data Foundry Tutorial Website".', page: '^/datasets/\\d+$' },
+		{ element: '#submit', intro: 'Once you have selected what files you want to upload and written a description we can upload the files by pressing the submit button.', page: '^/datasets/\\d+$' },
+
+		// Add api-key
+		{ element: '#blueEditButton', intro: 'Now before we can get started with our chatbot, we first have to insert our api-key into the code, but dont be scared we will lead you through this! We can edit the html file by opening the code editor, you can get here by pressing the blue EDIT button.', page: '^/datasets/\\d+$' },
+		{ intro: 'This is Data Foundry\'s web code editor, here you can easily modify and preview your websites and code. On the left you can see the code, and on the right you will see a preview of your website. Lets find where you have to modify your api-key', page: '^/datasets/existing/edit/\\d+/1$' },
+		{ element: 'textarea', intro: 'This is the code editor, lets add your api-key to the code. Scroll to line 169 and replace &lt;YOUR-API-TOKEN&gt; with the token you collected earlier.', page: '^/datasets/existing/edit/\\d+/1$' },
+		{ element: '#saveBtn', intro: 'After that is done you can save the file here.', page: '^/datasets/existing/edit/\\d+/1$' },
+		{ element: '#playground', intro: 'You should already see a little preview of your chatbot here! this preview updates live as you save the code. But lets first make the chatbot publically accessible', page: '^/datasets/existing/edit/\\d+/1$' },
+		{ element: '#backToDatasetBtn', intro: 'You can find the web access settings on the dataset main page', page: '^/datasets/existing/edit/\\d+/1$' },
+
+		// Make files accessible
+		{ intro: 'Now we have finished building our Data Foundry chatbot, we will have to make it publically accessible over the internet, to do so we will have to enable web access', page: '^/datasets/\\d+$' },
+		{ element: '#web_outTab', intro: 'You can find the web access settings down here', page: '^/datasets/\\d+$' },
+		{ element: '#entrypointSelection', intro: 'Before we enable web access we need to select our main entrypoint, this will be the first file shown when opening the link.', page: '^/datasets/\\d+$' },
+		{ element: '#activateWebAccessBtn', intro: 'After an entrypoint is selected, you can activate web access.', page: '^/datasets/\\d+$' },
+		{ intro: 'Warning: Activating Web Access means that all data in this dataset will be publically accessible to the internet, please dont store any personal data in this dataset.', page: '^/datasets/\\d+$' },
+		{ element: '#webAccessLink', intro: 'Your tutorial website should now be accessible through the following link!', page: '^/datasets/\\d+$' },
+	];
+
+	const currentPage = window.location.pathname;
+	let currentStep = parseInt(localStorage.getItem('mss_current') || 0);
+
+	const pageSteps = tourSteps.map((step, index) => {
+	    step.index = index;
+
+	    // Add navigation properties
+	    const nextStep = tourSteps[index + 1];
+	    const prevStep = tourSteps[index - 1];
+
+		// Check if neighbouring steps are on the same page
+	    step.hasNextOnSamePage = nextStep && currentPage.match(nextStep.page);
+	    step.hasPrevOnSamePage = prevStep && currentPage.match(prevStep.page);
+	    step.isLastInTour = index === tourSteps.length - 1;
+
+	    return step;
+	}).filter(step => currentStep <= step.index && currentPage.match(step.page));
+
+	if(pageSteps.length == 0 && currentStep > 0) {
+	    localStorage.removeItem('mss_current');
+	    location.reload();
+	}
+	// Initialize Driver.js
+	const d = driver.js.driver();
+
+	d.setConfig({
+		allowClose: false,
+		onDestroyed: () => {
+			fetch('@routes.HomeController.stopTour()')
+		},
+		onHighlighted: (elem, step) => {
+			localStorage.setItem('mss_current', step.index)
+			document.querySelector(".driver-popover-close-btn").blur()
+		},
+		onCloseClick: () => {
+			localStorage.removeItem('mss_current')
+			d.destroy()
+		}
+	})
+	d.setSteps(pageSteps.map(step => {
+	    let buttons = ["close"];
+
+		// Based on neighbouring step flags, display relevant buttons
+	    if (step.hasPrevOnSamePage) {
+	        buttons.push("previous");
+	    }
+
+	    if (step.hasNextOnSamePage) {
+	        buttons.push("next");
+	    } else if (step.isLastInTour) {
+	        buttons.push("finish");
+	    }
+
+	    return {
+	        element: step.element,
+	        index: step.index,
+	        popover: {
+	            title: tourTitle,
+	            description: step.intro,
+	            showButtons: buttons
+	        }
+	    };
+	}));
+
+	// function to update driverjs overlays when elements change
+	const observeRefresh = new ResizeObserver(() => {
+		d.refresh(); // repositions and resizes highlight
+	});
+
+
+    const generateButton = document.getElementById('GenerateAPIKey');
+
+	if (generateButton) {
+		generateButton.addEventListener('input', () => {
+			d.refresh(); // called when user changes input value
+		});
+	}
+	
+	if (window.location.pathname.match(/^\/datasets\/\d+$/)) {
+        const element = document.querySelector('#entrypointSelection');
+        if (element) {
+            observeRefresh.observe(element);
+        }
+    }
+	
+	
+	// Continue tour on web link generation
+	const webAccessButton = document.getElementById('activateWebAccessBtn');
+	if (webAccessButton) {
+		webAccessButton.addEventListener('click', () => {
+			d.moveNext(); // called when user changes input value
+		});
+	}
+	
+	const uploadFileBtn = document.getElementById('uploadFileBtn');
+	if (uploadFileBtn) {
+		uploadFileBtn.addEventListener('click', () => {
+			d.moveNext(); // called when user changes input value
+		});
+	}
+	
+	const web_outTab = document.getElementById('web_outTab');
+	if (web_outTab) {
+		web_outTab.addEventListener('click', () => {
+			d.moveNext(); // called when user changes input value
+		});
+	}
+	
+	// Watch for the submit button to appear in the DOM (from modal)
+    let submitButtonAttached = false;
+    const submitObserver = new MutationObserver(() => {
+    		const submitBtn = document.getElementById('submit');
+    		if (submitBtn && !submitButtonAttached) {
+    			console.log("Submit button found, attaching listener");
+    			submitBtn.addEventListener('click', (e) => {
+    				// Immediately save progress to localStorage before any reload
+    				const currentStepNum = parseInt(localStorage.getItem('mss_current') || 0);
+    				localStorage.setItem('mss_current', currentStepNum + 1);
+    				// Let the default form submission happen
+    			}, true); // Use capture phase
+    			submitButtonAttached = true;
+    		}
+    });
+    
+    // Start observing the document for changes
+    submitObserver.observe(document.body, { 
+    		childList: true, 
+    		subtree: true 
+    });
+
+	
+	
+	d.drive();
+})();

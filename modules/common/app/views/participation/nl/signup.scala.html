@@ -1,0 +1,83 @@
+@(token : String, participant : sr.Participant, invite_token : String)
+@participating("Vul alstublieft uw profiel in", invite_token, "nl") {
+    <br><br>
+    <div class="row">
+        <div class="col s12">  
+          <h3>Vul alstublieft uw profiel in</h3>
+        </div>
+    </div>
+
+    <div class="row">
+        <form class="col s12" action="@routes.ParticipationController.signMeUp(invite_token)" method="POST">
+
+            <div class="row">
+                <div class="input-field col s12 m6 l6">
+                    <input value="@participant.getFirstname()" id="first_name" name="first_name" type="text" class="validate"
+                    	@if(!participant.getEmail().isEmpty) { required }>
+                    <label for="first_name">Voornaam</label>
+                </div>
+                <div class="input-field col s12 m6 l6">
+                    <input value="@participant.getLastname()" id="last_name" name="last_name" type="text" class="validate"
+	                    @if(!participant.getEmail().isEmpty) { required }>
+                    <label for="last_name">Achternaam</label>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="input-field col s12 m6 l6">
+                    @if(!participant.getEmail().isEmpty) {
+                    <input value="@participant.getEmail()" id="email" name="email" type="email" class="validate" required>
+                    } else {
+                    <input value="@participant.getEmail()" id="email" name="email" type="email" class="validate">
+                    }
+                    <label for="email">E-mail</label>
+                    <span class="helper-text" data-error="Verkeerd E-mail formaat" data-success="correct"></span>
+                </div>
+@*
+                <div class="input-field col s12 m6 l6">
+                    <input value="@participant.career" id="career" name="career" type="text">
+                    <label for="career">Beroep</label>
+                </div>
+*@
+            </div>
+
+            @if(!participant.getEmail().isEmpty) {
+            <div class="row">
+                <div class="input-field col s12 m6 l6">
+                    <select name="gender">
+                        <option value="" disabled>Kies je geslacht</option>
+                        <option value="1" @if(participant.gender==1){selected}>Man</option>
+                        <option value="2" @if(participant.gender==2){selected}>Vrouw</option>
+                        <option value="3" @if(participant.gender==3){selected}>Non-binair</option>
+                        <option value="0" @if(participant.gender==0){selected}>Geef liever geen antwoord</option>
+                    </select>
+                    <label>Jouw Geslacht</label>
+                </div>
+                <div class="input-field col s12 m6 l6">
+                    <select name="age_range">
+                        <option value="" disabled>Kies je leeftijd</option>
+                        <option value="1" @if(participant.ageRange==1){selected}>Jonger dan 18</option>
+                        <option value="2" @if(participant.ageRange==2){selected}>18 - 25</option>
+                        <option value="3" @if(participant.ageRange==3){selected}>25 - 50</option>
+                        <option value="4" @if(participant.ageRange==4){selected}>50 of ouder</option>
+                    </select>
+                    <label>Je leeftijd</label>
+                </div>
+            </div>
+            }
+
+            <input type="hidden" name="csrfToken" value="@token"/>
+      
+            <div class="row">
+                <div class="col s12">
+                    <div class="input-field">
+                        <button id="submitBtn" class="btn" type="submit">OPSLAAN</button>
+                        <a href="@routes.ParticipationController.view(invite_token)" class="btn-flat grey-text">Annuleren</a>
+                    </div>
+                </div>
+            </div>
+
+        </form>
+    
+    </div>
+}

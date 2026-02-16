@@ -1,0 +1,27 @@
+@(dataset : Dataset, user : String)
+@if(user != null && !user.isEmpty) {
+@if(!dataset.editableBy(user) && !dataset.subscribedBy(user)) {
+<a id="downloadBtn" href="@routes.DatasetsController.downloadPublic(dataset.getConfiguration().get(Dataset.PUBLIC_ACCESS_TOKEN), -1L)" class="btn">Download</a>
+} else {
+<a id="tableBtn" href="@routes.DatasetsController.table(dataset.getId())" class="btn">
+	@elements.icon("table")
+	Table
+</a>
+@if(dataset.getDsType() == DatasetType.IOT) {
+<a id="datavisBtn" href="@controllers.api.routes.TimeseriesDSController.datavis(dataset.getId())" class="btn">
+	@elements.icon("insert_chart")
+	Datavis
+</a>
+}
+@if(dataset.getDsType() == DatasetType.FORM || dataset.getDsType() == DatasetType.SURVEY) {
+<a id="visualiseBtn" href="@if(dataset.getDsType() == DatasetType.FORM){@api.routes.FormDSController.visualize(dataset.getId())}else{@api.routes.SurveyDSController.visualize(dataset.getId())}" class="btn">
+	@elements.icon("insert_chart")
+	Datavis
+</a>
+}
+<a id="downloadBtn" href="@routes.DatasetsController.download(dataset.getId())" class="btn">
+	@elements.icon("file_download")
+	Download
+</a>
+}
+}

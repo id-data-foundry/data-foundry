@@ -1,0 +1,49 @@
+@(w: sr.Wearable, redirectUrl: String, client_id: String, scopes: String, signupStatus: String, invite_token: String)
+
+@participating("Connect Fitbit wearable", "") {
+
+  <br><br>
+
+  <div class="row">
+    <div class="col s12">
+      <h3>Connect your Fitbit wearable</h3>
+    </div>
+  </div>
+      
+  <div class="row">
+    <div class="col s12">
+    	<p>
+        	As a part of this study we would like to collect the following data:
+        	<br>
+        	<blockquote>@w.getScopeFromDataset(), settings</blockquote>
+          <p>
+            <small>
+              Note that `settings` is required for server to check the time for the last synchronization of the Fitbit wearable.
+            </small>
+          </p>
+    	</p>
+		  <p>
+        	Click connect below, if you agree and would like to proceed:
+        	<br><br>
+        	<a href="https://www.fitbit.com/oauth2/authorize?response_type=code&client_id=@client_id&scope=@scopes&redirect_uri=@redirectUrl&state=@w.getId()==@invite_token" class="btn">Connect the Fitbit</a>
+        	<a href="@routes.ParticipationController.view("")" class="btn-flat">Skip this step</a>
+    	</p>
+    </div>
+  </div>
+
+  <!-- modal -->
+  <div id="modal_attention" class="modal">
+		<div class="modal-content center">
+			<h5 class="center-align">One FITBIT account should only signup one Fitbit wearable, if more than one Fitbit wearable is signed up, 
+        only the latest one will work and be kept for the FITBIT account in the system.</h5>
+			<br><br>
+			<a href="#" onclick="switchModal('#modal_attention', 'close');" class="collection-item">CLOSE</a>
+		</div>
+	</div>
+      
+  <script type="text/javascript">
+    $(document).ready(function(){
+      switchModal("#modal_attention", 'open');
+    });
+  </script>
+}

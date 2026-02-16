@@ -1,0 +1,40 @@
+@(url: String, qrCode: String)
+
+@main("Invite users", "support") {
+
+
+<!-- navigation -->
+<nav class="">
+  <div class="row">
+    <div class="col s8">
+      <a href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+      <a href="#" class="breadcrumb">Invite users</a>
+    </div>
+  </div>    
+</nav>
+
+<div class="row">
+  <div class="col s8">
+    <h2>Invite users</h2>
+  </div>
+</div>
+
+
+<div class="row">
+	<div class="col s12">
+		<p>
+			Let's invite some more people to Data Foundry! Below you can find a URL to share with new users. They can directly sign-up with their name and email address, and get started with Data Foundry!
+			<em>Note: the link is valid for 7 days from now.</em>
+		</p>
+
+		<p>
+			Either scan the QR code below or copy the URL: <br>
+			<input type="text" value="@url">
+		</p>
+
+		<p>
+			<img src="@qrCode">
+		</p>
+	</div>
+</div>
+}

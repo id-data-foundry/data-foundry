@@ -1,0 +1,29 @@
+@(dataset : Dataset, fileLists : List[vm.TimedMedia])
+
+<table class="striped" style="table-layout: fixed;">
+	<thead>
+		<tr>
+			<th class="col s12 m12 l5">File name</th>
+			<th class="col s12 m12 l4">Description</th>
+			<th class="col s9 m10 l3">Created</th>
+		</tr>
+	</thead>
+
+	<tbody>
+@if(fileLists != null && !fileLists.isEmpty()) {
+	@for(fileList <- fileLists) {
+		<tr>
+			<td class="col s12 m12 l5"><a href="@api.routes.CompleteDSController.downloadFile(dataset.getId(),fileList.getId())">@fileList.link</a></td>
+			<td class="col s12 m12 l4">@fileList.caption</td>
+			<td class="col s9 m10 l3">@fileList.pretty()</td>
+		</tr>
+	}
+} else {
+		<tr>
+			<td colspan="4" class="col s12" style="overflow: hidden; padding: 1em; background: white;">
+      			🕳 No code backup or log files yet.
+			</td>
+		</tr>
+}
+	</tbody>
+</table>

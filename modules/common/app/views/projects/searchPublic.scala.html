@@ -1,0 +1,68 @@
+@(query: String, filter : String, projects : List[Project])
+
+@external("Project search") {
+
+  <!-- navigation -->
+  <nav class="">
+    <div class="row">
+      <div class="col s12">
+        <a href="@routes.HomeController.index()" class="breadcrumb">Home</a>
+        <a href="#" class="breadcrumb">Search</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="row">
+    <form action="@routes.ProjectsController.search("")" method="GET">
+      <div class="input-field col s12 m8">
+        <i class="prefix">@elements.icon("search")</i>
+        <input id="search" type="text" name="query" value="@query">
+        <label class="" for="search">Search string</label>
+        <button type="submit" class="btn-flat green-text"></button>
+      </div>
+      <div class="input-field col s12 m4">
+        <select id="filter" name="filter">
+          <option value="" @if(filter.length() == 0){selected}>All data types</option>
+          <option value="iot" @if(filter.equals("iot")){selected}>IoT</option>
+          <option value="movement" @if(filter.equals("movement")){selected}>Movement</option>
+          <option value="survey" @if(filter.equals("survey")){selected}>Surveys/Forms</option>
+          <option value="media" @if(filter.equals("media")){selected}>Media data</option>
+        </select>
+        <label>Filter dataset type</label>
+      </div>
+    </form>
+  </div>
+
+  <script type="text/javascript">
+    
+    $('#filter').change(function(e) {
+      $('form')[0].submit();
+
+      e.preventDefault();
+      return false;
+    });
+
+  </script>
+
+  @if(projects.size() > 0) {
+	<div class="row">
+	  @for(p <- projects) {
+	  	@if(!p.isArchivedProject()){
+        @elements.project.projectCard(p)
+	  	}
+	  }
+	</div>
+  } else {
+  <div class="row">
+    <div class="col s12">
+      <p>
+        No projects found with the given search query.
+      </p>
+      <hr>
+      <p>
+        Even wondered how to search in Data Foundry? It's almost like your favorite web search engine: type keywords, connect them with AND / OR, put them in quotes, add '+' to prioritize, add '-' to exclude. And then ... check the <a href="/documentation/Reference/search.html">documentation</a>.
+      </p>
+    </div>
+  </div>
+  }
+}

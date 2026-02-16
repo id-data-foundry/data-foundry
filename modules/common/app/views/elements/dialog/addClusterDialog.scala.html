@@ -1,0 +1,33 @@
+@(id : Long)
+
+<!-- Modal for adding new cluster -->
+<div id="modal_add_cluster" class="modal">
+	<div class="modal-content">
+		<h4 class="center-align">Enter a name for your cluster</h4>
+		<div class="row">
+			<div class="input-field col s12">
+				<input placeholder="Cluster Name" id="cluster_name" name="cluster_name" type="text">
+				<label for="cluster_name">Cluster Name</label>
+			</div>
+		</div>
+	</div>
+    <div class="modal-footer">
+		<a href="#!" class="btn-flat grey-text center modal-close">Cancel</a>
+		<a href="#!" id="modalAddCluster" class="btn green white-text center">Add cluster</a>
+	</div>
+
+	<script type="text/javascript">
+		$("#modalAddCluster").click(function(){
+			var name = $("input:text[name=cluster_name]").val();
+			console.log("project id : @id");
+			if (name && name != "" ) {
+				$.get('@routes.ClustersController.add(id,"")' + name, function() {
+					location.reload();
+				});
+			}
+			return false;
+		});
+
+	</script>
+
+</div>

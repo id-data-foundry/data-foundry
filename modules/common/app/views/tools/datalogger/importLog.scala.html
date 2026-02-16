@@ -1,0 +1,228 @@
+@(datasetId: Long, apiToken: String, deviceId: String, csrfToken : String)
+@main("Sensor Logger Data Import", "tools") {
+
+  <style>
+    .drop-zone {
+      margin: 40px auto;
+      width: 100%;
+      height: 16rem;
+      border: 4px dashed #81c784;
+      border-radius: 16px;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #81c784;
+      font-size: 2rem;
+      transition: background 0.2s, border-color 0.2s;
+    }
+    .drop-zone.dragover {
+      background: #e3f2fd;
+      border-color: #1976d2;
+      color: #1976d2;
+    }    
+  </style>
+
+  <!-- navigation -->
+  <nav class="">
+    <div class="row">
+      <div class="col s12">
+        <a id="homeBtn" href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+        <a href="#" class="breadcrumb">Sensor Logger Data Import</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="row">
+    <div class="col s12">
+      <h3>
+        Sensor Logger Data Import
+      </h3>
+      <p>
+        You can retrieve a recording from the sensor logger app and upload it here for the chosen device. Just export the recording from the app, either as a ZIP archive of CSV files per sensor or a single JSON file with all recorded data. You can drop either a CSV file from the ZIP archive (unzip on your computer first!) or the JSON file directly. After the drop, you can select which parts of the data you want to upload.
+      </p>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col s12">
+      <div class="drop-zone" id="dropZone">
+        <span>Drop your CSV or JSON file here</span>
+      </div>
+      <div id="output" class="row"></div>
+    </div>
+
+    <script type="module">
+      const dropZone = document.getElementById('dropZone');
+      const output = document.getElementById('output');
+
+      // Drag events
+      dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('dragover');
+      });
+      dropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+      });
+      dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('dragover');
+        const file = e.dataTransfer.files[0];
+        if (!file) return;
+        handleFile(file);
+      });
+
+      function handleFile(file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const content = e.target.result;
+          if (file.name.match(/\.csv$/i)) {
+            parseCSV(file, content);
+          } else if (file.name.match(/\.json$/i)) {
+            parseJSON(file, content);
+          } else {
+            output.innerHTML = `<b>Unsupported file type:</b> ${file.name}`;
+          }
+        };
+        reader.readAsText(file);
+      }
+
+      // CSV Parsing
+      function parseCSV(file, text) {
+        // Simple CSV parser (handles quoted fields)
+        const rows = [];
+        let row = [];
+        let field = '';
+        let inQuotes = false;
+        for (let i = 0; i < text.length; i++) {
+          const c = text[i];
+          if (c === '"' && (i === 0 || text[i-1] !== '\\')) {
+            inQuotes = !inQuotes;
+          } else if (c === ',' && !inQuotes) {
+            row.push(field);
+            field = '';
+          } else if ((c === '\n' || c === '\r') && !inQuotes) {
+            if (field !== '' || row.length > 0) {
+              row.push(field);
+              rows.push(row);
+              row = [];
+              field = '';
+            }
+            // Handle \r\n
+            if (c === '\r' && text[i+1] === '\n') i++;
+          } else {
+            field += c;
+          }
+        }
+        if (field !== '' || row.length > 0) {
+          row.push(field);
+          rows.push(row);
+        }
+        if (rows.length < 2) {
+          output.innerHTML = `<b>CSV file must have at least a header and one data row.</b>`;
+          return;
+        }
+        const headers = rows[0];
+        const dataRows = rows.slice(1).filter(r => r.length === headers.length);
+        // Display
+        let html = `<div class="col s12"><p><b>Please select which CSV columns you would to import:</b></p></div>`;
+        headers.forEach((p, i) => {
+          html += `<div class="input-field col s6 m3"><p><label><input type="checkbox" name="selectedProperties[]" value="${p}" ${p == 'time' ? "selected disabled" : ""}><span>${escapeHTML(p)}</span></label></div>`;
+        });
+        html += `<div class="col s12"><button class="btn">Import data</button></div>`
+        output.innerHTML = html;
+        M.AutoInit(output);
+        output.querySelector('button').addEventListener('click', () => {
+          output.querySelector('button').disabled = true;
+          let columns = '';
+          output.querySelectorAll('input').forEach(i => {
+            if(i.checked) columns += i.value + ','
+          })
+          const formData = new FormData();
+          formData.append('file', file, file.name);
+          fetch(`@controllers.tools.routes.DataLogger.importCSV(datasetId, apiToken, deviceId, "")?selectedColumns=${columns}`, {
+            method: 'POST',
+            header: {
+              'Csrf-Token': `@csrfToken`
+            },
+            body: formData
+          })
+          .then(res => res.text())
+          .then((text) => {
+            output.querySelector('button').parentNode.innerHTML = text + " Heading back to the Data Logger page in 5 secs...";
+            setTimeout(() => {
+              window.location = `@controllers.tools.routes.DataLogger.index()`
+            }, 5000);
+          })
+        })
+      }
+
+      // JSON Parsing
+      function parseJSON(file, text) {
+        let data;
+        try {
+          data = JSON.parse(text);
+        } catch (e) {
+          output.innerHTML = `<b>Invalid JSON file.</b>`;
+          return;
+        }
+        // Accept array of objects or single object
+        let objects = [];
+        if (Array.isArray(data)) {
+          objects = data.filter(obj => typeof obj === 'object' && obj !== null);
+        } else if (typeof data === 'object' && data !== null) {
+          objects = [data];
+        } else {
+          output.innerHTML = `<b>JSON must be an object or array of objects.</b>`;
+          return;
+        }
+        if (objects.length === 0) {
+          output.innerHTML = `<b>No objects found in JSON.</b>`;
+          return;
+        }
+        // Collect all property names
+        const propSet = new Set();
+        objects.forEach(obj => Object.keys(obj).forEach(k => propSet.add(k)));
+        const props = Array.from(propSet);
+        // Display
+        let html = `<div class="col s12"><p><b>Please select which JSON properties you would to import:</b></p></div>`;
+        props.forEach(p => {
+          html += `<div class="input-field col s6 m3"><p><label><input type="checkbox" name="selectedProperties[]" value="${p}" ${p == 'time' ? "selected disabled" : ""}><span>${escapeHTML(p)}</span></label></div>`;
+        });
+        html += `<div class="col s12"><button class="btn">Import data</button></div>`
+        output.innerHTML = html;
+        M.AutoInit(output);
+        output.querySelector('button').addEventListener('click', () => {
+          output.querySelector('button').disabled = true;
+          let properties = '';
+          output.querySelectorAll('input').forEach(i => {
+            if(i.checked) properties += i.value + ','
+          })
+          const formData = new FormData();
+          formData.append('file', file, file.name);
+          fetch(`@controllers.tools.routes.DataLogger.importJSON(datasetId, apiToken, deviceId, "")?selectedProperties=${properties}`, {
+            method: 'POST',
+            header: {
+              'Csrf-Token': `@csrfToken`
+            },
+            body: formData
+          })
+          .then(res => res.text())
+          .then((text) => {
+            output.querySelector('button').parentNode.innerHTML = text + " Heading back to the Data Logger page in 5 secs...";
+            setTimeout(() => {
+              window.location = `@controllers.tools.routes.DataLogger.index()`
+            }, 5000);
+          })
+        })
+      }
+
+      function escapeHTML(str) {
+        return String(str).replace(/[&<>"']/g, s => ({
+          '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+        }[s]));
+      }
+    </script>
+</div>
+}

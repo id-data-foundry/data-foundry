@@ -1,0 +1,138 @@
+@(token : String, participant : sr.Participant)
+@main("Edit participant") {
+<!-- navigation -->
+<nav class="">
+  <div class="row">
+    <div class="col s12">
+      <a id="homeBtn" href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+      <a href="@routes.ProjectsController.view(participant.getProject().getId())" class="breadcrumb">@participant.getProject().getName()</a>
+      <a href="@routes.ProjectsController.viewResources(participant.getProject().getId())" class="breadcrumb">Sources</a>
+      <a href="#" class="breadcrumb">Edit participant profile</a>
+    </div>
+  </div>
+</nav>
+<!-- title -->
+<div class="row center">
+  <div class="col s12">
+    <h2>Edit participant</h2>
+  </div>
+</div>
+<!-- form contents -->
+<div class="row">
+  <form class="col s12 m10 offset-m1 l8 offset-l2" action="@routes.ParticipantsController.editMe(participant.getId())" method="POST" onsubmit="return checkForm();">
+    <div class="row">
+      <div class="input-field col s12 m7">
+        <input value="@participant.getFirstname()" id="first_name" name="first_name" type="text" required="">
+        <label for="first_name">First Name</label>
+      </div>
+      <div class="col s12 m5 green-text text-lighten-1" style="font-size: 0.8em">
+        Edit participant's first name.
+      </div>
+    </div>
+    <div class="row">
+      <div class="input-field col s12 m7">
+        <input value="@participant.getLastname()" id="last_name" name="last_name" type="text" required="">
+        <label for="last_name">Last Name</label>
+      </div>
+      <div class="col s12 m5 green-text text-lighten-1" style="font-size: 0.8em">
+        Edit participant's last name.
+      </div>
+    </div>
+    <div class="row">
+      @if(participant.getEmail().startsWith("telegram_id")) {
+      <div class="col s12 m7" style="margin-top: 1rem; margin-bottom: 1rem; position: relative;">
+        <label for="email">Email</label>
+        <input value="@participant.getEmail()" id="email" name="email" disabled>
+      </div>
+      } else {
+      <div class="input-field col s12 m7">
+        <input value="@participant.getEmail()" id="email" name="email" type="email" class="validate" required="">
+        <label for="email">Email</label>
+        <span class="helper-text" data-error="wrong format" data-success="correct"></span>
+      </div>
+      }
+      <div class="col s12 m5 green-text text-lighten-1" style="font-size: 0.8em">
+        Edit participant's email address. We need this to send them invitation and a consent form.
+      </div>
+    </div>
+    <div class="row">
+      <div class="input-field col s12 m7">
+        <select name="gender" class="validate">
+          <option value="" disabled>Choose your gender</option>
+          <option value="1" @if(participant.gender==1){selected}>Male</option>
+          <option value="2" @if(participant.gender==2){selected}>Female</option>
+          <option value="3" @if(participant.gender==3){selected}>Non-binary</option>
+          <option value="0" @if(participant.gender==0){selected}>Prefer not to say</option>
+          <option value="4" @if(participant.gender==4){selected}>Not given</option>
+        </select>
+        <label>Gender</label>
+      </div>
+      <div class="col s12 m5 green-text text-lighten-1" style="font-size: 0.8em">
+        Edit gender of participant. This is optional information, only collect this if you are sure you need this data.
+      </div>
+    </div>
+    <div class="row">
+      <div class="input-field col s12 m7">
+        <select name="age_range">
+          <option value="" disabled>Choose your age</option>
+          <option value="1" @if(participant.ageRange==1){selected}>Under 18</option>
+          <option value="2" @if(participant.ageRange==2){selected}>18 - 25</option>
+          <option value="3" @if(participant.ageRange==3){selected}>26 - 50</option>
+          <option value="4" @if(participant.ageRange==4){selected}>50 above</option>
+          <option value="5" @if(participant.ageRange==5){selected}>Not given</option>
+        </select>
+        <label>Age</label>
+      </div>
+      <div class="col s12 m5 green-text text-lighten-1" style="font-size: 0.8em">
+        Edit age of participant.  This is optional information, only collect this if you are sure you need this data.
+      </div>
+    </div>
+    <div class="row">
+      <div class="input-field col s12 m7">
+        <input value="@participant.getCareer()" id="career" name="career" type="text">
+        <label for="career">Occupation</label>
+      </div>
+      <div class="col s12 m5 green-text text-lighten-1" style="font-size: 0.8em">
+        Edit occupation of participant. This is optional information, only collect this if you are sure you need this data.
+      </div>
+    </div>
+    <div class="row">
+      <div class="input-field col s12 m7">
+        <input value="@participant.getPublicParameter1()" id="public_parameter1" name="public_parameter1" type="text">
+        <label for="public_parameter1">Public Parameter1</label>
+      </div>
+      <div class="col s12 m5 green-text text-lighten-1" style="font-size: 0.8em">
+        Edit first public parameter of participant. Public parameters are part of participant-related datasets, so don't enter personally-identifiable information here.
+      </div>
+    </div>
+    <div class="row">
+      <div class="input-field col s12 m7">
+        <input value="@participant.getPublicParameter2()" id="public_parameter2" name="public_parameter2" type="text">
+        <label for="public_parameter2">Public Parameter2</label>
+      </div>
+      <div class="col s12 m5 green-text text-lighten-1" style="font-size: 0.8em">
+        Edit second public parameter of participant. Public parameters are part of participant-related datasets, so don't enter personally-identifiable information here.
+      </div>
+    </div>
+    <div class="row">
+      <div class="input-field col s12 m7">
+        <input value="@participant.getPublicParameter3()" id="public_parameter3" name="public_parameter3" type="text">
+        <label for="public_parameter3">Public Parameter3</label>
+      </div>
+      <div class="col s12 m5 green-text text-lighten-1" style="font-size: 0.8em">
+        Edit third public parameter of participant. Public parameters are part of participant-related datasets, so don't enter personally-identifiable information here.
+      </div>
+    </div>
+
+    <input type="hidden" name="csrfToken" value="@token"/>
+    
+    <div class="row center">
+      <div class="col s12">
+        <a id="cancelBtn" href="@routes.ParticipantsController.view(participant.getId())" class="btn-flat cancelBtn">CANCEL</a>
+        <button id="submitBtn" class="btn" type="submit">SAVE</button>
+      </div>
+    </div>
+  </form>
+
+</div>
+}

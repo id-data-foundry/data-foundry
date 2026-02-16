@@ -1,0 +1,111 @@
+@(notebookDatasets: List[Dataset], notebooks : List[vm.TimedMedia], collabNotebooks : List[vm.TimedMedia], token: String)(implicit request: Http.Request)
+
+@main("Data Foundry", "tools") {
+<!-- navigation -->
+<nav class="">
+	<div class="row">
+		<div class="col s12">
+			<a id="homeBtn" href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+			<a href="#" class="breadcrumb">Notebooks</a>
+		</div>
+	</div>
+</nav>
+<div class="row">
+	<div class="col s12">
+		<h4>Notebooks</h4>
+		<p>
+			What are notebooks? Data Foundry notebooks is a web-based interactive computational environment for creating notebook documents. 
+		</p>
+		<p>
+			A notebook document is a browser-based <a href="https://en.wikipedia.org/wiki/Read–eval–print_loop">REPL</a> containing an ordered list of input/output cells which can contain code, text (using Markdown), mathematics, plots and rich media. Underneath the interface, a notebook is a simple text document, usually ending with the ".gg" extension.
+		</p>
+		<p>
+			We are using the <a href="https://starboard.gg">Starboard system</a> for Data Foundry. In their own words: "Starboard brings cell-by-cell notebooks to the browser, no code is running on the backend here!
+			It's probably the quickest way to visualize some data with interactivity, do some prototyping, or build a rudimentary dashboard."
+		</p>
+		<p>
+			We have extended the Starboard interface with code examples and snippets to import your own datasets seamlessly. The best way to understand what notebooks can do in Data Foundry is to try one right away.
+		</p>
+	</div>
+	@if(!notebooks.isEmpty() || !collabNotebooks.isEmpty()) {
+	<div id="listView" class="col s12">
+		<table class="striped">
+			<thead>
+				<tr>
+					<th class="">Notebook</th>
+					<th class="">Description</th>
+					<th class="">Uploaded</th>
+				</tr>
+			</thead>
+			<tbody>
+				@for(notebook <- notebooks) {
+				@if(notebook.link.endsWith("gg") || notebook.link.endsWith("GG")) {
+				<tr>
+					<td class="">
+						<a href="@api.routes.CompleteDSController.editFile(notebook.ds_id, notebook.getId())">
+							@notebook.link
+						</a>
+					</td>
+					<td class="">@notebook.caption</td>
+					<td class="">@notebook.datetime()</td>
+				</tr>
+				}
+				}
+				@for(notebook <- collabNotebooks) {
+				@if(notebook.link.endsWith("gg") || notebook.link.endsWith("GG")) {
+				<tr>
+					<td class="">
+						<a href="@api.routes.CompleteDSController.editFile(notebook.ds_id, notebook.getId())">
+							@notebook.link
+						</a>
+						<i>(collaboration)</i>
+					</td>
+					<td class="">@notebook.caption</td>
+					<td class="">@notebook.datetime()</td>
+				</tr>
+				}
+				}
+			</tbody>
+		</table>
+	</div>
+	}
+	<div class="col s12">
+		<a href="#modal_add_notebook"  class="btn modal-trigger">Add a new notebook</a>
+	</div>
+</div>
+
+<!-- ---------------------------------------------------------------------------------------------------------- -->
+
+<!-- add notebook modal dialog -->
+<div id="modal_add_notebook" class="modal">
+	<div class="modal-content">
+		<h4 class="center-align">Add a new notebook</h4>
+		<div class="row">
+			<div class="col s12">
+				<form action="@controllers.tools.routes.StarboardController.addNotebook()" method="POST" enctype="multipart/form-data">
+					<div class="row">
+						<div class="input-field col s12">
+							<select id="dataset" name="dataset" required="">
+								<option value="" disabled selected>Choose project and dataset for new notebook</option>
+								@for(ds <- notebookDatasets) {
+								<option value="@ds.getId()">@ds.getProject().getName() --> @ds.getName()</option>
+								}
+							</select>
+							<label>Choose project and dataset for new notebook</label>
+						</div>
+						<div class="input-field col s12">
+							<input id="name" name="name" type="text" class="" required="">
+							<label for="name">Notebook name</label>
+						</div>
+						<div class="input-field col s12">
+							<input type="hidden" name="csrfToken" value="@token"/>
+							<input type="submit" name="submit" id="submit" class="btn green">
+							<a class="btn-flat modal-close">Cancel</a>
+						</div>						
+					</div>
+				</form>
+			</div>
+		</div>
+	</div>
+</div>
+}

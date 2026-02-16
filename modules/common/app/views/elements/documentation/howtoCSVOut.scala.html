@@ -1,0 +1,113 @@
+@()
+<p>
+	<b>How to use this?</b>
+</p>
+<ul class="collapsible">
+	@*
+	<li>
+		<div class="collapsible-header">cURL</div>
+		<div class="collapsible-body">
+			<pre class="language-bash">
+				  <code class="language-bash">
+				curl -X POST -H "Content-Type: application/x-www-form-urlencoded" -d "source_id=DEVICE_ID&activity=ACTIVITY&data=DATA" @api.routes.TimeseriesDSController.record(dataset.getId(), "TOKEN").absoluteURL(true, request.host())</code>
+			</pre>
+			<p>
+				Replace TOKEN with the token that you generate above. Replace DEVICE_ID by the refId attribute of any device in the project. Use any ACTIVITY or leave empty. Provide DATA in JSON format, such as <code>{"parameter1": 2, "parameter2": 5}</code>
+			</p>
+		</div>
+	</li>
+	*@
+	<li class="active">
+		<div class="collapsible-header">Python</div>
+		<div class="collapsible-body">
+			<p>
+				Import Python libraries
+			</p>
+			<p>
+				You might need to install a few libraries to make the Python code work. We need <code>requests</code> for retrieving the data, and <code>pandas</code> and <code>matpotlib</code> for working with the data in Python.
+			</p>
+			<pre class="language-python">
+				  <code class="language-python">
+## import libraries: requests, pandas as pd, matplotlib as plt
+# https://pandas.pydata.org/
+# https://matplotlib.org/
+import requests, pandas as pd, matplotlib as plt</code>
+			</pre>
+			<p>
+				Download csv file from the dataset.
+			</p>
+			<pre class="language-python">
+				  <code class="language-python">
+## Replace URL with the TOKEN LINK that you generate above. Replace FILENAME as the name you want.
+## Get and save as csv file
+# API endpoint
+URL = "TOKEN LINK generated above"
+FILENAME = "file_name.csv"
+# fetch file
+r = requests.get(URL, verify=False) 
+# save result as a csv in current folder
+open(FILENAME, 'wb').write(r.content)</code>
+			</pre>
+			<p>
+				Visualize the data from a csv file with a bar chart.
+			</p>
+			<pre class="language-python">
+				  <code class="language-python">
+# read csv file
+# if there are too many rows (>50) in the file, use head(rows) to control the rows of data to be read
+# ex. for reading first 10 rows, df = pd.read_csv('file_name.csv').head(10)
+df = pd.read_csv('file_name.csv')
+# draw the bar chart
+df.plot(kind='bar')</code>
+			</pre>
+			<p>
+				Get some statistics data by a specific column.
+			</p>
+			<pre class="language-python">
+				  <code class="language-python">
+# read data with first 25 rows
+df = pd.read_csv('file_name.csv').head(25)
+# get column names of the csv file
+df.columns
+# show the first 5 rows
+df.head()
+# group the data by the value of 'column_name'
+allocation_display = df.groupby('column_name')
+# summary statistics for all numeric columns by column_name
+allocation_display.describe()</code>
+			</pre>
+		</div>
+	</li>
+	@*
+	<li>
+		<div class="collapsible-header">Java</div>
+		<div class="collapsible-body">
+			<pre class="language-Java">
+				  <code class="language-Java">
+URL url = new URL("@api.routes.TimeseriesDSController.record(dataset.getId(), "TOKEN").absoluteURL(true, request.host())");
+HttpURLConnection http = (HttpURLConnection) url.openConnection();
+http.setRequestMethod("POST");
+http.setDoOutput(true);
+byte[] out = "{\"source_id\":\"DEVICE_ID\",\"activity\":\"ACTIVITY\",\"data\":\"DATA\"}".getBytes(StandardCharsets.UTF_8);
+http.setFixedLengthStreamingMode(out.length);
+http.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
+http.connect();
+try(OutputStream os = http.getOutputStream()) {
+  os.write(out);
+}</code>
+			</pre>
+			<p>
+				Replace TOKEN with the token that you generate above. Replace DEVICE_ID by the refId attribute of any device in the project. Use any ACTIVITY or leave empty. Provide DATA in JSON format, such as <code>{"parameter1": 2, "parameter2": 5}</code>
+			</p>
+		</div>
+	</li>
+	<li>
+		<div class="collapsible-header">Arduino/ESP</div>
+		<div class="collapsible-body">
+			<blockquote>
+				
+			</blockquote>
+		</div>
+	</li>
+	*@
+</ul>

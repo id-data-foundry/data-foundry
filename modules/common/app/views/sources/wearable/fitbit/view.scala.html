@@ -1,0 +1,169 @@
+@(wearable : sr.Wearable, dataset : Dataset, isOwner : Boolean)
+
+@main("Wearable") {
+
+    <!-- navigation -->
+    <nav class="">
+        <div class="row">
+            <div class="col s12">
+                <a id="homeBtn" href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+                <a href="@routes.ProjectsController.view(wearable.getProject().getId())" class="breadcrumb">@wearable.getProject().getName()</a>
+                <a href="@routes.ProjectsController.viewResources(wearable.getProject().getId())" class="breadcrumb">Sources</a>
+                <a href="#" class="breadcrumb">@wearable.getName()</a>
+          </div>
+        </div>
+    </nav>
+
+	<!-- waerable data -->
+    <div class="row">
+        <div class="col s12">
+            <h3>Wearable info</h3>
+        </div>
+        <div class="col s12">
+            <table class="striped">
+                <thead>
+                    <th style="width: 20%" class=""><b>Name</b></th>
+                    <td>@wearable.getName()</td>
+                </thead>
+                <tbody>
+                    <tr>
+                        <th class=""><b>Reference ID</b></th>
+                        <td>@wearable.getRefId()</td>
+                    </tr>
+                    <tr>
+                        <th class=""><b>Brand</b></th>
+                        <td>@if(wearable.getBrand() == null) {
+                                Not available, please "EDIT" and "SAVE" directly to update this FITBIT wearable.
+                            } else {
+                                @wearable.getBrand()
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <th class=""><b>Dataset</b></th>
+                        <td>@if(dataset == null || dataset.getId() == -1L) {
+                                Not available
+                            } else {
+                                <a href="@routes.DatasetsController.view(dataset.getId())">@dataset.getName()</a>
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <th class=""><b>Scopes</b></th>
+                        <td>@if(dataset == null || dataset.getId() == -1L) {
+                                Not available
+                            } else {
+                                @dataset.getTargetObject()
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <th class=""><b>In Clusters</b></th>
+                        <td>@if(wearable.getClusters().size == 0) {
+                                -
+                            } else {
+                                @for(cl <- wearable.getClusters()) {
+                                    <a href="@routes.ClustersController.view(cl.getId())">
+                                        @elements.icon("group_work") @cl.getName()
+                                    </a>
+                                }
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <th class=""><b>Public Parameter1</b></th>
+                        <td>@if(wearable.getPublicParameter1() == null || wearable.getPublicParameter1() == "") {
+                                -
+                            } else {
+                                @wearable.getPublicParameter1()
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <th class=""><b>Public Parameter2</b></th>
+                        <td>@if(wearable.getPublicParameter2() == null || wearable.getPublicParameter2() == "") {
+                                -
+                            } else {
+                                @wearable.getPublicParameter2()
+                            }
+                        </td>
+                    </tr>
+                    <tr>
+                        <th class=""><b>Public Parameter3</b></th>
+                        <td>@if(wearable.getPublicParameter3() == null || wearable.getPublicParameter3() == "") {
+                                -
+                            } else {
+                                @wearable.getPublicParameter3()
+                            }
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="row center">
+      <div class="col s12" >
+        <a href="@routes.FitbitWearablesController.edit(wearable.getId())" class="btn">EDIT</a>
+        @if(isOwner) {
+        <a href="#modal_reset_wearable" class="btn-flat red-text modal-trigger">UNLINK</a>
+		}
+      </div>
+    </div>
+
+    @if(isOwner) {
+        @if(!wearable.isConnected() || wearable.getScopes() == null || wearable.getScopes() == "") {
+        <!-- Modal for reset wearable -->
+        <div id="modal_reset_wearable" class="modal">
+            <div class="modal-content">
+                <h4 class="center-align">This wearable is not linked to any participant.</h4>
+                <br><br>
+                <div class="row center">
+                    <div class="col s12" >
+                        <a href="#!" class="modal-close btn">CLOSE</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        } else {
+        <!-- Modal for reset wearable -->
+        <div id="modal_reset_wearable" class="modal">
+            <div class="modal-content">
+                <h5 class="center-align">Are you sure to UNLINK this wearable?</h5>
+                <p class="center-align">The scopes and participant's info will be reset!</p>
+                <br><br>
+                <div class="row center">
+                    <div class="col s12" >
+                        <a href="#!" class="modal-close btn">CANCEL</a>
+                        <a href="@routes.FitbitWearablesController.resetMe(wearable.getId())" class="btn red-text">UNLINK</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        }
+
+        @if(wearable.getBrand() == null) {
+        <!-- Modal for request for updating wearable -->
+        <div id="modal_update_reminder" class="modal">
+            <div class="modal-content">
+                <h5 class="center-align">Please Update This Wearable</h5>
+                <p class="center-align">Please "EDIT" and "SAVE" directly to update this FITBIT wearable immediately</p>
+                <br><br>
+                <div class="row">
+                    <div class="col s12 center">
+                        <a href="@routes.FitbitWearablesController.edit(wearable.getId())" class="btn">EDIT</a>
+                        <a href="#!" class="modal-close btn">Cancel</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <script type="text/javascript">
+            $(document).ready(function(){
+                switchModal("#modal_update_reminder",'open');
+            });
+        </script>
+        }
+    }
+
+}

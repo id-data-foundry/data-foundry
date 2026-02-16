@@ -1,0 +1,17 @@
+@(ds : Dataset)
+@if(!ds.getProject().hasOnceBeenApproved()) {
+<div class="row card" style="border: #f00 solid 2px; margin-top: 8em; margin-bottom: 4em;">
+	<div class="col s12">
+
+        <h5 class="red-text">Danger zone</h5>
+
+        <p class="red-text">
+            Careful here: You can reset all data in this dataset. This will delete ALL data in this dataset, but not the rest of the project.
+        </p>
+        <p>
+            <a onclick="return confirm('Are you sure you want to reset all data in this dataset? This action is not reversible! Click OK to reset, cancel to stop.')" href="@routes.DatasetsController.resetDataset(ds.getId())" class="btn red white-text">RESET DATA</a>
+        </p>
+        
+	</div>
+</div>
+}

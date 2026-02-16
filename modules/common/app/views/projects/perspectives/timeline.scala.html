@@ -1,0 +1,202 @@
+@(p : Project, user: Person, token : String)
+@main(p.getName() + ": Timeline", "profile") {
+@projects.perspectives.projectHeader(p, user)
+<div class="row">
+  <div class="col s12">
+    <ul class="tabs">
+      <li class="tab col"><a href="@routes.ProjectsController.view(p.getId())" target="_self">🏡 General</a></li>
+      <li class="tab col"><a href="@routes.ProjectsController.viewResources(p.getId())" target="_self">🐝 Sources</a></li>
+      <li class="tab col"><a href="@routes.ProjectsController.viewStudyManagement(p.getId())" target="_self">🧑‍🔬 Study Setup</a></li>
+      <li class="tab col"><a href="@routes.ProjectsController.viewTimeline(p.getId())" class="active" target="_self">📈 Timeline</a></li>
+      @if(p.getNarrativeSurveyDataset().isPresent()) {
+      <li class="tab col"><a href="@routes.ProjectsController.viewNarrativeSurvey(p.getId())" target="_self">🔖 Narrative Surveys</a></li>
+      }
+      @if(p.hasProjectWebsite()){
+      <li class="tab col"><a href="/@p.getName()" target="_blank" rel="noopener">🧑‍💻 Project site</a></li>
+      }
+@*
+      <li class="tab col"><a href="#ded">🎂 Data-enabled Design</a></li>
+      <li class="tab col"><a href="#chatbot">🤖 Chatbot</a></li>
+*@
+    </ul>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col s12">
+    <h5>Project timeline</h5>
+  </div>
+  <div id="projectFlowContainer" class="col s12" style="display: none; height: calc(200px+@{p.getAllDatasets().size() * 25 + 100}px); overflow: scroll;">
+    <div class="mermaid">
+      gantt
+        dateFormat YYYY-MM-DD
+        todayMarker stroke-width:5px, stroke:#5c6bc0, opacity:0.5
+
+        section Project
+        %%Project setup                              :  pro0, @p.creationDate(), @p.startDate()
+        Project phase                                : @if(p.isActive()){active,}  pro1, @p.startDate(), @p.endDate()
+        Stopped data collection                      :  pro2, after pro1, 90d
+        Deidentify project (remove participant info) :crit,  milestone, pro3, after pro2, 1d
+        Post project phase                           :  pro4, after pro3, 21M
+        Project freeze (export archive)              :done,  milestone, pro5, after pro4, 1d
+
+        section Datasets
+        @for(ds <- p.getAllDatasets()) {
+          @ds.getName().replaceAll("[^\\p{L}\\p{N}_\\-+ ]", "") : @if(ds.isActive()){active,} ds_@ds.getId(), @ds.startDate(), @ds.endDate()
+          click ds_@ds.getId() href "@routes.DatasetsController.view(ds.getId())"
+        }
+
+        section Participants
+        @for(pa <- p.getParticipants()) {
+          @pa.getName().replaceAll("[^\\p{L}\\p{N}_\\-+ ]", "") : milestone pa_@pa.getId(), @pa.startDate(), @pa.startDate()
+          click pa_@pa.getId() href "@routes.ParticipantsController.view(pa.getId())"
+        }
+    </div>
+  </div>
+</div>
+
+@if(!p.isArchivedProject()) {
+<!-- project extend action -->
+<div class="row">
+  <div class="col s12">
+    <h5>Extend this project</h5>
+    <p>
+      If you need the datasets in this project to be active longer, you can extend the duration of this project and all its datasets <i>in one go</i>. Please note that this action will extend the duration of ALL datasets in this project by 1, 2, or 3 months from today.
+    </p>
+    <p>
+      <form action="@routes.ProjectsController.extendProjectDuration(p.getId())" method="POST">
+        <div class="row">
+          <div class="input-field col s12 m6">
+            <select name="months">
+              <option value="1" selected="selected">1 month</option>
+              <option value="2">2 months</option>
+              <option value="3">3 months</option>
+            </select>
+            <label>Extend project and all datasets by...</label>
+          </div>
+          <input type="hidden" name="csrfToken" value="@token"/>
+          <div class="input-field col s12 m6">
+            <button id="submitBtn" class="btn" type="submit">Extend project</button>
+          </div>
+        </div>
+      </form>
+    </p>
+  </div>
+</div>
+}
+
+@*
+<div class="row">
+  <div class="col s12">
+    <h5>Project resources</h5>
+  </div>
+  <div id="projectFlowContainer" class="col s12" style="height: 32em; overflow: scroll;">
+    <div class="mermaid">   
+      flowchart
+        O@{p.getOwner().getId()}["@p.getOwner().getName()"] -- owner --- P["@p.getName()"]
+        P --- R[Project resources]
+        @for(coll <- p.getCollaborator()s) {
+        C@{coll.getId()}["@coll.getCollaborator().getName()"] --- P
+        }
+        @for(sub <- p.getSubscribers()) {
+        S@{sub.getId()}["@sub.getSubscriber().getName()"] -.- P
+        }
+        @for(par <- p.getParticipants()) {
+        P@{par.getId()}["@par.getName()"] --- R
+        click P@{par.getId()} "@routes.ParticipantsController.view(par.getId())"
+          @if(!par.getClusters().isEmpty()) {
+            @for(de <- par.getClusterDevices()) {
+        De@{de.getId()}["@de.getName()"] -.- P@{par.getId()}
+        click De@{de.getId()} "@routes.DevicesController.view(de.getId())"
+            }   
+            @for(w <- par.getClusterWearables()) {
+        W@{w.getId()}["@w.getName()"] -.- P@{par.getId()}
+        click W@{w.getId()} "@routes.ProjectsController.wearable(w.getId())"
+            }
+          }
+        }
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col s12">
+    <h5>Project connectivity</h5>
+  </div>
+  <div id="connectivityRender" class="mermaid">   
+    flowchart
+      subgraph P["@p.getName()"]
+      @for(ds <- p.getDatasets()) {
+        D@{ds.getId()}["@ds.getName()"]
+        click D@{ds.getId()} "@routes.DatasetsController.view(ds.getId())"
+      }
+      end
+      @for(ds <- p.getDatasets()) {
+        @if(!ds.configuration("OOCSI_channel", "").isEmpty()) {
+          OOCSIin[OOCSI] -- @ds.configuration("OOCSI_channel", "") --> D@{ds.getId()}
+        }
+        @if(!ds.configuration("OOCSI_service", "").isEmpty()) {
+          OOCSIin[OOCSI] -- @ds.configuration("OOCSI_service", "") --> D@{ds.getId()}
+        }
+        @if(!ds.configuration(Dataset.ACTOR_CHANNEL, "").isEmpty()) {
+          @if(ds.configuration(Dataset.ACTOR_CHANNEL, "").toLowerCase().startsWith("telegram")) {
+            Telegram --> D@{ds.getId()}
+          } else {
+            OOCSIin[OOCSI] -- @ds.configuration(Dataset.ACTOR_CHANNEL, "") --> D@{ds.getId()}
+          }
+        }
+        @if(!ds.configuration("OOCSI_output", "").isEmpty()) {
+          D@{ds.getId()} -- @ds.configuration("OOCSI_output", "") --> OOCSIout[OOCSI]
+        }
+        @if(!ds.configuration(Dataset.PUBLIC_ACCESS_TOKEN, "").isEmpty()) {
+          D@{ds.getId()} --> C[CSV download]
+        }
+        @if(!ds.configuration("api_token", "").isEmpty()) {
+          H[HTTP API access] --> D@{ds.getId()}
+        }
+        @if(!ds.configuration("web_access_token", "").isEmpty()) {
+          @if("participant_study_page".equals(ds.getTargetObject()) || "participant_dashboard_page".equals(ds.getTargetObject())) {
+            @if("participant_study_page".equals(ds.getTargetObject())) {
+            PS>Participant study page] --> D@{ds.getId()}
+            click PS "@routes.DatasetsController.web(ds.getId(),"")"
+          } else {
+            PD>Participant dashboard page] --> D@{ds.getId()}
+            click PD "@routes.DatasetsController.web(ds.getId(),"")"
+          }
+          } else {
+            @if("www".equals(ds.getName())) {
+            PW>Project webpage] --> D@{ds.getId()}
+            click PW "@routes.DatasetsController.web(ds.getId(),"")"
+            } else {
+            PP>Public webpage] --> D@{ds.getId()}
+            click PP "@routes.DatasetsController.web(ds.getId(),"")"
+            }
+          }
+        } else {
+          @if(ds.getDsType() == DatasetType.COMPLETE) {
+            RW@{ds.getId()}>Research team webpage] --> D@{ds.getId()}
+            click RW@{ds.getId()} "@routes.DatasetsController.web(ds.getId(),"")"
+          }
+        }
+      }
+  </div>
+</div>
+*@
+
+<!-- labnotes -->
+<div class="row">
+  <div id="labnotesContainer" class="col s12" style="height: 32em; overflow: scroll;">
+    <h5>Project log</h5>
+    <div id="labnotes"
+      hx-get="@routes.ProjectsController.labnotes(p.getId())"
+      hx-swap="innerHTML"
+      hx-trigger="load"></div>
+  </div>
+</div>
+<script src="@routes.Assets.versioned("javascripts/mermaid.min.js")" type="text/javascript"></script>
+<script>
+    document.addEventListener("DOMContentLoaded", (event) => {
+      document.querySelector('#projectFlowContainer').style.display = 'block';
+    });
+</script>
+}

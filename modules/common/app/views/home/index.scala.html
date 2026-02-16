@@ -1,0 +1,136 @@
+@(projects : Long, publicProjects: Long, datasets: Long)(implicit request: Http.Request)
+@external("") {
+<style type="text/css">
+	body>.container {
+		min-height: 6rem;
+	}
+	.card .card-image {
+		height: 150px;
+		overflow: hidden;
+	}
+	.card .card-image .card-title {
+		background: linear-gradient(180deg, rgba(255, 255, 255, 0), white);
+		color: black;
+		font-weight: 900;
+		width: 100%;
+		padding: 12px 12px 24px;
+	}
+	.container h4 {
+		text-transform: none;
+	}
+	.container ul {
+		padding-left: 22px;
+	}
+	.container ul li {
+		list-style-type: disc;
+	}
+	.card .card-image {
+		border-radius: 16px 16px 0 0;
+	}
+</style>
+
+<br><br>
+@elements.announcement()
+<br><br>
+<br><br>
+
+<div class="row">
+	<div class="col s12">
+		<img src="@routes.Assets.versioned("images/logo.png")" style="height: 48px;">
+		<br>
+		<span style="font-size: 3rem; font-weight: 900; color: black;">Data Collection and Prototyping <span style="color: white; background: black; padding: 0.5rem; white-space: nowrap;">for Designers</span></span>
+	</div>
+</div>
+</div>
+
+<div style="background: white; padding: 3rem 0; margin: 6rem 0;">
+<div class="container">
+<div class="row">
+	<div class="col s12 l6 flow-text" style="padding: 2rem inherit;">
+		Hey there, welcome!
+		<br><br>
+		<a class="btn" href="@routes.HomeController.login()">Login</a>
+	</div>
+@*
+	<div class="col s12 l6" style="padding: 2rem;">
+		With this service you can collect data from a variety of sources and store data in a unified format. You can then 
+		export data for analysis or stream back in real-time into prototypes, products and systems. You also run scripts and simple data-science notebooks here.
+	</div>
+*@
+</div>
+</div>
+</div>
+
+<div class="container">
+<div class="row">
+	<div class="col s12 l4">
+		<div class="card">
+			<div class="card-image">
+				<img class="responsive-img" src="@routes.Assets.versioned("images/landing/data-collection2.jpeg")">
+				<span class="card-title"></span>
+			</div>
+			<div class="card-content">
+				<h4>Data Collection</h4>
+				<ul>
+					<li>
+						Collect data from your prototypes, wearables or the people your design for.
+					</li>
+					<li>
+						Store data in a structure format that is easy to work with and analyse.
+					</li>
+				</ul>
+			</div>
+		</div>
+	</div>
+	<div class="col s12 l4">
+		<div class="card">
+			<div class="card-image">
+				<img class="responsive-img" src="@routes.Assets.versioned("images/landing/prototyping1.jpeg")">
+				<span class="card-title"></span>
+			</div>
+			<div class="card-content">
+				<h4>Data Prototyping</h4>
+				<ul>
+					<li>
+						Use Data Foundry APIs to design and prototype connected application.
+					</li>
+					<li>
+						Access machine-learning models and speech APIs with scripting.
+					</li>
+				</ul>
+			</div>
+		</div>
+	</div>
+	<div class="col s12 l4">
+		<div class="card">
+			<div class="card-image">
+				<img class="responsive-img" src="@routes.Assets.versioned("images/landing/design-research1.jpeg")">
+				<span class="card-title"></span>
+			</div>
+			<div class="card-content">
+				<h4>Design Research</h4>
+				<ul>
+					<li>
+						Annotate data, prompt participants, collect rich quantitative and qualitative data.
+					</li>
+					<li>
+						Use data-enabled methods, narrative surveys and object-ethnography.
+					</li>
+				</ul>
+			</div>
+		</div>
+	</div>
+</div>
+@*
+<div class="row">
+	<div class="col s12 flow-text">
+		<p>
+			We have currently <span class="underline">@projects projects</span> with <span class="underline">@publicProjects of them <i>public</i></span> on the platform. These projects contain in total <span class="underline">@datasets datasets</span>. ✨
+		</p>
+		<p>
+			We have a <a href="/documentation" target="_blank">documentation site</a> where you can find out what is possible and find answers on how to collect data or prototype with Data Foundry. If you need support or if you have questions or feedback, head over to <a href="/links/contact" target="_blank">support</a>.
+		</p>
+	</div>
+</div>
+*@
+}

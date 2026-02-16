@@ -1,0 +1,274 @@
+@(invite_token: String, reviewer: Person, project: Project)
+
+@reviewing("Project approval " + project.getName()) {
+<br><br>
+<div class="row">
+    <div class="col s12 l10 offset-l1">
+        <h5>Hi @reviewer.getFirstname(),</h5>
+    </div>
+    <div class="col s12 l6 offset-l1">
+        <p>
+            We are happy that you are helping us by reviewing this project. Thank you!
+        </p>
+        <p>
+            In the following, we would like to ask you to carefully review the project and its datasets, the data collection setup and the plans for publishing and archiving this project. All information is included on this page.
+        </p>
+        <p>
+            If you agree with how the project is set up and explained, there is an approval button at the bottom. If you have feedback for the researchers, you can fill this in as well at the bottom. You can leave the approval open, if the project needs to be improved. Once the researchers have addressed your fremarks, you will get a new request.
+        </p>
+        <p>
+            Let's go!
+        </p>
+    </div>
+</div>
+<form>
+    <div class="row">
+        <div class="col s12 l10 offset-l1">
+            <div>
+                <ul class="collapsible">
+                    <li>
+                        <div class="collapsible-header">@elements.icon("filter_drama")Project information</div>
+                        <div class="collapsible-body">
+                            <div class="row">
+                                <div class="col s6 m8">
+                                    <table>
+                                        <tbody>
+                                            <tr>
+                                                <td>Researcher</td>
+                                                <td>
+                                                    <a href="@routes.UsersController.view(project.getOwner().getId())">
+                                                        @project.getOwner().getName()
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>Teaser</td>
+                                                <td>@project.getIntro()</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Description</td>
+                                                <td>@project.getDescription()</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Keywords</td>
+                                                <td>@project.getKeywords()</td>
+                                            </tr>
+                                            <tr>
+                                                <td>DOI</td>
+                                                <td><a href="@project.getDoi()">@project.getDoi()</a></td>
+                                            </tr>
+                                            <tr>
+                                                <td>Relation</td>
+                                                <td>@project.getRelation()</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Organization</td>
+                                                <td>@project.getOrganization()</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Remarks</td>
+                                                <td>@project.getRemarks()</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Start and end</td>
+                                                <td>@project.startDate() till @project.endDate()</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Sharing license</td>
+                                                <td>@project.getLicense()</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Public project</td>
+                                                <td>@project.isPublicProject()</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Shareable project</td>
+                                                <td>@project.isShareableProject()</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="col s6 m4">
+                                    <div class="input-field">
+                                        <textarea id="p_@project.getId()-comments" name="p_@project.getId()-comments" class="materialize-textarea"></textarea>
+                                        <label for="p_@project.getId()-comments">Reviewer comments</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                    @for(ds <- project.getDatasets()) {
+                    <li>
+                        <div class="collapsible-header">
+                            @elements.icon("place")@ds.getName()
+                        </div>
+                        <div class="collapsible-body">
+                            <div class="row">
+                                <div class="col s6 m8">
+                                    <table>
+                                        <tbody>
+                                            <tr>
+                                                <td>Dataset type</td>
+                                                <td>
+                                                    <span class="typetag @ds.toColor()">@ds.toUIString()</span>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>Description</td>
+                                                <td>@ds.getDescription()</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Target</td>
+                                                <td>@ds.getTargetObject()</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Keywords</td>
+                                                <td>@ds.getKeywords()</td>
+                                            </tr>
+                                            <tr>
+                                                <td>DOI</td>
+                                                <td><a href="@ds.getDoi()">@ds.getDoi()</a></td>
+                                            </tr>
+                                            <tr>
+                                                <td>Relation</td>
+                                                <td>@ds.getRelation()</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Organization</td>
+                                                <td>@ds.getOrganization()</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Remarks</td>
+                                                <td>@ds.getRemarks()</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Start and end</td>
+                                                <td>@ds.start till @ds.end</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="col s6 m4">
+                                    <div class="input-field">
+                                        <textarea id="ds_@ds.getId()-comments" name="ds_@ds.getId()-comments" class=" materialize-textarea"></textarea>
+                                        <label for="ds_@ds.getId()-comments">Reviewer comments</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                    }
+                    @if(!project.getParticipants().isEmpty()) {
+                    <li>
+                        <div class="collapsible-header">@elements.icon("face")Participant information</div>
+                        <div class="collapsible-body">
+                            <div class="row">
+                                <div class="col s6 m8">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Participants</th>
+                                                <th>Shared information</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @for(p <- project.getParticipants()) {
+                                            <tr>
+                                                <td>@p.getId() (@p.getStatus())</td>
+                                                <td>
+                                                    @p.getPublicParameter1(), @p.getPublicParameter2(), @p.getPublicParameter3() 
+                                                </td>
+                                            </tr>
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                                <div class="col s6 m4">
+                                    <div class="input-field">
+                                        <textarea id="participants-comments" name="participants-comments" class=" materialize-textarea"></textarea>
+                                        <label for="participants-comments">Reviewer comments</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </li>
+                    <li>
+                        <div class="collapsible-header">
+                            @elements.icon("face")Participant consent form
+                        </div>
+                        <div class="collapsible-body">
+                            <span>
+                              <h5>Dear participant,</h5>
+                              <p>
+                                We sent you an email to {PARTICIPANT_EMAIL} to invite you for this study, please read the consent form below and click "Accept" if you agree to this and want to join. If you don't agree "Decline". For questions, you may contact @project.getOwner().getName() at @project.getOwner().getEmail().
+                                <br><br>
+                                Thank you!
+                              </p>
+                              
+                              <h5>Informed consent</h5>
+                              <p>
+                                You are being invited to participate in a research study titled '@project.getName()'. This study is being done by @project.getOwner().getName() from Eindhoven University of Technology.
+                              </p>
+                              <p>
+                                The purpose of this research study is as follows:
+                              </p>
+                              <p>
+                                <i>
+                                  @project.getIntro()
+                                </i>
+                              </p>
+                              <p>
+                                Any collected data will be used for research purposes only.
+                              <br><br>
+                                Your participation in this study is entirely voluntary and you can withdraw at any time. You are free to omit any question or action.
+                              </p>
+                              <p>
+                                We believe there are no known risks associated with this research study; however, as with any online research activity, the risk of a data breach is given. To the best of our ability, your answers in this study will remain confidential. We will minimize any risks by separating your personal information (such as name, email, gender and age) from study data, which processed and stored anonymously. The data will be stored securly, there will be backups performed daily and we will inform you promptly in case of changes or a data breach. 
+                              </p>
+                              <p>
+                                Our purpose is to perform open science and we aim to share anonymised research datasets with other researchers in an open and FAIR format.
+                              </p>
+                            </span>
+                        </div>
+                    </li>
+                    }
+                </ul>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col s12 l10 offset-l1">
+            <hr/>
+            <div class="row">
+                <div class="col s12">
+                    <p>
+                        To conclude your review, please provide a few general remarks.
+                    </p>
+                </div>
+                <div class="input-field col s12">
+                    <textarea id="general-comments" name="general-comments" class="materialize-textarea" data-length="10000"></textarea>
+                    <label for="general-comments">General comments</label>
+                </div>
+            </div>
+            <a id="feedbackBtn" class="btn red">Do not approve and send feedback</a>
+            <a id="approveBtn" class="btn green">Approve and send feedback</a>
+        </div>
+        <script type="text/javascript">
+            
+            $('#approveBtn').click(function(e) {
+                $.post('@routes.ReviewController.approve(invite_token)', $('form').serialize(), function(e) {
+                    document.write(e);
+                });
+                e.preventDefault();
+            })
+            $('#feedbackBtn').click(function(e) {
+                $.post('@routes.ReviewController.feedback(invite_token)', $('form').serialize(), function(e) {
+                    document.write(e);
+                });
+                e.preventDefault();
+            })
+
+        </script>
+    </div>
+</form>
+}

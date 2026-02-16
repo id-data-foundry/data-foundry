@@ -1,0 +1,83 @@
+@(token : String, participant : sr.Participant, invite_token : String)
+@participating("Complete profile", invite_token) {
+    <br><br>
+    <div class="row">
+        <div class="col s12">  
+          <h3>Complete profile</h3>
+        </div>
+    </div>
+
+    <div class="row">
+        <form class="col s12" action="@routes.ParticipationController.signMeUp(invite_token)" method="POST">
+
+            <div class="row">
+                <div class="input-field col s12 m6 l6">
+                    <input value="@participant.getFirstname()" id="first_name" name="first_name" type="text" class="validate"
+                        @if(!participant.getEmail().isEmpty) { required }>
+                    <label for="first_name">First Name</label>
+                </div>
+                <div class="input-field col s12 m6 l6">
+                    <input value="@participant.getLastname()" id="last_name" name="last_name" type="text" class="validate"
+                        @if(!participant.getEmail().isEmpty) { required }>
+                    <label for="last_name">Last Name</label>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="input-field col s12 m6 l6">
+                    @if(!participant.getEmail().isEmpty) {
+                    <input value="@participant.getEmail()" id="email" name="email" type="email" class="validate" required>
+                    } else {
+                    <input value="@participant.getEmail()" id="email" name="email" type="email" class="validate">
+                    }
+                    <label for="email">Email</label>
+                    <span class="helper-text" data-error="Email format seems wrong, please check" data-success="All good"></span>
+                </div>
+@*
+                <div class="input-field col s12 m6 l6">
+                    <input value="@participant.career" id="career" name="career" type="text">
+                    <label for="career">Occupation</label>
+                </div>
+*@
+            </div>
+
+            @if(!participant.getEmail().isEmpty) {
+            <div class="row">
+                <div class="input-field col s12 m6 l6">
+                    <select name="gender" required="">
+                        <option value="" disabled>Choose your gender</option>
+                        <option value="1" @if(participant.gender==1){selected}>Male</option>
+                        <option value="2" @if(participant.gender==2){selected}>Female</option>
+                        <option value="3" @if(participant.gender==3){selected}>Non-binary</option>
+                        <option value="0" @if(participant.gender==0){selected}>Prefer not to say</option>
+                    </select>
+                    <label>Your Gender</label>
+                </div>
+                <div class="input-field col s12 m6 l6">
+                    <select name="age_range">
+                        <option value="" disabled>Choose your age</option>
+                        <option value="1" @if(participant.ageRange==1){selected}>Under 18</option>
+                        <option value="2" @if(participant.ageRange==2){selected}>18 - 25</option>
+                        <option value="3" @if(participant.ageRange==3){selected}>25 - 50</option>
+                        <option value="4" @if(participant.ageRange==4){selected}>50 above</option>
+                    </select>
+                    <label>Your Age</label>
+                </div>
+            </div>
+            }
+
+            <input type="hidden" name="csrfToken" value="@token"/>
+      
+            <div class="row">
+                <div class="col s12">
+                    <div class="input-field">
+                        <button id="submitBtn" class="btn" type="submit">SAVE</button>
+                        <a href="@routes.ParticipationController.view(invite_token)" class="btn-flat grey-text">Cancel</a>
+                    </div>
+                </div>
+            </div>
+
+        </form>
+    
+    </div>
+}

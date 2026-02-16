@@ -1,0 +1,248 @@
+@(ds : Dataset)(implicit request: Http.Request)
+@main("Form to access items in Entity dataset", "profile") {
+    <script src="@routes.DatasetsController.jsRoutes()" type="text/javascript"></script>
+    <!-- navigation -->
+    <nav class="">
+      <div class="row">
+        <div class="col s12">
+          <a href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+          <a href="@routes.ProjectsController.view(ds.getProject().getId())" class="breadcrumb">@ds.getProject().getName()</a>
+          <a href="@routes.DatasetsController.view(ds.getId())" class="breadcrumb">@ds.getName()</a>
+          <a href="#" class="breadcrumb">Record</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="row center">
+      <div class="col s12">
+        <h2>Test item API</h2>
+      </div>
+    </div>
+
+    <div class="row">  
+      <form class="col s12 m6">
+      	<h4>Requests</h4>
+      	<p>
+      		Every request needs a <b>resource id</b> which could be a user name or device id, and also a <b>token</b>, which is commonly a password. Depending on the type of request, you can add data (for "add" and "update" requests). The requests follow the <a href="https://en.wikipedia.org/wiki/Representational_state_transfer" target="_blank">ReST pattern</a>.
+      	</p>
+        <input name="test_form" value="true" type="hidden">
+        <div class="row center">
+          <div class="input-field col s12">
+            <input id="resource_id" name="resource_id" type="text" class="validate" required="">
+            <label for="resource_id">Resource Id (e.g., username or device_id)</label>
+          </div>
+        </div>
+        
+        <div class="row">
+          <div class="input-field col s12">
+            <input id="token" name="token" type="text" class="validate" required="">
+            <label for="token">Token (e.g., password)</label>
+          </div>
+        </div>
+        <div class="row center">
+          <div class="input-field col s12">
+            <textarea placeholder='{"hello": "world!"}' id="data" name="data" class="materialize-textarea" style="height: 10em;"></textarea>
+            <label for="data">Data</label>
+          </div>
+        </div>
+        <div class="row">
+          <a id="addBtn" class="btn green col s3">Add</a>
+          <a id="getBtn" class="btn amber col s3">Get</a>
+          <a id="updateBtn" class="btn purple col s3">Update</a>
+          <a id="deleteBtn" class="btn red col s3">Delete</a>
+        </div>
+        <div class="row">
+          <a id="indexBtn" class="btn grey col s6">Get all</a>
+          <a id="indexFilterBtn" class="btn pink col s6">Get all matching</a>
+          <a href="@routes.DatasetsController.view(ds.getId())" class="btn-flat green-text col s6">Back to dataset</a>
+        </div>
+      </form>
+
+      <div class="col s12 m6">
+      		<h4>Results</h4>
+      		<p>
+      			Responses for the four different requests on the left side, are shown below.
+      		</p>
+      		<textarea id="results" name="results" class="materialize-textarea" style="height: 10em;"></textarea>
+      		<label for="results">Request response</label>
+      </div>
+      
+    </div>
+
+    <script type="text/javascript">
+    	
+	    // add a new item
+	    $('#addBtn').click(function(e) {
+	      var r = jsRoutes.controllers.api.EntityDSController.addItem(@ds.getId());
+	      $.ajax(
+	      	{
+	      		url: r.url, 
+	      		headers: {
+	      			'api_token': '@ds.getConfiguration().get("api_token")',
+	      			'resource_id': $('#resource_id').val(),
+	      			'token': $('#token').val()
+	      		},
+				contentType: "application/json",
+        		data: $('#data').val(),
+	      		type: r.type,
+	      		success: function(data) {
+	      			console.log(data);
+			    	$('#results').val(JSON.stringify(data));
+			    },
+			    error: function(e) {
+			    	M.toast({html: 'Error: ' + e.responseJSON.message, classes: 'red darken-2'});
+			    }
+			}
+		  );
+
+	      e.preventDefault();
+	      return false;
+	    });
+
+
+	    // retrieve an item
+	    $('#getBtn').click(function(e) {
+	      var r = jsRoutes.controllers.api.EntityDSController.getItem(@ds.getId());
+	      $.ajax(
+	      	{
+	      		url: r.url, 
+	      		headers: {
+	      			'api_token': '@ds.getConfiguration().get("api_token")',
+	      			'resource_id': $('#resource_id').val(),
+	      			'token': $('#token').val()
+	      		},
+				contentType: "application/json",
+        		data: $('#data').val(),
+	      		type: r.type,
+	      		success: function(data) {
+	      			console.log(data);
+			    	$('#results').val(JSON.stringify(data));
+			    },
+			    error: function(e) {
+			    	M.toast({html: 'Error: ' + e.responseJSON.message, classes: 'red darken-2'});
+			    }
+			}
+		  );
+
+	      e.preventDefault();
+	      return false;
+	    });
+
+
+	    // update an existing item
+	    $('#updateBtn').click(function(e) {
+	      var r = jsRoutes.controllers.api.EntityDSController.updateItem(@ds.getId());
+	      $.ajax(
+	      	{
+	      		url: r.url, 
+	      		headers: {
+	      			'api_token': '@ds.getConfiguration().get("api_token")',
+	      			'resource_id': $('#resource_id').val(),
+	      			'token': $('#token').val()
+	      		},
+				contentType: "application/json",
+        		data: $('#data').val(),
+	      		type: r.type,
+	      		success: function(data) {
+	      			console.log(data);
+			    	$('#results').val(JSON.stringify(data));
+			    },
+			    error: function(e) {
+			    	M.toast({html: 'Error: ' + e.responseJSON.message, classes: 'red darken-2'});
+			    }
+			}
+		  );
+
+	      e.preventDefault();
+	      return false;
+	    });
+
+
+	    // delete an item
+	    $('#deleteBtn').click(function(e) {
+	      var r = jsRoutes.controllers.api.EntityDSController.deleteItem(@ds.getId());
+	      $.ajax(
+	      	{
+	      		url: r.url, 
+	      		headers: {
+	      			'api_token': '@ds.getConfiguration().get("api_token")',
+	      			'resource_id': $('#resource_id').val(),
+	      			'token': $('#token').val()
+	      		},
+				contentType: "application/json",
+        		data: $('#data').val(),
+	      		type: r.type,
+	      		success: function(data) {
+	      			console.log(data);
+			    	$('#results').val(JSON.stringify(data));
+			    },
+			    error: function(e) {
+			    	M.toast({html: 'Error: ' + e.responseJSON.message, classes: 'red darken-2'});
+			    }
+			}
+		  );
+
+	      e.preventDefault();
+	      return false;
+	    });
+
+
+	    // retrieve all items
+	    $('#indexBtn').click(function(e) {
+	      var r = jsRoutes.controllers.api.EntityDSController.getItems(@ds.getId());
+	      $.ajax(
+	      	{
+	      		url: r.url, 
+	      		headers: {
+	      			'api_token': '@ds.getConfiguration().get("api_token")',
+	      			'resource_id': $('#resource_id').val(),
+	      			'token': $('#token').val()
+	      		},
+				contentType: "application/json",
+        		data: $('#data').val(),
+	      		type: r.type,
+	      		success: function(data) {
+	      			console.log(data);
+			    	$('#results').val(JSON.stringify(data));
+			    },
+			    error: function(e) {
+			    	M.toast({html: 'Error: ' + e.responseJSON.message, classes: 'red darken-2'});
+			    }
+			}
+		  );
+
+	      e.preventDefault();
+	      return false;
+	    });
+
+	    // retrieve all items matching
+	    $('#indexFilterBtn').click(function(e) {
+	      var r = jsRoutes.controllers.api.EntityDSController.getItemsMatching(@ds.getId());
+	      $.ajax(
+	      	{
+	      		url: r.url, 
+	      		headers: {
+	      			'api_token': '@ds.getConfiguration().get("api_token")',
+	      			'resource_id': $('#resource_id').val(),
+	      			'token': $('#token').val()
+	      		},
+				contentType: "application/json",
+        		data: $('#data').val(),
+	      		type: r.type,
+	      		success: function(data) {
+	      			console.log(data);
+			    	$('#results').val(JSON.stringify(data));
+			    },
+			    error: function(e) {
+			    	M.toast({html: 'Error: ' + e.responseJSON.message, classes: 'red darken-2'});
+			    }
+			}
+		  );
+
+	      e.preventDefault();
+	      return false;
+	    });
+
+
+    </script>
+}

@@ -1,0 +1,448 @@
+@(user: Person, dataset : Dataset)
+
+@main("Data Foundry") {
+  <script src='@routes.Assets.versioned("javascripts/codeflask.min.js")' type="text/javascript"></script>
+  <script src="@routes.DatasetsController.jsRoutes()" type="text/javascript"></script>
+
+  <style type="text/css">
+    .exampleCode {
+      max-height: 22em;
+      overflow: scroll;
+    }
+    textarea.codeflask__textarea, pre.codeflask__pre, code.codeflask__code {
+      font-family: monospace !important;
+    }
+    textarea.codeflask__textarea {
+        word-wrap: normal;
+    }
+    .actor_code div.codeflask .codeflask__pre {
+      width: 1000%;
+    }
+  </style>
+
+<!-- navigation -->
+<nav class="">
+  <div class="row">
+    <div class="col s12">
+      <a href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+      <a id="backToProjectBtn" href="@routes.ProjectsController.view(dataset.getProject().getId())" class="breadcrumb">@dataset.getProject().getName()</a>
+      <a href="#" class="breadcrumb">@dataset.getName()</a>
+    </div>
+  </div>
+</nav>
+<!-- title bar -->
+<div class="row">
+  <div class="col s12">
+    <div class="" style="margin-top: 1.52rem; float: right">
+    </div>
+    <h3 style="display: inline-block;">
+      <i class="btn-edit" style="color: black; font-size: 1em;">@elements.icon(dataset.toIcon())</i>
+      @dataset.getName()
+    </h3>
+    @if(dataset.editableBy(user.getEmail())) {
+    <a id="editBtn" class="btn white-text" style="float: right; font-size: 1rem; margin-top: 1.5rem;" href="@routes.DatasetsController.edit(dataset.getId())">Edit dataset</a>
+    }
+  </div>
+</div>
+
+<div class="row">
+  <div class="col s12 l7">
+    <div class="row">
+      <div class="col s12">
+        <details>
+          <summary>
+            What are scripts on Data Foundry?
+          </summary>
+          <p>
+            When you write your script code here, you can make use of the <code>DF</code> object to do stuff on Data Foundry. With this object, you can log data to an IoT or diary dataset, send events to Telegram or OOCSI channels, or retrieve items from IoT and Entity datasets. Find more information on the <code>DF</code> object in the scripts <a href="/documentation/Guides/Scripting/index.html" target="_blank">documentation</a>.
+          </p>
+        </details>
+      </div>
+      <div class="col s12">
+        <h5>Script code</h5>
+        <p>
+          Write your code below and test it with input data on the right side. You can 'install' the script on an OOCSI channel or on Telegram to let it automatically react to incoming events.
+        </p>
+        <div id="actor_code" class="actor_code"></div>
+        <div class="row">
+          <div class="col s12">
+            <a id="saveBtn" class="btn">Save</a>
+            <a id="exampleBtn" class="btn white green-text modal-trigger" href="#examples">Open examples</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col s12 l5">
+    <div class="row">
+      <div class="col s12">
+        <ul class="collection with-header">
+          <li class="collection-header">
+            <h6>
+              Info
+            </h6>
+          </li>
+          <li class="collection-item">
+            <div>
+              <p>
+                <b>Project:</b> <a href="@routes.ProjectsController.view(dataset.getProject().getId())">@dataset.getProject().getName()</a>
+              </p>
+              @if(dataset.getTimeProgress() < 100) {
+              <div class="progress green lighten-3">
+                  <div class="determinate green" style="width: @dataset.getTimeProgress()%"></div>
+                </div>
+              } else {
+              <div class="progress red lighten-3">
+                  <div class="determinate red" style="width: @dataset.getTimeProgress()%"></div>
+                </div>
+              }
+              <p>
+                <b>Dataset activity:</b> @dataset.startDate() - @dataset.endDate()
+              </p>
+              <p style="max-height: 7.5em; overflow: hidden;">
+                <b>Description:</b> @dataset.getDescription()
+              </p>
+            </div>
+          </li>
+        </ul>
+      </div>
+    </div>
+    <div class="row">
+      <div class="col s12">
+        <ul class="tabs">
+              <li class="tab col s6"><a href="#testingTab">Testing 🧐</a></li>
+              <li class="tab col s6"><a class="active" href="#liveTab">Live 🏄‍♂️</a></li>
+            </ul>
+      </div>
+      <div id="testingTab" class="col s12">
+        <div class="row">
+          <div class="col s12">
+            <b>Test script with input data</b><br>
+            Test your code above with data. Use the data object below to send data to your script.
+          </div>
+          <div class="col s12">
+            <div id="actor_data" class="actor_code" style="height: 10em;"></div>
+          </div>
+          <div class="col s12">
+            <a id="testBtn" class="btn" hx-disabled-elt="this">Test with data</a>
+          </div>
+          <div class="col s12">
+            <div id="testProgress" class="progress">
+              <div class="indeterminate"></div>
+            </div>
+            <div id="testOutput" style="padding: 1em 0; height: 12em; overflow: scroll;"></div>
+          </div>
+        </div>
+      </div>
+      <div id="liveTab" class="col s12">
+        <div class="row">
+          <div class="col s12">
+            <b>Install script on OOCSI channel or Telegram</b><br>
+            Fill in a channel name for the OOCSI system here. Events on the channel trigger this script.
+            You can also subscribe to Telegram messages (to build a small chat bot), just enter <code>telegram</code> here. 
+            Read <a href="/documentation/Guides/Scripting/index.html" target="_blank">more</a>.
+          </div>
+          <div class="input-field col s12">
+            @if(dataset.configuration(Dataset.ACTOR_CHANNEL, "").startsWith("telegram")) {
+            <input id="input_channel" name="input_channel" type="text" value="telegram" class="validate" required="">
+            } else {
+            <input id="input_channel" name="input_channel" type="text" value="@dataset.configuration(Dataset.ACTOR_CHANNEL, "")" class="validate" required="">
+            }
+            <label for="input_channel">Input OOCSI channel or 'telegram'</label>
+          </div>
+          <div class="col s12">
+            <a id="installBtn" class="btn" hx-disabled-elt="this">Enable</a>
+            <a id="deinstallBtn" class="btn-flat red-text" hx-disabled-elt="this">Disable</a>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col s12">
+            Scripts run at most once per second (3 seconds when accessing/sending data).<br>
+            Find the output (of <code>DF.print</code>) below.
+          </div>
+          <div class="col s12">
+            <div id="liveOutput" style="padding: 1em 0; height: 12em; overflow: scroll;" hx-get="@controllers.tools.routes.ActorController.log(dataset.getId())" hx-trigger="every 1s"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col s12">
+    <h4>Script backups and logs</h4>
+    <div id="codeFileList">
+    </div>
+  </div>
+</div>
+
+
+  <!-- Modal Structure -->
+  <div id="examples" class="modal">
+    <div class="modal-content" style="height: 30em;">
+      <h4>Script examples</h4>
+      <select id="exampleSel" >
+        <option value="1">Example 1: receive message from OOCSI, log output</option>
+        <option value="2">Example 2: receive message and update IoT dataset</option>
+        <option value="3">Example 3: read and update entity dataset</option>
+        <option value="4">Example 4: receive message and notify Telegram recipient</option>
+        <option value="5">Example 5: receive Telegram message and respond to sender</option>
+      </select>
+
+      <div id="exampleCode1" class="exampleCode">
+        <p>
+          This is a simple example that prints two lines to the output: the first includes two different data items from the OOCSI message, the second just prints the entire message object, which is great for understanding which data items are included. This can be installed on any channel. More information in the scripts <a href="/documentation/Guides/Scripting/index.html" target="_blank">documentation</a>.
+        </p>
+
+        <pre>
+          <code class="language-javascript">
+// DF.print can print strings with data items
+DF.print("Color data (" + data.color + "), position data (" + data.position + ")");
+
+// DF.print can also print the entire OOCSI message
+DF.print(data);
+          </code>
+        </pre>
+      </div>
+
+      <div id="exampleCode2" class="exampleCode">
+        <p>
+          This example shows how to selectively log new data into an IoT dataset based on a condition (data.temperature > 34) and for a specific device. We also supply an activity or event marker "temperature_alert" which can be used for filtering. This can be installed on any channel. More information in the scripts <a href="/documentation/Guides/Scripting/index.html" target="_blank">documentation</a>.
+        </p>
+
+        <pre>
+          <code class="language-javascript">
+// assuming that the message contains some data with property temperature and a device id
+if(data.temperature > 34) {
+  // log an event for the given device id with 
+  // the activity "temperature_alert" and data containing the high temperature
+  DF.eventData.log(data.device_id, 'temperature_alert', {temperature: data.temperature});
+}
+          </code>
+        </pre>
+      </div>
+
+      <div id="exampleCode3" class="exampleCode">
+        <p>
+          This example shows how to update a user profile (an entity dataset) with a message value (in case the message matches a condition). This can be installed on any channel. More information in the scripts <a href="/documentation/Guides/Scripting/index.html" target="_blank">documentation</a>.
+        </p>
+
+        <pre>
+          <code class="language-javascript">
+// assuming that the message contains some data with property temperature and a user_id
+if(data.temperature > 34) {
+  // first retrieve the profile values
+  var profile = DF.entity.get(data.user_id);
+  // set the new value
+  profile.temperature = data.temperature
+  // then update the profile
+  DF.entity.update(data.user_id, profile);
+}
+          </code>
+        </pre>
+      </div>
+
+      <div id="exampleCode4" class="exampleCode">
+        <p>
+          This example shows how to receive a message and inform all researchers in the project about it (in case the message matches a condition). This can be installed on any channel. More information in the scripts <a href="/documentation/Guides/Scripting/index.html" target="_blank">documentation</a>.
+        </p>
+
+        <pre>
+          <code class="language-javascript">
+// assuming that the message contains some data with property temperature
+if(data.temperature > 34) {
+  // in case of a temp value greater 34 send a Telegram message to all researchers in the project
+  DF.telegramResearchers('Hey, temperature is quite high today (' + data.temperature + '), perhaps check on participant 1?');
+}
+          </code>
+        </pre>
+      </div>
+
+      <div id="exampleCode5" class="exampleCode">
+        <p>
+          This is a very simple chatbot example that show how to respond to an incoming Telegram message. You need to use "telegram" for the channel when you install this. More information in the scripts <a href="/documentation/Guides/Scripting/index.html" target="_blank">documentation</a>.
+        </p>
+
+        <pre>
+          <code class="language-javascript">
+// use this to log the entire message
+// DF.print("message: " + data.message)
+
+// respond to message with a particular word or expression
+if(data.message.contains("happy")) {
+  DF.telegramReply("Great, tell me more about why you are happy.")
+} 
+// respond to a message with an arith. expression
+else if(data.message.match("[0-9+*/-]+")) {
+  DF.telegramReply(eval(data.message))
+} 
+// catch all response
+else {
+  DF.telegramReply("No idea, continue.")
+}
+          </code>
+        </pre>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <a href="#!" class="modal-close btn">Cancel</a>
+      <a id="useExampleBtn" href="#!" class="modal-close btn-flat">Use example</a>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+
+    let flaskData = new CodeFlask('#actor_data', {
+      language: 'js'
+    });
+    flaskData.updateCode('var data = {\n  color: 123,\n  position: 12.3\n};');
+
+    let flask = new CodeFlask('#actor_code', {
+      language: 'js',
+      lineNumbers: true
+    });
+    flask.updateCode('@Html(dataset.configuration(Dataset.ACTOR_CODE, "DF.print(\"test message data: \" + data.color)").replace("\\", "\\\\").replace("\n", "\\n").replace("\r", "\\r").replace("'", "\\'"))');
+    flask.onUpdate((code) => {
+      $('#saveBtn').removeClass('disabled');
+    });
+
+    ////////////////////////////////////////////////////////////////////////////////
+
+    $('.exampleCode').hide();
+    $('#exampleCode1').show();
+    $('#exampleSel').change(function(e) {
+      $('.exampleCode').hide();
+      var index = $('#exampleSel').val();
+      $('#exampleCode' + index).show();
+    });
+    $('#useExampleBtn').click(function(e) {
+      var index = $('#exampleSel').val();
+      var code = $('#exampleCode' + index + " code").text();
+      flask.updateCode(code);
+    });
+
+    ////////////////////////////////////////////////////////////////////////////////
+
+    $('#testProgress').hide();
+    $('#testBtn').click(function(e) {
+      $('#testBtn').attr('disabled', true)
+      $('#testProgress').show();
+      let content = flaskData.getCode() + '\n' + flask.getCode();
+      @Html(utils.StringUtils.scrambleTransport("content"))
+      let r = jsRoutes.controllers.tools.ActorController.execute(@dataset.getId());
+      $.ajax({
+        url: r.url,
+        type: r.type,
+        headers: {
+          'HX-Request': true
+        },
+        contentType: 'text/plain;charset=utf-8',
+        data: content,
+        success: function(e) {
+          $('#testOutput').html(e);
+          $('#testProgress').hide();
+          $('#testBtn').attr('disabled', false)
+        },
+        error: function(e) {
+          $('#testOutput').html("");
+          $('#testProgress').hide();
+          $('#testBtn').attr('disabled', false)
+        }
+      });
+
+      e.preventDefault();
+      return false;
+    });
+
+    $('#saveBtn').click(function(e) {
+      let content = flask.getCode();
+      @Html(utils.StringUtils.scrambleTransport("content"))
+      let r = jsRoutes.controllers.tools.ActorController.save(@dataset.getId());
+      $.ajax({
+        url: r.url,
+        type: r.type,
+        contentType: 'text/plain;charset=utf-8',
+        data: content,
+        success: function(e) {
+          M.toast({html: 'Script saved.', classes: 'green darken-2'});
+          updateFileList();
+        },
+        error: function(e) {
+          M.toast({html: 'Problem in script code or during compilation.', classes: 'red darken-2'})
+        }
+      });
+
+      $('#saveBtn').addClass('disabled');
+
+      e.preventDefault();
+      return false;
+    });
+
+    $('#installBtn').click(function(e) {
+      $('#installBtn').attr('disabled', true)
+      if($('#input_channel').val().length > 0) {
+        let content = flask.getCode();
+        @Html(utils.StringUtils.scrambleTransport("content"))
+        let r = jsRoutes.controllers.tools.ActorController.install(@dataset.getId(), $('#input_channel').val());
+        $.ajax({
+          url: r.url,
+          type: r.type,
+          contentType: 'text/plain;charset=utf-8',
+          data: content,
+          success: function(e) {
+            M.toast({html: 'Script will be installed on channel in 10 seconds.', classes: 'green darken-2'})
+            $('#installBtn').attr('disabled', false)
+          },
+          error: function(e) {
+            M.toast({html: e.responseText, classes: 'red darken-2'})
+            $('#installBtn').attr('disabled', false)
+          }
+        });
+      }
+      e.preventDefault();
+      return false;
+    });
+
+    $('#deinstallBtn').click(function(e) {
+      $('#deinstallBtn').attr('disabled', true)
+      let content = flask.getCode();
+      @Html(utils.StringUtils.scrambleTransport("content"))
+      let r = jsRoutes.controllers.tools.ActorController.install(@dataset.getId(), '');
+      $.ajax({
+        url: r.url,
+        type: r.type,
+        contentType: 'text/plain;charset=utf-8',
+        data: content,
+        success: function(e) {
+          $('#input_channel').val('')
+          M.toast({html: 'Script will be removed from channel in 10 seconds.', classes: 'green darken-2'})
+          $('#deinstallBtn').attr('disabled', false)
+        },
+        error: function(e) {
+          $('#deinstallBtn').attr('disabled', false)
+        }
+      });
+
+      e.preventDefault();
+      return false;
+    });
+
+    function updateFileList() {
+      let r = jsRoutes.controllers.tools.ActorController.fileList(@dataset.getId());
+      $.ajax({
+        url: r.url,
+        type: r.type,
+        success: function(e) {
+          $('#codeFileList').html(e)
+        },
+        error: function(e) {
+          console.log(e)
+        }
+      });
+    }
+
+    updateFileList();
+
+  </script>
+}

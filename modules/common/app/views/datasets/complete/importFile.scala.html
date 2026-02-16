@@ -1,0 +1,224 @@
+@(token : String, dataset: Dataset, fileId : Long, fileName : String, header : Array[String], datasets : List[Dataset])(implicit request: Http.Request)
+@main("Import file", "profile") {
+	<script src="@routes.DatasetsController.jsRoutes()" type="text/javascript"></script>
+	<nav class="">
+		<div class="row">
+			<div class="col s12">
+				<a id="homeBtn" href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+				<a id="backToProjectBtn" href="@routes.ProjectsController.view(dataset.getProject().getId())" class="breadcrumb">@dataset.getProject().getName()</a>
+				<a href="@routes.DatasetsController.view(dataset.getId())" class="breadcrumb">@dataset.getName()</a>
+				<a href="#" class="breadcrumb">Import data</a>
+			</div>
+		</div>
+	</nav>
+	<div class="row center">
+		<div class="col s12">
+			<h4>Import data from file</h4>
+		</div>
+	</div>
+
+	<div class="row">
+
+	    <div class="col s12">
+	    	<form id="dataForm">
+
+		    	<div class="row">
+					<div class="col s12">
+						We will try to import the file '@fileName' from the dataset @dataset.getName() in the following way:
+			    	</div>
+
+			    	<div id="errorPanel" class="col s12 red-text white card" style="display: none;"></div>
+				</div>
+
+		    	<div class="row">
+					<div class="col s12">
+			    		<b>Data mapping</b>
+			    		<br>
+			    		The following columns were retrieved from the header of '@fileName' and will mapped accordingly:
+			    	</div>
+
+					<div class="input-field col s12 m7">
+			    	@for(col <- header) {
+			    		<p>
+			    		@if(col.equalsIgnoreCase("timestamp")) {
+			    			@col <span style="position: relative;top: 7px;">@elements.icon("trending_flat")</span> <span class="keywordTag">timestamp</span>
+			    		} else if(col.equalsIgnoreCase("time") || col.equalsIgnoreCase("date")) {
+			    			@col <span style="position: relative;top: 7px;">@elements.icon("trending_flat")</span> <span class="keywordTag">timestamp</span>
+			    		} else if(col.equalsIgnoreCase("activity") || col.equalsIgnoreCase("event")) {
+			    			@col <span style="position: relative;top: 7px;">@elements.icon("trending_flat")</span> <span class="keywordTag">activity</span>
+			    		} else if(col.equalsIgnoreCase("id") && col.contains("articipant")) {
+			    			@col <span style="position: relative;top: 7px;">@elements.icon("trending_flat")</span> <span class="keywordTag">participant Id</span>
+			    		} else if(col.equalsIgnoreCase("id") && col.contains("evice")) {
+			    			@col <span style="position: relative;top: 7px;">@elements.icon("trending_flat")</span> <span class="keywordTag">device Id</span>
+			    		} else if(col.equalsIgnoreCase("id")) {
+			    			@col <span style="position: relative;top: 7px;">@elements.icon("trending_flat")</span> <span class="keywordTag">resource id</span>
+			    		} else if(col.equalsIgnoreCase("pp1")) {
+			    			@col <span style="position: relative;top: 7px;">@elements.icon("trending_flat")</span> <span class="keywordTag">public parameter 1</span>
+			    		} else if(col.equalsIgnoreCase("pp2")) {
+			    			@col <span style="position: relative;top: 7px;">@elements.icon("trending_flat")</span> <span class="keywordTag">public parameter 2</span>
+			    		} else if(col.equalsIgnoreCase("pp3")) {
+			    			@col <span style="position: relative;top: 7px;">@elements.icon("trending_flat")</span> <span class="keywordTag">public parameter 3</span>
+			    		} else {
+			    			@col <span style="position: relative;top: 7px;">@elements.icon("trending_flat")</span> <span class="keywordTag">data column</span>
+			    		}
+			    		</p>
+			    	}
+					</div>
+					<div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+						The data mapping that you can see on the right is automatically determined from the columns in the file '@fileName'. If you want to change the mapping, we suggest changing the columns in the file and uploading it again. You can find more information in the documentation about how to ensure a particular mapping.
+					</div>
+
+
+					<div class="col s12">
+						If the above does not seem right, you can select the column for timestamp information below:
+					</div>
+
+					<div class="input-field col s12 m7">
+						<select id="timestamp_column" name="timestamp_column">
+							<option value="" disabled selected>Choose timestamp column</option>
+							@for(h <- header) {
+							<option value="@h">@h</option>
+							}
+						</select>
+						<label for="timestamp_column">Choose a timestamp column</label>
+					</div>
+					<div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+						Identifying the correct column for the timestamp in this dataset is extremely important for importing. If you have multiple columns containing time information, consider merging them into a single column in a separate program and then importing again. We will provide a separate field for entering the right timestamp pattern (in case automagic parsing fails).
+					</div>
+
+
+
+			    </div>
+
+
+		    	<div id="timestamp_parsing" class="row" style="display: none;">
+					<div class="col s12">
+			    		<b>Timestamp parsing</b>
+			    		<br>
+			    		We will parse the timestamp column in the following pattern:
+			    	</div>
+
+					<div class="input-field col s12 m7">
+						<input placeholder="yyyy-MM-dd'T'hh:mm:ss.SSS" id="timestamp_pattern" name="timestamp_pattern" type="text">
+						<label for="timestamp_pattern">Timestamp pattern</label>
+					</div>
+					<div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+						To map this dataset into a timeseries it is important to parse the timestamp right. We will use a very common pattern as a default, but you can adjust the pattern here to fit your dataset. If your dataset contains two columns for date and time, please combine them first with a text editor or spreadsheet application.
+					</div>
+			    </div>
+
+		    	<div class="row">
+					<div class="col s12">
+			    		<b>Destination dataset</b>
+			    		<br>
+			    		Please choose a destination dataset in one of your projects:
+			    	</div>
+
+					<div class="input-field col s12 m7">
+						<select id="import_dataset" name="import_dataset" required="" class="validate">
+							<option value="" disabled selected>Choose dataset</option>
+							@for(ds <- datasets) {
+							<option value="@ds.getId()">@ds.getName() (from '@ds.getProject().getName()')</option>
+							}
+						</select>
+						<label for="import_dataset">Choose a destination dataset for importing into</label>
+					</div>
+					<div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+						The destination dataset is an IoT dataset in one of your projects. The data in the file that you have selected to import will be inserted into this dataset.
+					</div>
+				</div>
+
+				<div class="row">
+					<div class="col s12">
+			    		<b>Making space</b>
+			    		<br>
+			    		Tick the box to reset the destination dataset first, before importing. ATTENTION: this operation will then destroy the data that might be already in the destination dataset.
+			    	</div>
+					<div class="input-field col s12 m7">
+						<label>
+							<input id="resetDestination" name="resetDestination" type="checkbox">
+							<span class="red-text">Reset destination dataset</span>
+						</label>
+					</div>
+					<div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+						Be CAREFUL here, ticking this box will reset the destination dataset when importing the file.
+					</div>
+				</div>
+
+				<div class="row center">
+					<div class="input-field col s12">
+						<input type="hidden" name="csrfToken" value="@token"/>
+						<a href="@routes.DatasetsController.view(dataset.getId())" class="btn-flat cancelBtn">CANCEL</a>
+						<button id="submitBtn" type="submit" class="btn">IMPORT</button>
+					</div>
+				</div>
+			</form>
+
+			<div id="importProgress" class="">
+				Importing now, going strong so far!
+				<div class="progress green lighten-3">
+			    	<div class="determinate green" style="width: 0"></div>
+		  		</div>
+			</div>
+
+			<script type="text/javascript">
+
+				var uuid;
+
+	  			$('#importProgress').hide();
+				$("form").on('submit', importFile);
+
+				function importFile(e) {
+				  var r = jsRoutes.controllers.api.CompleteDSController.importFileMe(@dataset.getId(), '@fileId');
+				  $.ajax({
+				  		url: r.url,
+				  		type: r.type,
+						data: $('form').serialize(),
+				  		success: function(data) {
+				  			uuid = data.uuid;
+							$('#dataForm').hide();
+				  			$('#importProgress').show();
+
+							// start progress checks
+				  			setTimeout(progressBar, 200);
+					    },
+					    error: function(e) {
+							$('#dataForm').show();
+							M.toast({html: 'Error: ' + e.responseJSON.error, classes: 'red darken-2'});
+					    	$('#errorPanel').html(e.responseJSON.error);
+
+					    	if(e.responseJSON.error.indexOf("imestamp") > -1) {
+								$('#timestamp_parsing').show();
+					    	}
+					    }
+					});
+
+				  e.preventDefault();
+				  return false;
+				};
+
+				function progressBar() {
+				  var r = jsRoutes.controllers.api.CompleteDSController.importStatus(uuid);
+				  $.ajax({
+				  		url: r.url,
+				  		type: r.type,
+				  		success: function(data) {
+				  			$('.determinate').attr('style', 'width: ' + data + '%');
+				  			if(parseInt(data) < 100) {
+				  				setTimeout(progressBar, 200);		
+				  			} else {
+				  				$('#importProgress').html("Import done. Check out the data in the destination dataset!");
+				  			}
+					    },
+					    error: function(e) {
+					    	$('#importProgress').html("Import did not finish successfully. Please try again.");
+					    }
+					});
+				}
+
+			</script>
+		</div>
+
+	</div>
+
+}

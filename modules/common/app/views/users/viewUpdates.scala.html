@@ -1,0 +1,200 @@
+@(user : Person, monday : Date, lastUpdateDate : String)(implicit request: Http.Request)
+
+@main("Your project status") {
+  <script src="@routes.DatasetsController.jsRoutes()" type="text/javascript"></script>	
+	
+  <!-- navigation -->
+  <nav class="">
+    <div class="row">
+      <div class="col s12">
+        <a id="homeBtn" href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+        <a href="#" class="breadcrumb">Status</a>
+      </div>
+    </div>
+  </nav>
+
+  @elements.announcement()
+
+  <!-- title -->
+  <div class="row">
+    <div class="col s6">
+      <h3 class="">
+        Project status
+      </h3>      
+    </div>
+    <div class="col s6">
+      <span class="input-field inline">
+        <input id="targetDate" name="targetDate" type="text" class="datepicker" value="@lastUpdateDate">
+        <label for="targetDate">Click to pick a date</label>
+      </span>
+    </div>
+  </div>
+@*
+  <div class="row">
+    <div class="col s6">
+      <a href="@routes.UsersController.viewPrevWeekUpdates(lastUpdateDate)" class="btn white-text">
+      	Previous week
+      </a>
+      <a href="@routes.UsersController.viewNextWeekUpdates(lastUpdateDate)" class="btn white-text">
+      	Next week
+      </a>
+    </div>
+    <script type="text/javascript">
+      $("#targetDate").change(function() {
+        let newDate = $("#targetDate").val();
+        if (newDate != null) {
+			     window.location = jsRoutes.controllers.UsersController.viewUpdates(newDate).url;
+        }
+      });
+    </script>
+  </div>
+*@
+
+  <!-- status of projects -->
+  <!-- general view -->
+  @for(project <- user.projects()) {
+  <div class="row">
+    <div class="col s12">
+      <h4 class=""><a href="@routes.ProjectsController.view(project.getId())" class="black-text">@project.getName()</a></h4>
+  	</div>
+@*
+    <div class="col s6">
+      <p>
+      	@getSubscriptionNum(project) new subscribers 
+		@getCollaborationNum(project) new collaborators
+	  </p>
+    </div>
+*@
+	<div class="col s12">
+		@getParticipantNum(project) new participants, @getDeviceNum(project) new devices, @getWearableNum(project) new wearables
+	</div>
+  </div>
+  <div class="row" style="border-bottom: 1px #ccc solid; padding-bottom: 3em; margin-bottom: 3em;">
+		<div class="col s12">
+			<h5>Datasets</h5>
+		</div>
+		@for(dataset <- project.getDatasets()) {
+		<div class="col s6">
+      		<h5>
+        		<a href="@routes.DatasetsController.view(dataset.getId())" class="black-text"><b>@dataset.getName()</b></a>
+        		<small>@getDatasetStatus(dataset)</small>
+      		</h5>
+			<div>
+		        <span class="typetag">@dataset.toUIString()</span>
+		        @defining(dataset.countItemChanges(monday)) { change =>
+		        @defining(dataset.getItemQuantity(monday)) { points =>
+		        	@if(points == 0) {
+		        		@if(change != 0) {
+							@points new data points
+		        		} else {
+		        			<span class="grey-text">@points new data points</span>
+		        		}
+		        	} else {
+		        		@points new data points
+		        	}
+		        	@formatItemChanges(change)
+		    	}
+		    	}
+	      	</div>
+		</div>
+		}
+  </div>
+  }
+
+}
+
+@getSubscriptionNum(project : Project) = {
+  @if(project.getSubscriptions(monday) == null) {
+      0
+  } else {
+      @project.getSubscriptions(monday).size()
+  }
+}
+
+@getCollaborationNum(project : Project) = {
+  @if(project.getCollaborations(monday) == null) {
+    0
+  } else {
+   @project.getCollaborations(monday).size()
+  }
+}
+
+@getParticipantNum(project : Project) = {
+  @if(project == null || monday == null) {
+    0
+  } else {
+   @project.getParticipants(monday).size()
+  }
+}
+
+@getDeviceNum(project : Project) = {
+  @if(project.getDevices() == null || project.getDevices().size() == 0) {
+    0
+  } else {
+   @project.countNewDevices(monday)
+  }
+}
+
+@getWearableNum(project : Project) = {
+  @if(project.getWearables() == null || project.getWearables().size() == 0) {
+    0
+  } else {
+   @project.countNewWearables(monday)
+  }
+}
+
+@getDatasetStatus(dataset : Dataset) = {
+  @defining(dataset.getDaysToGo(monday)) { daysToGo => 
+    @if(dataset.isActive(monday)) {
+      @if(daysToGo > 7) {
+        Active.
+      } else {
+        Active, closing in @daysToGo days.
+      }
+    } else {
+      @if(daysToGo > 7) {
+        Inactive, waiting to start.
+      } else if(daysToGo <= 0){
+        Finished.
+      } else {
+        Inactive, starting in @daysToGo days.
+      }
+    }
+  }
+}
+
+@getUpdateChangesByDataset(dataset : Dataset, monday : Date) = {
+  @defining(dataset.countUpdateChanges(monday)) { change =>
+    @if(change > 0) {
+      <div class="chip green lighten-4 green-text">
+        Updates &#x25B2; &nbsp;@change%&nbsp;
+      </div>  
+    } else if(change < 0) {
+      <div class="chip red lighten-4 red-text">
+        Updates &#x25BC;&nbsp;@(-change)%&nbsp;
+      </div>  
+    } else {
+      @* no change to last week.
+      <div class="chip green lighten-4 white-text">
+        Updates ~&nbsp;@change%&nbsp;
+      </div>
+      *@
+    }
+  }
+}
+
+@formatItemChanges(change : Integer) = {
+    @if(change > 0) {
+      <div class="chip green lighten-4 green-text">
+        &#x25B2;&nbsp;@change%&nbsp;
+      </div>  
+    } else if(change < 0) {
+      <div class="chip red lighten-4 red-text">
+        &#x25BC;&nbsp;@(-change)%&nbsp;
+      </div>  
+    } else {
+      <div class="chip grey lighten-3 grey-text">
+        ~&nbsp;@change%&nbsp;
+      </div>
+    }
+}

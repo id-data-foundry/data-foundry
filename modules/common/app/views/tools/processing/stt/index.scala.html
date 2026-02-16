@@ -1,0 +1,248 @@
+@(busyness : String)
+
+@main("Media Transcription", "tools") {
+
+	<style type="text/css">
+		
+		.upload-area {
+		    width: 100%;
+		    height: 160px;
+		    border: 2px solid darkgray;
+		    border-radius: 3px;
+		    text-align: center;
+		    overflow: auto;
+		    background: lightgray;
+		}
+
+		.upload-area:hover {
+		    cursor: pointer;
+		    border: 2px dashed darkgray;
+		}
+
+		.upload-area > div {
+		    text-align: center;
+		    font-weight: normal;
+		    font-family: sans-serif;
+		    line-height: 50px;
+		    color: darkslategray;
+		}
+
+		#file {
+		    display: none;
+		}
+
+		#output {
+			height: 20em;
+			border: 1px solid #444;
+			background: white;
+			padding: 1em;
+			line-height: 1.9em;
+			font-family: monospace;
+			font-size: 0.8em;
+		}
+
+	</style>
+
+	<!-- navigation -->
+	<nav class="">
+		<div class="row">
+			<div class="col s12">
+				<a id="homeBtn" href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+				<a href="#" class="breadcrumb">Media-to-Text Processing</a>
+			</div>
+		</div>
+	</nav>
+
+	<div class="row">
+		<div class="col s12">
+			<h3>
+				Media-to-Text Processing
+			</h3>
+		</div>
+	</div>
+
+	<div id="upload-container" class="row">
+		<div class="col s12">
+			<h5>Input</h5>
+		</div>
+		<div class="col s12 m8">
+			To process audio data in a media file or to extract text from an image, drag and drop a media file (wav, mp3, m4a, mov, mp4, gif, png, jpg, pdf, etc.) into the grey area below. The upload will start right away and after a while, the retrieved text will be shown below. By using this transcription service you acknowledge that you are aware and accept the conditions of the disclaimer below.
+			<br>
+			<b>DO NOT CLOSE OR RELOAD THE WINDOW, processing media files takes time.</b>
+			<br><br>
+		</div>
+		<div class="col 12 m4">
+			Status: <code>@busyness</code>
+			<br><br>
+			Select the language for audio transcription: 
+			<select id="lang" name="lang">
+				<option value="en_sm">English (faster, lower quality)</option>
+				<option value="en">English (slower, better quality)</option>
+				<option value="nl">Dutch</option>
+			</select>
+		</div>
+		<div class="col s12">
+			<input type="file" name="file" id="file" accept=".png, .jpg, .jpeg, .gif, .mp4, .mov, .mp3, .wav, .pdf">
+			<div class="upload-area" id="uploadfile">
+				<div>
+					drag and drop file here
+					<br/>
+					or
+					<br/>
+					click to select file
+				</div>
+			</div>
+		</div>
+	</div>
+
+	<div id="output-container" class="row">
+		<div class="col s12" style="margin-bottom: 4em;">
+			<a class="btn" id="reload">Start again</a>
+		</div>
+
+		<div class="col s12">
+			<h5>Output</h5>
+		</div>
+		<div class="col s12">
+			<div class="progress">
+				<div class="determinate" style="width: 0%"></div>
+			</div>
+			<div>
+				<textarea id="output"></textarea>
+			</div>
+			<div>
+				<p>
+					If you have a big file and would like to run it overnight, copy the address below to retrieve the results later (valid for 12 hours):
+				</p>
+				<blockquote id="retrievalLink"></blockquote>
+			</div>
+		</div>
+	</div>
+
+	<div class="row">
+		<div class="col s12" style="margin-top: 5em; font-size: 0.9em;">
+			<b>Disclaimer</b>
+			<p>
+				The Media-to-text processing here is provided as is with no warranty for correctness. Please check the output carefully and do consider giving us feedback about the transcription quality.
+			</p>
+			<p>
+				Image, video and audio files that are uploaded to this service will only be processed on this server (in the Netherlands) and no data will be transmitted outside of the EU (this is important for GDPR compliance). The files will be deleted immediately after processing in the following steps for audio/video: (1) audio stream extraction from uploaded file and transcoding to temporary file, (2) speech-to-text processing, (3) output transcribed text and deletion of all files. Text extraction from images works in a single extraction step.
+			</p>
+			<p>
+				We are using open-source technology to provide this service. For speech-to-text functionality, the following libraries and language models are currently being used: the <a href="https://github.com/alphacep/vosk-api">Vosk</a> offline open source speech recognition toolkit, and <a href="https://alphacephei.com/vosk/models">language models</a> for English and Dutch. For the text extraction from images, we use the open-source <a href="https://tesseract-ocr.github.io">Tesseract OCR component</a> with <a href="https://github.com/madmaze/pytesseract">Python bindings</a>, and Python image processing libraries.
+			</p>
+		</div>
+	</div>
+
+	<script type="text/javascript">
+		$(function() {
+
+	        $('#output-container,#reload').hide();
+
+		    // preventing page from redirecting
+		    $("html").on("dragover", function(e) {
+		        e.preventDefault();
+		        e.stopPropagation();
+		        $("h1").text("Drag here");
+		    });
+
+		    $("html").on("drop", function(e) { e.preventDefault(); e.stopPropagation(); });
+
+		    // Drag enter
+		    $('.upload-area').on('dragenter', function (e) {
+		        e.stopPropagation();
+		        e.preventDefault();
+		        $("h1").text("Drop");
+		    });
+
+		    // Drag over
+		    $('.upload-area').on('dragover', function (e) {
+		        e.stopPropagation();
+		        e.preventDefault();
+		        $("h1").text("Drop");
+		    });
+
+		    // Drop
+		    $('.upload-area').on('drop', function (e) {
+		        e.stopPropagation();
+		        e.preventDefault();
+
+		        var file = e.originalEvent.dataTransfer.files[0];
+		        uploadData(file);
+		    });
+
+		    // Open file selector on div click
+		    $("#uploadfile").click(function(){
+		        $("#file").click();
+		    });
+
+		    // file selected
+		    $("#file").change(function(){
+		        var file = $('#file')[0].files[0];
+		        uploadData(file);
+		    });
+		});
+
+		$('#reload').click(function() {
+			window.location.reload();
+		})
+
+		// Sending AJAX request and upload file
+		function uploadData(formdata) {
+	        $('#upload-container').hide();
+	        $('#output-container').show();
+			$('.determinate').css({width: '0%'});
+			$('#output').text("Processing media data, results might take a while...");
+			$('#reload').show().addClass('disabled');
+			
+			let languageURL = '@controllers.tools.routes.MediaToTextController.submit()?lang='+ $('#lang').val() + '&type=' + formdata.type;
+		    var token = '';
+		    $.ajax({
+		        url: languageURL,
+		        type: 'post',
+		        data: formdata,
+		        contentType: false,
+		        processData: false,
+		        dataType: 'text',
+		        success: function(response) {
+					token = response;
+					setTimeout(getResults, 5000);
+					$('#retrievalLink').text(location.origin + '@controllers.tools.routes.MediaToTextController.result("")' + token);
+					$('.determinate').addClass('indeterminate').removeClass('determinate').css({backgroundColor: 'cornflowerblue'});
+		        }, error: function(error) {
+		        	$('.progress').hide();
+					$('#output').text(error.responseText).css({'color': 'red'});
+					$('#reload').removeClass('disabled');
+		        },
+				xhr: function() {
+			        var xhr = new window.XMLHttpRequest();
+			        xhr.upload.addEventListener("progress", function(evt) {
+			            if (evt.lengthComputable) {
+			                var percentComplete = (evt.loaded / evt.total) * 100;
+			                $('.determinate').css({width: percentComplete + '%'});
+			            }
+			       }, false);
+			       return xhr;
+			    }
+		    });
+
+		    var responseLength = 0;
+		    function getResults() {
+		    	$.get('@controllers.tools.routes.MediaToTextController.result("")' + token, function(e) {
+	    			if(responseLength < e.length) {
+			    		responseLength = e.length;
+			    		$('#output').text(e);
+	    			}
+	    			
+		    		if(!e.endsWith("[END]")) {
+	    				setTimeout(getResults, 8000);
+	    			} else {
+						$('.progress').hide();
+						$('#reload').removeClass('disabled');
+	    			}
+		    	});
+		    }
+		}
+	</script>
+
+}

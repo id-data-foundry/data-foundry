@@ -1,0 +1,53 @@
+@(p : Project, datasets : List[Dataset], user : Person)
+
+<ul class="collection with-header">
+	<li class="collection-header"><h6>Scripts (@datasets.size())</h6></li>
+  @for(d <- datasets) {
+  <li class="collection-item avatar">
+    <span class="circle" style="text-align: center">
+		@if(d.isActive()) {
+		<i>
+	   	@elements.icon(d.toIcon())
+	  </i>
+		} else {
+	  <small><span class="small red-text tooltipped" style="position: relative; top: 2px; font-size: 1.5em;" data-tooltip="This dataset is inactive and cannot record data<br>adjust start/end date to activate.">@elements.icon("block")</span></small>
+	  }
+    </span>
+    <a href="@routes.DatasetsController.view(d.getId())" class="black-text">
+  		<span class="title">
+  			@d.getName()
+  		</span>
+  		<span class="idtag">id: @d.getId()</span>
+	  </a>
+    <p>
+    	<span class="typetag orange lighten-3">@d.toUIString()</span>
+      @if(d.isScript()) {
+	  	<small class="grey-text text-darken-2">
+        @if(d.isScriptLive()) {
+	  		<span class="tiny" style="position: relative; top: 4px; font-size: 1.5em;">@elements.icon("autorenew")</span>
+    		Script is installed on '@d.configuration(Dataset.ACTOR_CHANNEL, "")'.
+    		} else {
+	  		<span class="tiny" style="position: relative; top: 4px; font-size: 1.5em;">@elements.icon("block")</span>
+        	Script is inactive.
+    		}
+    	</small>
+      }
+    </p>
+    <a href="@routes.DatasetsController.view(d.getId())" class="secondary-content grey-text">@elements.icon("arrow_forward")</a>
+  </li>
+  }
+  <li class="collection-item avatar">
+    <span class="circle" style="text-align: center"></span>
+    <a href="@routes.ProjectsController.addScript(p.getId())" class="black-text">
+        <span class="title">
+          add script
+        </span>
+      </a>
+      <p>
+        add a script
+      </p>
+      <!-- Modal Trigger -->
+      <a id="addScriptBtn" href="@routes.ProjectsController.addScript(p.getId())" class="secondary-content grey-text">@elements.icon("add")</a>
+    </li>
+</ul>
+  

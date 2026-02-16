@@ -1,0 +1,802 @@
+@()
+# %% [markdown]
+# A2. Data Visualization and Statistics
+
+This notebook helps you refresh data analytics concepts and Python programming skills that are useful for working with sensor data. The focus is now on **processing the data**, more precisely *explore* , *organize* and *visualize* the data that is relevant to your experiment, and even apply a *statistical test* to find out whether the observed effect is significant.
+
+It is assumed that you followed (and passed) the *Data Analytics for Engineers* basic course and that you completed the first *Making Sense of Sensors* notebook, *Data Collection and Aggregation*.
+
+You will get some automatic feedback via Momotor. Make sure you write ***all your code*** *only between the markers*. While you read this notebook, execute all code cells in linear order from the beginning using the small play buttons in the bottom left corners.
+
+## How to use this template notebook
+
+First make sure you are working in a **copy** of `DVS-template.ipynb`, **renamed** to `DVS-yourIDnr.ipynb`,
+where `yourIDnr` is your TU/e identification number.
+Proceed in this notebook as follows:
+
+* **Read** the explanations and exercises.
+* **Fill in** your solutions in Python code between the `BEGIN_TODO` and `END_TODO` marker lines.
+  Do NOT modify or delete these marker lines and
+  do NOT write your code outside the marked blocks.
+* **Run** *all* code cells (also the ones *without* your code),
+  *in linear order* from the first code cell. There should not be any errors - if there are, fix them by editing the code inside the markers.
+* **Submit** the completed notebook on Canvas - see detailed instructions at the end of this notebook
+
+
+
+# %% [markdown]
+## Make it yours
+
+
+1. Copy the following three lines of code:
+
+```python
+AUTHOR_NAME = 'Your Full Name'
+AUTHOR_ID_NR = '1234567'
+AUTHOR_DATE = 'YYYY-MM-DD'  # when notebook was first modified, e.g. '2019-02-26'
+```
+
+
+1. Paste them between the marker lines in the next code cell.
+2. Fill in your *full name* , *identification number* , and the current *date* as strings between quotes.
+3. Run the code cell by putting the cursor there and typing **Control-Enter**.
+
+
+
+# %% [python]
+#// BEGIN_TODO [Author] Name, Id.nr., Date, as strings (1 point)
+
+#// END_TODO [Author]
+
+AUTHOR_NAME, AUTHOR_ID_NR, AUTHOR_DATE
+
+# %% [markdown]
+## Table of Contents
+
+
+1. [Introduction and setup](#1)
+2. [Designing experiments](#2)
+3. [Visualizations](#3)
+4. [Statistical tests](#4)
+5. [Your own data](#5)
+6. [Your experience](#6)
+
+### Learning Objectives
+
+After reading and completing the work in this notebook, you should:
+
+* understand and be able to use some basic vocabulary of experimental statistics: *discrete* and *continous* data , *independent* and *dependent* variable
+* be able to aggregate time data into sets of observations
+* be able to create simple visualizations: histograms, barplots and boxplots
+* be able to correctly apply a statistical test
+* be able to create a small statistical experiment with your own data
+
+
+
+# %% [markdown]
+## 1. Introduction and setup
+
+The main question in this course is **How to make sense of sensors and use them for improving vitality?**
+
+A useful way to address this is by formulating and studying **interventions**, which proceed in several steps:
+
+1. quantify the Before situation by collecting relevant sensor data
+2. design and implement an intervention
+3. quantify the After situation by collecting relevant sensor data again
+4. study the difference between the Before and After data and draw conclusions about the effects of the interventions
+
+The part where data analysis and statistics techniques come in handy is Step 4. Ideally, we should be able to **measure** the difference between the Before and After conditions and show an improvement.
+
+Alternatively, instead of a Before/After approach, we may choose to collect and study data from different work situations and compare those, in order to draw conclusions about what parameters (habits, settings, schedules etc) might sustain good vitality.
+
+In both cases, the underlying data analysis question is: **How to meaningfully compare two situations (conditions)?** which can be broken down further in
+
+* How to formally describe a condition, such that essential information is highlighted?
+* How to compare conditions visually?
+* How to measure the difference between two such formal descriptions?
+
+Sections 2,3 and 4 in this notebook provide some answers and examples for these questions. In Section 5 there is room for analyzing your own data! 🎈 🎉
+
+### Importing Libraries
+
+For data processing steps (aggregation, resampling), we will continue using **pandas**.
+For visualizations, we will use the following **plotting libraries** that work well with Python:
+
+* **matplotlib** is the first and the base one, all others are built on top of it.
+* **pandas** provides good support for plotting `DataFrame` and `Series` objects.
+* **seaborn** is especially suitable to create statistical plots.
+
+We now import these libraries, along with the other useful ones (numpy, datetime). See further below a short overview of the plot syntax and links to more resources.
+
+# %% [python]
+import numpy as np
+import pandas as pd
+import datetime
+import pyodide
+import scipy
+import matplotlib.pyplot as plt
+
+# Should be removed before export
+import micropip
+await micropip.install('scipy')
+await micropip.install('seaborn==0.13.2')
+print("done")
+import seaborn as sns
+plt.rcParams['lines.markeredgewidth'] = 1  # to fix issue with seaborn box plots; needed after import seaborn
+# next command ensures that plots appear inside the notebook
+
+
+plt.rcParams['figure.figsize'] = 12, 5  # default hor./vert. size of plots, in inches
+
+import warnings
+warnings.filterwarnings('ignore')
+
+print("done")
+# %% [markdown]
+#### Pandas
+
+Various plots can be made directly from a `DataFrame` or `Series` object using the *Pandas* library.
+The general function to make a plot for a `DataFrame df` is
+
+* `df.plot(kind='...', ...)`
+
+where the following kinds of plots are supported.
+
+* `'line'` : default
+* `'area'` : like `'line'`, but with area below line filled in
+* `'bar'` : vertical bar plot, with separated bars
+* `'barh'` : horizontal bar plot, with separated bars
+* `'hist'` : histogram, with automatic binning; use `bins=n` to set the number of bins to `n`
+* `'box'` : vertical box (and whisker) plot, with outliers
+* `'density'` : density plot (a kind of continuous histogram)
+* `'scatter'` : scatter plot
+
+All of these plots, **except** `'scatter`', apply to `Series` objects as well.
+When used on a `DataFrame` object, all (numeric) columns are plotted,
+and a **legend** is included.
+
+#### Seaborn
+
+For better-looking, fancier, plots, use the Seaborn library.
+
+The complete documentation is here: [Seaborn API](https://seaborn.pydata.org/api.html)
+A collection of beautiful examples, including the code to make them, can be found here: [Seaborn Gallery](https://seaborn.pydata.org/examples/index.html).
+
+#### More recommended Resources
+
+* [Visualization](https://pandas.pydata.org/pandas-docs/stable/visualization.html) in the *Pandas Documentation*
+* [Seaborn documentation](https://seaborn.pydata.org/)
+* [Visualization with Matplotlib](https://github.com/jakevdp/PythonDataScienceHandbook/blob/master/notebooks/04.00-Introduction-To-Matplotlib.ipynb) in the *Python Data Science Handbook*
+* [A tutorial on time series with Pandas](https://towardsdatascience.com/basic-time-series-manipulation-with-pandas-4432afee64ea)
+
+
+
+# %% [python]
+# import and inspect
+file_sp = "http://data.id.tue.nl/web/VnEzUzNaNzBYV3pFOWYwb1VRTTFNcGV4RkRuRjl2SDVHdUd3a2ZJT0RyZz0=/steps-and-phones.csv"
+df_sp = pd.read_csv(pyodide.open_url(file_sp))
+df_sp.head(2)
+
+# %% [markdown]
+Most of the columns are familiar, as this is in essence the dataset produced at the end of the DCA assignment. It is not exactly that dataset, however. Namely, the data is aggregated per quarter of an hour, rather than per hour, in order to have more datapoints. The new column **H-Q** denotes the Hour and the Quarter (0 is the first quarter, 1,2,3 the next 3) when an observation has been recorded. The very first observation, for instance, says that _Participant 1_ walked _68_ steps between _8.30 and 8.45_ (H-Q is 8-2) on _2018-04-06_ and used his phone for a total of _105_ seconds during the same period.
+
+_Note_ : The Duration is technically computed as the sum of all phone interaction durations _started_ in the specified quarter H-Q. Therefore, Duration can actually be higher than the number of seconds in a quarter.
+
+# %% [python]
+file_h = "http://data.id.tue.nl/web/VnEzUzNaNzBYV3pFOWYwb1VRTTFNcGV4RkRuRjl2SDVHdUd3a2ZJT0RyZz0=/heartrate-extra.csv"
+df_h = pd.read_csv(pyodide.open_url(file_h))
+df_h.head(2)
+
+# %% [markdown]
+A heartrate observation contains essentially a timestamp and the heartrate registered at that timestamp, _rate_. The _rateZone_ is an extra parameter computed by the Mi Fit app, based on the rate and the specific personal settings. The rest of the columns are derived from the timestamp (H-Q has the exact same meaning as for the other dataset, see above) and are helpful to classify and aggregate observations.
+
+The frequency of observations is about 10 per minute, which is the "continous" setting in the Mi Fit app.
+
+
+## 2. Designing experiments
+Practical experiments like the ones we are interested in in this course, usually boil down to  _comparisons_ of _conditions_. A condition is formally characterised by a set of _observations_ (or _datapoints_ ). For instance, the condition "Weekend" might be characterised by a set of observations of the form:
+( day, number of steps this day, total duration of phone interactions in this day ),
+where day is Saturday or Sunday.
+
+The data variables recorded in an observation are:
+ * one or more _independent_ variables, also called _a priori_. These are manipulated or chosen by the experimenter. Examples: the day, or whether or not the subjects are coffeinated.
+ * one or more _dependent_ variables, also called _a posteriori_. These represent the observed (measured) outcome. Examples: the number of steps, the phone usage duration.
+
+ ### Example: Heart experiment
+
+Let's design a small experiment to try to understand the effect a going out night might have on the stress (or excitement?) level of one specific person. Our subject has collected heartrate data with a frequency of 1 minute. The data is loaded in `df_h`. We also know that there was a dance party on Friday evening, April 19, where the subject participated.
+
+We start by taking a quick look at the average heartrate per day and period of the day, just to get an idea. In code, this translates to grouping the dataframe by two keys ('Date', 'DayPeriod'), computing the mean value per group, then listing the aggregated values from highest to lowest.
+
+# %% [python]
+df_h_mean = df_h.groupby(['Date','DayPeriod'])['rate'].mean()
+print(df_h_mean.sort_values(ascending=False))
+# %% [markdown]
+#### Conditions
+
+So, indeed, it seems that Friday evening was quite active.
+For our study, it is then a straightforward choice to define _Friday_evening_ as one condition and compare this to other evenings for which we have data, namely _Thursday_evening_ and _Wednesday_evening_.
+
+We do not need the morning, afternoon and night data for this experiment, so let us select only the evenings in a new dataframe `df_he`. For readibility, we also rename the actual dates (April 17,18,19) to friendlier identifiers: 'Wed evening', 'Thu evening', 'Fri evening'.
+
+# %% [python]
+# new "evening" dataframe
+df_he = df_h[df_h['DayPeriod']=='evening'].copy()
+
+# friendlier identifiers
+dict_conditions={'2019-04-17':'Wed evening',
+                 '2019-04-18':'Thu evening',
+                 '2019-04-19':'Fri evening'}
+df_he['Date']=df_he['Date'].map(dict_conditions)
+
+# check that the translation was succesful
+# df_he['Date'].unique()
+df_he.head()
+
+# %% [markdown]
+#### Independent and Dependent Variables
+
+The _dateTime_ , _Date_ , _Hour_ , _H-Q_ , _DayPeriod_ are the independent variable here, as they describe the setting (exact time) at which each observation was made.
+
+The _rate_ is the measured, thus dependent, variable, as well as _rateZone_.
+
+We choose to base our study on the _rate_ measurement. Therefore, the rateZone marking is not directly relevant and can be droppped. Also, the column 'DayPeriod' is always 'evening', so can be dropped as well.
+
+# %% [python]
+df_he=df_he.drop(['rateZone','DayPeriod'], axis=1)
+df_he=df_he.sort_values(by="dateTime").reset_index().drop('index', axis=1)
+df_he.info()
+
+# %% [markdown]
+The data looks clean and complete.
+
+# %% [markdown]
+#### Some plots
+
+It is always a good idea to plot the data as soon as possible, to get some quick insights.
+We start by plotting the actual heartrate data (**first plot**). As the observations are sorted by timestamp, we choose to use the index number rather than the timestamp on the X-axis.
+
+The first plot looks rather "spiky".
+To see the general trend better, we might want to _smooth_ the data via a rolling window transformation. This means that given __N__ as window size, and a function __f__ to aggregate data (like min, max, mean..), a list of values will be transformed by replacing each value with the aggregation __f__ of itself and the previous __N-1__ values. Pandas provides a very useful function for this, namely [**rolling**](https://pandas.pydata.org/pandas-docs/stable/reference/api/pandas.DataFrame.rolling.html).
+The result is the **second plot** below.
+
+If the goal is to see more clearly the variation in heartrate, rather than the absolute values, then computing and plotting the rolling standard deviation is a more appropriate to go. This is the **third plot** below.
+
+# %% [python]
+# setting the stage for plotting: a figure with 3 rows and 1 column
+fig, ax = plt.subplots(3, 1,figsize=(10,5))
+# boolean masks to select the three conditions
+bmw = df_he['Date']=='Wed evening'
+bmt = df_he['Date']=='Thu evening'
+bmf = df_he['Date']=='Fri evening'
+
+# plot UP: actual heartrate data
+df_he[bmw]['rate'].plot(ax=ax[0],color="#4C72B0")
+df_he[bmt]['rate'].plot(ax=ax[0],color="#DD8452")
+df_he[bmf]['rate'].plot(ax=ax[0],color="#55A868")
+ax[0].set_title("Heartrate")
+ax[0].legend(["Wed","Thu","Fri"])
+
+# plot MIDDLE: rolling mean with a window size of 60
+df_he['rr']=df_he['rate'].rolling(60).mean()
+df_he[bmw]['rr'].plot(ax=ax[1],color="#4C72B0")
+df_he[bmt]['rr'].plot(ax=ax[1],color="#DD8452")
+df_he[bmf]['rr'].plot(ax=ax[1],color="#55A868")
+ax[1].set_title("Rolling mean of Heartrate, window = one hour")
+ax[1].legend(["Wed","Thu","Fri"])
+
+# plot DOWN: rolling standard deviation
+df_he['rv']=df_he['rate'].rolling(60).std()
+df_he[bmw]['rv'].plot(ax=ax[2],color="#4C72B0")
+df_he[bmt]['rv'].plot(ax=ax[2],color="#DD8452")
+df_he[bmf]['rv'].plot(ax=ax[2],color="#55A868")
+ax[2].set_title("Variability");
+ax[2].legend(["Wed","Thu","Fri"]);
+
+plt.show()
+# %% [markdown]
+**Discrete data**
+
+To be able to statistically compare sets of continous data, like the three sets of observations above, we need to reduce the data to smaller **discrete** datasets, preferably without losing essential information.
+
+One way of achieving this is by **sampling**, that is picking every __N__th value and throwing away the rest. The risk of missing important observations can be minimized by performing the sampling after aggregating it via a rolling window, rather than directly on the original data.
+
+Another way is by explicitely grouping data and aggregating it per group. This will produce non-overlapping aggregated observations. For the heartrate experiment, we choose to aggregate the data per 15 minutes, that is per H-Q. The combination of the pandas methods **groupby** and **agg** allows to compute many aggregations at once. We create separate columns for the minimum heartrate per H-Q, maximum heartrate, mean, median and the standard deviation.
+
+# %% [python]
+df_he_data = pd.DataFrame()
+df_he_data=df_he.groupby(['Date','H-Q'])['rate'].agg(['min','max','mean','median','std']).reset_index()
+df_he_data.head(2)
+
+# %% [markdown]
+**Prepared experiment data**
+
+Finally, let us organize this discrete data by renaming the columns to reflect the variable roles:
+
+* I = independent variable = context description or influenced by the experimenter
+* D = dependent variable = measured value in the given condition and description
+
+
+
+# %% [python]
+# rename the columns to reflect their role in the experiment
+df_he_data.columns = ['I:Day', 'I:H-Q',
+                     'D:MinRate', 'D:MaxRate', 'D:MeanRate', 'D:MedianRate', 'D:RateStd']
+df_he_data.head()
+
+# %% [markdown]
+Now the measured data is manageable in size and diverse (mean, var etc). **Note that the time dimmension is lost in aggregation, the three conditions are now characterized by unordered sets of observations.**
+
+This example continues further below, with Visualizations in [3](#3) and statistical testing in [4](#4).
+
+# %% [markdown]
+### 2 Walk and talk?
+
+The data in `df_sp` was collected as part of a study on the effect of walking on the phone usage. That is, does more walking lead to more talking? Participants were instructed to walk more in the afternoon than in the morning.
+
+Prepare the experiment data in the form of a dataframe `df_sp_data` , with the following columns:
+
+    * Participant
+    * DayPeriod
+    * H-Q
+    * WeekDay
+    * SumStepsCount - containing the total step count for the given participant during the given (DayPeriod, WeekDay, H-Q), over all Dates
+    * SumDuration - containing the total duration for the given participant during the given (DayPeriod, WeekDay, H-Q), over all Dates
+
+Finally, add the I: or D: prefix to each column name, to mark whether the column is a dependent or independent variable in this experiment.(For instance, "Participant" should be renamed to "I:Participant", if you think Participant is independent, and to "D:Participant" otherwise.)
+
+# %% [python]
+#// BEGIN_TODO [DVS_2] Walk and talk? (4 points)
+#// END_TODO [DVS_2]
+
+df_sp_data.head()
+
+# %% [markdown]
+-----------------------------
+Exercise 3 builds on this one, with Visualizations in section [3](#3) and statistical tests in section [4](#4).
+
+## 3. Visualizations
+The goal is ultimately to understand how significant the difference is between the _conditions_ described by _measured data_. In [2](#2), the data has been cleaned and aggregated into observation sets for each condition.
+Now these observation sets can be explored in various ways to gain insights into how the conditions compare to each other.
+
+For this purpose of _comparing_ sets of observations, the most helpful plots are **histograms**, **boxplots** and **barplots**. See several example of creating such plots below. Also consult the <u>Tool Summary</u> for a comprehensive overview of the most common usages, and the <u>Pandas visualization page</u> and the <u>Seaborn gallery</u> for many more possibilities - the links are available on the [Resources](https://canvas.tue.nl/courses/8497/pages/resources?module_item_id=110393) page in Canvas.
+
+### Example: Heart experiment
+
+#### HISTOGRAMS
+
+Let us plot the prepared _D:MeanRate_ data as a **cumulative histogram**. In this type of plot, the possible values of the variable are shown on the X-axis. For a value $x$, the _fraction_ of observations with values <= $x$ is shown on the Y-axis.
+
+We create three plots for the three days, by first selecting the corresponding observations/rows from the dataframe and the variable we are interested in (_D:MeanRate_), then calling the Pandas **hist** function with the parameter cumulative=True. The parameter _density_ set on True means that the counts should be normalized to a 0.0-1.0 range, so that _fractions_ rather than actual value counts are shown.
+
+# %% [python]
+plt.figure(figsize=(10,5))
+
+rw= df_he_data[df_he_data['I:Day']=='Wed evening']['D:MeanRate']
+rt= df_he_data[df_he_data['I:Day']=='Thu evening']['D:MeanRate']
+rf = df_he_data[df_he_data['I:Day']=='Fri evening']['D:MeanRate']
+
+ax=rw.hist(histtype='step', bins=50,linewidth=3.0,cumulative=True,density=True);
+rt.hist(histtype='step', bins=50,linewidth=3.0,cumulative=True,density=True);
+rf.hist(histtype='step',  bins=50,linewidth=3.0,cumulative=True,density=True);
+
+plt.legend(['Wed','Thu','Fri']);
+ax.set_xlim(20,150);
+
+plt.show()
+# %% [markdown]
+Alternatively, for somewhat fancier looks and more options, we can plot the same histograms using the Seaborn library. Seaborn can also plot cumulative density curves, which are estimations of the probability density functions, based on the given histograms.
+
+# %% [python]
+plt.figure(figsize=(10,5))
+
+ax=sns.distplot(rw,bins=50,kde=True,hist_kws={'cumulative':True,'alpha':0.7},
+             kde_kws={'cumulative':True,'alpha':1},norm_hist=True)
+sns.distplot(rt,bins=50,kde=True,hist_kws={'cumulative':True,'alpha':0.7},
+             kde_kws={'cumulative':True,'alpha':1},norm_hist=True)
+sns.distplot(rf,bins=50,kde=True,hist_kws={'cumulative':True,'alpha':0.7},
+             kde_kws={'cumulative':True,'alpha':1},norm_hist=True)
+
+plt.legend(['Wed','Thu','Fri']);
+ax.set_xlim(20,150)
+plt.show()
+# %% [markdown]
+Friday looks indeed different than the other two days, especially clearly different than Thursday. We can visually conclude that dancing increases the heartrate. However, for a more serious statistical argument to justify this conclusion, we need to do more - to be continued below.
+
+**Regular vs cumulative histograms**
+
+The cumulative histograms are actually not the most widely used histograms, _regular_ ones are. See below a regular vs a cumulative histogram of _D:MeanRate_ over all days together. They give different perspectives on the data, but the cumulative one is generally preferable for statistical analysis. Check [this article](https://www.andata.at/en/software-blog-reader/why-we-love-the-cdf-and-do-not-like-histograms-that-much.html) if you want to learn more about this subject.
+
+# %% [python]
+
+fig,ax = plt.subplots(nrows=1, ncols=2, squeeze=False,figsize=(15,5))
+
+sns.distplot(df_he_data['D:MeanRate'],bins=30,kde=False,color='k',
+             hist_kws={'cumulative':False,'alpha':0.8},norm_hist=True, ax=ax[0, 0])
+
+sns.distplot(df_he_data['D:MeanRate'],bins=30,kde=False,color='k',
+             hist_kws={'cumulative':True,'alpha':0.8},norm_hist=True, ax=ax[0, 1]);
+
+plt.show()
+# %% [markdown]
+#### BOXPLOTS
+
+A **boxplot** is very useful when the goal is to quickly compare groups of observations. For instance the heartrate recorded in `df_he_data`, grouped per day, looks like this:
+
+# %% [python]
+plt.figure(figsize=(10,5))
+sns.boxplot(x='I:Day', y='D:MeanRate', data=df_he_data, order=["Wed evening","Thu evening","Fri evening"]);
+plt.show()
+# %% [markdown]
+These type of plots are basically the visual counterpart of the pandas method **describe()**, showing in one overview all essential dataset information: the median, the quartiles, the interquartile range, even the outliers of a data(sub)set.
+
+**Swarmplots** A possible drawback of boxplots is that the actual datapoints are not visible - with the exception of outliers, which are very visible. One way to complete the picture with datapoints, if desired, is to overlay a _swarmplot_. See below an example of how this looks like for the steps_and_phones dataset.
+
+The example also shows how to make boxplots using more than one category - in this example both _Participant_ and _DayPeriod_ are used to split the data. Note that the swarmplots are per _Participant_ only. Splitting those per _DayPeriod_ too is technically possible, but the chart would likely become too complex and confusing.
+
+_Feel free to experiment!_ by changing the arguments, commenting out one or the other plot, etc.
+
+
+# %% [python]
+plt.figure(figsize=(10,6))
+
+sns.set_palette("Blues")
+sns.boxplot(x='Participant', y='StepsCount', hue='DayPeriod', data=df_sp);
+sns.swarmplot(x='Participant', y='StepsCount', data=df_sp, color=".25")
+
+# back to the default colours
+sns.set_palette("deep")
+plt.show()
+# %% [markdown]
+From the boxplot, it looks like Participant 1 is most active (highest median stepcount for both morning and afternoon, between all participants). However, the number of observations is quite low (see swarmplot), which makes this conclusion questionable. It is also visible that most people are not that active overal (low median and many Zero-dots), but they try to compensate by fits of intense activity (outliers), mostly in the afternoon.
+
+#### BARPLOTS
+Barplots are useful when comparing numerical values for various categories to each other. In the heart experiment, the straightforward comparison to try would be to plot one of the measured values for different conditions. Let's pick the same measure used in the histograms,_MeanRate_.
+
+# %% [python]
+plt.figure(figsize=(10,4))
+sns.barplot(x='I:Day', y='D:MeanRate', order=["Wed evening","Thu evening","Fri evening"], data=df_he_data);
+plt.show()
+# %% [markdown]
+The default aggregation used by sns.barplot is _mean_, the black bars show the variation of the mean. So what we see here is the evening average of the average heartrate per quarter of an hour. The insights are not much different than those from the histograms and boxplots.
+
+But the data is richer than just the MeanRate. Let's take a look at it again:
+
+# %% [python]
+df_he_data.head(2)
+
+# %% [markdown]
+We might be interested in visually comparing the three conditions on all the measured values (MinRate, MaxRate etc) at once. To achieve this comparison in one plot, we first need to **reshape** the data, such that the separate columns become separate groups in one column. The very useful Pandas for this purpose is **melt()**.
+
+# %% [python]
+df_he_reshaped = pd.melt(df_he_data, id_vars=['I:Day','I:H-Q'], var_name="measure_name", value_name="measure_value")
+df_he_reshaped.head()
+
+# %% [markdown]
+Now we can plot all the measures side by side in one plot, and see that Friday still "wins".
+
+# %% [python]
+plt.figure(figsize=(10,5))
+sns.barplot(x='measure_name', y='measure_value', hue='I:Day', palette=["C2", "C1", "C0"], data=df_he_reshaped);
+plt.show()
+# %% [markdown]
+**Another barplot example** Reshaping is definitely not always needed! A barplot can be created directly from the data and can be very insightful when there are several different categories. For instance, let's look at the StepsCount activity from the original steps_and_phones dataframe `df_sp`. A simple way to build an informative overview is to aggregate the StepsCount by two categories - DayPeriod, Participant - simultaneously. One bar will thus show how much a given study participant moves, on average, in a given day period.
+
+
+# %% [python]
+df_sp['Participant'] = df_sp['Participant'].astype(str)  # Convert Participant to string to be able to set the hue
+
+plt.figure(figsize=(10,5))
+sns.barplot(x='DayPeriod', y='StepsCount', hue='Participant', order=["morning","afternoon"],data=df_sp);
+plt.show()
+# %% [markdown]
+
+The dataframe `df_sp_data` should now contain aggregated data about the stepscount and duration of phone activities by person, day and hour. Explore this data visually in the following three exercises.
+
+### 3a. Walk and talk - Histograms
+
+Plot cumulative histograms of _D:SumDuration_ (😉) to compare visually the phone usage of the 5 participants. Include fitting distribution curves, as computed by seaborn.
+
+Some of the curves should intersect. Can you see where the intersection point between the lines of Participants 2 and 3 is, approximately? Try to estimate it - only visually, no computation - by coordinates. Assign your estimation to `intersection_x` and `intersection_y`, respectively.
+
+# %% [python]
+#// BEGIN_TODO [DVS_3a] Histograms (5 points)
+#// END_TODO [DVS_3a]
+
+# %% [markdown]
+### 3b. Walk and talk - Boxplots
+
+Create a **boxplot** to show phone duration data as you find appropriate, in order to answer these questions:
+
+* Is the median SumDuration higher in the morning or afternoon? Assign "morning" or "afternoon" to `higher_median`.
+* Is the longest phone activity (as in: SumDuration) observed in the morning or in the afternoon?
+  Assign "morning" or "afternoon" to `longest_quarter`.
+
+
+
+# %% [python]
+#// BEGIN_TODO [DVS_3b] Boxplots (5 points)
+#// END_TODO [DVS_3b]
+
+# %% [markdown]
+### 3c. Walk and talk - Barplots
+
+Create a **barplot** to show how _D:SumDuration_ varies per recorded quarter, that is the H-Q, regardless of the different participants, days etc.
+
+From this plot, which of the quarters seems lowest in terms of phone activity? If you think more apply, choose one. Assign the answer as a H-Q string, for instance "11-1" to `offline_quarter`.
+
+# %% [python]
+#// BEGIN_TODO [DVS_3c] Barplots (5 points)
+#// END_TODO [DVS_3c]
+
+# %% [markdown]
+### 3d. Walk and talk - Scatterplots
+
+From `ds_sp_data`, create a **scatterplot** to show how the stepcount and phone activity duration relate. Each datapoint should be the data for one quarter of an hour.
+
+From this plot, how many points(=quarters) are very busy, that is with more than 2000 steps as well as more than 500 seconds phone activity? Assign the answer to `number_of_busy_quarters`.
+
+# %% [python]
+#// BEGIN_TODO [DVS_3d] Scatterplots (5 points)
+#// END_TODO [DVS_3d]
+
+# %% [markdown]
+## 4. Hypothesis testing
+If the visual analysis showed interesting insights, it is now time to take them a step further and ask the question _Are these insights significant?_
+
+For an explanation on the relevant theory on hypothesis testing, check the week 5 lecture and the DAE material (the HYP week).
+In practical terms, the steps to perform a statistical hypothesis test are as follows:
+
+1. Define quantitative question and collect data
+2. Formulate Hypothesis
+3. Pick correct test and test if its assumptions are met
+4. Apply correct test
+5. Decision on hypothesis
+
+### Example: Heartrate experiment
+
+The aggregated data from the Heartrate experiment was prepared earlier in `df_he_data`.
+
+# %% [python]
+df_he_data.head()
+
+# %% [markdown]
+We need to load the _StatsModels_ library for doing statistics in Python.
+(Ignore the `FutureWarning`.)
+
+# %% [python]
+import statsmodels.api as sm
+
+# %% [markdown]
+Now we follow the 5 steps described above.
+#### Step 1 Define quantitative question
+We collected data already. The quantitative question could be: is the heartrate recorded on Friday significantly higher than the heartrate recorded on Thursday?
+
+#### Step 2 Formulate hypothesis
+There are several different heartrate measures in the dataset, let's choose the **MeanRate** , which is the mean rate per quarter, to use in our hypothesis.
+We want to compare the experimental data of Thursday with the one from Friday, this is a standard **equality of means** test. (Don't be confused by the names: the "mean" in MeanRate and "mean" in "equality of means" are unrelated in this story. For a variable ShoeSize, the test would still be called equality of means!)
+
+Based on the visual analysis, we think Friday rates will be higher, so we are defining a **one-sided** hypothesis. We also have two data samples to compare, in other words this is a.. 🥁 .. **two sample** data.
+
+The corresponding hypotheses are:
+
+$$𝐻_0:\mu_{thu} >= \mu_{fri}$$
+
+$$𝐻_𝑎:\mu_{thu} < \mu_{fri}$$
+
+The appropriate test for this situation is a **t-test for equality of means**.
+
+#### Step 3 Check assumptions
+A t-test for equality of means is appropriate only under the assumption that the data comes from a normal distribution. Therefore, before doing the test we should verify whether this assumption holds.
+
+One way to do this is to look at the shape of the kernel density plot.
+
+# %% [python]
+thu = df_he_data[df_he_data['I:Day']=="Wed evening"]['D:MeanRate']
+fri = df_he_data[df_he_data['I:Day']=="Fri evening"]['D:MeanRate']
+
+plt.figure(figsize=(10,5))
+sns.distplot(thu);
+sns.distplot(fri);
+plt.show()
+# %% [markdown]
+It looks kind of normal. To be sure, let's also use the Anderson-Darling normality test:
+
+# %% [python]
+print("Under the null hypothesis of Normality..")
+print("The p-value for the Thursday sample is: ",
+      sm.stats.normal_ad(thu)[1])
+print("The p-value for the Friday sample is: ",
+      sm.stats.normal_ad(fri)[1])
+# %% [markdown]
+As the reported p-values are higher than the traditional threshold of $\\alpha=0.05$, technically meaning that it is not unlikely that these datasets come from normal distributions, we conclude that it is safe to apply a t-test.
+# %% [markdown]
+#### Step 4 Apply the test
+First, the data samples need to be preprocessed into objects suitable for the actual statistical test. Then the test object can be created and applied:
+
+# %% [python]
+# preprocessing
+d_thu = sm.stats.DescrStatsW(thu)
+d_fri = sm.stats.DescrStatsW(fri)
+
+# actual test
+cm = sm.stats.CompareMeans(d_thu, d_fri)
+ts, p, dof =  cm.ttest_ind(alternative='smaller')
+
+# report the results
+print("Test statistic: ", ts)
+print("p-value: ", p)
+print("Degrees of freedom: ", dof)
+
+# %% [markdown]
+The p-value is much smaller than the standard threshold of $\alpha=0.05$, meaning that the null hypothesis $H_0$ **is rejected**  and so we may believe $H_a$.
+
+We can also check the **confidence interval** for this test. \
+The function `cm.tconfint_diff(alpha=..., alternative='...')` returns the
+confidence interval for the _difference_ between the two samples (first minus second),
+with a confidence level of $1 - \alpha$.
+For $\alpha=0.05$ the interval gives a range where the difference is in with a probability of 0.95.
+
+# %% [python]
+cm.tconfint_diff(alpha=0.05, alternative='smaller')
+# %% [markdown]
+From this one-sided confidence interval, we confirm again that the null hypothesis can be rejected, because the value 0 (=no difference in means) is not contained in it.
+# %% [markdown]
+#### Step 5 Decision
+
+Finally, based on the performed statistical test, we conclude that the heartrate on nights out (represented by the Friday data) is indeed significantly higher than the heartrate on nights in (represented by the Thursday data).
+
+Does this mean that Going Out increases Excitement, as [we set out to investigate](#hexp)? Well, if we re-examine the particular conditions of the experiment, we must notice that the "night out" data was collected at a dance party, which is probably not the typical night out activity. Also, a high heartrate may mean many things other than excitement... So, rather than being able to claim that going out affects excitement levels, we are only statistically justified to conclude that Dancing increases the Heartrate 🤔
+
+### 4 Walk and talk test
+
+It is time to find out whether the difference in phone usage between morning and afternoon is significant.
+
+
+1. create two arrays `d_morning` and `d_afternoon`, each with 5 values representing, per participant, the total duration of phone activity in the morning or afternoon, respectively.
+2. What could be an appropriate null hypothesis in this case?
+   * (1) the mean of the morning phone activity is equal to the mean of the afternoon phone activity
+   * (2) the mean of the morning phone activity is less or equal to the mean of the afternoon phone activity
+   * (3) the mean of the morning phone activity is larger or equal to the mean of the afternoon phone activity
+   * (4) the proportion of people using their phone in the morning is equal to the proportion of people using their phone in the afternoon
+   * (5) the proportion of people using their phone in the morning is larger or equal to the proportion of people using their phone in the afternoon
+   * (6) the proportion of people using their phone in the morning is smaller or equal to the proportion of people using their phone in the afternoon
+     Assign your answer to `H_0`.
+3. check the normality assumptions of the two samples you created (d_morning and d_afternoon). Assign boolean values (True/False) to these variables: `d_morning_is_ok_to use` , `d_afternoon_is_ok_to_use`.
+4. **Bonus question**: Apply (correctly!) a statistical test and decide whether the null hypothesis can be rejected. Give your answer by assigning True/False to the variable `H_0_rejected` and the obtained p-value from the test to `p_value`.
+
+
+
+# %% [python]
+#// BEGIN_TODO [DVS_4] Walk and talk test (10 points)
+
+
+# %% [python]
+#// END_TODO [DVS_4]
+df_sp_data.columns
+
+# %% [markdown]
+
+---
+
+### 5. Your own data
+
+It is time to collect, aggregate, visualize and test your own data! Outside this assignment, collect some data with your Mi Band and/or YODL kit, then upload to the same Data Foundry dataset.
+
+#### To upload and import your miband CSV
+
+
+1. Open Data Foundry and navigate to the `Making Sense of Sensors` project.
+2. Open the `Notebooks` dataset.
+3. Press the green upload button to upload the miband.csv file, amake sure to add a description.
+4. Now enable web-access in the “web-access” panel below the dataset files.
+5. Copy the newly generated link and add the name of your file at the end. it should look something like `http://data.id.tue.nl/web/<randomcharacters>/miband.csv`
+6. Now import the files using this URL like done before!
+
+
+#### To import your Data Logger dataset
+
+
+1. Open Data Foundry and navigate to the `Making Sense of Sensors` project.
+2. Open the `Data Logger` dataset.
+3. Open the `CSV/JSON token link` menu.
+4. Copy the generated link. It should look like `http://data.id.tue.nl/datasets/downloadPublic/<randomcharacters>.`
+5. Change the first `http` section to `https`.
+6. Now import the files using this URL like done before!
+
+
+#### Assignment goals
+
+Use the block below to write any code is needed to achieve the following points:
+
+
+1. Examine your data, choose and keep the variables you find interesting.
+2. If there are more datasets, merge them into one.
+3. Clean and aggregate the data as you see fit. Rename the columns using names with "I:" and "D:" prefixes, to indicate what kind of data they contain. Store the result in a dataframe `df_my_day_in_numbers`.
+4. Export this dataframe into a CSV file called `experiment_my_day_in_numbers.csv` in the datasets folder, next to the example datasets. (This file might be useful as a building block in your group project.)
+5. If it makes sense, formulate a hypothesis and test it. Assign the obtained p-value to the float variable `my_p_value` and the result to the boolean variable `H0_rejected` (True, if you could reject the null hypothesis, False if this was not the case).
+
+*Note* : your data will not leave your computer, only the code between the markers will.
+# %% [python]
+#// BEGIN_TODO [DVS_5] Your own data (15 points)
+
+# %% [python]
+#// END_TODO [DVS_5]
+
+# %% [markdown]
+
+---
+
+## 6. Your experience
+
+[Go to the Table of Contents](#toc)
+
+Please fill in this short questionaire to help us improve this assignment for the next year. Your feedback will be anonymized and will not affect your grade in any way!
+
+#### How many hours did you spend on these Exercises?
+
+Assign a number to `feedback_time`.
+# %% [python]
+#// BEGIN_TODO [Feedback_1] (0 point)
+#// END_TODO [Feedback_1] (0 point)
+import numbers
+assert isinstance(feedback_time, numbers.Number), "Please assign a number to feedback_time"
+feedback_time
+
+# %% [markdown]
+#### How difficult did you find these Exercises?
+
+Assign an integer to `feedback_difficulty`, on a scale 1 - 10, with 1 being very easy.
+
+# %% [python]
+#// BEGIN_TODO [Feedback_2] (0 point)
+#// END_TODO [Feedback_2] (0 point)
+assert isinstance(feedback_difficulty, numbers.Number), "Please assign a number to feedback_difficulty"
+feedback_difficulty
+
+# %% [markdown]
+#### (Optional) What did you like?
+
+Assign a string to `feedback_like`.
+
+# %% [python]
+#// BEGIN_TODO [Feedback_3] (0 point)
+#// END_TODO [Feedback_3] (0 point)
+
+# %% [markdown]
+#### (Optional) What can be improved?
+
+Assign a string to `feedback_improve`.
+
+# %% [python]
+#// BEGIN_TODO [Feedback_4] (0 point)
+#// END_TODO [Feedback_4] (0 point)
+
+
+
+# %% [markdown]
+## How to submit your work
+
+1. **Before submitting**, you must run your notebook by doing **Kernel > Restart & Run All**.
+   Make sure that your notebook runs without errors **in linear order**.
+
+2. Remember to rename the notebook, replacing `...-template.ipynb` with `...-yourIDnr.ipynb`, where `yourIDnr` is your TU/e identification number.
+
+3. Submit the executed notebook with your work
+   for the appropriate assignment in **Canvas**.
+
+* In the **Momotor** tab in Canvas,
+  you can select that assignment again to find some feedback on your submitted work.
+
+* If there are any problems reported by _Momotor_,
+  then you may fix those and **resubmit the fixed notebook**.
+
+In case of a high workload on our server
+(because many students submit close to the deadline),
+it may take longer to receive the feedback.
+
+---
+
+# (End of Notebook) <span class="tocSkip"></span>
+
+&copy; 2025 - **TU/e** - Eindhoven University of Technology - **Industrial Design**

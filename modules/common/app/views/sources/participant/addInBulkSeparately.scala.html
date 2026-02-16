@@ -1,0 +1,237 @@
+@(token : String, project : Project, configurator: utils.conf.Configurator)
+
+@main("") {
+
+    <!-- navigation -->
+    <nav class="">
+        <div class="row">
+            <div class="col s12">
+                <a id="homeBtn" href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+                <a href="@routes.ProjectsController.view(project.getId())" class="breadcrumb">@project.getName()</a>
+                <a href="@routes.ProjectsController.viewResources(project.getId())" class="breadcrumb">Sources</a>
+                <a href="#" class="breadcrumb">Add Multiple Resources</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="row center">
+        <div class="col s12">
+            <h2>Add Multiple Resources</h2>
+        </div>
+    </div>
+
+    <div class="row">
+        
+        <form class="col s12 m10 offet-m1 l8 offset-l2" action="@routes.ParticipantsController.addMeInBulkSeparately(project.getId())" method="POST" onsubmit="return checkParticipants()">
+
+            <div class="row">
+              <div class="input-field col s12 m7">
+                <input id="participant_quantity" name="participant_quantity" type="text" class="validate">
+                <label for="participant_quantity" class="left">How many participants you want to add? (Numbers only)</label>
+              </div>
+              <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+                Please enter the quantity of participants here.
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="input-field col s12 m7">
+                <p>
+                  <label>
+                    <input id="addNewCluster" name="addNewCluster" type="checkbox">
+                    <span>Create new cluster for each participant</span>
+                  </label>
+                </p>
+              </div>
+              <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+                Check the box for creating new clusters for every participants.
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="input-field col s12 m7">
+                <p>
+                  <label>
+                    <input id="addNewFitbitWearable" name="addNewFitbitWearable" type="checkbox" @if(!configurator.isFitbitAvailable() || project.getFitbitDatasets().length == 0) {disabled="disabled"}>
+                    <span>
+                    @if(!configurator.isFitbitAvailable()){
+                    Fitbit service is not available
+                    } else if(project.getFitbitDatasets().length == 0) {
+                    Please add a Fitbit dataset first
+                    } else {
+                    Create a new Fitbit wearable for each participant
+                    }
+                    </span>
+                  </label>
+                </p>
+              </div>
+              <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+                Check the box for creating new Fitbit wearables for every participant. The new Fitbit wearable will be added to a cluster in which its user participated. If no such cluster exists, then it will be created automatically.
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col s12 m7">
+                <div class="row">
+                  <div class="input-field col s12 fitbitDataset">
+                    <select name="fitbitDataset">
+                      @if(!configurator.isFitbitAvailable()){
+                      <option value="-1" selected="" disabled>Fitbit service is not available</option>
+                      } else if(project.getFitbitDatasets().length == 0) {
+                      <option value="-1" selected="" disabled>Please add a Fitbit dataset first</option>
+                      } else {
+                      <option value="" disabled>Choose dataset for Fitbit wearable</option>
+                        @for(ds <- project.getFitbitDatasets()) {
+                      <option value="@ds.getId()">@ds.getName() @if(ds.isActive()){(ACTIVE)}</option>  
+                        }
+                      }
+                    </select>
+                    <label>Dataset for wearable</label>
+                  </div>
+                </div>
+              </div>
+              <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+                Choose the target Fitbit dataset for new Fitbit wearable. Options will be available when "Create a new Fitbit wearable for each participant" is checked, and a Fitbit dataset in your project is necessary.
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="input-field col s12 m7">
+                <p>
+                  <label>
+                    <input id="addNewGoogleFitWearable" name="addNewGoogleFitWearable" type="checkbox" @if(!configurator.isGoogleFitAvailable() || project.getGoogleFitDatasets().length == 0) {disabled="disabled"}>
+                    <span>
+                    @if(!configurator.isGoogleFitAvailable()) {
+                    GoogleFit service is not available
+                    } else if(project.getGoogleFitDatasets().length == 0) {
+                    Please add a GoogleFit dataset first
+                    } else {
+                    Create a new GoogleFit wearalbe for each participant
+                    }
+                    </span>
+                  </label>
+                </p>
+              </div>
+              <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+                Check the box for creating new GoogleFit wearables for every participants. The new GoogleFit wearable will be added to a cluster in which its user participated. If no such cluster exists, then it will be created automatically.
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="col s12 m7">
+                <div class="row">
+                    <div class="input-field col s12 googleFitDataset">
+                      <select name="googleFitDataset">
+                      @if(!configurator.isGoogleFitAvailable()){
+                      <option value="-1" selected="" disabled>GoogleFit service is not available</option>
+                      } else if(project.getGoogleFitDatasets().length == 0) {
+                      <option value="-1" selected="" disabled>Please add a GoogleFit dataset first</option>
+                      } else {
+                      <option value="" disabled>Choose dataset for GoogleFit wearable</option>
+                        @for(ds <- project.getGoogleFitDatasets()) {
+                      <option value="@ds.getId()">@ds.getName() @if(ds.isActive()){(ACTIVE)}</option>  
+                        }
+                      }
+                      </select>
+                      <label>Dataset for wearable</label>
+                    </div>
+                </div>
+              </div>
+              <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+                Choose the target GoogleFit dataset for new wearable. Options will be available when "Create a new GoogleFit wearable for each participant" is checked, and a GoogleFit dataset in your project is necessary.
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="input-field col s12 m7">
+                <input id="devices_quantity" name="devices_quantity" type="text" class="validate">
+                <label for="devices_quantity">Number of Devices to be created for each participant (Numbers only)</label>
+              </div>
+              <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+                How many new devices do you need for every participant?
+              </div>
+            </div>
+
+            <input type="hidden" name="csrfToken" value="@token"/>
+            
+            <div class="row">
+                <div class="col s12 center">
+                    <a id="cancelBtn" href="@routes.ProjectsController.viewResources(project.getId())" class="btn-flat cancelBtn">CANCEL</a>
+                    <button id="submitEmailsBtn" class="btn" type="submit">ADD</button>
+                </div>
+            </div>
+        </form>
+
+        @elements.popupDialog()
+
+        <script type="text/javascript">
+
+          // Restricts input for the given textbox to the given inputFilter.
+          (function setInputFilter(textbox, inputFilter) {
+            ["input", "keydown", "keyup", "mousedown", "mouseup", "select", "contextmenu", "drop"].forEach(function(event) {
+              textbox.addEventListener(event, function() {
+                if (inputFilter(this.value)) {
+                  this.oldValue = this.value;
+                  this.oldSelectionStart = this.selectionStart;
+                  this.oldSelectionEnd = this.selectionEnd;
+                } else if (this.hasOwnProperty("oldValue")) {
+                  this.value = this.oldValue;
+                  this.setSelectionRange(this.oldSelectionStart, this.oldSelectionEnd);
+                }
+              });
+            });
+          })(document.getElementById("devices_quantity"), function(value) {
+              return /^\d*$/.test(value); 
+          })(document.getElementById("participants_quantity"), function(value) {
+              return /^\d*$/.test(value); 
+          });
+
+          $("input#addNewFitbitWearable").click(function() {
+            // status after click!!
+            if(!$(this).prop("checked")) {
+              $(this).removeAttr("checked", "");
+              $("div.fitbitDataset>div>input").attr("disabled", "");
+            } else {
+              $(this).attr("checked", "");
+              $("div.fitbitDataset>div>input").removeAttr("disabled");
+              if (!$("input#addNewCluster").prop("checked")) {
+                $("input#addNewCluster").attr("checked", "");
+              }
+            }
+          });
+
+          $("input#addNewGoogleFitWearable").click(function() {
+            // status after click!!
+            if(!$(this).prop("checked")) {
+              $(this).removeAttr("checked");
+              $("div.googleFitDataset>div>input").attr("disabled", "");
+            } else {
+              $(this).attr("checked", "");
+              $("div.googleFitDataset>div>input").removeAttr("disabled");
+              if (!$("input#addNewCluster").prop("checked")) {
+                $("input#addNewCluster").attr("checked", "");
+              }
+            }
+          });
+      
+          function checkParticipants() {
+              var participantsNumbers = $("input#participant_quantity").val();
+              var popupMsg = document.getElementById("popup_msg");
+
+              if(participantsNumbers == "" || participantsNumbers == null) {
+                  popupMsg.innerHTML = "Please enter emails of the participants you want to invite.";
+                  switchModal("#modal_popup", 'open');
+                  $("#email_list").focus();
+                  return false;
+              }
+              
+              return true;
+          }
+
+          (function() {
+            document.querySelector("div.fitbitDataset>div>input").setAttribute("disabled", "");
+            document.querySelector("div.googleFitDataset>div>input").setAttribute("disabled", "");
+          })();
+        </script>
+    </div>
+}

@@ -1,0 +1,211 @@
+@(projectId: Long, entity: Dataset)
+:: StoryTitle
+Story format template
+
+
+:: StoryData
+{
+  "ifid": "@java.util.UUID.randomUUID().toString",
+  "format": "Snowman",
+  "format-version": "2.0.2",
+  "start": "Introduction",
+  "zoom": 1
+}
+
+
+:: How can I change the visual style of the final survey? {"position":"775,575","size":"100,100"}
+This is a bit of an advanced feature. To change how the narrative survey is finally rendered, you need to use stylesheets, which is based on a fundamental web technology called CSS.
+
+Open the "Story" menu at the top, then click on the "# Stylesheet" button to open the stylesheet view. In this view you can tweak how the different elements of your survey are rendered.
+
+[[Introduction]]
+
+
+:: How can I embed images? {"position":"775,325","size":"100,100"}
+The easiest is to upload the image to the "narrative survey" view of your Data Foundry project, and then to copy and paste the "embed link" into the passage that should feature the image.
+
+Image embed links look like this:
+
+`<img src="https://...">`
+
+
+[[Introduction]]
+
+
+:: How can I record text input from participants? {"position":"775,450","size":"100,100"}
+You might be interested not only in logging all choices of participants in a narrative survey, but also gathering text input.
+
+Just input a `<textarea>` field in a survey passage and its contents will be recorded once the participant clicks to the next passage. Use the `placeholder` attribute in the textarea to show a hint about what to fill in.
+
+<textarea placeholder="Describe the situation here..."></textarea>
+
+Don't forget to link a next passage, otherwise the textarea contents will not be logged.
+
+[[Introduction]] 
+
+
+:: Introduction {"position":"475,325","size":"100,100"}
+Hi,
+
+Welcome to your first narrative survey! Click on one of the options below to learn about different features of narrative surveys.
+
+[[What are passages and how does linking work?]]
+
+[[How can I embed images?]]
+
+[[How can I record text input from participants?]]
+
+[[How can I change the visual style of the final survey?]]
+
+
+:: What are passages and how does linking work? {"position":"775,200","size":"100,100"}
+A narrative survey is a Twine Story, which consists of several passages. A passage is a screen in your story and contains text, images, links and other elements.
+
+Passages are linked by using double [ ] brackets around a title of another passage. For example, we can link back to the *Introduction* passage like this:
+
+&lsqb;&lsqb;Introduction&rsqb;&rsqb;
+
+
+[[Introduction]]
+
+
+
+:: StoryScript [script]
+let el = document.createElement('script')
+el.src = "/api/v1/@projectId/anonymousParticipation.js"
+el.type = "text/javascript"
+document.head.appendChild(el);
+(function checkDF() {
+  if(window.DF === undefined) {
+    setTimeout(checkDF, 50);
+  } else {
+    window.story.passages.forEach((pass) => {
+      pass.renderInternal = pass.render;
+      pass.render = (e) => {
+          let newChoices = [];
+          let ta = document.querySelector('tw-passage textarea')
+          if(ta && ta.value != "") {
+            newChoices.push({
+              text: pass.getName(),
+              comment: ta.value,
+              type: "input",
+              tags: pass.tags.map(s => {
+                if(typeof s === 'string' || s instanceof String) {
+                  let color = document.querySelector('tw-tag[name="'+s+'"]')?.attributes.color.value;
+                  return { name: s, color: color ? color : '#4355A3' };
+                } else {
+                  return s;
+                }
+              })
+            })
+          }
+
+          newChoices.push({
+            text: pass.getName(),
+            type: "choice",
+            tags: pass.tags.map(s => {
+              if(typeof s === 'string' || s instanceof String) {
+                let color = document.querySelector('tw-tag[name="'+s+'"]')?.attributes.color.value;
+                return { name: s, color: color ? color : '#4355A3' };
+              } else {
+                return s;
+              }
+            })
+          })
+
+          // update profile
+          DF.participant.getProfile((data) => {
+            if(data.choices === undefined) {
+              data.choices = []
+            }
+            data.choices = data.choices.concat(newChoices);
+            DF.participant.setProfile(data, @entity.getId());
+          }, @entity.getId());
+
+          return pass.renderInternal(e);
+      };
+    });
+  }
+})();
+
+
+
+:: StoryStylesheet [stylesheet]
+.passage {
+  /* text color is black */
+  color: black;
+}
+
+#ui-bar {
+  /* hide sidebar */
+  display: none;
+}
+
+body {
+  /* defines the background color of the webpage to be #F4FCFF. */
+  background-color: #F4FCFF;
+  /* defines the gap between the webpage and the passage. */
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+
+#story {
+  /* defines the background color of the passage to be white */
+  background-color: white; 
+  margin: auto;
+  /* defines the width of the passage to adjust to the content */
+  width: fit-content; 
+  /* defines the gap between the passage and the text */
+  padding: 22px 30px 33px 30px; 
+  /* gives the passage container a round corner */
+  border-radius: 8px;
+}
+
+.link-internal {
+  display: inline-block;
+  /* removes the underline */
+  text-decoration: none;
+  /* gives the button a round corner */
+  border-radius: 8px;
+  /* gives the button's border solid line */
+  border-style:solid;
+  /* defines the gap between the button's border and its text */
+  padding: 10px 12px 10px 12px;
+}
+
+.link-internal:hover {
+  /* defines the background color of the button when hovering */
+  background-color: #68d;
+  /* defines the button's text color when hovering */
+  color: white;
+  text-decoration: none;
+}
+
+
+img {
+ /* The below makes sure the image resizes when the webpage resizes */
+ max-width: 100%;
+ height: auto;
+ /* defines the image corner to be rounded  */
+ border-radius: 8px;
+}
+
+textarea {
+  width: 100%;
+  min-width: 10%;
+  border-radius: 8px;
+  resize: none;
+  box-sizing:border-box;
+  /* define box border */
+  border: 1px solid #D3D3D3;
+  /* define the text color */
+  color: black;
+}
+
+textarea:not(:disabled):hover, textarea:not(:disabled):focus{
+  background-color: white;
+  color: black;
+  border: 1px solid black;
+  box-sizing:border-box;
+  outline: none;
+}

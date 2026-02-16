@@ -1,0 +1,208 @@
+@(projects: com.fasterxml.jackson.databind.node.ObjectNode, dataloggerUrl: String, sensorloggerUrl: String, sensorLogDataImportUrl: String)
+@main("Mobile Data Logger", "tools") {
+
+  <!-- navigation -->
+  <nav class="">
+    <div class="row">
+      <div class="col s12">
+        <a id="homeBtn" href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+        <a href="#" class="breadcrumb">Data Logger</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="row">
+    <div class="col s12">
+      <h3>
+        Data Logger
+      </h3>
+
+      <p>
+      	A data logger is an easy way to log on-the-go data into a dataset of your choice. To create a data logger you need to select (1) a project, then (2) a dataset and then (3) a device ID to log with.
+      	Finally this page generates a unique link and QR code for you to start logging. Alternatively, you can log with <a href="https://www.tszheichoi.com/sensorlogger" target="_blank">Sensor Logger</a>, for which we create a configuration below as well.
+      </p>
+
+      <p class="card" id="message" style="padding: 1rem; color: red; font-size: 1.2rem;">
+      </p>
+    </div>
+  </div>
+  <div class="row project-model">
+    <div class="col s12">
+      <h4>1. Select a project and dataset</h4>
+			<p>
+				The data logger will attempt to log into a dataset in this project. If the dataset is switched to "open participation", you can freely enter a device name. If not, you need to select from existing devices below.
+			</p>
+		</div>
+		<div class="col s12 m6">
+      <p id="projectSelectContainer">
+      </p>
+  	</div>
+  	<div class="col s12 m6">
+      <p id="datasetSelectContainer">
+      </p>
+		</div>
+	</div>
+
+  <div class="row project-model">
+    <div class="col s12">
+      <h4>2. Select a device</h4>
+    </div>
+    <div class="col s12 m6">
+      <p id="deviceSelectContainer">
+      </p>
+  	</div>
+  	<div class="col s12 m6 right-align">
+      <p id="datasetLinkContainer">
+      </p>
+		</div>
+	</div>
+
+  <div class="row project-model">
+    <div class="col s12">
+      <h4>3. Use data logger</h4>
+      <div id="dataloggerContainer" class="row">
+      </div>
+  	</div>
+	</div>
+
+	<script type="text/javascript">
+		let model = @Html(projects.toString());
+		let datalogger = `@Html(dataloggerUrl)`;
+		let sensorlogger = `@Html(sensorloggerUrl)`;
+		let sensorLogDataImport = `@Html(sensorLogDataImportUrl)`;
+
+		if(Object.entries(model).length == 0) {
+			document.querySelectorAll('.project-model').forEach(d => d.style.display = 'none');
+			document.querySelector('#message').innerHTML = `You don't have projects with active datasets. Please activate at least one project with at least one IoT dataset to use this tool.`;
+		} else {
+			document.querySelector('#message').style.display = 'none';
+		}
+
+		// projects
+		let projectOptions = Object.entries(model).map(e => `<option value="${e[0]}">${e[1].name}</option>`).join("\n")
+		document.querySelector('#projectSelectContainer').innerHTML = `<label for="projectSelect">Select Project:</label><select id="projectSelect" class="browser-default">${projectOptions}</select>`;
+		// project selection
+		document.querySelector('#projectSelect').addEventListener('change', selectProject);
+		selectProject();
+
+		function selectProject() {
+			// datasets
+			let index = document.querySelector('#projectSelect').value;
+			let project = model[index];
+			if(project === undefined) {
+				return;
+			}
+
+			let datasetOptions = Object.entries(project.datasets).map(e => `<option value="${e[0]}">${e[1].name} (${e[1].open ? 'open participation' : 'only registered devices'})</option>`).join("\n")
+			document.querySelector('#datasetSelectContainer').innerHTML = `<label for="datasetSelect">Select Dataset (IoT TimeseriesDS):</label><select id="datasetSelect" class="browser-default">${datasetOptions}</select>`;
+			M.AutoInit();
+
+			// dataset selection
+			document.querySelector('#datasetSelect').addEventListener('change', selectDataset);
+			selectDataset();
+		}
+
+		function selectDataset() {
+			let index = document.querySelector('#projectSelect').value;
+			let project = model[index];
+			index = document.querySelector('#datasetSelect').value;
+			let dataset = project.datasets[index];
+
+			document.querySelector('#datasetLinkContainer').innerHTML = `<a class="btn" id="openDataLoggerData" href="@routes.DatasetsController.view(0L)${dataset.id}" target="_blank">Go to dataset</a>`;
+
+			let deviceOptions = '<option value="" checked>Please select a device:</option>';
+			// if dataset is open, prompting for a name is also fine
+			if(dataset.open) {
+				deviceOptions += `<option value="prompt-me">Prompt me for a new name!</option>`;
+			}
+			deviceOptions += project.devices.map(e => `<option value="${e.id}">${e.name}</option>`).join("\n")
+			document.querySelector('#deviceSelectContainer').innerHTML = `<label for="deviceSelect">Select a device:</label><select id="deviceSelect" class="browser-default">${deviceOptions}</select>`;
+			M.AutoInit();
+
+			// device selection
+			document.querySelector('#deviceSelect').addEventListener('change', selectDevice);
+			selectDevice();
+		}
+
+		function selectDevice() {
+			let index = document.querySelector('#projectSelect').value;
+			let project = model[index];
+			index = document.querySelector('#datasetSelect').value;
+			let dataset = project.datasets[index];
+			let device = document.querySelector('#deviceSelect').value;
+
+			if(device == 'prompt-me') {
+				device = prompt("Enter a device name to log with: ")
+			}
+
+			if(device == '') {
+				document.querySelector('#dataloggerContainer').innerHTML = `<div class="col s12">Please select a device first.</div>`;
+				return;
+			}
+
+			let dataLoggerUrl = datalogger.replace('1000000', project.id).replace('2000000', dataset.id).replace('DATASET', dataset.token).replace('DEVICE', device);
+			let sensorLoggerUrl = sensorlogger.replace('2000000', dataset.id).replace('DATASET', dataset.token).replace('DEVICE', device);
+			let sensorLogDataImportUrl = sensorLogDataImport.replace('2000000', dataset.id).replace('DATASET', dataset.token).replace('DEVICE', device);
+			document.querySelector('#dataloggerContainer').innerHTML = `
+					<div class="col s12">
+						Choose a data logger below:
+						<br><br>
+					</div>
+					<div class="col s12 m5">
+						<h5>Simple Data Logger</h5>
+						<p>
+							Scan QR code with your mobile device or click the QR to open the data logger in a new tab.
+						</p>
+						<a href="${dataLoggerUrl}" target="_blank">
+							<img src="@routes.HomeController.qrCode("--", "")${dataLoggerUrl}">
+						</a>
+						<br>
+						<br>
+						<b>If you like to log with code:</b>
+						<br>
+						<pre><code>
+# Values to be stored in a secrets.py file or else
+api_token:  ${dataset.token}
+dataset_id: ${dataset.id}
+device_id:  ${device}
+						</code></pre>
+					</div>
+					<div class="col s12 offset-m1 m6">
+						<h5>Sensor Logger</h5>
+						<p>
+							Sensor Logger "is an easy-to-use, beautifully designed data logger that logs readings from common sensors on your Android phone, iPhone, iPad, AirPods, Apple Watch and WearOS Watch — including accelerometer, gyroscope, GPS, audio, camera and any nearby Bluetooth devices." [See: <a href="https://www.tszheichoi.com/sensorlogger" target="_blank">more</a>]
+						</p>
+						<div style="display: flex; align-items: center; justify-content: space-around;">
+							<a href="https://apps.apple.com/app/id1531582925" target="_blank">
+								<img src="@routes.Assets.versioned("vendor/sensor-logger/ios.png")" style="max-width: 80%; max-height: 80px;">
+							</a>
+							<a href="https://play.google.com/store/apps/details?id=com.kelvin.sensorapp&pcampaignid=pcampaignidMKT-Other-global-all-co-prtnr-py-PartBadge-Mar2515-1" target="_blank">
+								<img src="@routes.Assets.versioned("vendor/sensor-logger/android.png")" style="max-width: 80%; max-height: 120px;">
+							</a>
+						</div>
+						<p>
+							<b>Configuration</b>
+						</p>
+						<p>
+							(1) Copy the URL below into the configuration of the Sensor Logger app:
+						<pre><code>
+${sensorLoggerUrl}
+						</code></pre>
+						<p>
+							(2) Tap the gear icon on the Logger page, follow instructions as shown below:
+							<br>
+							<img src="@routes.Assets.versioned("vendor/sensor-logger/configuration.png")" style="width: 100%;">
+							[from: https://github.com/tszheichoi/awesome-sensor-logger/?tab=readme-ov-file#live-data-streaming]
+						</p>
+						<p>
+							(3) Optional: Import the recorded data directly.
+							<br>
+							<a class="btn btn-outline" href="${sensorLogDataImportUrl}">Import Data</a>
+						</p>
+					</div>
+			`.replace('-1|||', '')
+		}
+
+	</script>
+
+}

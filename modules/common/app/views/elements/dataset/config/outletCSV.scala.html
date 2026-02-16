@@ -1,0 +1,80 @@
+@(dataset : Dataset, user : String)(implicit request: Http.Request)
+
+<div id="csv_out" class="col s12 tab-contents">
+  <div class="row">
+    <div class="col s12">
+      <p>
+        <b>Download and live-access the data as a CSV or JSON file (public link)</b>
+      </p>
+
+      @if(dataset.editableBy(user)) {
+      <p>
+        You can download the dataset <a href="@routes.DatasetsController.download(dataset.getId())">directly</a> anytime, if you are logged in. If you want to import the data in external software, you can generate a <i>token</i> link that is publicly accessible. <b>Be careful: anyone with the link will have access to the data, even outside the organization. Please ensure that there is no personal data contained in this dataset and that you comply with the statements that you have made in your informed consent form.</b> To invalidate or revoke a link, just delete it or generate a new one below:
+      </p>
+      } else {
+      <p>
+        You can use the token link below to import the data in external software. The token link below is publicly accessible:
+      </p>
+      }
+    </div>
+  </div>
+  <div class="row" id="csvOutConfiguration">
+    <div class="col s12">
+      <p>CSV download
+      @if(!dataset.configuration(Dataset.PUBLIC_ACCESS_TOKEN, "").isEmpty()) {
+        (<a href="@routes.DatasetsController.downloadPublic(dataset.getConfiguration().get(Dataset.PUBLIC_ACCESS_TOKEN), -1L).absoluteURL(request, true)">click to download</a>)
+      }
+      </p>
+      <blockquote id="csvTokenLink">
+      @if(!dataset.configuration(Dataset.PUBLIC_ACCESS_TOKEN, "").isEmpty()) {
+        @routes.DatasetsController.downloadPublic(dataset.getConfiguration().get(Dataset.PUBLIC_ACCESS_TOKEN), -1L).absoluteURL(request, true)
+      } else {
+        no token link available, contact project owner for access
+      } 
+      </blockquote>
+      <br>
+    </div>
+    <div class="col s12">
+      <p>JSON download
+      @if(!dataset.configuration(Dataset.PUBLIC_ACCESS_TOKEN, "").isEmpty()) {
+        (<a href="@routes.DatasetsController.downloadJsonPublic(dataset.getConfiguration().get(Dataset.PUBLIC_ACCESS_TOKEN), -1L).absoluteURL(request, true)">click to download</a>)
+      }
+      </p>
+      <blockquote id="jsonTokenLink">
+      @if(!dataset.configuration(Dataset.PUBLIC_ACCESS_TOKEN, "").isEmpty()) {
+        @routes.DatasetsController.downloadJsonPublic(dataset.getConfiguration().get(Dataset.PUBLIC_ACCESS_TOKEN), -1L).absoluteURL(request, true)
+      } else {
+        no token link available, contact project owner for access
+      } 
+      </blockquote>
+      <br>
+    </div>
+
+    @if(dataset.editableBy(user)) {
+    <div class="col s12 m6">
+      <a class="btn" hx-get="@routes.DatasetsController.configureWithToken(dataset.getId(), Dataset.PUBLIC_ACCESS_TOKEN)" hx-target="#csvOutConfiguration" hx-swap="outerHTML" hx-select="#csvOutConfiguration">Generate token link</a>
+      <a class="btn-flat red-text" hx-get="@routes.DatasetsController.configure(dataset.getId(), Dataset.PUBLIC_ACCESS_TOKEN, "")" hx-target="#csvOutConfiguration" hx-swap="outerHTML" hx-select="#csvOutConfiguration">Delete</a>
+    </div>
+    @if(dataset.getDsType() == DatasetType.IOT && !dataset.configuration(Dataset.PUBLIC_ACCESS_TOKEN, "").isEmpty()) {
+    <div class="col s12 m6">
+      For a mobile dashboard view, use
+      <a href="@controllers.tools.routes.MobileDashboard.view(dataset.configuration(Dataset.PUBLIC_ACCESS_TOKEN, ""))">
+        link
+      </a> or click here: <div style="display: inline-block;">
+      <img src="@controllers.tools.routes.MobileDashboard.generateQRCode(dataset.configuration(Dataset.PUBLIC_ACCESS_TOKEN, ""))" width="20" class="materialboxed" data-caption="Scan the QR code with your mobile device to open the mobile dashboard." /></div>.
+      <script type="text/javascript">
+        $(document).ready(function(){
+          $('.materialboxed').materialbox();
+        });
+      </script>
+    </div>
+    }
+    }
+  </div>
+
+  <div class="row">
+    <div class="col s12" style="margin-top: 3em;">
+      @elements.documentation.howtoCSVOut()
+    </div>
+  </div>
+</div>

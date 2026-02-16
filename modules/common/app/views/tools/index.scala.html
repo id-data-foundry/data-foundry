@@ -1,0 +1,172 @@
+@()
+
+@main("Documentation", "tools") {
+
+	<style type="text/css">
+		.card .card-content p {
+			height: 5rem;
+		}
+	</style>
+
+	<nav class="">
+		<div class="row">
+			<div class="col s12">
+				<a id="homeBtn" href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+				<a href="#!" class="breadcrumb">Data tools</a>
+			</div>
+		</div>
+	</nav>
+
+	<div class="row">
+		<div class="col s12">
+			<h3>Data tools</h3>
+		</div>
+
+		<div class="col s12 l4">
+			<div class="card" id="DataVisCard">
+				<div class="card-content">
+          			<span class="card-title">Data Visualization</span>
+          			<p>
+          				RAWgraphs is a simple visualization tool with lots of different diagram types.
+          				You can use this tool to quickly visualize data from any of your project datasets.
+          			</p>
+        		</div>
+        		<div class="card-action">
+					<a href="/tools/rawgraphs">Open</a>
+				</div>
+			</div>
+		</div>
+
+		<div class="col s12 l4">
+			<div class="card">
+				<div class="card-content">
+          			<span class="card-title">Export Tool</span>
+          			<p>
+          				The export tool can be used to combine different datasets, select data from a combined dataset, and export it.
+          				You can also annotate data with this tool.
+          			</p>
+        		</div>
+        		<div class="card-action">
+					<a href="@controllers.tools.routes.DataExportController.index(-1)">Open</a>
+				</div>
+			</div>
+		</div>
+
+		<div class="col s12 l4">
+			<div class="card">
+				<div class="card-content">
+          			<span class="card-title">Scripting</span>
+          			<p>
+          				Scripts process data for you on the server. They can be triggered by OOCSI and Telegram events.
+          			</p>
+        		</div>
+        		<div class="card-action">
+					<a href="@controllers.tools.routes.ActorController.index()">Open</a>
+				</div>
+			</div>
+		</div>
+
+		<div class="col s12 l4">
+			<div class="card">
+				<div class="card-content">
+          			<span class="card-title">Notebooks</span>
+          			<p>
+          				Notebooks are great for analysing data from project datasets.
+          				You can run JavaScript or Python scripts to analyse and visualize data.
+          			</p>
+        		</div>
+        		<div class="card-action">
+					<a href="@controllers.tools.routes.StarboardController.index()">Open</a>
+				</div>
+			</div>
+		</div>
+
+		<div class="col s12 l4">
+			<div class="card" id="ESPWebToolsButton">
+				<div class="card-content" >
+          			<span class="card-title">ESP tools/ViperIDE</span>
+          			<p>
+          				Work with MicroPython on your ESP32. Flasher, MAC retriever and ViperIDE all present.
+          			</p>
+        		</div>
+        		<div class="card-action">
+					<a href="@controllers.tools.routes.ESPWebTools.index()">Open</a>
+				</div>
+			</div>
+		</div>
+
+		<div class="col s12 l4">
+			<div class="card">
+				<div class="card-content">
+          			<span class="card-title">Media transcription</span>
+          			<p>
+          				Transcribe audio and video files, and extract text from images. Upload the file and await results. 
+          				This is GDPR-safe as all data will only be processed on the Data Foundry server.
+          			</p>
+        		</div>
+        		<div class="card-action">
+					<a href="@controllers.tools.routes.MediaToTextController.index">Open</a>
+				</div>
+			</div>
+		</div>
+
+		<div class="col s12 l4">
+			<div class="card" id="dataloggerCard">
+				<div class="card-content">
+          			<span class="card-title">Data Logger</span>
+          			<p>
+          				The fastest way to collect your own IoT data, using just your smart phone.
+          			</p>
+        		</div>
+        		<div class="card-action">
+					<a href="@controllers.tools.routes.DataLogger.index()">Open</a>
+				</div>
+			</div>
+		</div>
+
+		<div class="col s12 l4">
+			<div class="card" id="activityloggerCard">
+				<div class="card-content">
+          			<span class="card-title">Activity Logger</span>
+          			<p>
+          				Observation study? Here is how you log activities using any smart device.
+          			</p>
+        		</div>
+        		<div class="card-action">
+					<a href="@controllers.tools.routes.ActivityLoggerController.index()">Open</a>
+				</div>
+			</div>
+		</div>
+
+@*
+		<div class="col s12 l4">
+			<div class="card">
+				<div class="card-content">
+          			<span class="card-title">DF Boost</span>
+          			<p>
+          				Work with larger "swarms" of IoT devices; connect them to DF and control their behavior.
+          			</p>
+        		</div>
+        		<div class="card-action">
+					<a href="/documentation/boost">Open</a>
+				</div>
+			</div>
+		</div>
+*@
+
+		<div class="col s12 l4">
+			<div class="card">
+				<div class="card-content">
+          			<span class="card-title">QR code generator</span>
+          			<p>
+          				Generate a QR code for a URL.
+          			</p>
+        		</div>
+        		<div class="card-action">
+					<a href="@controllers.tools.routes.QRCode.index()">Open</a>
+				</div>
+			</div>
+		</div>
+
+	</div>
+}

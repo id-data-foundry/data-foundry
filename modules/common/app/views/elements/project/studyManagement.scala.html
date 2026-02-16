@@ -1,0 +1,291 @@
+@(p : Project, files : List[vm.TimedMedia], viewLink : String, anonViewLink : String, telegramLink : String, message : String, csrfToken: String)
+
+@if(p.getStudyManagementDataset().isPresent()) {
+	<div class="row">
+		<div class="col s12">
+			<h4>Participant onboarding</h4>
+			<p>
+				@elements.icon("person")@elements.icon("flight_takeoff") <b>Participant onboarding.</b>
+				Allow for open sign-up in this project. Check the box below to open the sign-up, uncheck it to close the sign-up.
+			</p>
+			<p>
+				<label>
+				  <input id="signupOpen" name="signupOpen" type="checkbox" @if(p.isSignupOpen()){checked} hx-get="@routes.ProjectsController.openSignup(p.getId(),!p.isSignupOpen())" hx-target="#studyContainer">
+				  <span>New participants can sign-up to this project</span>
+				</label>
+			</p>
+	        @if(p.isSignupOpen()) {
+	        <div id="signupOpenDetails" class="">
+				<p>
+					<b>Participant sign-up with registration:</b>
+				    Distribute the <a href="@viewLink" target="_blank" rel="noopener">sign-up link</a> over any channel you like and new participants can sign-up for your study by themselves. The link will stop working once you uncheck the box above.
+					<blockquote>
+						@viewLink
+					</blockquote>
+				</p>
+				<p>
+					<b>Participant sign-up <i>without</i> registration:</b>
+				    Distribute the <a href="@anonViewLink" target="_blank" rel="noopener">sign-up link</a> over any channel you like and new participants can sign-up without registration. The link will stop working once you uncheck the box above.
+					<blockquote>
+						@anonViewLink
+					</blockquote>
+				</p>
+				<p>
+					<b>Linking devices and wearables:</b>
+					You want to automatically link devices or wearables to any participants who sign up? No problem, create a cluster with the name "template" and add devices and wearables to it. This template will then be used for new participants.
+				</p>
+				@if(!telegramLink.isEmpty()) {
+				<p>
+					<b>Telegram sign-up</b>
+				</p>
+				<div class="row">
+					<div class="col s12 m6">
+						<p>
+							If you want participants to join on Telegram, use this link:
+							<blockquote >
+								@telegramLink
+							</blockquote>
+							You can either share this link directly with your participants, or make a QR code for them to scan it.
+						</p>
+					</div>
+					<div class="col s12 m6">
+						<p>
+							Anonymous participants need to <b>enter the project access code</b> after signing up with the Telegram bot:
+							<span style="display: block; font-size: 2em;">
+								@p.getStudyManagementDataset().get().configuration(Dataset.TELEGRAM_PROJECT_TOKEN, "")
+							</span>
+						</p>
+					</div>
+					<div class="col s12">
+						<p>
+							<i>
+								Please note: Do not use Telegram for collecting sensitive and confidential information. Furthermore, do not use it to collect special category of personal data.  
+								<br><br>
+								If you use the Telegram integration, please inform your participants via the informed consent form that any information that they decide to share via the desktop or mobile Telegram application will be also processed by <a href="https://telegram.org/privacy" target="_blank" rel="noopener">Telegram Messenger Inc.</a>
+							</i>
+						</p>
+					</div>
+				</div>
+				}
+			</div>
+			}
+		</div>
+	</div>
+	
+	<hr>
+
+	<div class="row">
+		<div class="col s12 m5">
+			<h4>Participant views</h4>
+			<div class="row">
+				<div class="col s12">
+					@elements.icon("person")@elements.icon("insert_chart") <b>Participant dashboard.</b>
+					If you want participants to have access to a participant dashboard from their landing page, select an existing dataset in your project here: <br>
+					@defining(p.getWebsiteDatasets()) { dss =>
+					<div class="input-field inline col s8">
+						<select id="selectParticipantDashboard"
+								name="ds_id" 
+								hx-get="@routes.ProjectsController.selectParticipantDashboard(p.getId())"
+								hx-target="#studyContainer" 
+								hx-swap="scroll:top">
+						@if(dss.isEmpty) {
+							<option value="0" disabled="disabled">No active website datasets available.</option>
+						} else {
+							<option value="0">Choose a dataset:</option>
+						@for(cd <- dss){
+						@if(cd.getTargetObject().equals("participant_dashboard_page")) {
+							<option value="@cd.getId()" selected="selected">@cd.getName()</option>
+						} else {
+							<option value="@cd.getId()">@cd.getName()</option>
+						}
+						}
+						}
+						</select>
+					</div>
+					@for(cd <- dss){
+					@if(cd.getTargetObject().equals("participant_dashboard_page")) {
+					<a class="btn-flat green-text" href="@routes.DatasetsController.web(cd.getId(),"")" style="margin: 1.4em auto" target="_blank" rel="noopener">Visit</a>
+					}}
+					}
+					<script type="text/javascript">
+						$(document).ready(function(){
+						    $('#selectParticipantDashboard').formSelect();
+		            	});
+					</script>
+				</div>
+
+				<div class="col s12">
+					@elements.icon("person")@elements.icon("chrome_reader_mode") <b>Participant remote experiment.</b>
+					If you want participants to have access to a remote experiment from their landing page, select an existing dataset in your project here: <br>
+					@defining(p.getWebsiteDatasets()) { dss =>
+					<div class="input-field inline col s8">
+						<select id="selectParticipantStudy" 
+								name="ds_id" 
+								hx-get="@routes.ProjectsController.selectParticipantStudy(p.getId())" 
+								hx-target="#studyContainer" 
+								hx-swap="scroll:top">
+						@if(dss.isEmpty) {
+							<option value="0" disabled="disabled">No active website datasets available.</option>
+						} else {
+							<option value="0">Choose a dataset:</option>
+						@for(cd <- dss){
+						@if(cd.getTargetObject().equals("participant_study_page")) {
+							<option value="@cd.getId()" selected="selected">@cd.getName()</option>
+						} else {
+							<option value="@cd.getId()">@cd.getName()</option>
+						}
+						}
+						}
+						</select>
+					</div>
+					@for(cd <- dss){
+					@if(cd.getTargetObject().equals("participant_study_page")) {
+					<a class="btn-flat green-text" href="@routes.DatasetsController.web(cd.getId(),"")" style="margin: 1.4em auto" target="_blank" rel="noopener">Visit</a>
+					}}
+					}
+					<script type="text/javascript">
+						$(document).ready(function(){
+						    $('#selectParticipantStudy').formSelect();
+						});
+					</script>
+				</div>
+			</div>
+		</div>
+
+		<div class="col s12 m6 offset-m1">
+			<h4>Experimental features</h4>
+			<p>
+				<b>Narrative surveys:</b>
+				@if(p.getNarrativeSurveyDataset().isPresent) {
+					<span class="green-text">active</span>
+				} else {
+					<span class="red-text">inactive</span>
+				}
+			</p>
+			<p>
+				Narrative surveys are a tool to survey a population with in-depth narratives, multi-branch choice-making and qualitative data collection. More information is pending at the moment.
+			</p>
+			@if(!p.getNarrativeSurveyDataset().isPresent) {
+			<p>
+				<form method="POST" action="@controllers.tools.routes.NarrativeSurveysController.addNarrativeSurveyView(p.getId())">
+					<input type="hidden" name="csrfToken" value="@csrfToken">
+					<button type="submit" class="btn">Activate</button>
+				</form>
+			</p>
+			}
+		</div>
+
+		<div class="col s12 m6 offset-m1">
+			<h4>Files</h4>
+			@defining(p.getStudyManagementDataset().get()) { smds =>
+			<div class="row">
+				<div class="col s12">
+					<p>
+						<b>Study setup files</b> are documents (.pdf, .txt, or .rtf files) such as informed consent forms, ERB approval forms, participant surveys, and other files. 
+						You can upload them here and they will only be visible to project owner, collaborators and reviewers.
+						<i>Note that we will automatically link to the informed consent form in the informed consent block that is shown to participants when they are onboarded (see below).</i>
+					</p>
+					@if(files.size == 0) {
+					<p>no files available</p>
+					}
+					@for(file <- files) {
+					<p>
+						@elements.icon("insert_drive_file")
+						<a href="@api.routes.CompleteDSController.downloadLatestFile(smds.getId(),file.link)">@file.caption</a>
+						<a hx-get="@routes.ProjectsController.studyManagementRemoveFile(p.getId(),file.getId(),file.link)" hx-target="#studyContainer" class="red-text right">delete</a>
+					</p>
+					}
+				</div>
+			</div>
+
+			<div class="card white" style="padding: 1em;">
+				<p>
+					<b>Upload files</b>
+				</p>
+				<form>
+					<div class="file-field input-field">
+					  <div class="btn">
+					    <span>File</span>
+					    <input id="files" type="file" name="files" accept=".pdf,.txt,.rtf" required="" />
+					  </div>
+					  <div class="file-path-wrapper">
+					    <input class="file-path validate" type="text" placeholder="Upload a .pdf, .txt or .rtf file">
+					  </div>
+					</div>
+					<select id="description" name="description" required="required" class="validate">
+						<option value="other_file">Choose a file option:</option>
+						<option value="informed_consent_form">Informed consent form</option>
+						<option value="ERB_form">ERB form</option>
+						<option value="participant_survey">Participant survey</option>
+						<option value="other_file">Other</option>
+					</select>
+					<a hx-post="@routes.ProjectsController.studyManagementAddFile(p.getId())" hx-target="#studyContainer" hx-encoding="multipart/form-data" class="btn green">Submit</a>
+					<script type="text/javascript">
+						$(document).ready(function(){
+						    $('#description').formSelect();
+						});
+					</script>
+				</form>
+			</div>
+			}
+		</div>
+	</div>
+
+	<hr>
+
+	<div class="row" style="padding: 1em;">
+		<div class="col s12" style="padding: 1em 0;">
+
+			<h4>Informed consent (preview)</h4>
+
+			<p>
+				Below you find the <i>informed consent</i> as your participants will see it when they are onboarded. Please note that this requires a completed and approved ERB form for the study. You can upload the ERB form as a PDF above.
+			</p>
+
+			@elements.project.informedConsent(p)
+
+		    <div class="row">
+		      <div class="input-field col s12 m7">
+		        <p>
+		          <label>
+		            <input id="isDataProcessingAgreed" type="checkbox" required="required">
+		            <span>I understand and accept that a limited amount of my personally-identifiable information may be processed on Data Foundry for the purposes described in the project. This can involve information such as my name and email address that is used to contact me in the study and give me access on this platform.</span>
+		          </label>
+		        </p>
+		      </div>
+		      <div class="input-field col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+		        <p>
+		          Data Foundry acts as a data processor for personally-identifiable data that the project owner and legal data controller chose to store in the platform. The project owner has stated that they are familiar with the definition of personally-identifiable information and how such information must be handled according to national and European data protection laws.
+		        </p>
+		      </div>
+		    </div>
+		    <div class="row">
+		      <div class="input-field col s12 m7">
+		        <p>
+		          <label>
+		            <input id="isStudyParticipationAgreed" type="checkbox" required="required">
+		            <span>I have read and understood the above information. I agree to participate in this study. I also understand that I can opt-out (leave) the study at any time and without any negative implications. My personally-identifiable data will be discarded in this case.</span>
+		          </label>
+		        </p>
+		      </div>
+		      <div class="input-field col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+		      </div>
+		    </div>
+
+		    <a class="btn-outline disabled">I understand and accept</a> or 
+			<a class="btn-outline disabled">I decline</a>
+
+		</div>
+	</div>
+
+	<script type="text/javascript">
+		document.body.addEventListener('htmx:responseError', function(evt) {
+			M.toast({html: evt.detail.xhr.responseText, classes: 'red darken-2'})
+		});
+
+	    @if(!message.isEmpty()){
+			M.toast({html: '@Html(message)', classes: 'green darken-2'});
+			window.scrollTo(0,0);
+		}
+	</script>
+}

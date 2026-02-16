@@ -1,0 +1,184 @@
+@(obm : Optional[utils.components.OnboardingMessage], id : Long)
+
+<script src="@routes.DatasetsController.jsRoutes()" type="text/javascript"></script>
+  
+@if(obm.isPresent()) {
+@defining(obm.get().onboardingMessage) { state => 
+
+  @* <!-- check all possible states in this matcher --> *@
+  @state match {
+
+    case "new_project" => {
+      @* <!-- render dialog for case "new_project", in the index page after new user log in --> *@
+      <div id="modal_onboarding" class="bottom-sheet">
+        <div class="modal-content">
+          <a href="#!" class="modal-close"><i class="right black-text">@elements.icon("close")</i></a>
+          <img src="@routes.Assets.versioned("images/onboarding/new-project.png")" style="width: 130px; float: left;" />
+          <p id="popup_msg flow-text">
+            Hi! You need a project for everything here. Let's create a new one!
+          </p>
+        </div>
+        <div class="modal-footer">
+          <a href="@routes.ProjectsController.add()" class="modal-close waves-effect waves-green btn-flat">Let's go</a>
+          <a href="#!" onclick="setState('@state', 'finish');" class="modal-close waves-effect waves-green btn-flat">Dismiss</a>
+          <a href="#!" onclick="setState('main', 'notToday');" class="modal-close waves-effect waves-green btn-flat">Not today</a>
+        </div>
+      </div>
+    }
+    case "new_dataset" => {
+      @* <!-- render dialog for case "new_dataset", in the first new project page from a new user --> *@
+      <div id="modal_onboarding" class="bottom-sheet">
+        <div class="modal-content">
+          <a href="#!" class="modal-close"><i class="right black-text">@elements.icon("close")</i></a>
+          <img src="@routes.Assets.versioned("images/onboarding/new-dataset.png")" style="width: 130px; float: left;" />
+          <p id="popup_msg">
+        	  Hi! This project is still empty. You need a dataset for collecting data or files. Let's create a new one!
+      	  </p>
+        </div>
+        <div class="modal-footer">
+          <a href="#!" onclick="switchModal('#modal_add_dataset', 'open');" class="modal-close waves-effect waves-green btn-flat">Let's go</a>
+          <a href="#!" onclick="setState('@state', 'finish');" class="modal-close waves-effect waves-green btn-flat">Dismiss</a>
+          <a href="#!" onclick="setState('main', 'notToday');" class="modal-close waves-effect waves-green btn-flat">Not today</a>
+        </div>
+      </div>
+    }
+    case "new_participant" => {
+      @* <!-- render dialog for case "new_participant", in the first new dataset page from a new user --> *@
+      <div id="modal_onboarding" class="bottom-sheet">
+        <div class="modal-content">
+          <a href="#!" class="modal-close"><i class="right black-text">@elements.icon("close")</i></a>
+          <img src="@routes.Assets.versioned("images/onboarding/new-participant.png")" style="width: 130px; float: left;" />
+          <p id="popup_msg">
+        	  Hi! It seems that you want to collect data from participants. Let's create the first participant!
+      	  </p>
+        </div>
+        <div class="modal-footer">
+          <a href="@routes.ParticipantsController.add(id)" class="modal-close waves-effect waves-green btn-flat">Let's go</a>
+          <a href="#!" onclick="setState('@state', 'finish');" class="modal-close waves-effect waves-green btn-flat">Dismiss</a>
+          <a href="#!" onclick="setState('main', 'notToday');" class="modal-close waves-effect waves-green btn-flat">Not today</a>
+        </div>
+      </div>
+    }
+    case "new_fb_wearable" => {
+      @* <!-- render dialog for case "new_fb_wearable", in the first new dataset page from a new user --> *@
+      <div id="modal_onboarding" class="bottom-sheet">
+        <div class="modal-content">
+          <a href="#!" class="modal-close"><i class="right black-text">@elements.icon("close")</i></a>
+          <img src="@routes.Assets.versioned("images/onboarding/new-wearable.png")" style="width: 130px; float: left;" />
+          <p id="popup_msg">
+        	  Hi! It looks like you want to collect data from a FitBit wearable, shall we create one right away?
+      	  </p>
+        </div>
+        <div class="modal-footer">
+          <a href="@routes.FitbitWearablesController.add(id, -1L)" class="modal-close waves-effect waves-green btn-flat">Let's go</a>
+          <a href="#!" onclick="setState('@state', 'finish');" class="modal-close waves-effect waves-green btn-flat">Dismiss</a>
+          <a href="#!" onclick="setState('main', 'notToday');" class="modal-close waves-effect waves-green btn-flat">Not today</a>
+        </div>
+      </div>
+    }
+    case "new_gf_wearable" => {
+      @* <!-- render dialog for case "new_gf_wearable", in the first new dataset page from a new user --> *@
+      <div id="modal_onboarding" class="bottom-sheet">
+        <div class="modal-content">
+          <a href="#!" class="modal-close"><i class="right black-text">@elements.icon("close")</i></a>
+          <img src="@routes.Assets.versioned("images/onboarding/new-wearable.png")" style="width: 130px; float: left;" />
+          <p id="popup_msg">
+            Hi! It looks like you want to collect data from a GoogleFit device, shall we create one right away?
+          </p>
+        </div>
+        <div class="modal-footer">
+          <a href="@routes.GoogleFitWearablesController.add(id, -1L)" class="modal-close waves-effect waves-green btn-flat">Let's go</a>
+          <a href="#!" onclick="setState('@state', 'finish');" class="modal-close waves-effect waves-green btn-flat">Dismiss</a>
+          <a href="#!" onclick="setState('main', 'notToday');" class="modal-close waves-effect waves-green btn-flat">Not today</a>
+        </div>
+      </div>
+    }
+    case "new_device" => {
+      @* <!-- render dialog for case "new_device", in the first new dataset page from a new user --> *@
+      <div id="modal_onboarding" class="bottom-sheet">
+        <div class="modal-content">
+          <a href="#!" class="modal-close"><i class="right black-text">@elements.icon("close")</i></a>
+          <img src="@routes.Assets.versioned("images/onboarding/new-device.png")" style="width: 130px; float: left;" />
+          <p id="popup_msg">
+        	  Hi! Interested in collecting IoT, prototype or sensor data. Create a device first, so everything is kept nicely in order. This way, please!
+      	  </p>
+        </div>
+        <div class="modal-footer">
+          <a href="@routes.DevicesController.add(id, -1L)" class="modal-close waves-effect waves-green btn-flat">Let's go</a>
+          <a href="#!" onclick="setState('@state', 'finish');" class="modal-close waves-effect waves-green btn-flat">Dismiss</a>
+          <a href="#!" onclick="setState('main', 'notToday');" class="modal-close waves-effect waves-green btn-flat">Not today</a>
+        </div>
+      </div>
+    }
+    case "new_cluster" => {
+      @* <!-- render dialog for case "new_cluster", in the first new dataset page from a new user --> *@
+      <div id="modal_onboarding" class="bottom-sheet">
+        <div class="modal-content">
+          <a href="#!" class="modal-close"><i class="right black-text">@elements.icon("close")</i></a>
+          <img src="@routes.Assets.versioned("images/onboarding/new-cluster.png")" style="width: 130px; float: left;" />
+          <p id="popup_msg">
+        	Hi! Did you know that you can combine participants, devices and wearables into clusters? Clusters help organize your project and you can look at their data individually. Let's create a first cluster!
+      	  </p>
+        </div>
+        <div class="modal-footer">
+          <a href="#!" onclick="switchModal('#modal_add_cluster', 'open');" class="modal-close waves-effect waves-green btn-flat">Let's go</a>
+          <a href="#!" onclick="setState('@state', 'finish');" class="modal-close waves-effect waves-green btn-flat">Dismiss</a>
+          <a href="#!" onclick="setState('main', 'notToday');" class="modal-close waves-effect waves-green btn-flat">Not today</a>
+        </div>
+      </div>
+    }
+    case "new_cluster_anno" => {
+      @* <!-- render dialog for case "new_cluster", in the first new dataset page from a new user --> *@
+      <div id="modal_onboarding" class="bottom-sheet">
+        <div class="modal-content">
+          <a href="#!" class="modal-close"><i class="right black-text">@elements.icon("close")</i></a>
+          <img src="@routes.Assets.versioned("images/onboarding/new-cluster-annotation.png")" style="width: 130px; float: left;" />
+          <p id="popup_msg">
+          Hi! You can only have annotation for clusters! Let's create one!
+          </p>
+        </div>
+        <div class="modal-footer">
+          <a href="#!" onclick="switchModal('#modal_add_cluster', 'open');" class="modal-close waves-effect waves-green btn-flat">Let's go</a>
+          <a href="#!" onclick="setState('@state', 'finish');" class="modal-close waves-effect waves-green btn-flat">Dismiss</a>
+          <a href="#!" onclick="setState('main', 'notToday');" class="modal-close waves-effect waves-green btn-flat">Not today</a>
+        </div>
+      </div>
+      
+	    @elements.dialog.addClusterDialog(id)
+    }
+    case "" => {}
+  }
+
+
+  <script type="text/javascript">
+    $(document).ready(function() {
+      let check = '@state';
+      if(check != null && check.trim() != 0) {
+        $("#modal_onboarding").addClass("modal");
+        $('.modal').modal();
+        switchModal("#modal_onboarding", 'open');
+        $("#modal_onboarding").next(".modal-overlay").remove();
+      }
+    });
+
+    function setState(target, state) {
+      var r = jsRoutes.controllers.UsersController.setState();
+      $.ajax({
+        url: r.url,
+        data: {
+          'catalog': target,
+          'state': state
+        },
+        type: r.type,
+        success: function(result) {
+          console.log(result);
+          if(state == "finish") {
+            location.reload();
+          }
+        },
+        error: function(error) {}
+      });
+    }
+  </script>
+}
+}
