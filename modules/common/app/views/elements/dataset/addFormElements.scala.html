@@ -1,0 +1,88 @@
+@(p : Project, token: String)
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input id="dataset_name" name="dataset_name" type="text" class="validate" required="">
+          <label for="dataset_name">Dataset Name</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          This should make sense to other people as well, so nothing like "test dataset", "Joe's first dataset", "final study data"... ;-)
+        </div>
+      </div>
+      
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <textarea id="description" name="description" type="text" class="materialize-textarea countMe" required="" data-length="1000" maxlength="1000"></textarea>
+          <label for="description">Description</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          This text should describe the dataset clearly, and what kind of data you want to collect with it.
+        </div>
+      </div>
+
+      <details style="margin-bottom: 20px;">
+        <summary>Advanced settings (optional)</summary>
+
+        <div class="row">
+          <div class="input-field col s12 m7" id="StartDatePicker">
+            <input id="start-date" name="start-date" type="text" class="datepicker">
+            <label for="start-date">Start Date (yyyy-mm-dd)</label>
+          </div>
+          <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+            Select a start date to "open" the data collection. Before this date, no data can be entered. If you don't choose a start date, the default is set as today.
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="input-field col s12 m7" id="EndDatePicker">
+            <input id="end-date" name="end-date" type="text" class="datepicker">
+            <label for="end-date">End Date (yyyy-mm-dd)</label>
+          </div>
+          <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+            Select an end date to "close" the data collection. After this date, no data can be entered anymore. If you don't choose an end date, the default is three months from the start date.
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="input-field col s12 m7" id="licenseSelector">
+            <select id="license" name="license" class="validate">
+              <option value="" disabled>Choose dataset license</option>
+              <option value="MIT">MIT license</option>
+              <option value="CC BY">CreativeCommons Attribution</option>
+              <option value="CC BY-SA">CreativeCommons Attribution ShareAlike</option>
+              <option value="CC BY-ND">CreativeCommons Attribution-NoDerivs</option>
+              <option value="CC BY-NC">CreativeCommons Attribution-NonCommercial</option>
+              <option value="CC BY-NC-SA">CreativeCommons Attribution-NonCommercial-ShareAlike</option>
+              <option value="CC BY-NC-ND">CreativeCommons Attribution-NonCommercial-NoDerivs</option>
+            </select>
+            <label>Dataset license (optional)</label>
+          </div>
+          <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+            Enter a license for this dataset. We support different <a href="@routes.HomeController.licenses()" target="_blank">licenses</a>, please take a moment to choose the right license.
+          </div>
+        </div>
+      </details>
+
+      <div class="row">
+        <div class="input-field col s12 m7" id="openParticipationTick">
+          <p>
+            <label>
+              <input id="isPublic" name="isPublic" type="checkbox">
+              <span>Open participation</span>
+            </label>
+          </p>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          Ticking this setting will allow for any source to append data into the dataset, not just registered ones, which can be useful in testing or debugging, or you use this for very open studies or designs (e.g., on websites or in apps).
+        </div>
+      </div>
+      
+      <input type="hidden" name="csrfToken" value="@token"/>
+      <input type="hidden" name="project_id" value="@p.getId()">
+
+      <div class="row center">
+        <div class="input-field col s12">
+          <a href="@routes.ProjectsController.view(p.getId())" class="btn-flat cancelBtn">CANCEL</a>
+          <button id="submitBtn" class="btn" type="submit">ADD</button>
+        </div>
+      </div>

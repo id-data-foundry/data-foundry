@@ -1,0 +1,134 @@
+@(dataset : Dataset, token: String)
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input value="@dataset.getName()" id="dataset_name" name="dataset_name" type="text" class="validate" required="">
+          <label for="dataset_name">Dataset Name</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          This should make sense to other people as well, so nothing like "test dataset", "Joe's first dataset", "final study data"... ;-)
+        </div>
+      </div>
+      
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <textarea id="description" name="description" type="text" class="materialize-textarea countMe" required="" data-length="1000" maxlength="1000">@dataset.getDescription()</textarea>
+          <label for="description">Description</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          This text should describe the dataset clearly, and what kind of data you want to collect with it.
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7" id="StartDatePicker">
+          <input value="@dataset.start" id="start-date" name="start-date" type="text" class="datepicker">
+          <label for="start-date">Start Date (yyyy-mm-dd)</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          Select a start date to "open" the data collection. Before this date, no data can be entered. If you don't choose a start date, the default is set as today.
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7" id="EndDatePicker">
+          <input value="@dataset.end" id="end-date" name="end-date" type="text" class="datepicker">
+          <label for="end-date">End Date (yyyy-mm-dd)</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          Select an end date to "close" the data collection. After this date, no data can be entered anymore. If you don't choose an end date, the default is three months from the start date.
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7" id="licenseSelector">
+          <select id="license" name="license" class="validate">
+            <option value="" disabled>Choose dataset license</option>
+            <option value="MIT" @if(dataset.getLicense() == "MIT"){selected}>MIT license</option>
+            <option value="CC BY" @if(dataset.getLicense() == "CC BY"){selected}>CreativeCommons Attribution</option>
+            <option value="CC BY-SA" @if(dataset.getLicense() == "CC BY-SA"){selected}>CreativeCommons Attribution ShareAlike</option>
+            <option value="CC BY-ND" @if(dataset.getLicense() == "CC BY-ND"){selected}>CreativeCommons Attribution-NoDerivs</option>
+            <option value="CC BY-NC" @if(dataset.getLicense() == "CC BY-NC"){selected}>CreativeCommons Attribution-NonCommercial</option>
+            <option value="CC BY-NC-SA" @if(dataset.getLicense() == "CC BY-NC-SA"){selected}>CreativeCommons Attribution-NonCommercial-ShareAlike</option>
+            <option value="CC BY-NC-ND" @if(dataset.getLicense() == "CC BY-NC-ND"){selected}>CreativeCommons Attribution-NonCommercial-NoDerivs</option>
+          </select>
+          <label>Dataset license (optional)</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          Enter a license for this dataset. We support different <a href="@routes.HomeController.licenses()" target="_blank">licenses</a>, please take a moment to choose the right license.
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input value="@dataset.getKeywords()" id="keywords" name="keywords" type="text" class="validate countMe" data-length="255" maxlength="255">
+          <label for="keywords">Keywords</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          Keywords relating to the content and the place/period of origin of the data.
+        </div>
+      </div>
+      
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input value="@dataset.getDoi()" id="doi" name="doi" type="text" class="validate countMe" data-length="255" maxlength="255">
+          <label for="doi">Digital object identifier (DOI)</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          Digital object identifier. In computing, a digital object identifier (DOI) is a persistent identifier or handle used to identify objects uniquely, standardized by the International Organization for Standardization (ISO). DOIs are in wide use mainly to identify academic, professional, and government information, such as journal articles, research reports and datasets, and official publications... (Wikipedia)
+        </div>
+      </div>
+      
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input value="@dataset.getRelation()" id="relation" name="relation" type="text" class="validate countMe" data-length="255" maxlength="255">
+          <label for="relation">Relation</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          Relation is which refer to a related dataset, publication or journal article.
+        </div>
+      </div>
+      
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input value="@dataset.getOrganization()" id="organization" name="organization" type="text" class="validate countMe" data-length="255" maxlength="255">
+          <label for="organization">Organization</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          Organizations involved, subsidizer (subsidy number).
+        </div>
+      </div>
+      
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <textarea id="remarks" class="materialize-textarea countMe" name="remarks" data-length="1000" maxlength="1000">@dataset.getRemarks()</textarea>
+          <label for="remarks">Remarks</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          General remarks / comments. This could be information about the current state of the dataset, information on how to reproduce the data or what someone could possibly do with it.
+        </div>
+      </div>
+
+      <span id="editParticipation" style="margin-top: -100px; padding-bottom: 100px; display: block;"></span>
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <p>
+            <label>
+              <input id="isPublic" name="isPublic" type="checkbox" @if(dataset.isOpenParticipation()) {checked}>
+              <span>Open participation</span>
+            </label>
+          </p>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          Ticking this setting will allow for any source to append data into the dataset, not just registered ones, which can be useful in testing or debugging, or you use this for very open studies or designs (e.g., on websites or in apps).
+        </div>
+      </div>
+      
+      <input type="hidden" name="csrfToken" value="@token"/>
+
+      <div class="row center">
+        <div class="input-field col s12">
+          <a href="@routes.DatasetsController.view(dataset.getId())" class="btn-flat cancelBtn">CANCEL</a>
+          <button id="submitBtn" class="btn" type="submit">SAVE</button>
+        </div>
+      </div>

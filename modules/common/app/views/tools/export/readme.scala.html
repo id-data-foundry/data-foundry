@@ -1,0 +1,29 @@
+@(project : Project, datasets: List[Dataset], permanentLink : String)
+
+# @project.getName()
+
+This project was exported on @{new Date()} from Data Foundry. This archive contains the full documentation of the Data Foundry project "@project.getName()". Data controller is @project.getOwner().getName(). @if(project.hasTeam()) {Along with the following collaborators: @project.getTeamNames().}
+
+## Contents
+The following files are included in the archive:
+
+README.md (this file)
+metadata.json (the meta-data of this project and its datasets in a single JSON object)
+LICENSE.txt (the license of this project as a text file)
+logbook.csv (all recorded project events in chronological order)
+
+The project contains the following datasets:
+@for(ds <- datasets) {
+
+### @ds.getName() 
+@ds.getDsType().toUIString()
+@ds.getDescription()
+
+@(datasets.indexOf(ds) + 1)_@{ds.getSlug()}.json (the data in JSON format)
+@(datasets.indexOf(ds) + 1)_@{ds.getSlug()}.csv (the data in CSV format)
+@if(ds.getDsType() == DatasetType.COMPLETE || ds.getDsType() == DatasetType.MEDIA || ds.getDsType() == DatasetType.MOVEMENT || ds.getDsType() == DatasetType.ES){@(datasets.indexOf(ds) + 1)_@ds.getSlug() / ... (files that were uploaded to this dataset)}
+
+---
+}
+
+If the project is still available on the Data Foundry, you can find it at: @permanentLink

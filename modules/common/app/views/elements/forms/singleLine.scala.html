@@ -1,0 +1,6 @@
+@(itemCount: Int, optional: Boolean, placeholder : String)
+<div class="row">
+	<div class="input-field col s12">
+		<input id="text_@itemCount" name="text_@itemCount" data="text_@itemCount" placeholder="@placeholder" type="text"@if(!optional){ class="validate" required=""}>
+	</div>
+</div>

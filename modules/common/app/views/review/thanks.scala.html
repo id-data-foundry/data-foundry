@@ -1,0 +1,16 @@
+@(token : String, title : String, message : String)
+
+@reviewing("Project review") {
+  <br><br>
+  <div class="row">
+    <div class="col s12">
+      <h4 class="center-align">@title</h4>
+    </div>
+
+    <div class="col s12">
+      <p class="flow-text">
+        @message
+      </p>
+    </div>
+  </div>
+}

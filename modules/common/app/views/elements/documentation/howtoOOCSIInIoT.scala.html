@@ -1,0 +1,118 @@
+@()
+<ul class="collapsible">
+	<li>
+		<div class="collapsible-header">Java/Processing</div>
+		<div class="collapsible-body">
+			<pre class="language-Processing">
+				  <code class="language-Processing">
+// replace CLIENT_HANDLE by a unique name for your prototype or IoT device
+OOCSI oocsi = new OOCSI(this, "CLIENT_HANDLE", "oocsi.id.tue.nl");
+// replace CHANNEL by the channel that you provided above
+oocsi.channel("CHANNEL")
+	// replace DEVICE by the refId of any device in this project
+	.data("device_id", "DEVICE")
+	// optional activity marker
+	.data("activity", "EVENT or ACTIVITY")
+	// provide actual data to be stored in the dataset
+	.data("airquality", 0.67)
+	.data("doorclosed", false)
+	// don't forget to send
+	.send();</code>
+			</pre>
+			<p>
+				Use the OOCSI for Processing library for this, <a href="https://github.com/iddi/oocsi-processing">more information here</a>.
+			</p>
+		</div>
+	</li>
+	<li>
+		<div class="collapsible-header">Arduino/ESP</div>
+		<div class="collapsible-body">
+			<pre class="language-Processing">
+				  <code class="language-Processing">
+oocsi.connect(...);
+// replace CHANNEL by the channel that you provided above
+oocsi.newMessage("CHANNEL");
+// replace DEVICE by the refId of any device in this project
+oocsi.addString("device_id", "DEVICE");
+// optional activity marker
+oocsi.addString("activity", "EVENT or ACTIVITY");
+// provide actual data to be stored in the dataset
+oocsi.addFloat("airquality", 0.67);
+oocsi.addBool("doorclosed", false);
+// don't forget to send
+oocsi.sendMessage();</code>
+			</pre>
+			<p>
+				Use the OOCSI Arduino/ESP library for this, <a href="https://github.com/iddi/oocsi-esp">more information here</a>.
+			</p>
+		</div>
+	</li>
+	<li>
+		<div class="collapsible-header">Python</div>
+		<div class="collapsible-body">
+			<pre class="language-python">
+				  <code class="language-python">
+# replace CLIENT_HANDLE by a unique name for your prototype
+oocsi = OOCSI('CLIENT_HANDLE', 'oocsi.id.tue.nl')
+# send data to channel as Dict
+# replace CHANNEL by the channel that you provided above
+oocsi.send('CHANNEL',
+	# replace DEVICE by the refId of any device in this project
+	{'device_id': 'DEVICE',
+	# optional activity marker
+	'activity': 'EVENT or ACTIVITY',
+	# provide actual data to be stored in the dataset
+	'airquality': 0.67,
+	'doorclosed': false
+})</code>
+			</pre>
+			<p>
+				Use the OOCSI Python library for this, <a href="https://github.com/iddi/oocsi-python">more information here</a>.
+			</p>
+		</div>
+	</li>
+	<li>
+		<div class="collapsible-header">HTML/Websockets</div>
+		<div class="collapsible-body">
+			<pre class="language-javascript">
+				  <code class="language-javascript">
+OOCSI.connect('wss://oocsi.id.tue.nl/ws');
+// send data in JSON format
+// replace CHANNEL by the channel that you provided above
+OOCSI.send("CHANNEL",
+	// replace DEVICE by the refId of any device in this project
+	{"device_id": "DEVICE",
+	// optional activity marker
+	"activity": "EVENT or ACTIVITY",
+	// provide actual data to be stored in the dataset
+	"airquality": 0.67, 
+	"doorclosed": false
+});</code>
+			</pre>
+			<p>
+				Use the OOCSI Websocket library for this, <a href="https://github.com/iddi/oocsi-websocket">more information here</a>.
+			</p>
+		</div>
+	</li>
+	<li>
+		<div class="collapsible-header">Node.js</div>
+		<div class="collapsible-body">
+			<pre class="language-javascript">
+				  <code class="language-javascript">
+OOCSI.connect('wss://oocsi.id.tue.nl/ws');
+// send data in JSON format
+// replace CHANNEL by the channel that you provided above
+OOCSI.send("CHANNEL",
+	// replace DEVICE by the refId of any device in this project
+	{"device_id": "DEVICE",
+	// optional activity marker
+	"activity": "EVENT or ACTIVITY",
+	// provide actual data to be stored in the dataset
+	"airquality": 0.67,
+	"doorclosed": false
+});</code>
+			</pre>
+			Use the OOCSI Websocket library for this, <a href="https://github.com/iddi/oocsi-nodejs">more information here</a>.
+		</div>
+	</li>
+</ul>

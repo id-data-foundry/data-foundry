@@ -1,0 +1,63 @@
+@(project : Project, organization: String, scientificIntegrityLink: String, redirectUrl : String, token : String)
+
+@main("Accept license") {
+
+<!-- navigation -->
+<nav class="">
+	<div class="row">
+		<div class="col s12">
+			<a id="homeBtn" href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+			<a href="@routes.ProjectsController.view(project.getId())" class="breadcrumb">@project.getName()</a>
+			<a href="#" class="breadcrumb">License</a>
+		</div>
+	</div>
+</nav>
+<div class="row center">
+	<div class="col s12">
+		<h2>Project license</h2>
+	</div>
+</div>
+<div class="row">
+	<form class="col s12" action="@routes.ProjectsController.acceptLicense(project.getId(), redirectUrl)" method="POST">
+		<div class="row">
+			<div class="input-field col s12 m7">
+				To proceed you need to accept the project license:
+				<p>
+					<a href="@project.getLicenseLink()" target="_blank">@project.getLicense()</a>
+				</p>
+				@if(!scientificIntegrityLink.isEmpty()) {
+				You also need to agree to the <a href="@scientificIntegrityLink" target="_blank">@organization code of scientific conduct</a>.
+				}
+			</div>
+		</div>
+		<div class="row">
+			<div class="input-field col s12 m7">
+				<p>
+					<label>
+						<input id="acceptLicense" type="checkbox" name="acceptLicense" required="required" />
+						<span>I accept the project license
+							@if(!scientificIntegrityLink.isEmpty()) {
+							 and the @organization code of scientific conduct.
+							}</span>
+					</label>
+				</p>
+			</div>
+			<div class="input-field col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+				<p>
+					The project and its datasets are shared under the given license, hosted by @organization.
+					@if(!scientificIntegrityLink.isEmpty()) {
+					The @organization code of scientific conduct applies.
+					}
+				</p>
+			</div>
+		</div>
+		<div class="row">
+			<div class="input-field col s12 m7">
+				<input type="hidden" name="csrfToken" value="@token" />
+				<a href="@routes.ProjectsController.view(project.getId())" class="btn-flat green-text">Cancel</a>
+				<button id="submitBtn" type="submit" class="btn">Accept</button>
+			</div>
+		</div>
+	</form>
+</div>
+}

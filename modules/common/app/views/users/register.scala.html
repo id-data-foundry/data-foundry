@@ -1,0 +1,117 @@
+@(access_key: String, csrfToken: String)
+
+@external("Register") {
+
+  <!-- navigation -->
+	<nav class="">
+    <div class="row">
+      <div class="col s12">
+        <a id="homeBtn" href="@routes.HomeController.index()" class="breadcrumb">Home</a>
+        <a href="#" class="breadcrumb">Create account</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="row center">
+    <div class="col s12">
+      <h2>Create account</h2>
+    </div>
+  </div>
+
+  <div class="row">
+    <form class="col s12" action="@routes.UsersController.registerMe()" method="POST">
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input id="first_name" name="first_name" type="text" class="validate" required="">
+          <label for="first_name">First Name</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          Please enter your first name.
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+            <input id="last_name" name="last_name" type="text" class="validate" required="">
+            <label for="last_name">Last Name</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          Please enter your last name.
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input id="email" name="email" type="email" autocomplete="email" class="validate" required="">
+          <label for="email">Email</label>
+          <span class="helper-text" data-error="wrong format" data-success="correct"></span>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          Please enter your email. The email will be your account for this platform. After finishing registration, changing your email address will not be possible. Use your work email if possible.
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+            <input id="password" name="password" type="password" autocomplete="new-password" class="validate" required="">
+            <label for="password">Password</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          Please set the password you want to use.
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+            <input id="re_password" name="re_password" type="password" autocomplete="new-password" class="validate" required="" onblur="checkPassword();">
+            <label for="re_password">Repeat password</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          Please enter your password again.
+        </div>
+      </div>
+      <script type="text/javascript">
+        function checkPassword(){
+
+            pwd1 = $.trim($("input[name=password]").val());
+            if(pwd1.length < 8) {
+              alert("Please check your password again. It must have at least 8 characters.");
+                $("#password").focus();
+            }
+            else {
+              pwd2 = $.trim($("input[name=re_password]").val());
+              if(pwd1.localeCompare(pwd2) != 0) {
+                  alert("Please check your password again, they are different still.");
+                  $("#password").focus();
+              }
+            }
+        }
+      </script>
+
+      @if(access_key != null && !access_key.isEmpty()) {
+        <input id="access_inline" name="access_inline" type="hidden" value="@access_key">
+      } else {
+      <div class="row">
+        <div class="input-field col s12 m7">
+            <input id="access_inline" name="access_inline" type="text">
+            <label for="access_inline">Access Code</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          Please enter the access code you got in the invite, or contact support.
+        </div>
+      </div>
+	    }
+
+      <div class="row">
+        <div class="col s12">
+          <div class="input-field center">
+            <a id="cancelBtn" href="@routes.HomeController.index()" class="btn-flat cancelBtn">Cancel</a>
+            <button id="submitBtn" class="btn" type="submit">Create account</button>
+      	  </div>
+      	</div>
+      </div>
+      <input type="hidden" name="csrfToken" value="@csrfToken"/>
+    </form>
+
+  </div>
+}

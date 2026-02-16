@@ -1,0 +1,179 @@
+## OpenAPI/Swagger ROUTES ## 
+## basic path:/api/v2/devices ##
+
+###
+ #  summary: list all devices of the user / researcher
+ #  responses:
+ #    200:
+ #      description: success
+ #  deprecated: true
+ ###
+GET       /                         controllers.swagger.DeviceApiController.devices(request: Request)
+
+###
+ #  summary: view a specific device
+ #  parameters:
+ #    - name: "id"
+ #      in: "path"
+ #      description: "Get information of a specific device."
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #  responses:
+ #    200:
+ #      description: success
+ #      schema:
+ #        type: object
+ #        properties:
+ #          id:
+ #            description: "Id of user"
+ #            type: integer
+ #            format: "int64"
+ #          name:
+ #            type: string
+ #          project:
+ #            type: string
+ #          category:
+ #            type: string
+ #          subtype:
+ #            type: string
+ #          ip_address:
+ #            type: string
+ #          location:
+ #            type: string
+ #          configuration:
+ #            type: string
+ #          publicParameter1:
+ #            type: string
+ #          publicParameter2:
+ #            type: string
+ #          publicParameter3:
+ #            type: string
+ #          clusters:
+ #            description: "IDs of clusters which the participant includes"
+ #            type: array
+ #            items: 
+ #              type: integer
+ #              format: "int64"
+ #    400:
+ #      description: No input.
+ #    403:
+ #      description: Not valid user or mismatched password.
+ ###
+GET       /:id                      controllers.swagger.DeviceApiController.device(request: Request, id : Long)
+
+###
+ #  summary: create a device 
+ #  parameters:
+ #    - in: "body"
+ #      name: "body"
+ #      description: "Device informations that needs to be created in the system"
+ #      required: true
+ #      schema:
+ #        type: object
+ #        required:
+ #          - "name"
+ #          - "project_id"
+ #        properties:
+ #          project_id:
+ #            type: "integer"
+ #            format: "int64"
+ #          name:
+ #            type: "string"
+ #            description: "The name for the device."
+ #          category:
+ #            type: "string"
+ #          subtype:
+ #            type: "string"
+ #          ip_address:
+ #            type: "string"
+ #          location:
+ #            type: "string"
+ #          configuration:
+ #            type: "string"
+ #          public_parameter1:
+ #            type: "string"
+ #          public_parameter2:
+ #            type: "string"
+ #          public_parameter3:
+ #            type: "string"
+ #  responses:
+ #    200:
+ #      description: success
+ #      schema:
+ #        type: object
+ #        properties:
+ #          id:
+ #            description: "Id of the new device"
+ #            type: integer
+ #            format: "int64"
+ #    400:
+ #      description: Not valid user.
+ #    403:
+ #      description: User or api-token is not valid or user can't access this operation.
+ ###
+POST      /add                      controllers.swagger.DeviceApiController.add(request: Request)
+
+###
+ #  summary: edit information of a specific device
+ #  parameters:
+ #    - name: "id"
+ #      in: "path"
+ #      description: "The id of the device to update information."
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #    - in: "body"
+ #      name: "body"
+ #      description: "User informations that needs to be created in the system"
+ #      required: true
+ #      schema:
+ #        type: object
+ #        properties:
+ #          name:
+ #            type: "string"
+ #            description: "The name for the device."
+ #          category:
+ #            type: "string"
+ #          subtype:
+ #            type: "string"
+ #          ip_address:
+ #            type: "string"
+ #          location:
+ #            type: "string"
+ #          configuration:
+ #            type: "string"
+ #          public_parameter1:
+ #            type: "string"
+ #          public_parameter2:
+ #            type: "string"
+ #          public_parameter3:
+ #            type: "string"
+ #  responses:
+ #    200:
+ #      description: success
+ #    400:
+ #      description: Not valid user.
+ #    403:
+ #      description: User or api-token is not valid or user can't access this operation.
+ ###
+POST      /edit/:id                 controllers.swagger.DeviceApiController.edit(request: Request, id : Long)
+
+###
+ #  summary: delete a specific device
+ #  parameters:
+ #    - name: "id"
+ #      in: "path"
+ #      description: "Id of the Device to be deleted."
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #  responses:
+ #    200:
+ #      description: success
+ #    400:
+ #      description: Not valid user.
+ #    403:
+ #      description: User or api-token is not valid or user can't access this operation.
+ ###
+DELETE    /delete/:id               controllers.swagger.DeviceApiController.delete(request: Request, id : Long)

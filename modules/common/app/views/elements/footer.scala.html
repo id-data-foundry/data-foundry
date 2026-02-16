@@ -1,0 +1,48 @@
+@()
+<footer class="page-footer grey lighten-3 grey-text" style="margin-top: 10em;">
+	<div class="container">
+		<div class="row">
+			<div class="col s12 l5">
+				<h5 class="">
+					Data Foundry
+					<small style="margin-left: 1em;">version @utils.StringUtils.VERSION</small>
+				</h5>
+				<p class="grey-text text-darken-1">
+					Data Foundry is a design-specific infrastructure for prototyping and designing with data.
+				</p>
+			</div>
+			<div class="col s12 offset-l1 l3">
+				<h5 class="">Links</h5>
+				<ul>
+					<li>
+						<a class="grey-text text-darken-1" href="@routes.HomeController.configurableLink("about")" target="_blank">
+							About Data Foundry
+						</a>
+					</li>
+					<li>
+						<a class="grey-text text-darken-1" href="@routes.HomeController.configurableLink("privacy")" target="_blank">
+							Privacy
+						</a>
+						+
+						<a class="grey-text text-darken-1" href="@routes.HomeController.configurableLink("data-protection")" target="_blank">
+							Data Protection
+						</a>
+					</li>
+					<li>
+						<a class="grey-text text-darken-1" href="@routes.HomeController.configurableLink("scientific-integrity")" target="_blank">
+							Scientific Integrity
+						</a>
+					</li>
+				</ul>
+			</div>
+			<div class="col s12 offset-l1 l2">
+				<img src="@routes.HomeController.configurableLink("organization-logo")" class="responsive-img">
+			</div>
+		</div>
+	</div>
+	<div class="footer-copyright">
+		<div class="container grey-text text-darken-1" style="padding: 0 0.75rem;">
+			© 2019-2026 Industrial Design, Eindhoven University of Technology
+		</div>
+	</div>
+</footer>

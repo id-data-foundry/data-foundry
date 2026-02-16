@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  datafoundry:
+    image: datafoundrydocker:development
+    container_name: datafoundry-dev
+    ports:
+      - "9000:9000"
+      - "8001:8001"
+    volumes:
+      - .:/app:z
+    stdin_open: true
+    tty: true
+    # Uncomment the line below if you want the container to be removed after stopping
+    # Note: Docker Compose doesn't have a direct equivalent to --rm, 
+    # but you can use 'docker-compose down' to remove containers

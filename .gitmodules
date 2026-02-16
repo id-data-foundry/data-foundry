@@ -1,0 +1,3 @@
+[submodule "documentation"]
+	path = documentation
+	url = https://github.com/id-data-foundry/data-foundry-documentation.git

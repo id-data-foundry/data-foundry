@@ -1,0 +1,182 @@
+@(participant : sr.Participant)(implicit request: Http.Request)
+
+@if(participant == null) {
+var DF = {
+	participant: {
+		id: -1,
+		canAddDiaryEntry: false,
+		diaryEntry: function() {
+			console.error('[error] no participant logged in')
+		},
+		setProfile: function() {
+			console.error('[error] no participant logged in')
+		},
+		getProfile: function() {
+			console.error('[error] no participant logged in')
+		},
+		getDataCSV: function() {
+			console.error('[error] no participant logged in')
+		},
+		getDataJson: function() {
+			console.error('[error] no participant logged in')
+		}
+	},
+	device : {
+		canLogData: false,
+		logData: function() {
+			console.error('[error] no participant logged in')
+		},
+		canUploadImage: false,
+		uploadImage: function() {
+			console.error('[error] no participant logged in')
+		}
+	}
+};
+} else {
+@Html(helper.javascriptRouter("jsRoutes")(
+      api.js.routes.javascript.ParticipationApiController.getDataCSV,
+      api.js.routes.javascript.ParticipationApiController.getDataJson
+).toString().replace("</script>", "").replace("<script  type=\"text/javascript\">", ""))
+
+var DF = {
+	participant: {
+		id: @participant.getId(),
+		@if(participant.getProject().getDiaryDataset().getId() > -1) {
+		// adding a diary entry is possible, use diaryEntry(...)
+		canAddDiaryEntry: true,
+		} else {
+		// adding a diary entry is not possible, using diaryEntry will produce an error message
+		canAddDiaryEntry: false,			
+		}
+		diaryEntry: function(title, text) {
+			@if(participant.getProject().getDiaryDataset().getId() > -1) {
+			fetch('/@JavaScript(api.js.routes.ParticipationApiController.diaryEntry().relativeTo("/"))', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+			    		title: title,
+			    		text: text
+			    	})
+			})
+			} else {
+			console.error('[error] no diary dataset available and active in project')
+			}
+		},
+		setProfile: function(data, id) {
+			@if(participant.getProject().getEntityDataset().getId() > -1) {
+			let urlID = id ? ('/' + id) : '';
+			fetch('/@JavaScript(api.js.routes.ParticipationApiController.setItem("").relativeTo("/"))' + urlID, {
+				method: 'POST',
+				body: JSON.stringify(data),
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			})
+			} else {
+			console.error('[error] no entity dataset available and active in project')
+			}
+		},
+		getProfile: function(fn, id) {
+			@if(participant.getProject().getEntityDataset().getId() > -1) {
+			let urlID = id ? ('/' + id) : '';
+			fetch('/@JavaScript(api.js.routes.ParticipationApiController.getItem("").relativeTo("/"))' + urlID, {
+				method: 'GET',
+				headers: {
+					'Content-Type': 'application/json'
+				}
+			}).then(response => {
+				if(response.ok) {
+					return response.json()
+				} else {
+					throw new Error(`HTTP error! status: ${response.status}`)
+				}
+			}).then(data => fn(data))
+			} else {
+			console.error('[error] no entity dataset available and active in project')
+			}
+		},
+		getDataCSV: function(id, start, end, fn) {
+			if(typeof start === 'function') {
+				fn = start;
+				start = -1;
+			}
+			if(typeof end === 'function') {
+				fn = end;
+				end = -1;
+			}
+
+			let r = jsRoutes.controllers.api.js.ParticipationApiController.getDataCSV(id, start, end);
+			fetch(r.url).then(response => {
+				if(response.ok) {
+					return response.text()
+				} else {
+					throw new Error(`HTTP error! status: ${response.status}`)
+				}
+			}).then(data => fn(data))
+		},
+		getDataJson: function(id, start, end, fn) {
+			if(typeof start === 'function') {
+				fn = start;
+				start = -1;
+			}
+			if(typeof end === 'function') {
+				fn = end;
+				end = -1;
+			}
+
+			let r = jsRoutes.controllers.api.js.ParticipationApiController.getDataJson(id, start, end);
+			fetch(r.url).then(response => {
+				if(response.ok) {
+					return response.json()
+				} else {
+					throw new Error(`HTTP error! status: ${response.status}`)
+				}
+			}).then(data => fn(data))
+		}
+	},
+	device : {
+		@if(participant.getProject().getIoTDataset().getId() > -1) {
+		// logging data is possible, just use logData(...)
+		canLogData: true,
+		logData: function(data, activity) {
+			fetch('/@JavaScript(api.js.routes.ParticipationApiController.logEntry().relativeTo("/"))', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+			    		activity: activity !== undefined ? activity : '',
+			    		data: JSON.stringify(data)
+			    	})
+			})
+		},
+		} else {
+		// logging data is not possible, using logData will produce an error message
+		canLogData: false,
+		logData: function(data, activity) {
+			console.error('[error] no IoT dataset available or active (check API token) in project')
+		},
+		}
+		@if(participant.getProject().getMediaDataset().getId() > -1) {
+		// uploading images is possible, just use uploadImage(...)
+		canUploadImage: true,
+		uploadImage: function(imageData) {
+			const formData = new FormData();
+			formData.append('participant_upload.png', imageData);
+			fetch('/@JavaScript(api.js.routes.ParticipationApiController.uploadImage().relativeTo("/"))', {
+				method: 'POST',
+				body: formData
+			})
+		}
+		} else {
+		// uploading images is not possible, using uploadImage will produce an error message
+		canUploadImage: false,
+		uploadImage: function() {
+			console.error('[error] no Media dataset available or active (check API token) in project')
+		}
+		}
+	}
+};
+}

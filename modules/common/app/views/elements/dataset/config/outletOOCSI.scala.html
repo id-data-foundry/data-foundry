@@ -1,0 +1,55 @@
+@(dataset : Dataset, user : String)
+
+<div id="oocsi_out" class="col s12 tab-contents">
+  <div class="row">
+    <div class="col s12">
+      <p>
+        <b>Forward all data in this dataset to an OOCSI channel as it arrives</b>
+      </p>
+      <p>
+        By setting an OOCSI channel below you can forward all new entries to this dataset to other devices listening in on this channel. 
+      </p>
+      <form>
+        @if(dataset.editableBy(user)) {
+        <div class="input-field col s12 m8">
+          <input id="oocsiChannelOutput" type="text" value='@dataset.getConfiguration().get("OOCSI_output")'>
+          <label for="oocsiChannelOutput">Channel name</label>
+          <span class="helper-text" data-error="Note, this channel is used as output by other datasets. Might be ok, just check." data-success=""></span>
+          You can change the name to direct data differently, or you can delete the channel name to disable this functionality:
+        </div>
+        <div class="input-field col s12 m4">
+          <a id="saveOOCSIChannelOutputBtn" class="btn">Save</a>
+        </div>
+        <script type="text/javascript">
+          // check channel name
+          $('#oocsiChannelOutput').change(function() {
+            var inputChannel = $('#oocsiChannelOutput').val();
+            let r = jsRoutes.controllers.DatasetsController.hasOOCSIChannel(@dataset.getId(), 'OOCSI_output', inputChannel);
+            $.ajax({url: r.url, type: r.type, success: function(data) {
+              if (data !== "") {
+                $('#oocsiChannelOutput').addClass('invalid')
+              } else {
+                $('#oocsiChannelOutput').removeClass('invalid')
+              }
+            }});
+          });
+          // save channel
+          $('#saveOOCSIChannelOutputBtn').click(function() {
+            let outputChannel = $('#oocsiChannelOutput').val();
+            let r = jsRoutes.controllers.DatasetsController.configure(@dataset.getId(), 'OOCSI_output', outputChannel);
+            $.ajax({url: r.url, type: r.type, success: function() {
+              M.toast({html: 'Settings saved.', classes: 'green darken-2'});
+            }, error: function() {
+              M.toast({html: 'Settings not saved.', classes: 'red darken-2'});
+            }});
+          });
+        </script>
+        } else {
+        <blockquote>
+          @dataset.configuration("OOCSI_output", "no output channel set")
+        </blockquote>
+        }
+      </form>
+    </div>
+  </div>
+</div>

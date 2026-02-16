@@ -1,0 +1,54 @@
+@()
+(() => {
+
+	// Describe the title of your tour
+	const tourTitle = "New project tour"
+
+	// Define your tour steps:
+	//   element: specifies the element to highlight, use CSS selector syntax (as used by document.querySelector)
+	//   intro: this is the text to show in the popup
+	//   page: this is a regular expression for the page to show this step on
+	const tourSteps = [
+	    { element: '#addProjectBtn', intro: 'Create a new project here!', page: '^/projects$' },
+	    { element: '#project_name', intro: 'Fill in a name for your new project', page: '^/projects/add' },
+	    { element: '#project_introduction', intro: 'Never go without an introduction.', page: '^/projects/add' },
+	    { element: 'details', intro: 'There are some advanced options about the project license.', page: '^/projects/add' },
+	    { element: '#submitBtn', intro: 'Let\'s go!', page: '^/projects/add' }
+	];
+
+	const currentPage = window.location.pathname;
+	const pageSteps = tourSteps.filter(step => currentPage.match(step.page))
+
+	// Initialize Driver.js
+	const d = driver.js.driver();
+	d.setConfig({
+		allowClose: false,
+		onDestroyed: () => {
+			fetch('@routes.HomeController.stopTour()')
+		}
+	})
+	d.setSteps(pageSteps.map(step => {
+		let buttons = []
+		if(pageSteps.indexOf(step) > 0) {
+			// all steps except first in page steps get a previous
+			buttons.push("previous")
+		}
+		if(pageSteps.indexOf(step) < pageSteps.length - 1) {
+			// all steps except for last in page steps get a next
+			buttons.push("next")
+		} else if(tourSteps.indexOf(step) == tourSteps.length - 1) {
+			// final step in tour gets a done
+			buttons.push("next")
+		}
+
+		return {
+			element: step.element,
+			popover: {
+	            title: tourTitle,
+	            description: step.intro,
+	            showButtons: buttons
+	        }
+		};
+	}));
+	d.drive();
+})();

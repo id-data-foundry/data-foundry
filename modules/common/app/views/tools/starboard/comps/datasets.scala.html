@@ -1,0 +1,72 @@
+@(projects : List[models.Project])(implicit request: Http.Request)
+<div class="col">
+	<b>Access data from your datasets in a noteboook</b>
+	<br>
+	First select the project and dataset you want to import, then select the type of notebook cell (JavaScript/Python):
+	@for(p <- projects) {
+	<div>
+		<a class="project">@p.getName()</a>
+		<div class="datasets" style="margin-bottom: 1em;">
+			@for(ds <- p.getDatasets()) {
+			<div>
+				&#5125; @ds.getName() 
+				<a class="btn-flat jsBtn">JavaScript</a>
+				<a class="btn-flat pyBtn">Python</a>
+				<div class="help jsHelp"><code><pre>
+// download data as JSON with JavaScript
+var json
+await fetch("@routes.DatasetsController.downloadJson(ds.getId())")
+	.then(response => response.json())
+	.then(text => json = text)
+
+// print out the JSON data on console
+console.log(json)
+</pre></code></div>
+				<div class="help pyHelp"><code><pre>
+# import libraries (needed only once in the notebook)
+import pandas as pd
+import matplotlib.pyplot as plt
+import pyodide
+
+# download from this url
+url = "@routes.DatasetsController.download(ds.getId()).absoluteURL(request)"
+
+# download and parse CSV into Pandas DataFrame
+df = pd.read_csv(pyodide.open_url(url))
+
+# work with the DataFrame and print results
+print(df.groupby('activity').max())
+</pre></code></div>
+			</div>
+			}
+		</div>
+	</div>
+	}
+	<div style="float: right">
+		<a id="helpCloseBtn" class="btn-flat">&#215; close help</a>
+	</div>
+	<script type="text/javascript">
+		$('.datasets, .help').hide();
+		$('.project').click(function(e) {
+			$('.datasets, .help').hide();
+			$(this).siblings('.datasets').show();
+			e.preventDefault();
+			return false;
+		});
+		$('.jsBtn').click(function(e) {
+			$('.help').hide();
+			$(this).siblings('.jsHelp').show();
+			e.preventDefault();
+			return false;
+		});
+		$('.pyBtn').click(function(e) {
+			$('.help').hide();
+			$(this).siblings('.pyHelp').show();
+			e.preventDefault();
+			return false;
+		});
+		$('#helpCloseBtn').click(function() {
+			$('#datasetsHelp')[0].innerHTML = ''
+		})
+	</script>
+</div>

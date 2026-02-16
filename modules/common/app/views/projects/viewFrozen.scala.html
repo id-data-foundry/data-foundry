@@ -1,0 +1,89 @@
+@(p : Project, dataset: models.Dataset, fileList: models.vm.TimedMedia, user: Person)
+
+@main(p.getName() + " Home", "profile") {
+
+@projects.perspectives.projectHeader(p, user)
+
+<!-- first row -->
+<div class="row">
+	<div class="col s12 m7">
+		<div class="row">
+			<!-- project tags + intro -->
+			<div class="col s12"> 
+				@if(p.getKeywords() != null && p.getKeywords().length() > 0) {
+				<p class="keywordTags">
+				@for(k <- p.getKeywordList()) {
+					<span class="keywordTag">@k</span>
+				}
+				</p>
+				}
+				<p class="" style="">
+					@p.getIntro()
+				</p>
+			</div>
+			@if(p.editableBy(user)) {
+			<div class="col s12">
+				<hr>
+				<p>
+					This project is frozen, i.e., it is not longer possible to work with the project. All project data has been transferred to a ZIP archive, which you can download here:
+				</p>
+				<p>
+					<a class="btn" href="@api.routes.CompleteDSController.downloadFile(dataset.getId(),fileList.getId())" class="green-text">download export</a>
+				</p>
+			</div>
+			}
+		</div>
+	</div>
+	<div class="col s12 m4 offset-m1">
+		<div class="row">
+
+			<!-- project info -->
+			<div class="col s12"> 
+				<ul class="collection with-header">
+					<li class="collection-header">
+						<h6 style="display: inline-block;">Info</h6>
+						<span class="idtag" style="float: right; margin-top: 0.6rem;">
+							PROJECT ID: @p.getId()
+						</span>
+					</li>
+					<li class="collection-item">
+						<div>
+							<p>
+								<b>Visibility: </b>@if(p.isPublicProject()) { Public } else { Private }
+							</p>
+							@if(p.getTimeProgress() < 100) {
+							<div class="progress green lighten-3">
+						    	<div class="determinate green" style="width: @p.getTimeProgress()%"></div>
+				  		</div>
+				  		} else {
+							<div class="progress red lighten-3">
+						    	<div class="determinate red" style="width: @p.getTimeProgress()%"></div>
+				  		</div>
+				  		}
+							@metadata("Project duration", p.startDate() + " - " + p.endDate())
+						</div>
+					</li>
+					<li class="collection-item">
+						<div>
+							@metadata("License", p.getLicense())
+							@metadata("Relation", p.getRelation())
+							@metadata("Organization", p.getOrganization())
+							@metadata("Digital object identifier", p.getDoi())
+						</div>
+					</li>
+				</ul>
+			</div>
+
+		</div>
+	</div>
+</div>
+}
+
+@metadata(key : String, data : String) = {
+	@if(data != null && data.length() > 0) {
+	<p>
+		<b>@key:</b> 
+		@if(data.startsWith("http")) { <a href="@data" target="_blank">@data</a> } else { @data }
+	</p>
+	}
+}

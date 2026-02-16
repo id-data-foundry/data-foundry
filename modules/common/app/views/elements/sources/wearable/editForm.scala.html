@@ -1,0 +1,128 @@
+@(token : String, w : sr.Wearable, dsList : List[Dataset], ds : Dataset, option : String)
+
+<div class="row center">
+  <div class="col s12">  
+    <h2>Edit Wearable :<br>@w.getName()</h2>
+  </div>
+</div>
+
+<div class="row">
+
+  <form class="col s12" action="@sendTo()" method="POST">
+    <div class="row">
+      <div class="input-field col s12 m7">
+        <input value="@w.getName()" id="name" name="name" type="text" class="validate" required="">
+        <label for="name">Wearable Name</label>
+      </div>
+      <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+        Edit the name of this wearable.
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="input-field col s12 m7">
+        <select id="ds_id" name="ds_id" required="">
+          <option value="-1" disabled>No active @option dataset now.</option>
+          @for(c <- dsList){
+          @if(ds == null || ds.getId() <= 0){
+          <option value="@c.getId()">@c.getName()</option>
+          } else {
+          <option value="@c.getId()" @if(c.getId() == ds.getId()){selected}>@c.getName()</option>
+          }
+          }
+        </select>
+        <label for="ds_id">Choose a @option dataset</label>
+      </div>
+      <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+        Please select a @option dataset you want this wearable to collect data for.
+      </div>
+    </div>
+    @*
+    <div class="row">
+      <div class="input-field col s12 m7">
+        <input value="@w.configuration" id="configuration" name="configuration" type="text">
+        <label for="configuration">Configuration</label>
+      </div>
+      <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+        Edit the configuration of this wearable.
+      </div>
+    </div>
+    *@
+    <div class="row">
+      <div class="input-field col s12 m7">
+        <input value="@w.getPublicParameter1()" id="public_parameter1" name="public_parameter1" type="text">
+        <label for="public_parameter1">Public Parameter1</label>
+      </div>
+      <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+        Edit the public parameter1 of this wearable.
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="input-field col s12 m7">
+        <input value="@w.getPublicParameter2()" id="public_parameter2" name="public_parameter2" type="text">
+        <label for="public_parameter2">Public Parameter2</label>
+      </div>
+      <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+        Edit the public parameter2 of this wearable.
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="input-field col s12 m7">
+        <input value="@w.getPublicParameter3()" id="public_parameter3" name="public_parameter3" type="text">
+        <label for="public_parameter3">Public Parameter3</label>
+      </div>
+      <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+        Edit the public parameter3 of this wearable.
+      </div>
+    </div>
+
+    <input id="csrfToken" type="hidden" name="csrfToken" value="@token"/>
+
+    <div class="row center">
+      <div class="col s12">
+        <a id="cancelBtn" href="@backTo()" class="btn-flat cancelBtn">CANCEL</a>
+        <button class="btn" type="submit">SAVE</button>
+      </div>
+      <div class="col s12">
+        <a id="deleteWearableBtn"
+          style="margin-top: 8px;"
+          href="#!"
+          class="btn red white-text btn-delete-source"
+          hx-delete="@deleteFrom()"
+          hx-confirm="Are you sure you want to reset all data in this dataset? This action is not reversible! Click OK to reset, cancel to stop."
+          hx-include="#csrfToken"
+          hx-swap="none"
+          onclick="setTimeout(function(){location.replace('@routes.ProjectsController.viewResources(w.getProject().getId())')}, 800);">
+          DELETE WEARABLE: @w.getName()
+        </a>
+      </div>
+    </div>
+  </form>
+
+</div>
+
+@sendTo() = {
+  @if(option == "GOOGLEFIT") {
+    @routes.GoogleFitWearablesController.editMe(w.getId())
+  } else {
+    @routes.FitbitWearablesController.editMe(w.getId())
+  }
+}
+
+@backTo() = {
+  @if(option == "GOOGLEFIT") {
+    @routes.GoogleFitWearablesController.view(w.getId())
+  } else {
+    @routes.FitbitWearablesController.view(w.getId())
+  }
+}
+
+@deleteFrom() = {
+  @if(option == "GOOGLEFIT") {
+    @routes.GoogleFitWearablesController.delete(w.getId().toString())
+  } else {
+    @routes.FitbitWearablesController.delete(w.getId().toString())
+  }
+}

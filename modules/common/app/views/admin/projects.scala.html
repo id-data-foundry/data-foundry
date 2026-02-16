@@ -1,0 +1,18 @@
+@(csrfToken: String)
+@administrator("Projects", "projects") {
+
+<div class="row">
+	<div class="col s12">
+		<h4>End-of-life projects</h4>
+	</div>
+</div>
+<div class="row">
+	<div class="col s12">
+		<a class="btn" hx-get="@routes.AdminController.actionableProjects("")" hx-trigger="load" hx-swap="outerHTML">Request projects overview</a>
+		<form hx-post="@routes.AdminController.runFullRetentionChecks()" >
+			<input type="hidden" name="csrfToken" value="@csrfToken">
+			<button class="btn btn-outline" type="submit">Run full checks</button>
+		</form>
+	</div>
+</div>
+}

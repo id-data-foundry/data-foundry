@@ -1,0 +1,45 @@
+@(items: List[controllers.AdminController.ArchivableItem], totalOpenProjects: Integer, totalArchivedProjects: Integer, csrfToken: String)
+<style type="text/css">
+	table.table td {
+		vertical-align: top;
+	}
+</style>
+
+<p>
+	<b>Actionable projects</b>: @items.size() of @totalOpenProjects <br>
+	<b>Freezable projects</b>: @totalArchivedProjects
+</p>
+
+<table class="table">
+	<thead>
+		<th>
+			ID
+		</th>
+		<th>
+			Name + Team
+		</th>
+		<th>
+			Ended >1 year ago
+		</th>
+		<th>
+			Archived
+		</th>
+		<th>
+			#participants to deidentify
+		</th>
+		<th>
+			#devices to deidentify
+		</th>
+		<th>
+			#wearables to unlink
+		</th>
+		<th>
+			Actions
+		</th>
+	</thead>
+	<tbody>
+	@for(item <- items) {
+		@admin.components.actionableProject(item, csrfToken)
+	}
+	</tbody>
+</table>

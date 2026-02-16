@@ -1,0 +1,254 @@
+@(project : Project, user: Person, csrfToken : String)
+
+@main("Publish project", "profile") {
+
+  <style>
+    .publishingInfo {
+      display: none;
+    }
+  </style>
+
+  <!-- navigation -->
+  <nav class="">
+    <div class="row">
+      <div class="col s12">
+        <a id="homeBtn" href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+        <a href="@routes.ProjectsController.view(project.getId())" class="breadcrumb">@project.getName()</a>
+        <a href="#" class="breadcrumb">Publish</a>
+      </div>
+    </div>
+  </nav>
+
+	<div class="row">
+    <div class="col s12">
+  		<h2>Publish Project</h2>
+  	</div>
+  </div>
+
+  <div class="row">
+    <form class="col s12" 
+          hx-post="@routes.ProjectsController.publishProject(project.getId())"
+          hx-target="#formActions"
+          hx-swap="innerHTML"
+          hx-disabled-elt="#submitBtn, #exportBtn">
+      
+      <div class="row">
+        <div class="col s12">
+          <b>Authors</b>
+        </div>
+        <details>
+          <summary>Check authors and their ORCID identifiers</summary>
+          @authorDetails(project.getOwner())
+          @for(c <- project.getCollaborators()) {
+            @authorDetails(c.getCollaborator())
+          }
+        </details>
+      </div>
+
+      <div class="row">
+
+        <div class="col s12">
+          <b>Meta-data</b>
+        </div>
+
+        <details>
+          <summary>Check project meta-data</summary>
+
+          <div class="input-field col s12 m7">
+            <textarea id="project_introduction" class="materialize-textarea countMe" name="intro" data-length="1000" required="" maxlength="1000">@project.getIntro()</textarea>
+            <label for="project_introduction">Project description</label>
+          </div>
+          <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+            This will be shown also to participants as part of the consent form, so adding a few details helps in getting consent from your participants.
+          </div>
+
+          <div class="input-field col s12 m7">
+            <select id="license" name="license" required="required" class="validate">
+              <option value="" disabled>Choose project license</option>
+              <option value="MIT" @if(project.getLicense() == "MIT"){selected}>MIT license</option>
+              <option value="CC BY" @if(project.getLicense() == "CC BY"){selected}>CreativeCommons Attribution</option>
+              <option value="CC BY-SA" @if(project.getLicense() == "CC BY-SA"){selected}>CreativeCommons Attribution ShareAlike</option>
+              <option value="CC BY-ND" @if(project.getLicense() == "CC BY-ND"){selected}>CreativeCommons Attribution-NoDerivs</option>
+              <option value="CC BY-NC" @if(project.getLicense() == "CC BY-NC"){selected}>CreativeCommons Attribution-NonCommercial</option>
+              <option value="CC BY-NC-SA" @if(project.getLicense() == "CC BY-NC-SA"){selected}>CreativeCommons Attribution-NonCommercial-ShareAlike</option>
+              <option value="CC BY-NC-ND" @if(project.getLicense() == "CC BY-NC-ND"){selected}>CreativeCommons Attribution-NonCommercial-NoDerivs</option>
+            </select>
+            <label>Project license</label>
+          </div>
+      		<div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+            Enter a license for this project (including all its datasets). We support different <a href="@routes.HomeController.licenses()" target="_blank">licenses</a>, please do take a moment to choose the right license.
+      		</div>
+          <script type="text/javascript">
+            
+            $('#chooseLicenseMIT').click(function (e) {
+              $('#license').val("MIT license text...");
+
+              e.preventDefault();
+              return false;
+            });
+
+            $('#chooseLicenseCommons').click(function (e) {
+              $('#license').val("Creative commons license text...");
+
+              e.preventDefault();
+              return false;
+            });
+
+          </script>
+
+          <div class="input-field col s12 m7">
+            <input value="@project.getKeywords()" id="keywords" name="keywords" type="text" class="validate countMe" data-length="255" maxlength="255">
+            <label for="keywords">Key words</label>
+          </div>
+          <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+            Keywords relating to the content and the place/period of origin of the data.
+          </div>
+
+@*
+          <div class="input-field col s12 m7">
+            <input value="@project.getDoi()" id="doi" name="doi" type="text" class="validate countMe" data-length="255" maxlength="255">
+            <label for="doi">Digital object identifier</label>
+          </div>
+          <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+            Digital object identifier.
+          </div>
+*@
+
+          <div class="input-field col s12 m7">
+            <input value="@project.getRelation()" id="relation" name="relation" type="text" class="validate countMe" data-length="255" maxlength="255">
+            <label for="relation">Relation</label>
+          </div>
+          <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+            Relation is which refer to a related dataset, publication or journal article.
+          </div>
+
+          <div class="input-field col s12 m7">
+            <input value="@project.getOrganization()" id="organization" name="organization" type="text" class="validate countMe" data-length="255" maxlength="255">
+            <label for="organization">Organization</label>
+          </div>
+          <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+            Organizations involved, subsidizer (subsidy number).
+          </div>
+
+          <div class="input-field col s12 m7">
+            <textarea id="remarks" class="materialize-textarea countMe" name="remarks" data-length="1000" maxlength="1000">@project.getRemarks()</textarea>
+            <label for="remarks">Remarks</label>
+          </div>
+          <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+            General remarks / comments.
+          </div>
+
+        </details>
+
+      </div>
+
+
+      <div class="row">
+        <div class="col s12">
+          <b>Datasets</b>
+        </div>
+      </div>
+
+      @for(ds <- utils.DatasetUtils.scriptsExcluded(project.getOperationalDatasets())) {
+      <div class="row" style="margin-bottom: 0; border-bottom: 1px grey dotted;">
+        <div class="col s12 m3">
+          <p>
+            <label>
+              <input name="exportDataset[]" type="checkbox" value="@ds.getId()" checked>
+              <span>@ds.getName()</span>
+              <span class="typetag @ds.toColorBG()">@ds.toUIString()</span>
+            </label>
+          </p>
+        </div>
+        <div class="col s12 m9">
+          <p>
+            @ds.getDescription()
+          </p>
+        </div>
+      </div>
+      }
+
+      </div>
+      
+      <input type="hidden" name="csrfToken" value="@csrfToken"/>
+      <input type="hidden" name="project_id" value="@project.getId()">
+
+      <div class="row">
+        <div class="col s12 input-field">
+
+          <p>
+            <label>
+              <input name="exportOption" value="export" type="radio" checked />
+              <span>Export ZIP archive only</span>
+            </label>
+          </p>
+          <p>
+            <label>
+              <input name="exportOption" value="publish" type="radio" />
+              <span>Publish dataset</span>
+            </label>
+          </p>
+          <details class="publishingInfo">
+            <summary>Publishing information</summary>
+            <p>
+              Zenodo is a free repository to share scientific data. Built and developed by researchers, to ensure that everyone can join in Open Science. It allows  researchers to upload and share research datasets.
+            </p>
+            <p>
+              When you publish your project you create a "deposit" to upload data to Zenodo. The deposit is the publication itself. It contains title, date, authors, DOI, description, and much other optional metadata. Once created, we can upload files to the deposit.
+            </p>
+            <p>
+              Data Foundry will use the Zenodo API, which is available at https://zenodo.org/api/ and requires authentication through an access token. The access token is generated in <code>Zenodo Settings > Applications > Personal access tokens</code>. Access tokens are generated with permissions called "scopes", and we need the "deposit:write" scope to create deposits and upload files. After defining a name for the access token and selecting the scope, the site will generate a key, i.e., a random string that we will use to authenticate with the API. Please treat the key as a secret because anyone with the key can upload files on your behalf.
+            </p>
+          </details>
+        </div>
+        <div class="col s12 input-field publishingInfo">
+          <input id="publishKey" name="publishKey" type="text" placeholder="" value="@user.getIdentityProperty("zenodoAccessToken")">
+          <label for="publishKey">Zenodo publish key</label>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col s12" id="formActions">
+          <div class="progress htmx-indicator"><div class="indeterminate"></div></div>
+          <div class="input-field">
+            <button id="exportBtn" class="btn" type="submit">Submit</button>
+            <a href="@routes.ProjectsController.view(project.getId())" class="btn-flat cancelBtn">Cancel</a>
+      	  </div>
+      	</div>
+      </div>
+
+      <script>
+        document.querySelectorAll('input[type=radio]').forEach(d => {
+          d.addEventListener('change', () => {
+            let checked = document.querySelectorAll('input[type=radio]')[1].checked;
+            document.querySelector('#publishKey').required = checked;
+            document.querySelectorAll('.publishingInfo').forEach(d1 => {
+              d1.style.display = checked ? 'block' : 'none';
+            })
+          });
+        });
+      </script>
+
+    </form>
+  </div>
+
+}
+
+@authorDetails(a: Person) = {
+<div class="row">
+  <div class="col s12 m4" style="margin-top: 1.75rem;">
+    @a.getName()
+  </div>
+  <div class="input-field col s12 m3">
+    <input type="text" title="Enter a valid ORCID iD in the format: 0000-0000-0000-0000"
+      id="author_orcid_@a.getId()" 
+      name="author_orcid_@a.getId()" 
+      pattern="\d{4}-\d{4}-\d{4}-\d{3}[0-9X]" 
+      value="@a.getIdentityProperty("orcid")">
+    <label for="author_orcid_@a.getId()">Author ORCID</label>
+  </div>
+  <div class="input-field col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+    The author name, email and ORCID if provided, will be exported together with the project and dataset meta-data.
+  </div>
+</div>
+}

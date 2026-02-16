@@ -1,0 +1,206 @@
+@()
+@main("ESP Web Tools", "tools") {
+
+    <style>
+      .hidden {
+        display: none;
+      }
+      .supported-info {
+        display: none;
+      }
+      esp-web-install-button[install-supported] + .supported-info {
+        display: block;
+      }
+    </style>
+    <script module>
+      import("@routes.Assets.versioned("vendor/esp-web-tools/install-button.js")");
+    </script>
+
+
+  <!-- navigation -->
+  <nav class="">
+    <div class="row">
+      <div class="col s12">
+        <a id="homeBtn" href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+        <a href="#" class="breadcrumb">ESP Web Tools</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="row">
+    <div class="col s12">
+      <h3>
+        ESP Web Tools
+      </h3>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col s12">
+      <h4>1. MicroPython Web Installer</h4>
+      <p>
+        This page allows you quickly and easily install <a href="https://micropython.org/" target="_blank">MicroPython</a> on ESP32 boards directly from the browser. 
+        Simply connect the board to an USB port, click on the button "Connect", select the device and have MicroPython running on your board! *If you are using the Making Sense of Sensors board, hold the boot button while inserting your usb cable*
+      </p>
+      <esp-web-install-button manifest="@routes.Assets.versioned("vendor/esp-web-tools/micropython-1.24.1/manifest.json")">
+        <i slot="unsupported" style="color: red; font-size: 1.5rem;">
+          This functionality is not available because your browser does not support Web
+          Serial. Open this page in Google Chrome or Microsoft Edge instead<span
+            class="not-supported-i hidden"
+          >
+            (but not on your iOS device)</span
+          >.
+          <br><br>
+        </i>
+      </esp-web-install-button>
+      <p class="supported-info">
+        If you don't see your ESP device in the list of devices to choose, you
+        might need to install
+        <a href="#drivers">the drivers</a>. Also, you might need to hold the boot button while inserting your usb cable.
+        <br>
+
+        <details>
+          <summary><b>Troubleshooting</b></summary>
+          <ul>
+            <li>
+              __ Check that your USB cable supports data and not just charging.
+            </li>
+            <li>
+              __ Check that you have selected the right USB serial device (and not your mouse or keyboard).
+            </li>
+            <li>
+              __ Check that you have a working ESP32 (test with another computer?).
+            </li>
+          </ul>
+        </details>
+      </p>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col s12">
+
+      <h4>2. Retrieve MAC address</h4>
+      <p>
+        If you need the ESP32 MAC address to register the device on a WIFI network using <a href="https://iotroam.org" target="_blank">IoT Roam</a>, get it here:
+      </p>
+      <p>
+        <span id="mac-address"><button id="get-mac" class="btn">Get MAC!</button></span>
+      </p>
+      <script>
+          document.querySelector('#get-mac').addEventListener('click', async () => {
+              const port = await navigator.serial.requestPort();
+              await port.open({ baudRate: 115200 });
+              readFromESP32(port);
+              const script = `import ubinascii\r\n
+import network\r\n
+wlan_sta = network.WLAN(network.STA_IF)\r\n
+wlan_sta.active(True)\r\n
+wlan_mac = wlan_sta.config("mac")\r\n
+print('MAC: ' + ubinascii.hexlify(wlan_mac).decode())\r\n`;
+              const encoder = new TextEncoder();
+              const writer = port.writable.getWriter();
+              await writer.write(encoder.encode(script));
+              writer.releaseLock()
+              await new Promise(resolve => setTimeout(resolve, 1100));
+              port.close()
+          });
+          class StreamTransformer {
+              constructor() {
+                  this.chunks = ""
+              }
+              transform(e, t) {
+                  this.chunks += e;
+                  const i = this.chunks.split("\r\n");
+                  this.chunks = i.pop(),
+                  i.forEach((e => t.enqueue(e + "\r\n")))
+              }
+              flush(e) {
+                  e.enqueue(this.chunks)
+              }
+          }
+          async function readFromESP32(port) {
+              try {
+                await port.readable.pipeThrough(new TextDecoderStream, {
+                    signal: AbortSignal.timeout(1000)
+                }).pipeThrough(new TransformStream(new StreamTransformer)).pipeTo(new WritableStream({
+                    write: e => {
+                        if(e.indexOf(">>>") === -1 && e.indexOf("MAC: ") !== -1) {
+                          let MAC = e.replace("\r", "").replace("MAC: ", "")
+                          console.log("MAC: " + MAC)
+                          document.querySelector('#mac-address').innerHTML = `MAC address: <code>${MAC}</code> 👈`;
+                        }
+                    }
+                }))
+              } catch (e) {
+                // do nothing
+              }
+          }
+      </script>
+
+    </div>
+  </div>
+  <div class="row">
+    <div class="col s12">
+      <h4>3. Viper IDE</h4>
+      <p>
+        You can program your ESP32 with MicroPython directly in the browser. Open the development environment below:
+      </p>
+      <p>
+        <a href="@routes.Assets.versioned("vendor/viper-ide/index.html")" target="_blank" class="btn" id="OpenViperIDE">Open IDE</a> (in a new tab)
+      </p>
+
+      <br><br>
+      
+      <h4 id="drivers">USB Serial Drivers</h4>
+      <p>
+        If the serial port is not showing up, your computer might be missing the
+        drivers for the USB serial chip used in your ESP device. These drivers
+        work for most ESP devices:
+      </p>
+      <ul>
+        <li>
+          CP2102 (square chip):
+          <a
+            href="https://www.silabs.com/products/development-tools/software/usb-to-uart-bridge-vcp-drivers"
+            >driver</a
+          >
+        </li>
+        <li>
+          CH341:
+          <a
+            href="https://github.com/nodemcu/nodemcu-devkit/tree/master/Drivers"
+            >driver</a
+          >
+        </li>
+      </ul>
+      
+      <br>
+      <hr>
+      <br>
+      
+      <div class="">
+          Based on 
+          <a href="https://github.com/esphome/esp-web-tools">ESP Web Tools</a>, 
+          a project by
+          <a href="https://esphome.io">ESPHome</a>. 
+          Development is funded by
+          <a href="https://www.nabucasa.com">Nabu Casa</a>.
+      </div>
+
+      <script>
+        if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+          document.querySelector(".not-supported-i").classList.remove("hidden");
+        }
+
+        setTimeout(() => {
+          if(document.querySelectorAll('[install-unsupported]').length > 0) {
+            document.querySelectorAll('.btn').forEach(d => {
+              d.setAttribute('disabled', true)
+            })
+          }
+        }, 1000)
+      </script>
+    </div>
+  </div>
+}

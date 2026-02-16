@@ -1,0 +1,12 @@
+@(lnes : List[LabNotesEntry])
+
+<div class="row">
+	<div class="col s12">
+    @for(lne <- lnes) {
+    	<p>
+    		<span class="new badge @lne.logType.toColor()">@lne.logType</span>
+    		&nbsp; <span>@lne.message</span> <span style="color: #999">(@lne.timestamp)</span>
+    	</p>
+    }
+	</div>
+</div>

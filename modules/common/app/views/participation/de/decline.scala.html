@@ -1,0 +1,24 @@
+@(invite_token: String)
+
+@participating("Abgelehnte Teilnahme", invite_token) {
+
+  <br><br>
+
+  <div class="row">
+    <div class="col 12">
+      <h3>Abgelehnte Teilnahme</h3>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col s12">
+      <h5>Vielen Dank,</h5>
+      <p>
+        Wir haben Ihre Nachricht erhalten und gespeichert, dass Sie nicht teilnehmen möchten.
+      </p>
+      <p>
+        Falls Sie sich anders entscheiden, können Sie jederzeit <a href="@routes.ParticipationController.confirm(invite_token)">hier</a> wieder an der Studie teilnehmen.
+      </p>
+    </div>
+  </div>
+}

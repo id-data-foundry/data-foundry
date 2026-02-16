@@ -1,0 +1,104 @@
+@()
+(() => {
+
+	// Describe the title of your tour
+	const tourTitle = "Creating a new Starboard notebook"
+
+	// Define your tour steps:
+	//   element: specifies the element to highlight, use CSS selector syntax (as used by document.querySelector)
+	//   intro: this is the text to show in the popup
+	//   page: this is a regular expression for the page to show this step on
+	const tourSteps = [
+
+		// Intro + Project Creation
+		{ intro: 'Hi welcome to your first Data Foundry tutorial, In this tutorial we will show you how get started with starboard notebooks in Data Foundry!', page: '^/projects$' },
+	    { element: '#addProjectBtn', intro: 'We first have to create a new project. You can do so here.', page: '^/projects$' },
+	    { element: '#project_name', intro: 'Fill in a name for your new project something like "Starboard Notebook Tutorial"', page: '^/projects/add' },
+	    { element: '#project_introduction', intro: 'For the description you can put: "Data Foundry Notebooks".', page: '^/projects/add' },
+		{ element: 'details', intro: 'We already created a small template for you to get started with, you can find the templates options within advanced settings. So make sure to select the Starboard Notebook Tutorial template!*.', page: '^/projects/add' },
+		{ element: '#dataProtectionSection', intro: 'Before we get started, please read and agree to the following terms on data anonimization, this is important.', page: '^/projects/add' },
+	    { element: '#submitBtn', intro: 'Cool, you\'ve made your startboard project, Let\'s find your newly created notebook!', page: '^/projects/add' },
+
+		// OPEN EXISTING file
+		{ element: '#openDatasetBtn', intro: 'You can find our tutorial notebook in this existing dataset!', page: '^/projects/\\d+$' },
+		{ element: '#blueEditButton', intro: 'To get started with editing your notebook press the blue edit button to open the starboard environment"', page: '^/datasets/\\d+$' },
+
+		// Starboard specific
+		{ element: '.cell-controls-button', intro: 'Welcome to starboard, a python and javascript notebook environment in your browser, made to make getting started with data analysis easy. Lets fill in your first notebook!', page: '^/datasets/existing/edit/\\d+/1' },
+
+	];
+
+	const currentPage = window.location.pathname;
+	let currentStep = parseInt(localStorage.getItem('mss_current') || 0);
+
+	const pageSteps = tourSteps.map((step, index) => {
+	    step.index = index;
+
+	    // Add navigation properties
+	    const nextStep = tourSteps[index + 1];
+	    const prevStep = tourSteps[index - 1];
+
+		// Check if neighbouring steps are on the same page
+	    step.hasNextOnSamePage = nextStep && currentPage.match(nextStep.page);
+	    step.hasPrevOnSamePage = prevStep && currentPage.match(prevStep.page);
+	    step.isLastInTour = index === tourSteps.length - 1;
+
+	    return step;
+	}).filter(step => currentStep <= step.index && currentPage.match(step.page));
+
+	if(pageSteps.length == 0 && currentStep > 0) {
+	    localStorage.removeItem('mss_current');
+	    location.reload();
+	}
+	// Initialize Driver.js
+	const d = driver.js.driver();
+
+	d.setConfig({
+		allowClose: false,
+		onDestroyed: () => {
+			fetch('@routes.HomeController.stopTour()')
+		},
+		onHighlighted: (elem, step) => {
+			localStorage.setItem('mss_current', step.index)
+			document.querySelector(".driver-popover-close-btn").blur()
+		},
+		onCloseClick: () => {
+			localStorage.removeItem('mss_current')
+			d.destroy()
+		}
+	})
+	d.setSteps(pageSteps.map(step => {
+	    let buttons = ["close"];
+
+		// Based on neighbouring step flags, display relevant buttons
+	    if (step.hasPrevOnSamePage) {
+	        buttons.push("previous");
+	    }
+
+	    if (step.hasNextOnSamePage) {
+	        buttons.push("next");
+	    } else if (step.isLastInTour) {
+	        buttons.push("finish");
+	    }
+
+	    return {
+	        element: step.element,
+	        index: step.index,
+	        popover: {
+	            title: tourTitle,
+	            description: step.intro,
+	            showButtons: buttons
+	        }
+	    };
+	}));
+
+
+	const observeRefresh = new ResizeObserver(() => {
+		d.refresh(); // repositions and resizes highlight
+	});
+	// listen to when the advanced option section expands
+	if (window.location.pathname === '/projects/add') {
+		observeRefresh.observe(document.querySelector('#advancedSettings'));
+	}
+	d.drive();
+})();

@@ -1,0 +1,279 @@
+@(csrfToken : String, project : Project)
+
+@main("Edit project", "profile") {
+
+  <!-- navigation -->
+  <nav class="">
+    <div class="row">
+      <div class="col s12">
+        <a id="homeBtn" href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+        <a id="projectBtn" href="@routes.ProjectsController.view(project.getId())" class="breadcrumb">@project.getName()</a>
+        <a href="#" class="breadcrumb">Edit</a>
+      </div>
+    </div>
+  </nav>
+
+	<div class="row">
+    <div class="col s12">
+  		<h2>Edit Project</h2>
+  	</div>
+  </div>
+
+  <div class="row">
+    <form class="col s12" action="@routes.ProjectsController.editMe(project.getId())" method="POST">
+      
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input value="@project.getName()" id="project_name" name="project_name" type="text" class="validate" required="">
+          <label for="project_name">Project name</label>
+        </div>
+    		<div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+    			Enter the public name of the project here. This should make sense to other people as well, so nothing like "test project", "Joe's first project", "final study"... ;-)
+    		</div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <textarea id="project_introduction" class="materialize-textarea countMe" name="intro" data-length="1000" required="" maxlength="1000">@project.getIntro()</textarea>
+          <label for="project_introduction">Project introduction</label>
+        </div>
+    		<div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+    			This will be shown also to participants as part of the consent form, so adding a few details helps in getting consent from your participants.
+    		</div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <select id="license" name="license" required="required" class="validate">
+            <option value="" disabled>Choose project license</option>
+            <option value="MIT" @if(project.getLicense() == "MIT"){selected}>MIT license</option>
+            <option value="CC BY" @if(project.getLicense() == "CC BY"){selected}>CreativeCommons Attribution</option>
+            <option value="CC BY-SA" @if(project.getLicense() == "CC BY-SA"){selected}>CreativeCommons Attribution ShareAlike</option>
+            <option value="CC BY-ND" @if(project.getLicense() == "CC BY-ND"){selected}>CreativeCommons Attribution-NoDerivs</option>
+            <option value="CC BY-NC" @if(project.getLicense() == "CC BY-NC"){selected}>CreativeCommons Attribution-NonCommercial</option>
+            <option value="CC BY-NC-SA" @if(project.getLicense() == "CC BY-NC-SA"){selected}>CreativeCommons Attribution-NonCommercial-ShareAlike</option>
+            <option value="CC BY-NC-ND" @if(project.getLicense() == "CC BY-NC-ND"){selected}>CreativeCommons Attribution-NonCommercial-NoDerivs</option>
+          </select>
+          <label>Project license</label>
+        </div>
+    		<div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          Enter a license for this project (including all its datasets). We support different <a href="@routes.HomeController.licenses()" target="_blank">licenses</a>, please do take a moment to choose the right license.
+    		</div>
+        <script type="text/javascript">
+          
+          $('#chooseLicenseMIT').click(function (e) {
+            $('#license').val("MIT license text...");
+
+            e.preventDefault();
+            return false;
+          });
+
+          $('#chooseLicenseCommons').click(function (e) {
+            $('#license').val("Creative commons license text...");
+
+            e.preventDefault();
+            return false;
+          });
+
+        </script>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input value="@project.getKeywords()" id="keywords" name="keywords" type="text" class="validate countMe" data-length="255" maxlength="255">
+          <label for="keywords">Key words</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          Keywords relating to the content and the place/period of origin of the data.
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input value="@project.getDoi()" id="doi" name="doi" type="text" class="validate countMe" data-length="255" maxlength="255">
+          <label for="doi">Digital object identifier</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          Digital object identifier.
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input value="@project.getRelation()" id="relation" name="relation" type="text" class="validate countMe" data-length="255" maxlength="255">
+          <label for="relation">Relation</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          Relation is which refer to a related dataset, publication or journal article.
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input value="@project.getOrganization()" id="organization" name="organization" type="text" class="validate countMe" data-length="255" maxlength="255">
+          <label for="organization">Organization</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          Organizations involved, subsidizer (subsidy number).
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <textarea id="remarks" class="materialize-textarea countMe" name="remarks" data-length="1000" maxlength="1000">@project.getRemarks()</textarea>
+          <label for="remarks">Remarks</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          General remarks / comments.
+        </div>
+      </div>
+
+@*
+      <div class="row">
+        <div class="col s12 m7">
+          <b>collaborators:</b><br> 
+          <p>
+            @for(index <- 0 until project.getCollaborators().size) {
+              @project.getCollaborators().get(index).getCollaborator().getFirstname() @project.getCollaborators().get(index).getCollaborator().getLastname()
+              @if(index != (project.getCollaborators().size-1)){
+                ,
+              }
+            }
+            </p>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          List of collaborators.
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col s12 m7">
+          <p>
+            <b>subscriptions:</b><br>
+              @for(index <- 0 until project.getSubscribers().size) {
+                @project.getSubscribers().get(index).getSubscriber().getFirstname() @project.getSubscribers().get(index).getSubscriber().getLastname()
+                @if(index != (project.getSubscribers().size-1)){
+                  ,
+                }
+              }
+          </p>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          List of subscribers.
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+        	<p>
+	          <label>
+	          	<input id="isPublic" name="isPublic" type="checkbox" @if(project.isPublicProject()){checked}>
+	          	<span>Public project</span>
+	          </label>
+			    </p>
+        </div>
+   		  <div class="input-field col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          <p>
+            Public projects are visible for everyone in this organization. 
+            <br>
+            They will appear in search results, and their meta-data such as name, introduction and data type will be visible, but not actual contents.
+          </p>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <p>
+            <label>
+              <input id="isShareable" name="isShareable" type="checkbox" @if(project.isShareableProject()){checked}>
+              <span>Anybody can subscribe to this project</span>
+            </label>
+          </p>
+        </div>
+        <div class="input-field col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          <p>
+            Project subscriptions allow users to curate a list of favorite projects.
+            <br>
+            They can only see public meta-data, not actual contents.
+          </p>
+        </div>
+      </div>
+*@
+      
+      <input type="hidden" name="csrfToken" value="@csrfToken"/>
+      <input type="hidden" name="project_id" value="@project.getId()">
+
+      <div class="row">
+        <div class="col s12">
+          <div class="input-field">
+            <button id="submitBtn" class="btn" type="submit">SAVE</button>
+            <a href="@routes.ProjectsController.view(project.getId())" class="btn-flat cancelBtn">CANCEL</a>
+      	  </div>
+      	</div>
+      </div>
+
+    </form>
+  </div>
+
+  @if(!project.isArchivedProject()) {
+
+@*
+  <!-- project extend action -->
+  <div class="row" style="margin: 4em 0;">
+    <div 
+          class="col s12"
+          style="padding-top: 4em; border-top: 1px solid lightgray;">
+      <h5>Extend this project</h5>
+      <p>
+        If you need the datasets in this project to be active longer, you can extend the duration of this project and all its datasets <i>in one go</i>. Please note that this action will extend the duration of ALL datasets in this project by 1, 2, or 3 months from today.
+      </p>
+      <p>
+        <form action="@routes.ProjectsController.extendProjectDuration(project.getId())" method="POST">
+          <div class="row">
+            <div class="input-field col s12 m6">
+              <select name="months">
+                <option value="1" selected="selected">1 month</option>
+                <option value="2">2 months</option>
+                <option value="3">3 months</option>
+              </select>
+              <label>Extend project and all datasets by...</label>
+            </div>
+            <input type="hidden" name="csrfToken" value="@csrfToken"/>
+            <div class="input-field col s12 m6">
+              <button id="submitBtn" class="btn" type="submit">Extend project</button>
+            </div>
+          </div>
+        </form>
+      </p>
+    </div>
+  </div>
+*@
+
+  <!-- project api access -->
+  <div class="row" style="margin: 4em 0;">
+    <a id="api-access"></a>
+    <div 
+        id="GenerateAPIKey"
+        hx-get="@routes.ProjectsController.projectApiAccess(project.getId())"
+        hx-trigger="load"
+        class="col s12"
+        style="padding-top: 4em; border-top: 1px solid lightgray;">
+    </div>
+  </div>
+
+  <!-- project archival action -->
+  <div class="row" style="margin: 4em 0;">
+    <div 
+          class="col s12"
+          style="padding-top: 4em; border-top: 1px solid lightgray;">
+      <h5>Archive this project</h5>
+      <p>
+          You can archive this project if you don't anticipate further data to be collected or other changes to the datasets. Please note that archiving a project means also that the project resources such as participants, devices and waearables will be anonymized and deactivated. This further ensures that the data in the project cannot be modified.
+      </p>
+      <p>
+          <a onclick="return confirm('Are you sure you want to archive this project? Click OK to archive, cancel to stop.')" href="@routes.ProjectsController.archive(project.getId())" class="btn">Archive Project</a>
+      </p>
+    </div>
+  </div>
+  }
+}

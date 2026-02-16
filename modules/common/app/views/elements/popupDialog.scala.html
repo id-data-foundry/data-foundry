@@ -1,0 +1,16 @@
+@()
+<!-- modal for checking dataset before adding a wearable -->
+<div id="modal_popup" class="">
+  <div class="modal-content center">
+    <h4 id="popup_title">Attention</h4>
+    <p id="popup_msg"></p>
+    <br><br>
+    <a onclick="switchModal('#modal_popup', 'close');" class="collection-item waves-effect waves-light">CLOSE</a>
+  </div>
+</div>
+<script type="text/javascript">
+window.addEventListener('DOMContentLoaded', () => {
+  $("#modal_popup").addClass("modal");
+  $('.modal').modal();
+});
+</script>

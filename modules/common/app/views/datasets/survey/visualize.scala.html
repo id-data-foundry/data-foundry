@@ -1,0 +1,28 @@
+@(dataset: Dataset, visualization : String)
+@main("View survey results", "profile") {
+	<script src='@routes.Assets.versioned("javascripts/vega.min.js")' type="text/javascript"></script>
+
+	<!-- navigation -->
+	<nav class="">
+		<div class="row">
+			<div class="col s12">
+				<a href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+				<a href="@routes.ProjectsController.view(dataset.getProject().getId())" class="breadcrumb">@dataset.getProject().getName()</a>
+				<a href="@routes.DatasetsController.view(dataset.getId())" class="breadcrumb">@dataset.getName()</a>
+				<a href="#" class="breadcrumb">Visualization</a>
+			</div>
+		</div>
+	</nav>
+
+	<h3>Results visualization</h3>
+	<br>
+
+	<a href="@routes.DatasetsController.download(dataset.getId())" class="btn">
+		@elements.icon("file_download")
+		Download
+	</a>
+
+	<div class="row">
+		@Html(visualization)
+	</div>
+}

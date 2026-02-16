@@ -1,0 +1,141 @@
+@()
+(() => {
+
+	// Describe the title of your tour
+	const tourTitle = "Making Sense of Sensors Tour"
+
+	// Define your tour steps:
+	//   element: specifies the element to highlight, use CSS selector syntax (as used by document.querySelector)
+	//   intro: this is the text to show in the popup
+	//   page: this is a regular expression for the page to show this step on
+	const tourSteps = [
+		{ intro: 'Hi welcome to Data Foundry, the data design platform. I see you are taking the Making Sense of Sensors course, lets get started on configuring your new Data Foundry Logger! To do this, lets first setup a Data Foundry project, and collect some information, so make sure to open a notepad in which you can copy and paste. You will need to use a browser like chrome edge or brave to follow the tutorial', page: '^/projects$' },
+	    { element: '#addProjectBtn', intro: 'To create a new project here press this big green button!', page: '^/projects$' },
+	    { element: '#project_name', intro: 'Fill in a name for your new project', page: '^/projects/add' },
+	    { element: '#project_introduction', intro: 'Never go without an introduction.', page: '^/projects/add' },
+		{ element: 'details', intro: 'In the advanced settings you can find templates, *so make sure to select the Making Sense of Sensors template!*.', page: '^/projects/add' },
+		{ element: '#dataProtectionSection', intro: 'But before we go, please read and agree to the following terms on data anonimization.', page: '^/projects/add' },
+	    { element: '#submitBtn', intro: 'Cool, you\'ve made your first project, Let\'s go!', page: '^/projects/add' },
+		{ intro: 'There we are, this is the homepage of your new project, here you will find the notebooks and datasets.', page: '^/projects/\\d+$' },
+		{ element: '#datasetList', intro: 'These are your datasets, in the notebooks dataset you can find the notebooks you will need for your assignments, however we now need to get the dataset ID for your datalogger, please select the *Data Logger* dataset', page: '^/projects/\\d+$' },
+		{ intro: 'This is gonna be the place where your datalogger will upload its data.', page: '^/datasets/.*$' },
+		{ element: '#datasetID', intro: 'Please copy the dataset ID to your notepad, we will need this later!', page: '^/datasets/\\d+$' },
+		{ element: '#generateDatasetToken', intro: 'now generate a dataset API token by pressing the green button, and copy this code to your notepad', page: '^/datasets/\\d+$' },
+		{ element: '#dataTools', intro: 'Now let\'s go program your esp32!', page: '^/datasets/\\d+$' },
+		{ element: '#ESPWebToolsButton', intro: 'we can do this in the esp web tool section!', page: '^/tools$' },
+		{ intro: 'This is the ESP web tool section of Data Foundry. Here, you can easily program your microcontrollers with MicroPython. To get started, please plug in your ESP32 - you should connect to a device thats called either "Espressif Device" or "Board CDC"', page: '^/tools/esp-web-tools' },
+		{ element: 'esp-web-install-button', intro: 'Lets first install micropython onto your data logger by pressing the install button and following the prompts.', page: '^/tools/esp-web-tools' },
+		{ element: '#OpenViperIDE', intro: 'Now we have installed micropython onto the datalogger, its time for programming, we can do this on the following page!', page: '^/tools/esp-web-tools' },
+		{ intro: 'This is viper ide, here you can easily program your microcontrollers with micropython. It should contain all the tools you need to get your ESP projects to work.', page: '^/assets/vendor/viper-ide/index.html' },
+		{ element: '#btn-conn-usb', intro: 'Let program the datalogger, to get started we first have to connect to our ESP32', page: '^/assets/vendor/viper-ide/index.html'  },
+		{ element: '#msosTourViperTools', intro: 'For the programming itself, we already built the code for you, so its only a case of filling in the last details. You can find the code examples on the following panel.', page: '^/assets/vendor/viper-ide/index.html' },
+		{ element: '#msosTourExample', intro: 'For the datalogger we will need 2 files, this file will contain all of the important code. To make sure this file is started when you power in the ESP32. Click to install the file and call this file main.py in the pop-up.', page: '^/assets/vendor/viper-ide/index.html'  },
+		{ element: '#msosTourSecrets', intro: 'For security and simplicity reason we also have a second "secrets" file containing all personal credentials and the wifi details, never share the contents of this file. Click to install the file and make sure to call this file secrets.py in the pop-up.', page: '^/assets/vendor/viper-ide/index.html'  },
+		{ element: '#msosTourViperPackages', intro: 'Before we configure the code, lets install the required libraries first', page: '^/assets/vendor/viper-ide/index.html'  },
+		{ element: '#menu-pkg', intro: 'Make sure to Install the adafruit-uRTC and OOCSI library', page: '^/assets/vendor/viper-ide/index.html'  },
+		{ element: '#msosTourViperFiles', intro: 'Now to fill in the last important details, go back to the files section', page: '^/assets/vendor/viper-ide/index.html'  },
+		{ element: '#menu-files', intro: 'All that is left to do is filling in the secrets.py file with the right data please fill in your wifi credentials, device_id, api_key and dataset_id and save with CTRL+s or CMD+s', page: '^/assets/vendor/viper-ide/index.html'  },
+		{ element: '#btn-run-icon', intro: 'After which you can upload and try out the code with this blue play button.', page: '^/assets/vendor/viper-ide/index.html' },
+		{ element: '#terminal-container', intro: 'Might any problem arise, then you can read what is going wrong down here.', page: '^/assets/vendor/viper-ide/index.html' },
+		{ intro: 'That is it, good luck getting your datalogger to work!', page: '^/assets/vendor/viper-ide/index.html' },
+	];
+
+	const currentPage = window.location.pathname;
+	let currentStep = parseInt(localStorage.getItem('mss_current') || 0);
+	const pageSteps = tourSteps.map((step, index) => {
+			step.index = index; return step;
+		}).filter(step => currentStep <= step.index && currentPage.match(step.page))
+
+	if(pageSteps.length == 0 && currentStep > 0) {
+		localStorage.removeItem('mss_current')
+		location.reload()
+	}
+
+	// Initialize Driver.js
+	const d = driver.js.driver();
+
+	d.setConfig({
+		allowClose: false,
+		onDestroyed: () => {
+			fetch('@routes.HomeController.stopTour()')
+		},
+		onHighlighted: (elem, step) => {
+			localStorage.setItem('mss_current', step.index)
+			document.querySelector(".driver-popover-close-btn").blur()
+		},
+		onCloseClick: () => {
+			localStorage.removeItem('mss_current')
+			d.destroy()
+		}
+	})
+	d.setSteps(pageSteps.map(step => {
+		let buttons = ["close"]
+		if(pageSteps.indexOf(step) > 0) {
+			// all steps except first in page steps get a previous
+			buttons.push("previous")
+		}
+		if(pageSteps.indexOf(step) < pageSteps.length - 1) {
+			// all steps except for last in page steps get a next
+			buttons.push("next")
+		} else if(tourSteps.indexOf(step) == tourSteps.length - 1) {
+			// final step in tour gets a done
+			buttons.push("next")
+		}
+
+		return {
+			element: step.element,
+			index: step.index,
+			popover: {
+	            title: tourTitle,
+	            description: step.intro,
+	            showButtons: buttons
+	        }
+		};
+	}));
+	// function to update driverjs overlays when elements change
+	const observeRefresh = new ResizeObserver(() => {
+		d.refresh(); // repositions and resizes highlight
+	});
+	// listen to when the advanced option section expands
+	if (window.location.pathname === '/projects/add') {
+		observeRefresh.observe(document.querySelector('#advancedSettings'));
+	}
+
+	const generateButton = document.getElementById('tokenCodeField');
+
+	if (generateButton) {
+		generateButton.addEventListener('input', () => {
+			d.refresh(); // called when user changes input value
+		});
+	}
+
+	function observeInstallDialog() {
+	  let isPresent = document.querySelector('ewt-install-dialog') !== null ||
+	                  document.querySelector('ewt-no-port-picked-dialog') !== null;
+
+	  let progress;
+	  new MutationObserver(() => {
+	    const currentlyPresent = document.querySelector('ewt-install-dialog') !== null ||
+	                             document.querySelector('ewt-no-port-picked-dialog') !== null;
+
+	    if (currentlyPresent && !isPresent) {
+	      console.log('Install dialog appeared');
+	      progress = d.getActiveIndex();
+	      d.destroy();
+	    } else if (!currentlyPresent && isPresent) {
+	      console.log('Install dialog disappeared');
+	      d.drive(progress);
+	      d.moveNext();
+	    }
+
+	    isPresent = currentlyPresent;
+	  }).observe(document.body, { childList: true, subtree: true });
+	}
+
+	d.drive();
+
+	if (window.location.pathname === '/tools/esp-web-tools') {
+		observeInstallDialog()
+	}
+
+})();

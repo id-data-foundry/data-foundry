@@ -1,0 +1,121 @@
+@(csrfToken : String, dataset: Dataset, fileId : Long, fileName : String, fileType : String, fileContent : String)(implicit request: Http.Request)
+
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Data Foundry: Edit notebook</title>
+        <link rel="shortcut icon" type="image/png" href="@routes.Assets.versioned("images/favicon.png")">
+        <link href="@routes.Assets.versioned("vendor/starboard/starboard-notebook.css")" rel="stylesheet">
+        <script src="@routes.Assets.versioned("javascripts/jquery.min.js")" type="text/javascript"></script>
+        <script src="@routes.Assets.versioned("javascripts/htmx.min.js")" type="text/javascript"></script>
+        <script src="@routes.Assets.versioned("javascripts/driver.js")" type="text/javascript"></script>
+        <script src="@routes.DatasetsController.jsRoutes()" type="text/javascript"></script>
+        <link rel="stylesheet" href="@routes.Assets.versioned("stylesheets/vendor/driver.css")">
+        <style type="text/css">
+            #datasetsHelp {
+                border-bottom: solid 1px #333;
+            }
+            #compatWarning .col {
+                background: #fdd;
+                color: red;
+                padding: 1em;
+                border: dashed 3px red;
+            }
+
+            .row {
+                margin-top: 1em;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container" style="padding: 1em;max-width: 960px;">
+            <div class="row">
+                <div class="col">
+                    << <a class="btn-flat grey-text" href="@routes.DatasetsController.view(dataset.getId())">back to dataset page</a>
+                </div>
+            </div>
+
+            <br>
+
+            <div class="row">
+                <div class="col">
+                    <h2>Notebook: @fileName</h2>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col">
+                    Edit your notebook below, don't forget to save your changes. You can <a class="btn-flat" hx-get="@controllers.tools.routes.StarboardController.datasets()" hx-target="#datasetsHelp">access your datasets</a> with a bit of JavaScript or Python, depending on the notebook cell. 
+@*
+                    Check out our <a class="btn-flat" href="">getting started guide</a> and <a class="btn-flat" href="#">notebook tutorial</a>.
+*@
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col">
+                    <a class="btn btn-primary" id="saveBtn">Save notebook</a>
+                    <a class="btn btn-primary" id="exportBtn" href="@controllers.tools.routes.StarboardController.exportJupyterNotebook(dataset.getId(), fileId)" download="@{fileName.replace("gg", "")}ipynb" style="color: white;">Export Jupyter notebook</a>
+                </div>
+            </div>
+
+            <div class="row" id="datasetsHelp">
+            </div>
+
+        </div>
+        <script type="text/javascript">
+            // starboard configuration
+            window.starboardArtifactsUrl = `@routes.Assets.versioned("vendor/starboard/")`;
+            setTimeout(function() {
+                let r = jsRoutes.controllers.api.CompleteDSController.downloadFile(@dataset.getId(), @fileId);
+                $.ajax({
+                    url: r.url,
+                    type: r.type,
+                    success: function(data) {
+                        window.initialNotebookContent = data;
+                        let script = document.createElement("script");
+                        script.src = "@routes.Assets.versioned("vendor/starboard/starboard-notebook.js")";
+                        document.body.appendChild(script);
+                    }
+                })
+            }, 500);
+
+            ////////////////////////////////////////////////
+
+            $('#saveBtn').click(function(e) {
+                // open
+                $('.starboard-notebook-footer-content button:eq(0)').click()
+
+                // retrieve
+                let content = $('#starboard-source-modal-content').text()
+                // this seems to be needed for markdown saving
+                content = content.replaceAll('\n\\\n', '\n\n')
+
+                // scramble content
+                @Html(utils.StringUtils.scrambleTransport("content"))
+
+                // close
+                setTimeout(function() {
+                    $('.modal-dialog button:eq(3)').click()
+                }, 500);
+
+                // save request
+                let r = jsRoutes.controllers.api.CompleteDSController.saveFile(@dataset.getId(), @fileId);
+                $.ajax({
+                    url: r.url,
+                    type: r.type,
+                    contentType: 'text/plain',
+                    data: content,
+                    beforeSend: function(request) {
+                        request.setRequestHeader('Csrf-Token', '@csrfToken');
+                    }
+                });
+
+                e.preventDefault();
+                return false;
+            })
+        </script>
+    </body>
+    <script src="@routes.HomeController.getFlashes()" type="text/javascript"></script>
+</html>

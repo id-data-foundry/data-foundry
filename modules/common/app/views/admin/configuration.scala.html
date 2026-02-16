@@ -1,0 +1,148 @@
+@import utils.conf._
+@(config: Configurator)
+@administrator("Configuration", "config") {
+<style>
+	span[title] {
+		cursor: pointer;
+	}
+</style>
+
+<div class="row">
+	<div class="col s12">
+		<h4>Configuration</h4>
+	</div>
+</div>
+
+<div class="row">
+	<div class="col s12">
+		<small>Hover over 🔑 to peek at the current configuration value.</small>
+		<br><br>
+
+		<h5>General Settings</h5>
+		<b>Base URL</b>
+		<p class="grey-text" style="margin: 0;">Public URL of the DataFoundry service, used for link generation and redirects.</p>
+		@configOption(ConfigurationUtils.DF_BASEURL)
+
+		<b>Upload directory for files in datasets</b>
+		<p class="grey-text" style="margin: 0;">Filesystem path for dataset uploads (must include trailing slash).</p>
+		@configOption(ConfigurationUtils.DF_UPLOAD_DIR)
+
+		<b>Python command</b>
+		<p class="grey-text" style="margin: 0;">Command or path for the Python interpreter used in data processing scripts.</p>
+		@configOption(ConfigurationUtils.DF_PROCESSING_PYTHON)
+
+		<br>
+		<h5>Authentication & Access</h5>
+		<b>Single-Sign On (SSO)</b>
+		<p class="grey-text" style="margin: 0;">OpenID Connect (OIDC) authentication settings for user login.</p>
+		@configOption(ConfigurationUtils.DF_SSO_CLIENT)
+		@configOption(ConfigurationUtils.DF_SSO_SECRET)
+		@configOption(ConfigurationUtils.DF_SSO_TENANT)
+		@configOption(ConfigurationUtils.DF_SSO_DISCOVERY)
+
+		<b>User roles</b>
+		<p class="grey-text" style="margin: 0;">Email addresses of users assigned to specific administrative and operational roles.</p>
+		@configListOption(ConfigurationUtils.DF_USERS_ADMINS)
+		@configListOption(ConfigurationUtils.DF_USERS_LIBRARIANS)
+		@configListOption(ConfigurationUtils.DF_USERS_MODERATORS)
+		@configListOption(ConfigurationUtils.DF_USERS_REVIEWERS)
+
+		<b>Auth and API Keys</b>
+		<p class="grey-text" style="margin: 0;">Security keys for various levels of system and user-level API access.</p>
+		@configOption(ConfigurationUtils.DF_KEYS_API)
+		@configOption(ConfigurationUtils.DF_KEYS_AUTH_API)
+		@configListOption(ConfigurationUtils.DF_KEYS_V2_MULTI_API)
+		@configListOption(ConfigurationUtils.DF_KEYS_V2_USER_API)
+		@configOption(ConfigurationUtils.DF_KEYS_PROJECT_TOKEN)
+		@configListOption(ConfigurationUtils.DF_KEYS_REGISTRATION_ACCESS)
+
+		<br>
+		<h5>Email & Messaging</h5>
+		<b>Microsoft Mail via MS Graph</b>
+		<p class="grey-text" style="margin: 0;">Email sending configuration using Microsoft Graph API (O365).</p>
+		@configOption(ConfigurationUtils.DF_MSGRAPH_FROM)
+		@configOption(ConfigurationUtils.DF_MSGRAPH_CLIENT)
+		@configOption(ConfigurationUtils.DF_MSGRAPH_SECRET)
+		@configOption(ConfigurationUtils.DF_MSGRAPH_TENANT)
+		@configOption(ConfigurationUtils.DF_MSGRAPH_DISCOVERY)
+
+		<b>Java Mail configuration</b>
+		<p class="grey-text" style="margin: 0;">Standard SMTP settings for sending emails (fallback if MS Graph is unavailable).</p>
+		@configOption(ConfigurationUtils.DF_MAIL_FROM)
+		@configOption(ConfigurationUtils.DF_MAIL_HOST)
+		@configOption(ConfigurationUtils.DF_MAIL_USERNAME)
+		@configOption(ConfigurationUtils.DF_MAIL_PASSWORD)
+
+		<b>Telegram bot</b>
+		<p class="grey-text" style="margin: 0;">Credentials for the integrated Telegram bot for notifications and interaction.</p>
+		@configOption(ConfigurationUtils.DF_TELEGRAM_BOTNAME)
+		@configOption(ConfigurationUtils.DF_TELEGRAM_BOTTOKEN)
+
+		<b>Slack channel webhook</b>
+		<p class="grey-text" style="margin: 0;">Webhook URL for posting system notifications and error logs to Slack.</p>
+		@configOption(ConfigurationUtils.DF_VENDOR_SLACK_CHANNEL)
+
+		<br>
+		<h5>Branding & Links</h5>
+		<b>Organization links</b>
+		<p class="grey-text" style="margin: 0;">Branding, legal, and community links displayed in the application UI.</p>
+		@configOption(ConfigurationUtils.DF_LINKS_ORGANIZATION)
+		@configOption(ConfigurationUtils.DF_LINKS_ABOUT)
+		@configOption(ConfigurationUtils.DF_LINKS_PRIVACY)
+		@configOption(ConfigurationUtils.DF_LINKS_SCIENTIFIC_INTEGRITY)
+		@configOption(ConfigurationUtils.DF_LINKS_DATA_PROTECTION)
+		@configOption(ConfigurationUtils.DF_LINKS_ORG_LOGO)
+		@configOption(ConfigurationUtils.DF_LINKS_TEAMS_COMMUNITY)
+
+		<b>Feedback form</b>
+		<p class="grey-text" style="margin: 0;">External URL for the platform's feedback or support form.</p>
+		@configOption(ConfigurationUtils.DF_FEEDBACK_LINK)
+
+		<br>
+		<h5>External Services & AI</h5>
+		<b>OOCSI Server</b>
+		<p class="grey-text" style="margin: 0;">Address of the OOCSI broker used for real-time data streaming.</p>
+		@configOption(ConfigurationUtils.DF_OOCSI_SERVER)
+
+		<b>Fitbit API</b>
+		<p class="grey-text" style="margin: 0;">OAuth2 credentials for Fitbit data integration and wearable tracking.</p>
+		@configOption(ConfigurationUtils.DF_VENDOR_FITBIT_ID)
+		@configOption(ConfigurationUtils.DF_VENDOR_FITBIT_SECRET)
+
+		<b>GoogleFit API</b>
+		<p class="grey-text" style="margin: 0;">OAuth2 credentials for Google Fit integration and health data access.</p>
+		@configOption(ConfigurationUtils.DF_VENDOR_GOOGLEFIT_ID)
+		@configOption(ConfigurationUtils.DF_VENDOR_GOOGLEFIT_SECRET)
+
+		<b>OpenAI API key</b>
+		<p class="grey-text" style="margin: 0;">API key for OpenAI services (e.g., GPT-based data analysis).</p>
+		@configOption(ConfigurationUtils.DF_VENDOR_OPENAI)
+
+		<b>Local AI host</b>
+		<p class="grey-text" style="margin: 0;">Host URL for self-hosted AI model services (e.g., LocalAI).</p>
+		@configOption(ConfigurationUtils.DF_LOCALAI_HOST)
+
+	</div>
+</div>
+
+}
+
+@configOption(key: String) = {
+<p>
+	@if(config.isDefined(key)) {
+	✅ <code>@key</code> <span title="@config.getString(key)">🔑</span>
+	} else {
+	❌ <code>@key</code> -> example: <code>@config.getDefaultValueFormat(key)</code>
+	}
+</p>
+} 
+
+@configListOption(key: String) = {
+<p>
+	@if(config.isListDefined(key)) {
+	✅ <code>@key</code> @for(s <- config.getStringList(key)) { <span title="@s">🔑</span> }
+	} else {
+	❌ <code>@key</code> -> example: <code>@config.getDefaultValueFormat(key)</code>
+	}
+</p>
+}

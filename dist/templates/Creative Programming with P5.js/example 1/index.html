@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P5.js Example</title>
+    <script src="p5.min.js"></script>
+    <style>
+        body {
+            padding: 0;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f0f0;
+        }
+    </style>
+</head>
+<body>
+    <script>
+        function setup() {
+            createCanvas(400, 400);
+        }
+
+        function draw() {
+            background(220);
+            
+            // Draw a circle that follows the mouse
+            fill(255, 0, 0);
+            noStroke();
+            ellipse(mouseX, mouseY, 50, 50);
+            
+            // Draw a grid of shapes
+            for (let i = 0; i < width; i += 40) {
+                for (let j = 0; j < height; j += 40) {
+                    fill(0, 100, 255, 100);
+                    rect(i, j, 30, 30);
+                }
+            }
+        }
+    </script>
+</body>
+</html>

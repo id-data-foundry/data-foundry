@@ -1,0 +1,92 @@
+@import "mobile/settings/_chartist-settings.scss";
+@import "mobile/chartist.scss";
+
+html {
+	-webkit-text-size-adjust: 100%;
+}
+
+body {
+	font-family: sans-serif;
+}
+
+.nav {
+	padding: 1.5em 0.5em;
+	position: fixed;
+	top: 0;
+	background: white;
+	z-index: 1000;
+	margin: 0;
+	left: 0;
+	width: 100%;
+}
+
+.nav + div {
+	margin-top: 80px;
+}
+
+.btn {
+	padding: 0.2em 0.2em;
+	border: 1px solid black;
+	border-radius: 3px;
+	font-size: 0.9em;
+	font-weight: bold;
+	
+	&.active {
+		background: lightblue;
+	}
+	&.data {
+		background: lightgreen;
+	}
+}
+
+div.hidden {
+	display: none;
+}
+
+.ct-legend {
+	position: relative;
+	z-index: 10;
+	list-style: none;
+	text-align: center;
+	display: block;
+	font-size: 0.9em;
+
+    li {
+        position: relative;
+        padding-left: 23px;
+        margin-bottom: 3px;
+        float: left;
+    }
+
+    li:before {
+		display: inline-block;
+		position: relative;
+		left: 0;
+		top: 7px;
+		width: 10px;
+		height: 10px;
+		content: '';
+		margin-right: 10px;
+		margin-bottom: 3px;
+		border: 3px solid transparent;
+		border-radius: 2px;
+		cursor: pointer;
+    }
+
+    li.inactive:before {
+        background: transparent;
+    }
+
+    &.ct-legend-inside {
+        position: absolute;
+        top: 0;
+        right: 0;
+    }
+
+    @for $i from 0 to length($ct-series-colors) {
+        .ct-series-#{$i}:before {
+            background-color: nth($ct-series-colors, $i + 1);
+            border-color: nth($ct-series-colors, $i + 1);
+        }
+    }
+}

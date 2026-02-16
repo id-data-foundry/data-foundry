@@ -1,0 +1,248 @@
+@(allPersons : List[Person] , allProjects : List[Project], allDatasets : List[Dataset], allSubscriptions : List[Subscription], allCollaborations : List[Collaboration], allClusters : List[sr.Cluster], allParticipants : List[sr.Participant], allDevices: List[sr.Device], allWearables : List[sr.Wearable])
+
+@main("Showlist") {
+
+<!-- my projects -->
+  <div class="row">
+  
+    <!-- person table -->
+    <div class="col s12 m6 l4">
+      <div class="green lighten-3">
+        <table class="striped">
+         <thead>
+         	<tr>
+              <th class="center-align"><b>Persons</b></th>
+          </tr>
+         </thead>
+         <tbody>
+         @for(index <- 0 until allPersons.size){
+          <tr>
+              <th class="center-align">
+                @allPersons(index).getFirstname() [at] @allPersons(index).getId() 
+                <br>@allPersons(index).getEmail()
+              </th>
+          </tr>
+          }
+        </tbody>
+       </table>
+      </div>
+    </div>
+    
+    <!-- project table -->
+    <div class="col s12 m6 l4">
+      <div class="green lighten-3">
+        <table class="striped">
+         <thead>
+         	<tr>
+              <th class="center-align"><b>Projects</b></th>
+          </tr>
+         </thead>
+         <tbody>
+         @for(index <- 0 until allProjects.size){
+          <tr>
+              <th class="center-align">
+                @allProjects(index).getName() [at] @allProjects(index).getId() 
+                <br>
+                @if(allProjects(index).isPublicProject()) { Public Project 
+                } else { Private Project }
+                @if(allProjects(index).isShareableProject()) { & Shareable
+                } else { & Unshareable }
+                <br>
+                @allProjects(index).getOwner().getName()
+              </th>
+          </tr>
+          }
+        </tbody>
+       </table>
+      </div>
+    </div>
+    
+    <!-- dataset table -->
+    <div class="col s12 m6 l4">
+      <div class="green lighten-3">
+        <table class="striped">
+         <thead>
+         	<tr>
+              <th class="center-align"><b>Datasets</b></th>
+          </tr>
+         </thead>
+         <tbody>
+         @for(index <- 0 until allDatasets.size){
+          <tr>
+              <th class="center-align">
+                @allDatasets(index).getName() [at] @allDatasets(index).getId()
+                <br> [in] @allDatasets(index).getProject().getId() - @allDatasets(index).getProject().getName()
+              </th>
+          </tr>
+          }
+        </tbody>
+       </table>
+      </div>
+    </div>
+  </div>
+
+<!-- relation tables -->
+  <div class="row">
+    <!-- subscription table -->
+    <div class="col s12 m6 l6">
+      <div class="green lighten-3">
+        <table class="striped">
+         <thead>
+          <tr>
+              <th class="center-align"><b>Subscriptions</b></th>
+          </tr>
+         </thead>
+         <tbody>
+         @for(index <- 0 until allSubscriptions.size){
+          <tr>
+              <th class="center-left">
+                @allSubscriptions(index).getProject().getName() [at] @allSubscriptions(index).getId() [by] @allSubscriptions(index).getSubscriber().getFirstname() @allSubscriptions(index).getSubscriber().getLastname()
+              </th>
+          </tr>
+          }
+        </tbody>
+       </table>
+      </div>
+    </div>
+
+    <!-- collaboration table -->
+    <div class="col s12 m6 l6">
+      <div class="green lighten-3">
+        <table class="striped">
+         <thead>
+          <tr>
+              <th class="center-align"><b>Collaborations</b></th>
+          </tr>
+         </thead>
+         <tbody>
+         @for(index <- 0 until allCollaborations.size){
+          <tr>
+              <th class="center-left">
+                @allCollaborations(index).getProject().getName() [at] @allCollaborations(index).getId() [with] @allCollaborations(index).getCollaborator().getFirstname() @allCollaborations(index).getCollaborator().getLastname()
+              </th>
+          </tr>
+          }
+        </tbody>
+       </table>
+      </div>
+    </div>
+  </div>
+
+<!-- Sources tables row.1 -->
+  <div class="row">
+
+    <!-- cluster table -->
+    <div class="col s12 m6 l6">
+      <div class="green lighten-3">
+        <table class="striped">
+         <thead>
+          <tr>
+              <th class="center-align"><b>Clusters</b></th>
+          </tr>
+         </thead>
+         <tbody>
+         @for(index <- 0 until allClusters.size){
+          <tr>
+              <th class="center-left">
+                @allClusters(index).getName() [with] @allClusters(index).getRefId() [at] @allClusters(index).getId() 
+                <br>[has participants] 
+                @for(index_p <- 0 until allClusters(index).getParticipants().size){
+                    @allClusters(index).getParticipants().get(index_p).getId()
+                    @if(index_p != (allClusters(index).getParticipants().size-1)) {
+                    ,
+                    }
+                }
+                <br>[has devices]
+                @for(index_p <- 0 until allClusters(index).getDevices().size){
+                    @allClusters(index).getDevices().get(index_p).getId()
+                    @if(index_p != (allClusters(index).getDevices().size-1)) {
+                    ,
+                    }
+                }
+                <br>[has wearables]
+                @for(index_p <- 0 until allClusters(index).getWearables().size){
+                    @allClusters(index).getWearables().get(index_p).getId()
+                    @if(index_p != (allClusters(index).getWearables().size-1)) {
+                    ,
+                    }
+                }
+              </th>
+          </tr>
+          }
+        </tbody>
+       </table>
+      </div>
+    </div>
+
+    <!-- participant table -->
+    <div class="col s12 m6 l6">
+      <div class="green lighten-3">
+        <table class="striped">
+         <thead>
+          <tr>
+              <th class="center-align"><b>Participants</b></th>
+          </tr>
+         </thead>
+         <tbody>
+         @for(index <- 0 until allParticipants.size){
+          <tr>
+              <th class="center-left">
+                @allParticipants(index).getName() [at] @allParticipants(index).getId() [with] @allParticipants(index).getEmail()
+              </th>
+          </tr>
+          }
+        </tbody>
+       </table>
+      </div>
+    </div>
+  </div>
+
+<!-- Sources tables row.2 -->
+  <div class="row">
+
+    <!-- device table -->
+    <div class="col s12 m6 l6">
+      <div class="green lighten-3">
+        <table class="striped">
+         <thead>
+          <tr>
+              <th class="center-align"><b>Devices</b></th>
+          </tr>
+         </thead>
+         <tbody>
+         @for(index <- 0 until allDevices.size){
+          <tr>
+              <th class="center-left">
+                @allDevices(index).getName() [at] @allDevices(index).getId() [by] @allDevices(index).getCategory() [with] @allDevices(index).getSubtype()
+              </th>
+          </tr>
+          }
+        </tbody>
+       </table>
+      </div>
+    </div>
+
+    <!-- Wearable table -->
+    <div class="col s12 m6 l6">
+      <div class="green lighten-3">
+        <table class="striped">
+         <thead>
+          <tr>
+              <th class="center-align"><b>Wearables</b></th>
+          </tr>
+         </thead>
+         <tbody>
+         @for(index <- 0 until allWearables.size){
+          <tr>
+              <th class="center-left">
+                @allWearables(index).getName() [at] @allWearables(index).getId() [with] @allWearables(index).getBrand() 
+              </th>
+          </tr>
+          }
+        </tbody>
+       </table>
+      </div>
+    </div>
+  </div>
+
+}

@@ -1,0 +1,343 @@
+@(ds : Dataset)(implicit request: Http.Request)
+@main("Tree view for Entity dataset", "profile") {
+		<script src="@routes.DatasetsController.jsRoutes()" type="text/javascript"></script>
+    <!-- navigation -->
+    <nav class="">
+      <div class="row">
+        <div class="col s12">
+          <a href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+          <a href="@routes.ProjectsController.view(ds.getProject().getId())" class="breadcrumb">@ds.getProject().getName()</a>
+          <a href="@routes.DatasetsController.view(ds.getId())" class="breadcrumb">@ds.getName()</a>
+          <a href="#" class="breadcrumb">Data tree</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="row">
+      <div class="col s12">
+        <a href="@api.routes.EntityDSController.table(ds.getId())" class="btn right white black-text" style="margin-top: 2rem;">
+            Table View ⌗
+        </a>
+        <h2>@ds.getName() 🌳</h2>
+      </div>
+    </div>
+
+    <!-- Controls Row -->
+    <div class="row">
+        <div class="col s12 m6">
+            <div class="input-field">
+                <input id="resource-filter" type="text" class="validate">
+                <label for="resource-filter">Filter by Resource ID</label>
+            </div>
+        </div>
+        <div class="col s12 m6 right-align" style="margin-top: 20px;">
+             <button id="collapse-all-btn" class="btn grey lighten-1">
+                Collapse All
+             </button>
+             <button id="expand-all-btn" class="btn grey lighten-1">
+                Expand All
+             </button>
+        </div>
+    </div>
+
+		<div class="row">
+			<div class="col s12">
+                <div id="tree-wrapper">
+                    <div id="tree-container">
+                        <div class="progress">
+                            <div class="indeterminate"></div>
+                        </div>
+                    </div>
+                </div>
+			</div>
+		</div>
+
+    <style>
+        #tree-wrapper {
+            border: 1px solid #e0e0e0;
+            border-radius: 2px;
+            background-color: #fff;
+        }
+        
+        .item-row {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e0e0e0;
+            overflow-x: auto;
+        }
+        
+        .item-row:last-child {
+            border-bottom: none;
+        }
+        
+        /* Alternating background shading */
+        .item-row:nth-child(odd) {
+            background-color: #fafafa;
+        }
+        .item-row:nth-child(even) {
+            background-color: #ffffff;
+        }
+
+        .item-header-line {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 8px;
+        }
+
+        .item-title {
+            font-size: 1.1rem;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .item-timestamp {
+            color: #757575;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            margin-left: 10px;
+        }
+
+        .item-data {
+            margin-left: 0;
+        }
+
+        .item-pp {
+            font-size: 0.9rem;
+            margin-bottom: 5px;
+            font-style: italic;
+        }
+
+        /* Tree Styles */
+        .tree-item {
+            margin-left: 20px;
+            padding: 2px 0;
+            border-left: 1px solid #e0e0e0;
+            padding-left: 8px;
+        }
+        .tree-key {
+            font-weight: 600;
+            color: #424242;
+        }
+        .tree-value {
+            color: #212121;
+        }
+        
+        details > summary {
+            cursor: pointer;
+            list-style: none;
+            color: #616161;
+            font-weight: 500;
+        }
+        details > summary::-webkit-details-marker {
+            display: none;
+        }
+        details > summary::before {
+            content: '▶ ';
+            font-size: 0.8em;
+            display: inline-block;
+            width: 1.2em;
+        }
+        details[open] > summary::before {
+            content: '▼ ';
+        }
+        .json-object {
+            margin-left: 5px;
+        }
+    </style>
+
+    <script type="text/javascript">
+    	
+		document.addEventListener('DOMContentLoaded', function() {
+			
+            var allItems = []; // Store raw data for referencing if needed, though we filter DOM nodes
+
+			downloadData();
+		
+			function downloadData() {
+				let r = jsRoutes.controllers.api.EntityDSController.getItemsNested(@ds.getId());
+                
+                fetch(r.url, {
+                    method: r.type,
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(json => {
+                    const treeContainer = document.getElementById("tree-container");
+                    treeContainer.innerHTML = '';
+                    
+                    if(json.length == 0) {
+                        treeContainer.innerHTML = "<div class='item-row'>No data available.</div>";
+                        return;
+                    } 
+                    
+                    allItems = json;
+                    // render data
+                    json.forEach(function(item) {
+                        renderItem(item);
+                    });
+                })
+                .catch(error => {
+                     const treeContainer = document.getElementById("tree-container");
+                     treeContainer.innerHTML = "<div class='item-row red-text'>Error loading data.</div>";
+                     console.error('Error:', error);
+                });
+			}
+
+            // Filter Logic
+            document.getElementById("resource-filter").addEventListener("keyup", function(e) {
+                var value = e.target.value.toLowerCase();
+                var items = document.querySelectorAll("#tree-container .item-row");
+                
+                items.forEach(function(item) {
+                    var titleText = item.querySelector(".item-title").textContent.toLowerCase();
+                    if (titleText.indexOf(value) > -1) {
+                        item.style.display = "";
+                    } else {
+                        item.style.display = "none";
+                    }
+                });
+            });
+
+            // Collapse All Logic
+            document.getElementById("collapse-all-btn").addEventListener("click", function() {
+                var details = document.querySelectorAll("#tree-container details");
+                details.forEach(function(detail) {
+                    detail.removeAttribute("open");
+                });
+            });
+
+             // Expand All Logic (optional helper)
+            document.getElementById("expand-all-btn").addEventListener("click", function() {
+                var details = document.querySelectorAll("#tree-container details");
+                details.forEach(function(detail) {
+                    detail.setAttribute("open", "true");
+                });
+            });
+
+            function renderItem(item) {
+                let container = document.createElement("div");
+                container.classList.add("item-row");
+                
+                // Header Line: resource_id (ID) ... timestamp
+                let header = document.createElement("div");
+                header.classList.add("item-header-line");
+                
+                let titleText = (item.resource_id || "No Resource ID") + " (" + item.id + ")";
+                let title = document.createElement("span");
+                title.classList.add("item-title");
+                title.textContent = titleText;
+                
+                let timestamp = document.createElement("span");
+                timestamp.classList.add("item-timestamp");
+                timestamp.textContent = item.ts;
+                
+                header.appendChild(title);
+                header.appendChild(timestamp);
+                container.appendChild(header);
+
+                let dataContainer = document.createElement("div");
+                dataContainer.classList.add("item-data");
+                let hasContent = false;
+
+                // Public parameters
+                if (item.pp1 || item.pp2 || item.pp3) {
+                    let pps = [];
+                    if(item.pp1) pps.push("PP1: " + item.pp1);
+                    if(item.pp2) pps.push("PP2: " + item.pp2);
+                    if(item.pp3) pps.push("PP3: " + item.pp3);
+                    
+                    let ppDiv = document.createElement("div");
+                    ppDiv.classList.add("item-pp", "grey-text");
+                    ppDiv.textContent = pps.join(" | ");
+                    
+                    dataContainer.appendChild(ppDiv);
+                    hasContent = true;
+                }
+
+                // Data Tree
+                if (item.data) {
+                    let details = document.createElement("details");
+                    details.setAttribute("open", "true");
+                    
+                    let summary = document.createElement("summary");
+                    summary.textContent = "Data";
+                    details.appendChild(summary);
+                    
+                    let treeRoot = document.createElement("div");
+                    treeRoot.classList.add("json-object");
+                    renderJson(item.data, treeRoot);
+                    details.appendChild(treeRoot);
+                    
+                    dataContainer.appendChild(details);
+                    hasContent = true;
+                }
+                
+                if(hasContent) {
+                    container.appendChild(dataContainer);
+                }
+
+                document.getElementById("tree-container").appendChild(container);
+            }
+
+            function renderJson(data, container) {
+                if (typeof data === 'object' && data !== null) {
+                    // Object or Array
+                    for (let key in data) {
+                        if (Object.prototype.hasOwnProperty.call(data, key)) {
+                            let value = data[key];
+                            let itemDiv = document.createElement("div");
+                            itemDiv.classList.add("tree-item");
+                            
+                            if (typeof value === 'object' && value !== null) {
+                                let details = document.createElement("details");
+                                let summary = document.createElement("summary");
+                                
+                                let keySpan = document.createElement("span");
+                                keySpan.classList.add("tree-key");
+                                keySpan.textContent = key + ":";
+                                
+                                let typeSpan = document.createElement("span");
+                                typeSpan.classList.add("grey-text");
+                                typeSpan.textContent = " (" + (Array.isArray(value) ? "Array" : "Object") + ")";
+                                
+                                summary.appendChild(keySpan);
+                                summary.appendChild(document.createTextNode(" "));
+                                summary.appendChild(typeSpan);
+                                details.appendChild(summary);
+                                
+                                let childContainer = document.createElement("div");
+                                childContainer.classList.add("json-object");
+                                renderJson(value, childContainer);
+                                details.appendChild(childContainer);
+                                itemDiv.appendChild(details);
+                            } else {
+                                let keySpan = document.createElement("span");
+                                keySpan.classList.add("tree-key");
+                                keySpan.textContent = key + ":";
+                                
+                                let valueSpan = document.createElement("span");
+                                valueSpan.classList.add("tree-value");
+                                valueSpan.textContent = " " + String(value);
+                                
+                                itemDiv.appendChild(keySpan);
+                                itemDiv.appendChild(valueSpan);
+                            }
+                            container.appendChild(itemDiv);
+                        }
+                    }
+                } else {
+                    container.textContent = String(data);
+                }
+            }
+
+		});
+
+	</script>
+}

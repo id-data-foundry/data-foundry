@@ -1,0 +1,6 @@
+@(dataset: Dataset, user : String)(implicit request: Http.Request)
+@external("Foundry Project Site") {
+  @elements.dataset.datasetTitlebar(dataset, user) {
+      @elements.dataset.datasetDownloadButton(dataset, user)    
+  }
+}

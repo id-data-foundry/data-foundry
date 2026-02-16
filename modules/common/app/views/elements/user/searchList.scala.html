@@ -1,0 +1,11 @@
+@(users : List[Person])
+@for(user <- users) {
+<p>
+	<label>
+		<input type="radio" name="user" value="@user.getEmail()">
+		<span>
+			@user.getName()
+		</span>
+	</label>
+</p>
+}

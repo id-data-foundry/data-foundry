@@ -1,0 +1,240 @@
+@(token : String, p : Project)
+@main("Add googlefit dataset", "profile") {
+  <!-- navigation -->
+  <nav class="">
+    <div class="row">
+      <div class="col s12">
+        <a id="homeBtn" href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+		<a href="@routes.ProjectsController.view(p.getId())" class="breadcrumb">@p.getName()</a>
+		<a href="#" class="breadcrumb">Add GoogleFit dataset</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="row center">
+    <div class="col s12">  
+	  <h2>Add GoogleFit Dataset</h2>
+    </div>
+  </div>
+
+  <div class="row">
+  
+    <form class="col s12" action="@api.routes.GoogleFitDSController.addMe(p.getId())" method="POST" onsubmit="return checkDate()">
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input id="dataset_name" name="dataset_name" type="text" class="validate" required="">
+          <label for="dataset_name">Dataset Name</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          This should make sense to other people as well, so nothing like "test project", "Joe's first project", "final study"... ;-)
+        </div>
+      </div>
+      
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <textarea id="description" name="description" type="text" class="materialize-textarea countMe" required="" data-length="1000" maxlength="1000"></textarea>
+          <label for="description">Description</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          This text will be shown also to participants as part of the consent form, so adding a few details helps in getting consent from your participants.
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <!-- Modal Trigger -->
+		  <a id="addScopesBtn" href="#modal_add_scopes" class="btn-flat green-text modal-trigger right">Choose Scopes</a>
+		  <input placeholder="Uneditable, click the button to 'CHOOSE SCOPES'" id="scopes" name="scopes" type="text" required="required" class="validate">
+          <label for="scopes">Scopes</label>
+
+			<script>
+			    $("#scopes").on('keydown paste focus mousedown', function(e){
+			        if(e.keyCode != 9) // ignore tab
+			            e.preventDefault();
+			    });
+			</script>
+
+        </div>
+		<div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+			The scopes will not be able to be modified after this dataset being created!
+		</div>
+      </div>
+
+      <input type="hidden" id="scopes_main" name="scopes_main" value="">
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input id="start-date" name="start-date" type="text" class="datepicker">
+		  <label for="start-date">Start Date (yyyy-mm-dd)</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          Start Date will be set as today by default.
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input id="end-date" name="end-date" type="text" class="datepicker">
+		  <label for="end-date">End Date (yyyy-mm-dd)</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          End Date will be set as 3 months after Start Date by default.
+        </div>
+	  </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+        	<p>
+	          <label>
+	          	<input id="isPublic" name="isPublic" type="checkbox">
+	          	<span>This dataset is available for everyone.</span>
+	          </label>
+          </p>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          A public project will appear in search results and its meta-data such as name, introduction and data type will be visible, but not actual contents.
+        </div>
+      </div>
+      
+      <input type="hidden" name="csrfToken" value="@token"/>
+      <input type="hidden" name="project_id" value="@p.getId()">
+
+      <div class="row center">
+        <div class="input-field col s12">
+		  <a href="@routes.ProjectsController.viewResources(p.getId())" class="btn-flat cancelBtn">CANCEL</a>
+		  <button id="submitBtn" class="btn" type="submit">ADD</button>
+		</div>
+      </div>
+
+    </form>
+    
+  </div>
+  
+	@*
+	scopes of GoogleFit dataset are in particular sequence for performance! All the things, including the 
+	downloaded files, should be tested and checked after any modification of this selection window
+	*@
+	<!-- Modal for choosing scopes for new dataset -->
+	<div id="modal_add_scopes" class="">
+		<div class="modal-content">
+			<h4 class="center">Choose Scopes</h4>
+			<br>
+			<div class="row">
+				<div class="col s6">
+					<div class="collection">
+						<p>
+					      <label>
+					        <input id="activity" name="scope_main" value="activity" type="checkbox" />
+					        <span>Activity</span>
+					      </label>
+					    </p>
+					    <p>
+					      <label>
+					        <input id="calories" name="scope_main" value="calories" type="checkbox" />
+					        <span>Calories</span>
+					      </label>
+					    </p>
+					    <p>
+					      <label>
+					        <input id="speed" name="scope_main" value="speed" type="checkbox" />
+					        <span>Speed</span>
+					      </label>
+						</p>
+						<p>
+					      <label>
+					        <input id="heart_rate" name="scope_main" value="heart_rate" type="checkbox" />
+					        <span>Heart rate</span>
+					      </label>
+					    </p>
+					</div>
+				</div>
+				
+				<div class="col s6">
+					<div class="collection">
+					    <p>
+					      <label>
+					        <input id="steps" name="scope_main" value="step_count" type="checkbox" />
+					        <span>Step count</span>
+					      </label>
+					    </p>
+					    <p>
+					      <label>
+					        <input id="distance" name="scope_main" value="distance" type="checkbox" />
+					        <span>Distance</span>
+					      </label>
+						</p>
+						<p>
+							<label>
+							  <input id="weight" name="scope_main" value="weight" type="checkbox" />
+							  <span>Weight</span>
+							</label>
+						</p>
+						<p>
+							<label>
+							  <input id="sleep" name="scope_main" value="sleep" type="checkbox" />
+							  <span>Sleep</span>
+							</label>
+						</p>
+					</div>
+				</div>
+				
+			</div>
+			
+			<div class="row center">
+				<div class="col s12">
+					<a href="#!" class="modal-close btn white-text" onclick="checkScopes();">Done</a>
+				</div>
+			</div>
+			<script type="text/javascript">
+				var scopes;
+
+				$(document).ready(function($) {
+					$("#modal_add_scopes").attr("class", "modal");
+					$('.modal').modal({
+						onCloseEnd : function() {
+							$("input#scopes").val(scopes);
+						}
+					});
+
+					$("input[name=scope_main], input[name=scope_sub]").click(function(){
+						
+						// status after click!!
+						if(!$(this).prop("checked")) {
+							if($(this).val() == "activity") {
+								$("input[name=scope_sub]").removeAttr("checked");
+								$("input[name=scope_sub]").prop('checked',false).data('previousState',false);
+								$("input[name=scope_sub]").attr("disabled", "disabled");
+							} 
+							
+							$(this).removeAttr("checked");
+							
+						} else {
+							if($(this).val() == "activity") {
+								$("input[name=scope_sub]").removeAttr("disabled");
+							}
+							
+							$(this).attr("checked", "");
+						}
+					});
+				});
+
+				function checkScopes() {
+					scope_main = getCheckedValue("scope_main");
+					scope_sub = getCheckedValue("scope_sub");
+					scopes = scope_main + (scope_sub != "" ? (" " + scope_sub) : "");
+
+					$("input#scopes").val(scopes);
+					$("input#scopes_main").val(scope_main);
+				}
+
+				function getCheckedValue(checkBoxName) {
+				 	return $('input:checkbox[name=' + checkBoxName + '][checked="checked"]').map(function () {
+						    		return $(this).val();
+						  		})
+						  		.get()
+						  		.join(' ');
+				}
+			</script>
+		</div>
+	</div>
+}

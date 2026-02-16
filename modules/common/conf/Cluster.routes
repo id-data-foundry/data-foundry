@@ -1,0 +1,297 @@
+## OpenAPI/Swagger ROUTES ## 
+## basic path:/api/v2/clusters ##
+
+###
+ #  summary: list all clusters of the user / researcher
+ #  responses:
+ #    200:
+ #      description: success
+ #  deprecated: true
+ ###
+GET       /                                       controllers.swagger.ClusterApiController.clusters(request: Request)
+
+###
+ #  summary: view a specific cluster
+ #  parameters:
+ #    - name: "id"
+ #      in: "path"
+ #      description: "Get information of a specific cluster."
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #  responses:
+ #    200:
+ #      description: success
+ #      schema:
+ #        type: object
+ #        properties:
+ #          id:
+ #            description: "Id of wearable"
+ #            type: integer
+ #            format: "int64"
+ #          name:
+ #            type: string
+ #          project:
+ #            description: "Id of project"
+ #            type: integer
+ #            format: "int64"
+ #          participants:
+ #            description: "IDs of participants in this cluster"
+ #            type: array
+ #            items: 
+ #              type: integer
+ #              format: "int64"
+ #          wearables:
+ #            description: "IDs of wearables in this cluster"
+ #            type: array
+ #            items: 
+ #              type: integer
+ #              format: "int64"
+ #          devices:
+ #            description: "IDs of devices in this cluster"
+ #            type: array
+ #            items: 
+ #              type: integer
+ #              format: "int64"
+ #    400:
+ #      description: No input.
+ #    403:
+ #      description: Not valid user or mismatched password.
+ ###
+GET       /:id                                    controllers.swagger.ClusterApiController.cluster(request: Request, id : Long)
+
+###
+ #  summary: create a cluster 
+ #  parameters:
+ #    - in: "body"
+ #      name: "body"
+ #      description: "Necessary informations for adding a new cluster in the project."
+ #      required: true
+ #      schema:
+ #        type: object
+ #        required:
+ #          - "name"
+ #          - "project_id"
+ #        properties:
+ #          project_id:
+ #            type: "integer"
+ #            format: "int64"
+ #          name:
+ #            type: "string"
+ #            description: "The name for the cluster."
+ #  responses:
+ #    200:
+ #      description: success
+ #      schema:
+ #        type: object
+ #        properties:
+ #          id:
+ #            description: "Id of the new cluster"
+ #            type: integer
+ #            format: "int64"
+ #    400:
+ #      description: Not valid user.
+ #    403:
+ #      description: User or api-token is not valid or user can't access this operation.
+ ###
+POST      /add                                     controllers.swagger.ClusterApiController.add(request: Request)
+
+###
+ #  summary: rename a specific cluster
+ #  parameters:
+ #    - name: "id"
+ #      in: "path"
+ #      description: "The id of the cluster to update information."
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #    - name: "name"
+ #      in: "path"
+ #      description: "New name for the cluster."
+ #      required: true
+ #      type: "string"
+ #  responses:
+ #    200:
+ #      description: success
+ #      schema:
+ #        type: object
+ #        properties:
+ #          id:
+ #            description: "Id of the cluster"
+ #            type: integer
+ #            format: "int64"
+ #    400:
+ #      description: Not valid user.
+ #    403:
+ #      description: User or api-token is not valid or user can't access this operation.
+ ###
+GET      /rename/:id/:name                        controllers.swagger.ClusterApiController.rename(request: Request, id : Long, name: String)
+
+###
+ #  summary: delete a specific cluster
+ #  parameters:
+ #    - name: "id"
+ #      in: "path"
+ #      description: "The id of the cluster to delete."
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #  responses:
+ #    200:
+ #      description: success
+ #    400:
+ #      description: Not valid user.
+ #    403:
+ #      description: User or api-token is not valid or user can't access this operation.
+ ###
+GET      /delete/:id                              controllers.swagger.ClusterApiController.delete(request: Request, id : Long)
+
+###
+ #  summary: add a device to a specific cluster
+ #  parameters:
+ #    - name: "id"
+ #      in: "path"
+ #      description: "The id of the cluster to add to."
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #    - name: "deviceId"
+ #      in: "path"
+ #      description: "The id of the device to add."
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #  responses:
+ #    200:
+ #      description: success
+ #    400:
+ #      description: Not valid user.
+ #    403:
+ #      description: User or api-token is not valid or user can't access this operation.
+ ###
+GET      /addDevice/:id/:deviceId                 controllers.swagger.ClusterApiController.addDevice(request: Request, id : Long, deviceId : Long)
+
+###
+ #  summary: remove a device to a specific cluster
+ #  parameters:
+ #    - name: "id"
+ #      in: "path"
+ #      description: "The id of the cluster to remove from."
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #    - name: "deviceId"
+ #      in: "path"
+ #      description: "The id of the device to remove."
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #  responses:
+ #    200:
+ #      description: success
+ #    400:
+ #      description: Not valid user.
+ #    403:
+ #      description: User or api-token is not valid or user can't access this operation.
+ ###
+GET      /removeDevice/:id/:deviceId              controllers.swagger.ClusterApiController.removeDevice(request: Request, id : Long, deviceId : Long)
+
+###
+ #  summary: add a participant to a specific cluster
+ #  parameters:
+ #    - name: "id"
+ #      in: "path"
+ #      description: "The id of the cluster to add to."
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #    - name: "participantId"
+ #      in: "path"
+ #      description: "The id of the participant to add."
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #  responses:
+ #    200:
+ #      description: success
+ #    400:
+ #      description: Not valid user.
+ #    403:
+ #      description: User or api-token is not valid or user can't access this operation.
+ ###
+GET      /addParticipant/:id/:participantId       controllers.swagger.ClusterApiController.addParticipant(request: Request, id : Long, participantId : Long)
+
+###
+ #  summary: remove a participant from a specific cluster
+ #  parameters:
+ #    - name: "id"
+ #      in: "path"
+ #      description: "The id of the cluster to remove from."
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #    - name: "participantId"
+ #      in: "path"
+ #      description: "The id of the participant to remove."
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #  responses:
+ #    200:
+ #      description: success
+ #    400:
+ #      description: Not valid user.
+ #    403:
+ #      description: User or api-token is not valid or user can't access this operation.
+ ###
+GET      /removeParticipant/:id/:participantId    controllers.swagger.ClusterApiController.removeParticipant(request: Request, id : Long, participantId : Long)
+
+###
+ #  summary: add a wearable to a specific cluster
+ #  parameters:
+ #    - name: "id"
+ #      in: "path"
+ #      description: "The id of the cluster to add to."
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #    - name: "wearableId"
+ #      in: "path"
+ #      description: "The id of the wearable to add."
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #  responses:
+ #    200:
+ #      description: success
+ #    400:
+ #      description: Not valid user.
+ #    403:
+ #      description: User or api-token is not valid or user can't access this operation.
+ ###
+GET      /addWearable/:id/:wearableId             controllers.swagger.ClusterApiController.addWearable(request: Request, id : Long, wearableId : Long)
+
+###
+ #  summary: remove a wearable from a specific cluster
+ #  parameters:
+ #    - name: "id"
+ #      in: "path"
+ #      description: "The id of the cluster to remove from."
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #    - name: "wearableId"
+ #      in: "path"
+ #      description: "The id of the wearable to remove."
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #  responses:
+ #    200:
+ #      description: success
+ #    400:
+ #      description: Not valid user.
+ #    403:
+ #      description: User or api-token is not valid or user can't access this operation.
+ ###
+GET      /removeWearable/:id/:wearableId          controllers.swagger.ClusterApiController.removeWearable(request: Request, id : Long, wearableId : Long)

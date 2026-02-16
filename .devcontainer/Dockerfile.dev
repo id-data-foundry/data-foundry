@@ -1,0 +1,8 @@
+# Use DF base image
+FROM datafoundrydocker:basecontainer
+
+# Set working directory
+WORKDIR /app
+
+# Start the documentation build process (watching for changes in ./documentation)
+CMD ["/bin/bash", "-c", "(cd documentation && bundle install && bundle exec jekyll build --config _config_internal.yml --watch --force_polling > /app/logs/_jekyll_build.log 2>&1 &) && exec /bin/bash"]

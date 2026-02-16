@@ -1,0 +1,22 @@
+{
+    "name": "DataFoundry Dev Container",
+    "build": {
+        "dockerfile": "Dockerfile.dev",
+        "context": ".."
+    },
+    "workspaceFolder": "/app",
+    "mounts": ["source=${localWorkspaceFolder},target=/app,type=bind"],
+    "forwardPorts": [9000, 8001],
+    "runArgs": ["--rm", "-p", "9000:9000", "-p", "8001:8001"],
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "scala-lang.scala",
+                "scalameta.metals",
+                "ms-azuretools.vscode-docker"
+            ]
+        }
+    },
+    "postCreateCommand": "sbt update",
+    "remoteUser": "root"
+}

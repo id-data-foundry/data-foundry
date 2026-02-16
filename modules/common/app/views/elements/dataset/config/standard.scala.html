@@ -1,0 +1,21 @@
+@(dataset: Dataset, user : String)(implicit request: Http.Request)
+
+@if((user != null && !user.isEmpty()) && dataset.editableBy(user)) {
+<script src="@routes.DatasetsController.jsRoutes()" type="text/javascript"></script>
+<div class="row white">
+  <div class="col s12">
+  	<h5>Configuration</h5>
+  </div>
+  
+  @elements.dataset.config.tabs(dataset, user)
+
+  @elements.dataset.config.outletCSV(dataset, user)
+
+  @if(dataset.editableBy(user)) {
+    @if(dataset.getDsType().equals(DatasetType.COMPLETE)) {
+      @elements.dataset.config.outletWebAccess(dataset, user)
+    }
+    @elements.dataset.config.outletOOCSI(dataset, user)
+  }
+</div>
+}

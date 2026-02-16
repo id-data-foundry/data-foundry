@@ -1,0 +1,36 @@
+@(token : String, p : Project)
+@main("Add linked dataset", "profile") {
+  <!-- navigation -->
+  <nav class="">
+    <div class="row">
+      <div class="col s12">
+        <a href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+        <a href="@routes.ProjectsController.view(p.getId())" class="breadcrumb">@p.getName()</a>
+        <a href="#" class="breadcrumb">Add linked dataset</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="row center">
+    <div class="col s12">  
+      <h2>Add Linked Dataset</h2>
+    </div>
+  </div>
+
+  <div class="row">
+    <form class="col s12" action="@api.routes.LinkedDSController.addMe(p.getId())" method="POST" onsubmit="return checkDate()">
+      @elements.dataset.addFormElements(p, token)
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input id="target_object" name="target_object" type="url" class="validate" required="">
+          <label for="target_object">Link to external dataset</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          Provide a link to an external webpage or dataset.
+        </div>
+      </div>
+
+    </form>    
+  </div>
+}

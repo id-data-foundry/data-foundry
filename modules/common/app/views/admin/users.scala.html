@@ -1,0 +1,96 @@
+@(users: List[Person], csrfToken: String)
+@administrator("Users", "users") {
+
+<div class="row">
+	<div class="col s12">
+		<h4>Users</h4>
+	</div>
+</div>
+
+<div class="row">
+	<div class="col s12">
+		<table>
+			<thead>
+				<tr>
+					<td>Name</td>
+					<td>Email</td>
+					<td>Staff</td>
+					<td>Projects</td>
+					<td></td>
+					<td></td>
+				</tr>
+			</thead>
+
+		@for(user <- users) {
+			<tr>
+				<td>@user.getName()</td>
+				<td>@user.getEmail()</td>
+				<td>
+					<div class="input-field">
+						<p>
+							<label>
+								<input type="checkbox" name="@utils.auth.Roles.STAFF_ROLE" value="@user.getId()" @if(user.isRole(utils.auth.Roles.STAFF_ROLE)){ checked }>
+								<span></span>
+							</label>
+						</p>
+					</div>
+				</td>
+				<td>@user.getOwnAndCollabProjects().size()</td>
+			</tr>
+		}
+		</table>
+		<br><br>
+		<hr>
+		<script>
+			document.querySelectorAll('table tr input[type=checkbox]').forEach(d => {
+				d.addEventListener('change', () => {
+					console.log(d.value, d.checked)
+					fetch(`@routes.AdminController.userRole()`, {
+				        method: 'POST',
+			            headers: {
+			            	'Content-Type': 'application/json; charset=UTF-8',
+							'Csrf-Token': '@csrfToken'
+						},
+            			body: JSON.stringify({
+            				user: d.value,
+            				role: d.name,
+            				value: d.checked
+            			})
+					})
+				})
+			})
+
+		</script>
+	</div>
+</div>
+
+
+<div class="row">
+	<div class="col s12">
+		<h4>Password reset</h4>
+		<form hx-post="@routes.AdminController.resetPasswordTokenLink()" hx-target="#reset_link">
+			<p>
+				<b>Reset Password for a user.</b>
+			</p>
+			<p>
+				Enter the user's email address below and click the reset button to receive a link that you can send to the user via a safe channel. This link allows them to reset the password within three hours.
+			</p>
+			<input type="hidden" name="csrfToken" value="@csrfToken">
+			<div class="input-field col s8">
+				<input id="email_address" name="username" type="text" placeholder="email address">
+				<label for="email_address">Email address to reset</label>
+			</div>
+			<div class="input-field col s4">
+				<button type="submit" class="btn">Reset password</button>
+			</div>
+			<div class="col s12">
+				<pre id="reset_link">password reset link here</pre>
+			</div>
+		</form>
+	</div>
+</div>
+
+
+}
+
+

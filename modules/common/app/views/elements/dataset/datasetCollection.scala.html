@@ -1,0 +1,110 @@
+@(p : Project, datasets : List[Dataset], user : Person)
+
+<ul class="collection with-header">
+	<li class="collection-header"><h6>Datasets (@datasets.size())</h6></li>
+@for(d <- datasets) {
+    <li class="collection-item avatar">
+      <span class="circle" style="text-align: center">
+				@if(p.editableBy(user)) {
+				@if(d.isActive()) {
+	      <i>
+	      		@elements.icon(d.toIcon())
+	      </i>
+				} else {
+				<small><span class="small red-text tooltipped" style="position: relative; top: 2px; font-size: 1.5em;" data-tooltip="This dataset is inactive and cannot record data<br>adjust start/end date to activate.">@elements.icon("block")</span></small>
+				}
+				} else {
+				<i>
+		     		@elements.icon(d.toIcon())
+				</i>
+				}
+      </span>
+      @if(d.isSavedExport()) {
+      <a href="@controllers.tools.routes.DataExportController.index(d.getId())" class="black-text">
+      } else {
+      <a href="@routes.DatasetsController.view(d.getId())" class="black-text">
+      }
+				<span class="title">
+					@d.getName()
+				</span>
+				@if(p.editableBy(user)) {
+				<span class="idtag">id: @d.getId()</span>
+        @formatItemChanges(d.countItemChanges(null))
+				}
+  	  </a>
+      <p>
+	     	<span class="typetag @d.toColorBG()">@d.toUIString()</span>
+				@if(p.editableBy(user)) {
+		  	<small class="grey-text text-darken-2">
+		  	@if(d.isScript()) {
+		  		@if(d.isScriptLive()) {
+		  		<span class="tiny" style="position: relative; top: 4px; font-size: 1.5em;">@elements.icon("autorenew")</span>
+	    		Script is installed on '@d.configuration(Dataset.ACTOR_CHANNEL, "")'.
+	    		} else {
+		  		<span class="tiny" style="position: relative; top: 4px; font-size: 1.5em;">@elements.icon("block")</span>
+	        Script is inactive.
+	    		}
+	    	} else {
+	    		@if(d.getDsType() == DatasetType.IOT && d.isOpenParticipation()) {
+	    		<span class="tiny" style="position: relative; top: 4px; font-size: 1.5em;">@elements.icon("people_outline")</span>
+	    		Open participation
+	    		}
+	    		@if(!d.configuration("OOCSI_channel", "").isEmpty() || !d.configuration("OOCSI_service", "").isEmpty()) {
+	    		<span class="tiny" style="position: relative; top: 4px; font-size: 1.5em;">@elements.icon("cloud_upload")</span>
+	    		Input from '@d.configuration("OOCSI_channel", d.configuration("OOCSI_service", ""))'.
+	    		}
+	    		@if(!d.configuration("api_token", "").isEmpty()) {
+	    		<span class="tiny" style="position: relative; top: 4px; font-size: 1.5em;">@elements.icon("cloud_upload")</span>
+	    		API token
+	    		}
+	            @if(!d.configuration(Dataset.PUBLIC_ACCESS_TOKEN, "").isEmpty()) {
+	            <span class="tiny" style="position: relative; top: 4px; font-size: 1.5em;">@elements.icon("cloud_download")</span>
+	            CSV token access
+	            }
+	            @if(!d.configuration("web_access_token", "").isEmpty()) {
+	            <span class="tiny" style="position: relative; top: 4px; font-size: 1.5em;">@elements.icon("cloud_download")</span>
+	            Web access
+	            }
+	    		@if(!d.configuration("OOCSI_output", "").isEmpty()) {
+	    		<span class="tiny" style="position: relative; top: 4px; font-size: 1.5em;">@elements.icon("cloud_download")</span>
+	    		Data output to '@d.configuration("OOCSI_output", "")'.
+	    		}
+	    	}
+	    	</small>
+				}
+      </p>
+    	@if(d.isSavedExport()) {
+      <a href="@controllers.tools.routes.DataExportController.index(d.getId())" class="secondary-content grey-text">@elements.icon("arrow_forward")</a>
+    	} else {
+   	  <a href="@routes.DatasetsController.view(d.getId())" class="secondary-content grey-text" id="openDatasetBtn">@elements.icon("arrow_forward")</a>
+    	}
+    </li>
+}
+@if(p.editableBy(user)) {
+    <li class="collection-item avatar">
+      <span class="circle" style="text-align: center"></span>
+      <a href="@routes.ProjectsController.addDataset(p.getId())" class="black-text">
+        <span class="title">
+          add dataset
+        </span>
+      </a>
+      <p>
+        choose a dataset to add
+      </p>
+      <!-- Modal Trigger -->
+      <a id="addDatasetBtn" href="@routes.ProjectsController.addDataset(p.getId())" class="secondary-content grey-text">@elements.icon("add")</a>
+    </li>
+}
+</ul>
+
+@formatItemChanges(change : Integer) = {
+    @if(change > 0) {
+      <span class="idtag green-text tooltipped" style="border-color: green;" data-tooltip="This week, there were @change% more events recorded than last week.">
+        &#x25B2;&nbsp;@change%&nbsp;
+      </span>  
+    } else if(change < 0) {
+      <span class="idtag red-text tooltipped" style="border-color: red;" data-tooltip="This week, there were @(-change)% less events recorded than last week.">
+        &#x25BC;&nbsp;@(-change)%&nbsp;
+      </span>  
+    }
+}

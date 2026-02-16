@@ -1,0 +1,97 @@
+@(p : Project, configurator: utils.conf.Configurator, token : String)
+@main("Dataset selection view", "profile") {
+
+	<!-- navigation -->
+	<nav class="">
+	    <div class="row">
+	      <div class="col s12">
+	        <a id="homeBtn" href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+	        <a href="@routes.ProjectsController.view(p.getId())" class="breadcrumb">@p.getName()</a>
+			<a href="#" class="breadcrumb">
+				Add new dataset
+			</a>
+	      </div>
+	    </div>
+	  </nav>
+
+	<h4 class="center-align">Choose A Dataset Type</h4>
+	<div class="row">
+		<div class="col s12 m12 l12">
+			<div class="collection">
+				<a id="addDSBtn_IOT" href="@api.routes.TimeseriesDSController.add(p.getId())" class="collection-item waves-effect waves-light">
+					<span class="typetag @DatasetType.IOT.toColorBG()">@DatasetType.IOT.toUIString()</span>
+					<br>
+					<div class="dataset_type_description">Data from connected devices 🖲</div>
+				</a>
+				<a id="addDSBtn_Entity" href="@api.routes.EntityDSController.add(p.getId())" class="collection-item waves-effect waves-light">
+					<span class="typetag @DatasetType.ENTITY.toColorBG()">@DatasetType.ENTITY.toUIString()</span>
+					<br>
+					<div class="dataset_type_description">JSON Database for variable data 👩‍💻</div>
+				</a>
+				<a id="addDSBtn_Complete" href="@api.routes.CompleteDSController.add(p.getId())" class="collection-item waves-effect waves-light">
+					<span class="typetag @DatasetType.COMPLETE.toColorBG()">@DatasetType.COMPLETE.toUIString()</span>
+					<br>
+					<div class="dataset_type_description">One or more files of an existing dataset (data, text, images, audio, html)</div>
+				</a>
+				<a id="addDSBtn_Media" href="@api.routes.MediaDSController.add(p.getId())" class="collection-item waves-effect waves-light">
+					<span class="typetag @DatasetType.MEDIA.toColorBG()">@DatasetType.MEDIA.toUIString()</span>
+					<br>
+					<div class="dataset_type_description">Media files (images) 🌠</div>
+				</a>
+				<a id="addDSBtn_Form" href="@api.routes.FormDSController.add(p.getId())" class="collection-item waves-effect waves-light">
+					<span class="typetag @DatasetType.FORM.toColorBG()">@DatasetType.FORM.toUIString()</span>
+					<br>
+					<div class="dataset_type_description">Data is collected by a simple form 📝</div>
+				</a>
+				<a id="addDSBtn_Survey" href="@api.routes.SurveyDSController.add(p.getId())" class="collection-item waves-effect waves-light">
+					<span class="typetag @DatasetType.SURVEY.toColorBG()">@DatasetType.SURVEY.toUIString()</span>
+					<br>
+					<div class="dataset_type_description">Data is collected by a simple survey (with participant ID) 📝</div>
+				</a>
+				<a id="addDSBtn_Diary" href="@api.routes.DiaryDSController.add(p.getId())" class="collection-item waves-effect waves-light">
+					<span class="typetag @DatasetType.DIARY.toColorBG()">@DatasetType.DIARY.toUIString()</span>
+					<br>
+					<div class="dataset_type_description">Data by participants as diary entries 🤷</div>
+				</a>
+				<a id="addDSBtn_Annotation" href="@api.routes.AnnotationDSController.add(p.getId())" class="collection-item waves-effect waves-light">
+					<span class="typetag @DatasetType.ANNOTATION.toColorBG()">@DatasetType.ANNOTATION.toUIString()</span>
+					<br>
+					<div class="dataset_type_description">Data by researcher as annotations 👩‍🔬</div>
+				</a>
+				@if(configurator.isFitbitAvailable()) {
+				<a id="addDSBtn_Fitbit" href="@api.routes.FitbitDSController.add(p.getId())" class="collection-item waves-effect waves-light">
+					<span class="typetag @DatasetType.FITBIT.toColorBG()">@DatasetType.FITBIT.toUIString()</span>
+					<br>
+					<div class="dataset_type_description">Data from connected FitBit devices 🏃‍♀️</div>
+				</a>
+				}
+@*
+				@if(configurator.isGoogleFitAvailable()) {
+				<a id="addDSBtn_GoogleFit" href="@api.routes.GoogleFitDSController.add(p.getId())" class="collection-item waves-effect waves-light">
+					<span class="typetag @DatasetType.GOOGLEFIT.toColorBG()">@DatasetType.GOOGLEFIT.toUIString()</span>
+					<br>
+					<div class="dataset_type_description">Data from connected GoogleFit devices 🧗‍♀️</div>
+				</a>
+				}
+*@
+				<a id="addDSBtn_Movement" href="@api.routes.MovementDSController.add(p.getId())" class="collection-item waves-effect waves-light">
+					<span class="typetag @DatasetType.MOVEMENT.toColorBG()">@DatasetType.MOVEMENT.toUIString()</span>
+					<br>
+					<div class="dataset_type_description">Import one or more files of a movement dataset (GPX) 🏃‍♀️</div>
+				</a>
+@*
+				<a id="addDSBtn_ExpSampling" href="@api.routes.ExpSamplingDSController.add(p.getId())" class="collection-item waves-effect waves-light">
+					<span class="typetag @DatasetType.ES.toColorBG()">@DatasetType.ES.toUIString()</span>
+					<br>
+					<div class="dataset_type_description">Import one or more files of an experience sampling dataset (created by PIEL) 👀</div>
+				</a>
+				<a id="addDSBtn_Linked" href="@api.routes.LinkedDSController.add(p.getId())" class="collection-item waves-effect waves-light">
+					<span class="typetag @DatasetType.LINKED.toColorBG()">@DatasetType.LINKED.toUIString()</span>
+					<br>
+					<div class="dataset_type_description">Create link to externally hosted dataset, which is great for curating data that you find useful 🔌</div>
+				</a>
+*@
+			</div>
+		</div>
+	</div>
+}

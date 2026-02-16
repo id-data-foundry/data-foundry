@@ -1,0 +1,43 @@
+@(p : Project, user: Person, token : String)
+
+@main(p.getName() + ": Study setup", "profile") {
+
+@projects.perspectives.projectHeader(p, user)
+
+<div class="row">
+	<div class="col s12">
+		<ul class="tabs">
+			<li class="tab col"><a href="@routes.ProjectsController.view(p.getId())" target="_self">🏡 General</a></li>
+			<li class="tab col"><a href="@routes.ProjectsController.viewResources(p.getId())" target="_self">🐝 Sources</a></li>
+			<li class="tab col"><a href="@routes.ProjectsController.viewStudyManagement(p.getId())" class="active" target="_self">🧑‍🔬 Study Setup</a></li>
+			<li class="tab col"><a href="@routes.ProjectsController.viewTimeline(p.getId())" target="_self">📈 Timeline</a></li>
+			@if(p.getNarrativeSurveyDataset().isPresent()) {
+			<li class="tab col"><a href="@routes.ProjectsController.viewNarrativeSurvey(p.getId())" target="_self">🔖 Narrative Surveys</a></li>
+			}
+			@if(p.hasProjectWebsite()){
+			<li class="tab col"><a href="/@p.getName()" target="_blank" rel="noopener">🧑‍💻 Project site</a></li>
+			}
+@*
+			<li class="tab col"><a href="#ded">🎂 Data-enabled Design</a></li>
+			<li class="tab col"><a href="#chatbot">🤖 Chatbot</a></li>
+*@
+		</ul>
+	</div>
+</div>
+
+<div class="row">
+	<div class="col s12">
+		<div id="studyContainer">
+			@if(p.getStudyManagementDataset().isPresent()) {
+			<div hx-get="@routes.ProjectsController.studyManagement(p.getId())" hx-trigger="load" hx-target="#studyContainer"></div>
+			} else {
+			<p>
+				With the study setup view you can manage all research aspects of this project in one go: from configuring participant sign-up to filing documents such as an informed consent form, or study materials. Also, you can switch on the experimental narrative surveys feature here.
+			</p>
+
+			<a class="btn" hx-get="@routes.ProjectsController.studyManagement(p.getId())" hx-target="#studyContainer">Activate study setup</a>
+			}
+		</div>
+	</div>
+</div>
+}

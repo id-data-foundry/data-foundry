@@ -1,0 +1,64 @@
+@(dataset : Dataset)(implicit request: Http.Request)
+
+<ul class="collapsible">
+  <li>
+    <div class="collapsible-header">Javascript</div>
+    <div class="collapsible-body">
+
+      <b>Download an image from the dataset</b>
+
+      <pre class="language-javascript">
+          <code class="language-javascript">// download function
+const downloadFile = (id, imageElementId) => {
+  const response = await fetch('@api.routes.MediaDSController.getItemApi(dataset.getId(), "FILENAME").absoluteURL(request, request.secure())', {
+    headers: {
+      'api_token': '@dataset.configuration(Dataset.API_TOKEN, "TOKEN")',
+      'participant_id': id
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  const imageBlob = await response.blob();
+  const imageObjectURL = URL.createObjectURL(imageBlob);
+
+  const imgElement = document.getElementById(imgElementId);
+  imgElement.src = imageObjectURL;
+};
+
+// use it
+const participantId = 'PARTICIPANT_ID' // looks like: u1234567890abcdef
+downloadFile(participantId, '#imageElement')</code></pre>
+
+      <b>Upload an image to the dataset</b>
+
+      <pre class="language-javascript">
+          <code class="language-javascript">// upload function
+const uploadFile = () => {
+	const myform = document.querySelector('#myform');
+  const formData = new FormData(myform);
+
+  const response = await fetch('@api.routes.MediaDSController.addItemApi(dataset.getId()).absoluteURL(request, request.secure())', {
+    method: 'POST',
+    headers: {
+      'api_token': '@dataset.configuration(Dataset.API_TOKEN, "TOKEN")',
+      // optional: participant ID in the header
+      'participant_id': 'PARTICIPANT_ID'
+    },
+    body: formData
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+};</code></pre>
+
+      <p>
+      	You can try the image upload here in a new tab: 
+      	<a href="@api.routes.MediaDSController.test(dataset.getId())" target="_blank" class="">Test image upload</a>
+      </p>
+    </div>
+  </li>
+</ul>

@@ -1,0 +1,568 @@
+@import helper._
+@import models.Dataset
+@import play.libs.Json
+@import utils.auth.TokenResolverUtil
+@import play.api.mvc.Flash
+
+@(projectsAndDatasets: com.fasterxml.jackson.databind.node.ObjectNode, updateActivitiesUrl: String, activityLoggerUrlTemplate: String, csrfToken: String)
+@main(null, "Activity Logger Setup", "Activity Logger Setup") {
+  <script src="@routes.Assets.versioned("javascripts/vega_5.min.js")" type="text/javascript"></script>
+  <style>
+    .activity-input-group {
+      display: flex;
+      align-items: baseline;
+      gap: 1rem;
+    }
+
+    .selected-dataset {
+      display: none;
+    }
+  </style>
+
+  <!-- navigation -->
+  <nav class="">
+    <div class="row">
+      <div class="col s12">
+        <a id="homeBtn" href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+        <a href="#" class="breadcrumb">Activity Logger</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="row">
+    <div class="col s12">
+      <h3>
+        Activity Logger
+      </h3>
+      <p>
+        This page allows you to configure an activity logger with activities specific to a dataset in one of your projects. 
+        By categorizing activities into "Direct Event" and "State" types, you can tailor how data is logged and visualized for your research or project.
+      </p>
+      <p>
+        To begin, please select a project and then choose the specific dataset you wish to configure. Your selections will load existing activities and enable the configuration options below.
+      </p>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col s12">
+      <h4>1. Select project and dataset</h4>
+      <p>
+        The activity logger will attempt to log into a dataset in this project. To keep things organized, select a participant that you want log activities for. If you don't want that, make sure the dataset is switched to "open participation".
+      </p>
+    </div>
+    <div class="col s12 m4">
+      <div class="input-field">
+        <select id="project-select" name="project-select" onchange="loadDatasets()">
+          @for(projectEntry <- projectsAndDatasets.fields()) {
+            <option value="@projectEntry.getKey()">@projectEntry.getValue.get("name").asText()</option>
+          }
+        </select>
+        <label for="project-select">Select Project:</label>
+      </div>
+    </div>
+    <div class="col s12 m4">
+      <div class="input-field">
+        <select id="dataset-select" name="dataset-select" onchange="loadDatasetDetails()">
+          <option value="">-- Select a dataset --</option>
+        </select>
+        <label for="dataset-select">Select Dataset (DiaryDS):</label>
+      </div>
+    </div>
+    <div class="col s12 m4">
+      <div class="input-field">
+        <select id="participant-select" name="participant-select" onchange="updateLoggerLinks()">
+          <option value="NO_PARTICIPANT">-- Optional: Select a participant --</option>
+        </select>
+        <label for="participant-select">Select Participant:</label>
+      </div>
+    </div>
+  </div>
+
+  <form id="activity-config-form" method="POST" action="" class="selected-dataset">
+    <input type="hidden" name="csrfToken" value="@csrfToken">
+    <input type="hidden" id="selectedDatasetId" name="datasetId">
+
+    <div class="row">
+      <div class="col s12 m6">
+        <h4>2. Define direct event activities</h4>
+        <p>
+          These are activities that occur at a specific point in time, without a duration. Examples include discrete actions like "Drinking Water," "Button Press," or "Feedback Submitted." Define names for these single, instantaneous events that you wish to log for the selected dataset.
+        </p>
+        <div id="direct-activities-list" class="activity-list">
+            <span class="placeholder">No direct event activities defined.</span>
+        </div>
+        <div class="activity-input-group">
+            <input type="text" id="newDirectActivity" placeholder="New direct activity name" onkeydown="if(event.key === 'Enter') { event.preventDefault(); addActivity('direct'); }">
+            <button type="button" onclick="addActivity('direct')" class="btn">Add</button>
+        </div>
+      </div>
+
+      <div class="col s12 m6">
+        <h4>3. Define state activities</h4>
+        <p>
+          These activities represent a continuous state over a period, having both a start and an end time. Examples include prolonged actions like "Reading," "Working," or "Sleeping." Define names for these activities to track their duration within the selected dataset.
+        </p>
+        <div id="state-activities-list" class="activity-list">
+            <span class="placeholder">No state activities defined.</span>
+        </div>
+        <div class="activity-input-group">
+            <input type="text" id="newStateActivity" placeholder="New state activity name" onkeydown="if(event.key === 'Enter') { event.preventDefault(); addActivity('state'); }">
+            <button type="button" onclick="addActivity('state')" class="btn">Add</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="row htmx-indicator">
+      <div class="col s12">
+        <div class="progress">
+          <div class="indeterminate"></div>
+        </div>
+        <p>
+          Saving activities...
+        </p>
+      </div>
+    </div>
+  </form>
+
+  <div class="row selected-dataset">
+    <div class="col s12">
+      <h4>4. Use activity logger</h4>
+    </div>
+    <div class="col s12 m6">
+      <p>
+        Click below to open the Activity Logger in a new window, or scan the QR code on the right.
+      </p>
+      <a href="" id="activityLoggerStartLink" class="btn" target="_blank">Start Activity Logger</a>
+    </div>
+    <div class="col s12 m6 center-align">
+      <img id="qrCode" src="">
+    </div>
+  </div>
+
+  <div class="row selected-dataset">
+    <div class="col s12">
+      <h4>Activity Timeline Visualization</h4>
+      <p>
+        This section provides a dynamic timeline visualization of previously logged activities for the currently selected dataset. After selecting a dataset and saving its configuration, the chart will display both direct events and state activities, helping you to understand activity patterns over time. Data is typically fetched for the last 7 days.
+        <a id="downloadCsvLink" href="" download style="display: none;">Download timeline data as CSV</a>
+      </p>
+      <div id="activity-timeline-chart" style="width: 100%; height: 400px;">
+        <p>Select a dataset and save its configuration to view a timeline visualization of logged activities here.</p>
+      </div>
+    </div>
+  </div>
+  <script src="@routes.DatasetsController.jsRoutes()" type="text/javascript"></script>
+  <script>
+    const projectsAndDatasets = @Html(projectsAndDatasets.toString());
+    const updateActivitiesUrlTemplate = '@updateActivitiesUrl';
+    const activityLoggerUrlTemplate = '@activityLoggerUrlTemplate';
+
+    let currentSelectedDataset = null;
+
+    function loadDatasets() {
+        const projectSelect = document.getElementById('project-select');
+        const datasetSelect = document.getElementById('dataset-select');
+        const participantSelect = document.getElementById('participant-select');
+        const selectedProjectId = projectSelect.value;
+
+        datasetSelect.innerHTML = '<option value="">-- Select a dataset --</option>';
+        participantSelect.innerHTML = '<option value="NO_PARTICIPANT">-- Optional: Select a participant --</option>';
+        document.getElementById('activity-config-form').reset();
+        currentSelectedDataset = null;
+
+        if (selectedProjectId && projectsAndDatasets[selectedProjectId]) {
+            const datasets = projectsAndDatasets[selectedProjectId].datasets;
+            for (const datasetId in datasets) {
+                const dataset = datasets[datasetId];
+                const option = document.createElement('option');
+                option.value = dataset.id;
+                option.textContent = dataset.name;
+                datasetSelect.appendChild(option);
+            }
+
+            const participants = projectsAndDatasets[selectedProjectId].participants;
+            participants.forEach(p => {
+                const option = document.createElement('option');
+                option.value = p.id;
+                option.textContent = p.name;
+                participantSelect.appendChild(option);
+            });
+
+            M.FormSelect.init(datasetSelect);
+            M.FormSelect.init(participantSelect);
+        }
+    }
+
+    function loadDatasetDetails() {
+        const projectSelect = document.getElementById('project-select');
+        const datasetSelect = document.getElementById('dataset-select');
+        const selectedProjectId = projectSelect.value;
+        const selectedDatasetId = datasetSelect.value;
+
+        document.getElementById('activity-config-form').reset();
+        currentSelectedDataset = null;
+
+        if (selectedProjectId && selectedDatasetId && projectsAndDatasets[selectedProjectId]) {
+            const dataset = projectsAndDatasets[selectedProjectId].datasets[selectedDatasetId];
+            if (dataset) {
+                currentSelectedDataset = dataset;
+                document.getElementById('selectedDatasetId').value = dataset.id;
+                renderActivities('direct', dataset.direct_event_activities);
+                renderActivities('state', dataset.state_event_activities);
+                M.FormSelect.init(datasetSelect);
+
+                // Update form action with actual datasetId
+                const updateUrlParts = updateActivitiesUrlTemplate.split('/');
+                updateUrlParts[updateUrlParts.length - 2] = dataset.id;
+                document.getElementById('activity-config-form').action = updateUrlParts.join('/');
+
+                // Integrate Vega-Lite visualization here.
+                renderActivityTimeline(currentSelectedDataset.id);
+
+                // Update links
+                updateLoggerLinks();
+
+                // show whole UI
+                document.querySelectorAll('.selected-dataset').forEach(d => d.style.display = 'block');
+            }
+        }
+    }
+
+    function updateLoggerLinks() {
+        if (!currentSelectedDataset) return;
+
+        const activityLoggerStartLink = document.getElementById('activityLoggerStartLink');
+        const projectSelect = document.getElementById('project-select');
+        const participantSelect = document.getElementById('participant-select');
+
+        const selectedProjectId = projectSelect.value;
+        const selectedParticipantId = participantSelect.value;
+
+        // Construct the actual logger URL
+        // We use a more robust replacement strategy by replacing known placeholders
+        let loggerUrl = activityLoggerUrlTemplate;
+        
+        // The template has project_id as first '1' and dataset_id as second '1'
+        // Given the controller generates it as .../logger/1/1/token/device
+        // We replace them in order from the end of the path
+        const urlParts = loggerUrl.split('/');
+        // .../logger/:projectId/:datasetId/:datasetToken/:participantId
+        urlParts[urlParts.length - 4] = selectedProjectId;
+        urlParts[urlParts.length - 3] = currentSelectedDataset.id;
+        urlParts[urlParts.length - 2] = currentSelectedDataset.token;
+        urlParts[urlParts.length - 1] = selectedParticipantId;
+        
+        loggerUrl = urlParts.join('/');
+
+        activityLoggerStartLink.href = loggerUrl;
+
+        // set QR code
+        document.querySelector('#qrCode').src = `@routes.HomeController.qrCode("--", "")${loggerUrl}`;
+    }
+
+    function processRawActivityData(rawData) {
+        const processedData = [];
+        const openStateActivities = new Map(); // Map: activityBaseName -> {ts: ..., activity: ...}
+
+        // Sort rawData by timestamp to ensure correct pairing of 'on' and 'off' events
+        rawData.sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
+
+        rawData.forEach(d => {
+            const fullActivityName = d.activity || d.title;
+            const timestamp = new Date(d.ts);
+
+            const parts = fullActivityName.split(':');
+            const activityBaseName = parts[0];
+            const activityState = parts.length > 1 ? parts[1].toLowerCase() : null;
+
+            if (activityState === 'on') {
+                // This is an 'on' event, store it as a potential start of a state activity
+                openStateActivities.set(activityBaseName, d);
+            } else if (activityState === 'off') {
+                // This is an 'off' event, try to find a matching 'on' event
+                if (openStateActivities.has(activityBaseName)) {
+                    const onEvent = openStateActivities.get(activityBaseName);
+                    openStateActivities.delete(activityBaseName); // Remove from buffer as it's now paired
+
+                    processedData.push({
+                        id: `${onEvent.ts}-${activityBaseName}-state`,
+                        activityName: activityBaseName,
+                        type: (new Date(timestamp) - new Date(onEvent.ts) < 60000) ? 'direct' : 'state',
+                        startTime: new Date(onEvent.ts),
+                        endTime: timestamp // The 'off' event's timestamp is the end time
+                    });
+                } else {
+                    // 'off' event without a preceding 'on', treat as direct activity
+                    processedData.push({
+                        id: `${d.ts}-${fullActivityName}-direct-off`,
+                        activityName: fullActivityName,
+                        type: 'direct',
+                        startTime: timestamp,
+                        endTime: null
+                    });
+                }
+            } else {
+                // Not an 'on' or 'off' event, treat as direct activity
+                processedData.push({
+                    id: `${d.ts}-${fullActivityName}-direct`,
+                    activityName: fullActivityName,
+                    type: 'direct',
+                    startTime: timestamp,
+                    endTime: null
+                });
+            }
+        });
+
+        // After processing all raw data, any remaining 'on' events in openStateActivities
+        // are considered direct events because they didn't find a matching 'off'.
+        openStateActivities.forEach((onEvent, activityBaseName) => {
+            processedData.push({
+                id: `${onEvent.ts}-${activityBaseName}-direct-on`,
+                activityName: `${activityBaseName}:on`, // Keep the original "on" tag for direct display
+                type: 'direct',
+                startTime: new Date(onEvent.ts),
+                endTime: null
+            });
+        });
+
+        return processedData;
+    }
+
+    async function renderActivityTimeline(datasetId) {
+        const chartDiv = document.getElementById('activity-timeline-chart');
+        chartDiv.innerHTML = '<p>Loading timeline data...</p>';
+
+        try {
+            // Fetch data using the jsRoutes
+            // Fetching data for the last 7 days (7 * 24 * 60 * 60 * 1000 milliseconds)
+            // For demonstration, let's fetch for a specific time range, e.g., last 7 days.
+            const now = new Date();
+            const sevenDaysAgo = new Date(now.getTime() - (7 * 24 * 60 * 60 * 1000));
+            const startTimestamp = sevenDaysAgo.getTime(); // Convert to milliseconds
+            const endTimestamp = now.getTime(); // Convert to milliseconds
+
+            // Update CSV download link
+            const downloadCsvLink = document.getElementById('downloadCsvLink');
+            if (downloadCsvLink) {
+                downloadCsvLink.href = jsRoutes.controllers.DatasetsController.download(datasetId, -1, startTimestamp, endTimestamp).url;
+                downloadCsvLink.style.display = 'inline';
+            }
+
+            // Limit of -1 means no limit
+            const response = await jsRoutes.controllers.DatasetsController.downloadJson(datasetId, -1, startTimestamp, endTimestamp).ajax();
+            const rawData = response; // Assuming response is an array of data points
+
+            if (!rawData || rawData.length === 0) {
+                chartDiv.innerHTML = '<p>No activity data available for this dataset in the last 7 days.</p>';
+                return;
+            }
+
+            const processedData = processRawActivityData(rawData);
+
+            if (processedData.length === 0) {
+                chartDiv.innerHTML = '<p>No recognizable activity data found for visualization.</p>';
+                return;
+            }
+
+            // Vega-Lite specification for the timeline
+            const vegaLiteSpec = {
+              "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+              "description": "Activity Timeline for Dataset",
+              "data": { "values": processedData },
+              "transform": [
+                {"as": "endTime", "calculate": "datum.endTime || datum.startTime"}
+              ],
+              "width": "container",
+              "height": 400,
+              "layer": [
+                {
+                  "transform": [
+                    {"filter": "datum.type === 'state'"}
+                  ],
+                  "mark": {
+                    "type": "bar",
+                    "height": {
+                      "band": 0.2
+                    }
+                  },
+                  "encoding": {
+                    "y": {
+                      "field": "activityName", 
+                      "type": "nominal", 
+                      "sort": "type",
+                      "title": "Activity"
+                    },
+                    "x": {
+                      "field": "startTime",
+                      "type": "temporal",
+                      "title": "Time",
+                      "axis": {"format": "%H:%M"}
+                    },
+                    "x2": {
+                      "field": "endTime",
+                      "type": "temporal"
+                    },
+                    "color": {"field": "activityName", "type": "nominal", "legend": null}
+                  },
+                  "selection": {
+                    "timebrush": {"type": "interval", "bind": "scales", "encodings": ["x"]}
+                  }
+                },
+                {
+                  "transform": [
+                    {"filter": "datum.type !== 'state'"}
+                  ],
+                  "mark": {
+                    "type": "point",
+                    "filled": true,
+                    "size": 80
+                  },
+                  "encoding": {
+                    "y": {
+                      "field": "activityName", 
+                      "type": "nominal", 
+                      "sort": "type",
+                      "title": "Activity"
+                    },
+                    "x": {
+                      "field": "startTime",
+                      "type": "temporal",
+                      "title": "Time",
+                      "axis": {"format": "%H:%M"}
+                    },
+                    "color": {"field": "activityName", "type": "nominal", "legend": null},
+                    "shape": {"value": "circle"}
+                  }
+                }
+              ],
+              "resolve": {"scale": {"y": "shared"}},
+              "config": {"axis": {"grid": true}, "legend": {"orient": "bottom"}}
+            }
+
+            // Embed the visualization
+            vegaEmbed('#activity-timeline-chart', vegaLiteSpec, { actions: false }).then((result) => {
+                // Access the Vega-Lite view for further interactions if needed
+            }).catch(console.error);
+
+        } catch (error) {
+            console.error("Error fetching or rendering timeline data:", error);
+            chartDiv.innerHTML = '<p>Error loading activity timeline.</p>';
+        }
+    }
+
+    function renderActivities(type, activitiesString) {
+        const listElement = document.getElementById(`${type}-activities-list`);
+        listElement.innerHTML = ''; // Clear existing
+        const activities = activitiesString ? activitiesString.split(',').map(s => s.trim()).filter(s => s.length > 0) : [];
+
+        if (activities.length === 0) {
+            listElement.innerHTML = '<span class="placeholder">No ' + type + ' activities defined.</span>';
+        } else {
+            activities.forEach(activity => {
+                const div = document.createElement('div');
+                div.className = 'chip';
+                div.textContent = activity;
+                const removeBtn = document.createElement('span');
+                removeBtn.className = 'close';
+                removeBtn.innerHTML = '&times;';
+                removeBtn.onclick = (e) => {
+                    e.preventDefault(); // Prevent form submission
+                    e.stopPropagation();
+                    removeActivity(type, activity);
+                };
+                div.appendChild(removeBtn);
+                listElement.appendChild(div);
+            });
+        }
+    }
+
+    function addActivity(type) {
+        const inputElement = document.getElementById(`new${capitalizeFirstLetter(type)}Activity`);
+        const newActivity = inputElement.value.trim();
+
+        if (!currentSelectedDataset) {
+            alert('Please select a dataset before adding activities.');
+            return;
+        }
+
+        if (newActivity) {
+            const currentActivitiesString = currentSelectedDataset[`${type}_event_activities`];
+            const activities = currentActivitiesString ? currentActivitiesString.split(',').map(s => s.trim()).filter(s => s.length > 0) : [];
+
+            if (!activities.includes(newActivity)) {
+                activities.push(newActivity);
+                currentSelectedDataset[`${type}_event_activities`] = activities.join(',');
+                renderActivities(type, currentSelectedDataset[`${type}_event_activities`]);
+            }
+            inputElement.value = '';
+            saveActivities();
+        } else {
+          // do nothing
+        }
+    }
+
+    function removeActivity(type, activityToRemove) {
+        if (currentSelectedDataset) {
+            const currentActivitiesString = currentSelectedDataset[`${type}_event_activities`];
+            let activities = currentActivitiesString ? currentActivitiesString.split(',').map(s => s.trim()).filter(s => s.length > 0) : [];
+
+            activities = activities.filter(activity => activity !== activityToRemove);
+            currentSelectedDataset[`${type}_event_activities`] = activities.join(',');
+            renderActivities(type, currentSelectedDataset[`${type}_event_activities`]);
+            saveActivities();
+        }
+    }
+
+    function capitalizeFirstLetter(string) {
+        return string.charAt(0).toUpperCase() + string.slice(1);
+    }
+
+    async function saveActivities() {
+        if (!currentSelectedDataset) {
+            alert('Please select a dataset first.');
+            return;
+        }
+
+        const datasetId = document.getElementById('selectedDatasetId').value;
+        const formAction = document.getElementById('activity-config-form').action; // This will already have the correct datasetId
+
+        const directEventActivities = currentSelectedDataset.direct_event_activities;
+        const stateEventActivities = currentSelectedDataset.state_event_activities;
+
+        document.querySelector('.htmx-indicator').style.opacity = 1;
+
+        const response = await fetch(formAction, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Csrf-Token': '@csrfToken'
+            },
+            body: JSON.stringify({
+                datasetId: datasetId,
+                directEventActivities: directEventActivities,
+                stateEventActivities: stateEventActivities
+            })
+        });
+
+        setTimeout(() => document.querySelector('.htmx-indicator').style.opacity = 0, 500);
+
+        if (response.ok) {
+          // it's fine.
+        } else {
+          const errorText = await response.text();
+          console.error(errorText);
+        }
+    }
+
+    // Initial load
+    document.addEventListener('DOMContentLoaded', () => {
+        M.AutoInit();
+        const projectSelect = document.getElementById('project-select');
+        const datasetSelect = document.getElementById('dataset-select');
+        M.FormSelect.init(projectSelect);
+        M.FormSelect.init(datasetSelect);
+        loadDatasets();
+    });
+  </script>
+}

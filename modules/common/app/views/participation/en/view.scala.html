@@ -1,0 +1,304 @@
+@(invite_token: String, csrfToken: String, telegramBotName : String, telegramToken: String, participant: sr.Participant, project: Project, diaryDS: Dataset, mediaFiles: List[vm.TimedAnnotatedMedia], devices : List[sr.Device], wearables : List[sr.Wearable])
+
+@participantStudyDataset = @{project.getParticipantStudyDataset()}
+@participantDashboardDataset = @{project.getParticipantDashboardDataset()}
+@mediaDataset = @{project.getMediaDataset()}
+
+@participating(project.getName(), invite_token) {
+
+    <style type="text/css">
+        
+        div > iframe {
+            display: none;
+        }
+        div.active > iframe {
+            display: block;
+        }
+
+    </style>
+
+    <br>
+
+    <div class="row">
+        <div class="col s12 l6" style="font-size: 1.3em;">
+            <p>
+                Hi @participant.getFirstname(),
+            </p>
+			<p>
+				We are happy that you are helping us with this study. Find some actions on the right side and more information below.
+            </p>
+            <p>
+                You accepted a consent form to get here. You can review the consent form, update your information and also opt out of this study in the tab "settings". If you have uploaded images or photos, you will find them below as well as annotations and diary entries.
+			</p>
+            <p>
+                Thank you,
+                <br>
+                @project.getOwner().getName()
+            </p>
+        </div>
+
+        <div class="col s12 l5 offset-l1">
+            
+            <h4>Actions</h4>
+            @if(participantStudyDataset.getId() == -1 
+                && (diaryDS == null || diaryDS.getId() == -1) 
+                && (!mediaDataset.canAppend() || !mediaDataset.isOpenParticipation()) 
+                && (telegramBotName.isEmpty || telegramToken.isEmpty)) {
+            <p>
+                There are currently no actions available, please visit again at a later moment, or contact the research team for more information.
+            </p>
+            }
+
+        	@if(participantStudyDataset.getId() > -1) {
+            <div class="row">
+                <div class="col s12">
+                    <p>
+                        The study starts on a separate page:
+                    </p>
+                    <p>
+                        <a href="@controllers.routes.DatasetsController.webToken(participantStudyDataset.configuration(Dataset.WEB_ACCESS_TOKEN, ""),"")"
+                            class="btn" 
+                            target="_blank" rel="noopener">
+                            Open study page
+                        </a>
+                    </p>
+                </div>
+            </div>
+            }
+
+            @if(diaryDS != null && diaryDS.getId() > -1){
+            <div class="row">
+                <div class="col s12">
+                    <p>
+                        This study relies on frequent self-reporting, post a diary entry:
+                    </p>
+                    <p>
+                        <a href="@routes.ParticipationController.recordForm(diaryDS.getId(),invite_token)" class="btn">Post diary entry</a>
+                    </p>
+                </div>
+            </div>
+	        }
+
+	        @if(mediaDataset.canAppend() && mediaDataset.isOpenParticipation()) {
+            <div class="row">
+                <div class="col s12">
+                    <p>
+                        This study relies on frequent self-reporting with photos and images:
+                    </p>
+                    <p>
+                        <a href="#modal_add_file" class="modal-trigger btn">Upload photo or image</a>
+                    </p>
+                </div>
+            </div>
+	        }
+
+            @if(!telegramBotName.isEmpty 
+                    && !telegramToken.isEmpty 
+                    && ((diaryDS != null && diaryDS.getId() > -1) || mediaDataset.isOpenParticipation())){
+            <hr>
+            <div class="row">
+                <div class="col s12">
+                    <p>
+                        Use Telegram to self-report in this study. Download the Telegram app on your mobile device or computer and start it. Search for the Data Foundry Telegram bot "@telegramBotName" and start a conversation. The bot will ask you to enter your participant email address and a PIN number.
+                    </p>
+                    <p>
+                        Your temporary Telegram PIN is: <span style="font-size: 2.5em; font-family: monospace;">@telegramToken</span>
+                    </p>
+                    <p>
+                    	<small>
+                    		Note that any information you share via the desktop or mobile Telegram application will be also processed by <a href="https://telegram.org/privacy" target="_blank" rel="noopener">Telegram Messenger Inc.</a>
+                    	</small>
+                    </p>
+                </div>
+            </div>          
+            }
+
+        </div>
+    </div>
+
+
+    <div class="row white" style="min-height: 30em;">
+        <div class="col s12">
+            <ul class="tabs">
+            @if(participantDashboardDataset.getId() > -1) {
+            <li class="tab"><a href="#participantDashboardPage">Dashboard</a></li>
+            }
+            @if(mediaFiles.size() > 0){
+            <li class="tab"><a href="#media">Media</a></li>
+            }
+            <li class="tab"><a href="#settings">Settings</a></li>
+            <li class="tab"><a href="#informedconsent">Informed consent</a></li>
+            </ul>
+        </div>
+
+        @if(mediaFiles.size() > 0){
+        <div id="media" class="col s12">
+            <div class="row">
+                @for(mf <- mediaFiles){
+                <div class="col s12 m6">
+                	<div class="card white">
+                        <div class="card-content grey-text">
+                            @if(mf.link != null && mf.link.length() > 0) {
+                            <div style="max-height: 12em; overflow: hidden;">
+		                	    <img src="@mf.link" style="max-width: 100%;">
+                            </div>
+                        	}
+		                	<p>@mf.caption</p>
+		                	@if(diaryDS.getId() > -1) {
+		                	@for(an <- mf.annotations) {
+		                	<p>@Html(an)</p>
+		                	}
+		                	}
+                        </div>
+                        <div class="card-action">
+                            <div class="grey-text left-align" style="float: left">
+                                @mf.date()
+                            </div>
+                            @if(diaryDS.getId() > -1) {
+                            <a class="modal-trigger" onclick="annotate('@mf.date()','@mf.time()')" href="#modal1" style="float: right; margin-right: 0;"><i class="grey-text">@elements.icon("chat")</i></a>
+                            }
+                        </div>
+	                </div>
+                </div>
+            	}
+        	</div>
+		</div>
+        }
+        @if(participantDashboardDataset.getId() > -1) {
+        <div id="participantDashboardPage" class="col s12">
+            <iframe src="@controllers.routes.DatasetsController.web(participantDashboardDataset.getId(),"")" style="width: 100%; height: 80vh; border: 0; margin-top: 1em;"></iframe>
+        </div>
+        }
+        <div id="settings" class="col s12">
+
+            <div class="row">
+                <div class="col s12 m6">
+                    <h5>
+                        Participant information
+                    </h5>
+                    <p>
+                        If you would like to change your information, click here:
+                        <br><br>
+                        <a href="@routes.ParticipationController.edit(invite_token)" class="btn white green-text">Edit participant information</a>
+                    </p>
+
+                    <p>
+                        If you would like to opt-out of this study, click here:
+                        <br><br>
+                        <a href="@routes.ParticipationController.decline(invite_token)" onclick="return confirm('Are you sure you want to opt-out of this study? Click OK to quit, cancel to go back.')" class="btn white red-text">Opt-out of the study</a>
+                    </p>
+                </div>
+
+                <div class="col s12 m6" id="participant_profile">
+                    @if(wearables.size() > 0){
+                        <h5>
+                            Wearables
+                        </h5>
+                        <p>
+                            Wearables are activity trackers and other means to collect activity, sleep or movement data.
+                            Green wearables are connected and operational, yellow marked wearables still need to be connected. 
+                            Please refer to the study briefing whether to connect one or more wearables.
+                        </p>
+
+                        @for(w <- wearables){
+                        @if(w.isConnected()){
+                        <div class="chip tooltipped white-text thing" data-tooltip="ID: @w.getRefId()">
+                            <i class="icons">@elements.icon("watch")</i>
+                            @w.getName()
+                        </div>
+                        } else {
+                        <div class="chip tooltipped white-text pending-thing" data-tooltip="click to connect this wearable">
+                            <a href="@routes.ParticipationController.signupWearable(w.getId())">
+                                <i class="icons">@elements.icon("watch")</i>
+                                @w.getName()
+                            </a>
+                        </div>
+                        }
+                        }
+                    }
+                </div>
+            </div>
+        </div>
+
+        <div id="informedconsent" class="col s12">
+            @elements.project.informedConsent(project)
+        </div>
+    </div>  
+
+    <!-- Modal Structure -->
+    <div id="modal1" class="modal">
+        <form action="@routes.ParticipationController.recordDiary(diaryDS.getId(),invite_token)" method="POST">
+        <div class="modal-content">
+            <h4>Add media annotation</h4>
+                <div class="row center">
+                  <div class="input-field col s12">
+                    <textarea placeholder="Entry text" id="text" name="text" type="text" class="materialize-textarea validate" required="" style="height: 10em;">@diaryDS.getConfiguration().get("diary_template_text")</textarea>
+                    <label for="text">Annotation text</label>
+                  </div>
+                </div>
+                <input type="hidden" name="ts-date" id="ts-date">
+                <input type="hidden" name="ts-time" id="ts-time">
+                <input type="hidden" name="csrfToken" value="@csrfToken">
+        </div>
+        <div class="modal-footer">
+            <a href="#" class="btn-flat modal-action modal-close">Cancel</a>
+            <button type="submit" id="btnSave" class="btn modal-action modal-close">Save</button>
+        </div>
+        </form>
+    </div>
+
+    <script type="text/javascript">
+        function annotate(date, time) {
+            $('#ts-date').val(date);
+            $('#ts-time').val(time);
+        }
+    </script>
+
+
+    <!-- files upload modal and JS -->
+
+    @if(mediaDataset.canAppend() && mediaDataset.isOpenParticipation()) {
+    <div id="modal_add_file" class="modal">
+        <div class="modal-content">
+          <h4 class="center-align">Upload files</h4>
+          <div class="row">
+            <div class="col s12 m6 l8">
+              <form action="@routes.ParticipationController.uploadFile(mediaDataset.getId(),invite_token)" method="POST" enctype="multipart/form-data">
+                <div class="input-field file-field">
+                  <div class="btn">
+                    <span>File</span>
+                    <input id="files" type="file" name="files" multiple required="" />
+                  </div>
+                  <div class="file-path-wrapper">
+                    <input class="file-path validate" type="text" placeholder="Upload one or more files" />
+                  </div>
+                </div>
+                <div id="result" class="col s12">
+                </div>
+                <div class="input-field col s12">
+                  <textarea placeholder="File description" id="description" class="materialize-textarea" name="description" data-length="250"></textarea>
+                  <label for="description">File Description</label>
+                </div>
+                <p>
+                  <a href="#!" onclick="$('#result').empty();$('form')[1].reset();" class="modal-close btn-flat grey-text">Cancel</a>
+                  <input type="hidden" name="participant_id" value="@participant.getId()">
+                  <input type="hidden" name="csrfToken" value="@csrfToken" />
+                  <input type="submit" name="submit" id="submit" class="btn green">
+                </p>
+              </form>
+            </div>
+            <div class="col s12 m6 l3 offset-l1 card red lighten-4" style="padding: 1em;">
+              <b>Attention</b>
+              <br>
+              <p>
+                Do not upload files that contain private data (personal information, medical data, financial data and passwords, amongst many other sensitive data).
+                <br><br>
+                Only upload and share data here if you have the right to do so. If in doubt, please check with support.
+              </p>
+            </div>
+          </div>
+        </div>
+    </div>
+    }
+
+}

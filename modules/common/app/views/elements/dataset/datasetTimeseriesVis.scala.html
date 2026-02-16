@@ -1,0 +1,33 @@
+@(dataset : Dataset)
+<div id="vis" class="col s12 valign-wrapper white" style="margin-top: 2rem;">loading...</div>
+<script type="text/javascript">
+  window.addEventListener("load", (event) => {    
+    var yourVlSpec = {
+      $schema: 'https://vega.github.io/schema/vega-lite/v4.json',
+      width: $('#vis').width() - 40,
+      height: 160,
+      data: {
+        "url": "@routes.DatasetsController.timeseries(dataset.getId())",
+        "format": { "type": "csv"}
+      },
+      mark: { type:'line', point: true, tooltip: true},
+      encoding: {
+        x: {field: 'day', type: 'temporal'},
+        y: {field: 'events', type: 'quantitative'}
+      }
+    };
+
+    var view;
+    vegaEmbed('#vis', yourVlSpec, {actions: false}).then(function(vega) {
+      view = vega.view;
+      setTimeout(function() {
+        if(vega.view.data("source_0").length == 0) {
+          $('#vis *').hide();
+          $('#downloadBtn').attr('disabled', 'disabled');
+          $('#downloadBtn').html('No data yet.');
+          $('#visualiseBtn,#tableBtn').hide();
+        }
+      }, 100);
+    });
+  });
+</script>

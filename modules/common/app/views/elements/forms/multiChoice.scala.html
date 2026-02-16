@@ -1,0 +1,7 @@
+@(itemCount: Int, itemText: String, choiceCount: Int)
+<p class="left-align">
+	<label>
+		<input type="checkbox" id="choice_@itemCount" name="choice_@itemCount" data="choice_@itemCount" value="@itemText" class="validate">
+		<span>@itemText</span>
+	</label>
+</p>

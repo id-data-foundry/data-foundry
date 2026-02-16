@@ -1,0 +1,47 @@
+@(csrfToken: String)
+@administrator("Database management", "database") {
+<div class="row">
+	<div class="col s12">
+		<h4>Database backup</h4>
+		<p>
+			<b>Make a database backup</b>
+			@elements.csrfLink(routes.AdminController.backupDB(), "Create DB Backup", csrfToken, "")
+		</p>
+		<br><br>
+		<hr>
+	</div>
+</div>
+
+<div class="row">
+	<div class="col s12">
+		<form hx-post="@routes.AdminController.searchEntity()" hx-target="#entityResult">
+			<div class="row">
+				<input type="hidden" name="csrfToken" value="@csrfToken">
+				<div class="col s12 m6">
+					<input type="text" name="query" id="query" placeholder="id:<LONG VALUE> or refId">
+					<label>Either search for <code>id:VALUE</code> or <code>refId</code></label>
+				</div>
+				<div class="col s12 m6">
+					<select name="type">
+						<option disabled>Select type of entity to search for...</option>
+						<option value="wearable">Wearable</option>
+						<option value="device">Device</option>
+						<option value="participant">Participant</option>
+						<option value="cluster">Cluster</option>
+						<option value="dataset">Dataset</option>
+						<option value="project">Project</option>
+						<option value="person">Person</option>
+						<option value="telegram">Telegram session</option>
+					</select>
+				</div>
+			</div>
+			<div class="row">
+				<div class="col s12">
+					<button type="submit" class="btn">Search</button>
+				</div>
+			</div>
+		</form>
+		<pre id="entityResult"></pre>
+	</div>
+</div>
+}

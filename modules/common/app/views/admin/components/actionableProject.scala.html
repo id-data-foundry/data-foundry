@@ -1,0 +1,59 @@
+@(item: controllers.AdminController.ArchivableItem, csrfToken: String)
+<tr id="row-@item.projectId">
+	<td>
+		@item.projectId 
+	</td>
+	<td>
+		@item.projectName
+		<br>
+		<small>
+			@item.projectTeam
+		</small>
+	</td>
+	<td>
+		@item.oneYearAgo
+	</td>
+	<td>
+		@item.isArchived
+	</td>
+	<td>
+		@item.numberParticipantsToDeidentify
+	</td>
+	<td>
+		@item.numberDevicesToDeidentify
+	</td>
+	<td>
+		@item.numberWearablesToUnlink
+	</td>
+	<td style="white-space: nowrap;">
+		@if(item.numberParticipantsToDeidentify+item.numberDevicesToDeidentify+item.numberWearablesToUnlink > 0) {
+		<form style="display: inline-block;" 
+				hx-post="@routes.AdminController.deidentifyProject(item.projectId)"
+				hx-target="#row-@item.projectId"
+				hx-swap="outerHTML">
+			<input type="hidden" name="csrfToken" value="@csrfToken">
+			<button type="submit" class="btn-small white red-text">de-identify</button>
+		</form>
+		}
+		@if(!item.isArchived) {
+		<form style="display: inline-block;"
+				hx-post="@routes.AdminController.archiveProject(item.projectId)"
+				hx-target="#row-@item.projectId"
+				hx-swap="outerHTML">
+			<input type="hidden" name="csrfToken" value="@csrfToken">
+			<button type="submit" class="btn-small white indigo-text">archive</button>
+		</form>
+		}
+		@if(item.isArchived && item.oneYearAgo) {
+		<form style="display: inline-block;"
+				hx-post="@routes.AdminController.freezeProject(item.projectId)"
+				hx-target="#row-@item.projectId"
+				hx-swap="outerHTML">
+			<input type="hidden" name="csrfToken" value="@csrfToken">
+			<button type="submit" class="btn-small white black-text">freeze</button>
+		</form>			
+		}
+	</td>
+	<td>
+	</td>
+</tr>

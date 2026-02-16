@@ -1,0 +1,39 @@
+@(dataset: Dataset, choice: String, itemRange: String)
+<div class="">
+	<div id="vis_@choice"></div>
+	<script type="text/javascript">
+
+		// vega lite spec
+	   var vlSpec_@(choice) = {
+	        $schema: 'https://vega.github.io/schema/vega-lite/v4.json',
+	        width: 400,
+	        height: 200,
+	        data: {
+	          "url": "@routes.DatasetsController.download(dataset.getId())",
+	          "format": { "type": "csv"}
+	        },
+	        mark: "bar",
+			encoding: {
+		        "x": {
+		          "field": "@choice",
+		          "scale": {"domain": [@Html(itemRange)]},
+		          "type": "nominal",
+                  "axis": {"title": ""}
+		        },
+		        "y": {
+		        	"aggregate": "count",
+		        	"type": "quantitative"
+		        },
+		        "color": {
+		          "field": "@choice",
+		          "scale": {"domain": [@Html(itemRange)]},
+		          "type": "nominal",
+		          "legend": {
+		          	"title": ""
+				  }
+		        },
+			}
+	      };
+	    vegaEmbed('#vis_@choice', vlSpec_@choice);
+	</script>
+</div>

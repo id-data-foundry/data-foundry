@@ -1,0 +1,184 @@
+@(dataset : Dataset, user : String)
+      <ul class="collapsible">
+        <li>
+          <div class="collapsible-header">Java/Processing</div>
+          <div class="collapsible-body">
+
+            <b>Add, retrieve, update or delete a data item in the dataset</b>
+
+<pre class="language-Processing">
+  <code class="language-Processing">
+  // replace CLIENT_HANDLE with a unique name for your prototype
+  OOCSI oocsi = new OOCSI(this, "CLIENT_HANDLE", "oocsi.id.tue.nl");
+
+  // 1a: create call
+  OOCSICall call1 = oocsi.call("SERVICE_NAME", 1500);
+  // 1b: add authentication data to call
+  call1.data("api-token", "API_TOKEN");
+  call1.data("resource_id", "testResource12345");
+  call1.data("token", "testToken12345");
+  // 1c: add query type: add, get, update, delete
+  call1.data("query", "add");
+  // 1d: add actual data for entity object
+  call1.data("item1", 1);
+  call1.data("item2", true);
+  call1.data("item3", "three");
+  // 2: send out and wait until either there is a response or the timeout has passed
+  call1.sendAndWait();
+  // 3: check for response
+  if (call1.hasResponse()) {
+    // 4: get data out of the first response
+    println(call1.getFirstResponse().keys());
+  }
+  </code>
+</pre>
+
+            Use the OOCSI for Processing library for this, <a href="https://github.com/iddi/oocsi-processing">more information here</a>.
+          </div>
+        </li>
+        <li>
+          <div class="collapsible-header">Python</div>
+          <div class="collapsible-body">
+
+            <b>Add, retrieve, update or delete a data item in the dataset</b>
+
+<pre class="language-python">
+  <code class="language-python">
+  # replace CLIENT_HANDLE by a unique name for this prototype
+  oocsi = OOCSI('CLIENT_HANDLE', 'oocsi.id.tue.nl')
+
+  # create call with 1.5sec timeout
+  call = oocsi.callAndWait('SERVICE_NAME',
+    {
+      # add authentication data
+      'api-token': 'API_TOKEN',
+      # you can set resource_id and token by yourself
+      'resource_id': 'testResource12345',
+      'token': 'testToken12345',
+      # add query type: add, get, update, delete
+      'query': 'add',
+      # add actual data for entity object
+      'item1': 1,
+      'item2': TRUE,
+      'item3': 'three'
+    }, 1.5)
+  # check response in call object directly
+  if 'response' in call:
+      print(call['response'])
+  else:
+      print('response not found')
+  </code>
+</pre>
+
+                Use the OOCSI Python library for this, <a href="https://github.com/iddi/oocsi-python">more information here</a>.
+              </div>
+            </li>
+            <li>
+              <div class="collapsible-header">more platforms coming...</div>
+              <div class="collapsible-body">
+              </div>
+            </li>
+          </ul>
+
+		  </div>
+	  </div>
+
+      <div class="row">
+        <div class="col s12">
+          <hr>
+          <p>
+            <b>Configure a simplified OOCSI subscription for this dataset</b>
+          </p>
+          <p>
+            You can use the OOCSI network to backup the channel in this dataset. This allows you to store the latest state of the data sent on this channel in the Entity dataset and to retrieve this data by sending an empty message to the channel.
+          </p>
+          <p>
+            To subscribe and backup, you need to provide the channel name below. 
+          </p>
+		  @if(dataset.editableBy(user)) {
+          <div class="input-field col s6">
+            <input id="oocsiChannelInput" type="text" value='@dataset.configuration("OOCSI_backup", "")'>
+            <label for="oocsiChannelInput">Channel name</label>
+          </div>
+          <div class="input-field col s2">
+            <a id="saveOOCSIChannelInputBtn" class="btn">Save</a>
+          </div>
+          <div class="input-field col s4">
+            Delete and SAVE the channel name to stop backing up the channel data.
+          </div>
+          <script type="text/javascript">
+            // save channel
+            $('#saveOOCSIChannelInputBtn').click(function() {
+              var inputChannel = $('#oocsiChannelInput').val();
+              var r = jsRoutes.controllers.DatasetsController.configure(@dataset.getId(), 'OOCSI_backup', inputChannel);
+              $.ajax({url: r.url, type: r.type, success: function() {
+                M.toast({html: 'Settings saved.', classes: 'green darken-2'})
+              }, error: function() {
+                console.log('error')
+              }});
+            });
+          </script>
+      	  } else {
+          <blockquote>
+            @dataset.configuration("OOCSI_backup", "no channel configured")
+          </blockquote>
+          }
+        </div>
+
+        <div class="col s12" style="margin-top: 3em;">
+          <p>
+            <b>How to use this?</b>
+          </p>
+          <ul class="collapsible">
+            <li>
+              <div class="collapsible-header">Java/Processing</div>
+              <div class="collapsible-body">
+
+                <b>Send data to the channel to be backed up</b>
+
+<pre class="language-Processing">
+  <code class="language-Processing">
+void draw() {
+  // send a simple message with data to the channel
+  oocsi.channel("CHANNEL_NAME")
+    .data("number", 123)
+    .data("boolean", true)
+    .data("text", "hello world")
+    .send();
+}
+  </code>
+</pre>
+
+                <b>How to get the latest data from the channel (the channel backup)</b>
+
+<pre class="language-Processing">
+  <code class="language-Processing">
+void setup() {
+  // replace CLIENT_HANDLE with a unique name for your prototype
+  OOCSI oocsi = new OOCSI(this, "CLIENT_HANDLE", "oocsi.id.tue.nl");
+}
+
+void draw() {
+  // send an _empty_ message to the channel
+  oocsi.channel("CHANNEL_NAME").send();
+}
+
+void handleOOCSIEvent(OOCSIEvent event) {
+  // retrieve the data from the event
+  int num = event.getInt("number", -1);
+  boolean b = event.getBoolean("boolean", false);
+  String message = event.getString("text", "");
+
+  // do something with the latest data from the channel
+}
+  </code>
+</pre>
+
+              </div>
+            </li>
+            <li>
+              <div class="collapsible-header">more platforms coming...</div>
+              <div class="collapsible-body">
+              </div>
+            </li>
+          </ul>

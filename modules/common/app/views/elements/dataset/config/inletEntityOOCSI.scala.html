@@ -1,0 +1,48 @@
+@(dataset : Dataset, user : String)(implicit request: Http.Request)
+
+  <div id="oocsi_in" class="col s12 tab-contents">
+    <div class="row">
+      <div class="col s12">
+        <p>
+          <b>Configure an OOCSI service for this dataset</b>
+        </p>
+        <p>
+          You can use the OOCSI network to add, retrieve, update and delete data items for this dataset. This option is available from a wide variety of platforms and technologies. Find a list of possible options on the below. Don't forget to create an API token in the HTTP API tab before using the OOCSI service.
+        </p>
+        <p>
+          To create a service, you need to provide the service name below. 
+        </p>
+        <div class="input-field col s12 m8">
+          <input id="oocsiServiceInput" type="text" value='@dataset.configuration(Dataset.OOCSI_SERVICE, "")'>
+          <label for="oocsiServiceInput">Service name</label>
+          Delete the service name and save to stop the service.
+        </div>
+        <div class="input-field col s12 m4">
+          <a id="saveOOCSIServiceInputBtn" class="btn">Save</a>
+        </div>
+        <script type="text/javascript">
+          // save channel
+          $('#saveOOCSIServiceInputBtn').click(function() {
+            var inputChannel = $('#oocsiServiceInput').val();
+            var r = jsRoutes.controllers.DatasetsController.configure(@dataset.getId(), 'OOCSI_service', inputChannel);
+            $.ajax({url: r.url, type: r.type, success: function() {
+              M.toast({html: 'Settings saved.', classes: 'green darken-2'})
+            }, error: function() {
+              M.toast({html: 'Settings not saved.', classes: 'red darken-2'})
+            }});
+          });
+        </script>
+      </div>
+    </div>
+
+    <div hx-get="@routes.DatasetsController.oocsiDiagnostics(dataset.getId())" hx-trigger="load, every 5s" hx-swap="innerHTML"></div>
+
+    <div class="row">
+      <div class="col s12" style="margin-top: 3em;">
+        <p>
+          <b>How to use this?</b>
+        </p>
+        @elements.documentation.howtoOOCSIInEntity(dataset, user)
+      </div>
+    </div>
+  </div>

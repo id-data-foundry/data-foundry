@@ -1,0 +1,125 @@
+@(token : String, dataset : Dataset)
+@main("Edit dataset", "profile") {
+  @elements.dataset.datasetEditTitlebar(dataset)
+  <div class="row">
+    <form class="col s12" action="@api.routes.GoogleFitDSController.editMe(dataset.getId())" method="POST" 
+          onsubmit="return checkDate('@dataset.start', '@dataset.end')">
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input value="@dataset.getName()" id="dataset_name" name="dataset_name" type="text" class="validate" required="">
+          <label for="dataset_name">Dataset Name</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          This should make sense to other people as well, so nothing like "test project", "Joe's first project", "final study"... ;-)
+        </div>
+      </div>
+      
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <textarea id="description" name="description" type="text" class="materialize-textarea countMe" required="" data-length="1000" maxlength="1000">@dataset.getDescription()</textarea>
+          <label for="description">Description</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          This text will be shown also to participants as part of the consent form, so adding a few details helps in getting consent from your participants.
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input value="@dataset.start" id="start-date" name="start-date" type="text" class="datepicker" @if(!dataset.isEditable()){disabled}>
+          <label for="start-date">Start Date (yyyy-mm-dd)</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          Start Date will be set as today by default. Start date will be locked after starting collecting data or 23:00:00 of start date.
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input value="@dataset.end" id="end-date" name="end-date" type="text" class="datepicker">
+          <label for="end-date">End Date (yyyy-mm-dd)</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          End Date will be set as 3 months after Start Date by default.
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input value="@dataset.getKeywords()" id="keywords" name="keywords" type="text" class="validate countMe" data-length="255" maxlength="255">
+          <label for="keywords">Keywords</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          Keywords relating to the content and the place/period of origin of the data.
+        </div>
+      </div>
+      
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input value="@dataset.getDoi()" id="doi" name="doi" type="text" class="validate countMe" data-length="255" maxlength="255">
+          <label for="doi">Digital object identifier</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          Digital object identifier. In computing, a digital object identifier (DOI) is a persistent identifier or handle used to identify objects uniquely, standardized by the International Organization for Standardization (ISO). DOIs are in wide use mainly to identify academic, professional, and government information, such as journal articles, research reports and datasets, and official publications... (Wikipedia)
+        </div>
+      </div>
+      
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input value="@dataset.getRelation()" id="relation" name="relation" type="text" class="validate countMe" data-length="255" maxlength="255">
+          <label for="relation">Relation</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          Relation is which refer to a related dataset, publication or journal article.
+        </div>
+      </div>
+      
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input value="@dataset.getOrganization()" id="organization" name="organization" type="text" class="validate countMe" data-length="255" maxlength="255">
+          <label for="organization">Organization</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          Organizations involved, subsidizer (subsidy number).
+        </div>
+      </div>
+      
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <textarea id="remarks" class="materialize-textarea countMe" name="remarks" data-length="1000" maxlength="1000">@dataset.getRemarks()</textarea>
+          <label for="remarks">Remarks</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          General remarks / comments. This could be information about the current state of the dataset, information on how to reproduce the data or what someone could possibly do with it.
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <p>
+            <label>
+              <input id="isPublic" name="isPublic" type="checkbox" @if(dataset.isOpenParticipation()) {checked}>
+              <span>This dataset is available for everyone.</span>
+            </label>
+          </p>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          A public project will appear in search results and its meta-data such as name, introduction and data type will be visible, but not actual contents unless someone becomes a collaborator or subscribes to the dataset.
+        </div>
+      </div>
+      
+      <input type="hidden" name="csrfToken" value="@token"/>
+
+      <div class="row center">
+        <div class="input-field col s12">
+          <a href="@routes.DatasetsController.view(dataset.getId())" class="btn-flat cancelBtn">CANCEL</a>
+          <button class="btn" type="submit">SAVE</button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  @elements.dataset.datasetMetaData(dataset)
+
+  @elements.dataset.datasetReset(dataset)
+}

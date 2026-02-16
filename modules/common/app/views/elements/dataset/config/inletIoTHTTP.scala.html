@@ -1,0 +1,49 @@
+@(dataset : Dataset, user : String)(implicit request: Http.Request)
+
+    <div id="post" class="col s12 tab-contents">
+      <div class="row" id="postConfiguration">
+        <div id="generateDatasetToken" class="col s12">
+          <p>
+            <b>HTTP POST requests</b> for this dataset (ID: <b>@dataset.getId()</b>)
+          </p>
+          <p>
+            POST requests are easy to send from a wide variety of platforms and technologies. Find a list of possible options on the right side.
+            <br><br>
+            To allow these requests to store data in the dataset, you need to send them with a special token:
+          </p>
+
+          <div class="input-field col s12 m8">
+            <input id="tokenCodeField" name="tokenCodeField" type="text" value='@dataset.configuration(Dataset.API_TOKEN, "")'>
+            <label for="tokenCodeField">Token</label>
+            Regenerate token to add data to this dataset, delete the token to deactivate.
+          </div>
+          <div class="input-field col s12 m4">
+            <a class="btn" 
+                hx-get="@routes.DatasetsController.configureWithToken(dataset.getId(), Dataset.API_TOKEN)" 
+                hx-swap="none" 
+                onclick="setTimeout(() => location.reload(), 800)">Regenerate</a>
+            <a class="btn-flat red-text" 
+                hx-get="@routes.DatasetsController.configure(dataset.getId(), Dataset.API_TOKEN, "")" 
+                hx-target="#postConfiguration" 
+                hx-swap="outerHTML" 
+                hx-select="#postConfiguration">Delete</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col s12">
+          <b>HTTP POST Diagnostics</b>
+          <div hx-get="@routes.DatasetsController.httpPostDiagnostics(dataset.getId())" hx-trigger="load, every 10s" hx-swap="innerHTML"></div>
+      </div>
+    </div>
+
+      <div class="row">
+        <div class="col s12" style="margin-top: 3em;">          
+          <p>
+            <b>How to use this?</b>
+          </p>
+          @elements.documentation.howtoHTTPPostIoT(dataset)
+        </div>
+      </div>
+    </div>

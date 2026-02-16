@@ -1,0 +1,23 @@
+@(token : String, dataset : Dataset)
+@main("Edit dataset", "profile") {
+  @elements.dataset.datasetEditTitlebar(dataset)
+  <div class="row">
+    <form class="col s12" action="@api.routes.LinkedDSController.editMe(dataset.getId())" method="POST" 
+          onsubmit="return checkDateEdit('@dataset.start', '@dataset.end')">
+      @elements.dataset.editFormElements(dataset, token)
+      
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input value="@dataset.getTargetObject()" id="target_object" name="target_object" type="url" class="validate" required="">
+          <label for="target_object">Link to external dataset</label>
+        </div>
+        <div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          Provide a link to an external webpage or dataset.
+        </div>
+      </div>
+
+    </form>   
+  </div>
+
+  @elements.dataset.datasetMetaData(dataset)
+}

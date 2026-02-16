@@ -1,0 +1,50 @@
+@(participants: List[sr.Participant], updates: Map[Long, Long])
+@if(participants.isEmpty) {
+  There are no participants registered in the project.
+} else {
+<table id="participants"></table>
+<script type="text/javascript">
+  	(function() {
+      let data = [
+  		@for(p <- participants) { [
+  			{ name: "@p.getName()", id: @p.getId() },
+  			"@p.getRefId()", "@p.getPublicParameter1()", "@p.getPublicParameter2()", "@p.getPublicParameter3()", "@{utils.DateUtils.pretty(updates.get(p.getId()))}"
+  			],
+  		}
+  	  ];
+
+      let input = {
+        data: data,
+        columns: [{
+          width: "12rem",
+          title: "Participant",
+          render: function(d) {
+            return `<a href="@routes.ParticipantsController.view(1337)"><b style="white-space: nowrap;">${d.name}</b></a>`.replace("1337", d.id)
+          }
+        },
+        { 
+          title: "ID",
+        },
+        {
+          title: "PP1",
+        },
+        {
+          title: "PP2",
+        },
+        {
+          title: "PP3",
+        },
+        {
+          title: "Last data",
+        }],
+        searching: false,
+        select: false,
+        ordering: true,
+        paging: data.length > 10,
+        info: false
+      };
+
+      let table = $('#participants').DataTable(input);
+    })();
+</script>
+}

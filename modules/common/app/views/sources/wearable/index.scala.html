@@ -1,0 +1,53 @@
+@(wearables: List[sr.Wearable], updates: Map[Long, Long])
+@if(wearables.isEmpty) {
+  There are no wearables registered in the project.
+} else {
+<table id="wearables"></table>
+<script type="text/javascript">
+  	(function() {
+      let data = [
+  		@for(d <- wearables) { [
+  			{ name: "@d.getName()", id: @d.getId() },
+  			"@d.getRefId()", "@d.getBrand()", "@d.getPublicParameter1()", "@d.getPublicParameter2()", "@d.getPublicParameter3()", "@{utils.DateUtils.pretty(updates.get(d.getId()))}"
+  			],
+  		}
+  	  ];
+
+      let input = {
+        data: data,
+        columns: [{
+          width: "12rem",
+          title: "Wearable",
+          render: function(d) {
+            return `<a href="@routes.WearablesController.view(1337)"><b style="white-space: nowrap;">${d.name}</b></a>`.replace("1337", d.id)
+          }
+        },
+        { 
+          title: "ID",
+        },
+        { 
+          title: "Brand",
+        },
+        {
+          title: "PP1",
+        },
+        {
+          title: "PP2",
+        },
+        {
+          title: "PP3",
+        },
+        {
+          title: "Last data",
+        }],
+        searching: false,
+        select: false,
+        ordering: true,
+        paging: data.length > 10,
+        info: false
+      };
+
+      let table = $('#wearables').DataTable(input);
+    })();
+</script>
+}

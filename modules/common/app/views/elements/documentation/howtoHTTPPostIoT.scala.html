@@ -1,0 +1,100 @@
+@(dataset : Dataset)(implicit request: Http.Request)
+
+<ul class="collapsible">
+	<li class="active">
+		<div class="collapsible-header">JavaScript</div>
+		<div class="collapsible-body">
+			<pre class="language-js"><code class="language-js">
+var data = { ... your data goes here ... }
+var jsonBody = {
+	activity: 'ACTIVITY',
+	source_id: 'DEVICE_ID',
+	data: JSON.stringify(data)
+}
+fetch('@api.routes.TimeseriesDSController.recordApi(dataset.getId(), dataset.configuration(Dataset.API_TOKEN, "TOKEN")).absoluteURL(true, request.host())', {
+    method: 'POST',
+    mode: 'cors',
+    cache: 'no-cache',
+    headers: {
+            'Content-Type': 'application/json'
+    },
+    redirect: 'follow',
+    referrerPolicy: 'no-referrer',
+    body: JSON.stringify(jsonBody)
+});</code></pre>
+			<p>
+				Replace DEVICE_ID by the refId attribute of any device in the project. Use any ACTIVITY or leave empty. Provide <code>data</code> in JSON format, such as <code>{"parameter1": 2, "parameter2": 5}</code>
+			</p>
+		</div>
+	</li>
+	<li>
+		<div class="collapsible-header">cURL</div>
+		<div class="collapsible-body">
+			<pre class="language-bash">
+				  <code class="language-bash">
+curl -X POST -H "Content-Type: application/x-www-form-urlencoded" -d "source_id=DEVICE_ID&activity=ACTIVITY&data=DATA" @api.routes.TimeseriesDSController.recordApi(dataset.getId(), dataset.configuration(Dataset.API_TOKEN, "TOKEN")).absoluteURL(true, request.host())</code>
+			</pre>
+			<p>
+				Use this in a terminal with the <code>curl</code> tool (Win10/Win11/macOS/Linux should work directly). Replace DEVICE_ID by the refId attribute of any device in the project. Use any ACTIVITY or leave empty. Provide DATA in JSON format, such as <code>{"parameter1": 2, "parameter2": 5}</code>
+			</p>
+		</div>
+	</li>
+	<li>
+		<div class="collapsible-header">Python</div>
+		<div class="collapsible-body">
+			<pre class="language-python">
+				  <code class="language-python">
+# import requests and json libraries
+import requests
+import json
+
+# your actual data
+data = {
+    # ... your data goes here ...
+}
+
+jsondata = {
+    "source_id": "DEVICE_ID",
+    "activity": "ACTIVITY",
+    "data": json.dumps(data)
+}
+
+# post request 
+response = requests.post("@api.routes.TimeseriesDSController.recordApi(dataset.getId(), dataset.configuration(Dataset.API_TOKEN, "TOKEN")).absoluteURL(true, request.host())", json=jsondata)</code></pre>
+			<p>
+				Replace DEVICE_ID by the refId attribute of any device in the project. Use any ACTIVITY or leave empty. Provide DATA in JSON format, such as <code>{"parameter1": 2, "parameter2": 5}</code>
+			</p>
+		</div>
+	</li>
+	<li>
+		<div class="collapsible-header">Java</div>
+		<div class="collapsible-body">
+			<p>
+				We have a Java library that simplifies accessing the Entity dataset. Download the <a href="@routes.Assets.versioned("code/lib/java/DataFoundry.jar")">precompiled binary</a> (jar file) or check out the <a href="@routes.Assets.versioned("code/lib/java/DataFoundry.zip")">source bundle</a>.
+			</p>
+			<p>
+				Depending on your Java programming environment, for instance, Processing or an IDE like Eclipse or IntelliJ, you need to import the library first before you can use it. In Processing, you need to download the jar file linked above and then put it into a "code" folder next to the Processing pde file that you want to use the library with. After that restart Processing (for safe measure) and use the library in your code.
+			</p>
+			<pre class="language-Java">
+				  <code class="language-Java">
+// import the library
+import nl.tue.id.datafoundry.*;
+// fill in the Data Foundry server URL, just the domain (add port if needed)
+DataFoundry df = new DataFoundry("server.url.com");
+// create dataset access
+DFDataset iot = df.dataset(@dataset.getId(), "@dataset.configuration(Dataset.API_TOKEN, "TOKEN")");
+// log activity to IoT dataset
+iot.device("DEVICE_ID").activity("ACTIVITY").log();
+// example with DEVICE_ID = "d1234567890" and ACTIVITY = "indoor_climate"
+iot.device("d1234567890").activity("indoor_climate").log();
+// same example, but with additional data ("temperature" and "door")
+iot.device("d1234567890").activity("indoor_climate").data("temperature", 34).data("door", "open").log();
+// log new data, reuse the dataset access with device and activity set already:
+iot.data("temperature", 32).data("door", "closed").log();</code>
+			</pre>
+			<p>
+				Replace DEVICE_ID by the refId attribute of any device in the project. Use any ACTIVITY or leave empty. Add data as needed. Don't forget to send everything to Data Foundry with <code>log()</code> at the end. You can then reuse the DFDataset object (here: iot) to send more events or data items.
+			</p>
+		</div>
+	</li>
+</ul>

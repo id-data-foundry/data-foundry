@@ -1,0 +1,99 @@
+@()
+(() => {
+
+	// Describe the title of your tour
+	const tourTitle = "Creating a neww Starboard notebook"
+
+	// Define your tour steps:
+	//   element: specifies the element to highlight, use CSS selector syntax (as used by document.querySelector)
+	//   intro: this is the text to show in the popup
+	//   page: this is a regular expression for the page to show this step on
+	const tourSteps = [
+
+		// Intro + Project Creation
+		{ intro: 'Hi welcome to your first Data Foundry tutorial, In this tutorial we will show you how get started with starboard notebooks in Data Foundry!', page: '^/projects$' },
+	    { element: '#addProjectBtn', intro: 'We first have to create a new project!', page: '^/projects$' },
+	    { element: '#project_name', intro: 'Fill in a name for your new project something like "Starboard Tutorial" will do', page: '^/projects/add' },
+	    { element: '#project_introduction', intro: 'For the description you can put: "Data Foundry Notebooks".', page: '^/projects/add' },
+		{ element: '#dataProtectionSection', intro: 'And please read and agree to the following terms on data anonimization.', page: '^/projects/add' },
+	    { element: '#submitBtn', intro: 'Cool, you\'ve made your startboard project, Let\'s give it some shape!', page: '^/projects/add' },
+ 
+        // ADD Existing Dataset Steps
+		{ element: '#addDatasetBtn', intro: 'Now lets create a dataset to store our files', page: '^/projects/\\d+$' },
+		{ element: '#addDSBtn_Complete', intro: 'To get started with starboard, we will need to create an Existing Dataset to store everything.', page: '^/projects/\\d+/addDataset' },
+		{ element: '#dataset_name', intro: 'Let\'s call this dataset "Tutorial Notebooks"', page: '^/datasets/existing/add/\\d+$' },
+		{ element: '#description', intro: 'and in the description put "An existing dataset to store my notebooks"', page: '^/datasets/existing/add/\\d+$' },
+		{ element: '#submitBtn', intro: 'after which the dataset is ready to go!', page: '^/datasets/existing/add/\\d+$' },
+
+		// Upload file to Existing Dataset
+		{ intro: 'This is an Existing Dataset, in the existing dataset you can upload your already existing files, datasets and in this case Notebooks. To get started with starboards notebooks we will have to create a notebook first. There are several ways to do so, the easiest is to create a new file ending with the GG extension', page: '^/datasets/\\d+$' },
+		{ element: '#createFileBtn', intro: 'To create a new file to the Existing Dataset, you press the "new file" button. You will then get a popup prompting you for the file name. Try-out tutorial.gg !', page: '^/datasets/\\d+$' },
+		{ element: '#existingFileOverview', intro: 'Now you can see your newly created tutorial.gg file here. To get started with editing your notebook press the blue edit button to open the starboard environment"', page: '^/datasets/\\d+$' },
+	];
+
+	const currentPage = window.location.pathname;
+	let currentStep = parseInt(localStorage.getItem('mss_current') || 0);
+
+	const pageSteps = tourSteps.map((step, index) => {
+	    step.index = index;
+
+	    // Add navigation properties
+	    const nextStep = tourSteps[index + 1];
+	    const prevStep = tourSteps[index - 1];
+
+		// Check if neighbouring steps are on the same page
+	    step.hasNextOnSamePage = nextStep && currentPage.match(nextStep.page);
+	    step.hasPrevOnSamePage = prevStep && currentPage.match(prevStep.page);
+	    step.isLastInTour = index === tourSteps.length - 1;
+
+	    return step;
+	}).filter(step => currentStep <= step.index && currentPage.match(step.page));
+
+	if(pageSteps.length == 0 && currentStep > 0) {
+	    localStorage.removeItem('mss_current');
+	    location.reload();
+	}
+	// Initialize Driver.js
+	const d = driver.js.driver();
+
+	d.setConfig({
+		allowClose: false,
+		onDestroyed: () => {
+			fetch('@routes.HomeController.stopTour()')
+		},
+		onHighlighted: (elem, step) => {
+			localStorage.setItem('mss_current', step.index)
+			document.querySelector(".driver-popover-close-btn").blur()
+		},
+		onCloseClick: () => {
+			localStorage.removeItem('mss_current')
+			d.destroy()
+		}
+	})
+	d.setSteps(pageSteps.map(step => {
+	    let buttons = ["close"];
+
+		// Based on neighbouring step flags, display relevant buttons
+	    if (step.hasPrevOnSamePage) {
+	        buttons.push("previous");
+	    }
+
+	    if (step.hasNextOnSamePage) {
+	        buttons.push("next");
+	    } else if (step.isLastInTour) {
+	        buttons.push("finish");
+	    }
+
+	    return {
+	        element: step.element,
+	        index: step.index,
+	        popover: {
+	            title: tourTitle,
+	            description: step.intro,
+	            showButtons: buttons
+	        }
+	    };
+	}));
+
+	d.drive();
+})();

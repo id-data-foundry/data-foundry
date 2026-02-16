@@ -1,0 +1,66 @@
+@(ds : Dataset, devices: List[models.sr.Device])
+@main("Form to test record timeseries sample", "profile") {
+    <!-- navigation -->
+    <nav class="">
+      <div class="row">
+        <div class="col s12">
+          <a href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+          <a href="@routes.ProjectsController.view(ds.getProject().getId())" class="breadcrumb">@ds.getProject().getName()</a>
+          <a href="@routes.DatasetsController.view(ds.getId())" class="breadcrumb">@ds.getName()</a>
+          <a href="#" class="breadcrumb">Record</a>
+        </div>
+      </div>
+    </nav>
+
+    <div class="row center">
+      <div class="col s12">
+        <h2>Test item submission</h2>
+      </div>
+    </div>
+
+    <div class="row">      
+      <form class="col s12 m8 offset-m2" id="recordData" action="@api.routes.TimeseriesDSController.record(ds.getId(),ds.getApiToken())" method="POST">
+        <input name="test_form" value="true" type="hidden">
+        <div class="row center">
+          <div class="input-field col s12">
+            <select id="source_id" name="source_id" class="validate">
+              @if(devices.size() > 1) {
+              <option value="" disabled>Choose your option</option>
+              @for(c <- devices) {
+              <option value="@c.getRefId()">@c.getName()</option>
+              }
+              } else {
+              @for(c <- devices) {
+              <option value="@c.getRefId()" selected>@c.getName()</option>
+              }
+              }
+            </select>
+            <label for="source_id">Source device</label>
+          </div>
+        </div>
+        
+        <div class="row">
+          <div class="input-field col s12">
+            <input id="activity" name="activity" type="text" class="validate">
+            <label for="activity">Activity</label>
+          </div>
+        </div>
+        <div class="row center">
+          <div class="input-field col s12">
+            <textarea placeholder='{"pm2.5": 25, "light": 40.7}' id="data" name="data" type="text" class="materialize-textarea validate"></textarea>
+            <label for="data">Data</label>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col s12 center">
+            <div class="input-field center">
+              <button class="btn green" type="submit">Record</button>
+              <a href="@routes.DatasetsController.view(ds.getId())" class="btn-flat green-text">Back to dataset</a>
+            </div>
+          </div>
+        </div>
+      </form>
+      
+    </div>
+
+}

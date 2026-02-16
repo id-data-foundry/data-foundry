@@ -1,0 +1,18 @@
+{
+  "name": "MicroPython 1.24.1",
+  "version": "2024.11.0",
+  "builds": [
+    {
+      "chipFamily": "ESP32",
+      "parts": [{ "path": "ESP32_GENERIC-20241129-v1.24.1.bin", "offset": 4096 }]
+    },
+    {
+      "chipFamily": "ESP32-S2",
+      "parts": [{ "path": "ESP32_GENERIC-SPIRAM-20241129-v1.24.1.bin", "offset": 4096 }]
+ 	},
+    {
+      "chipFamily": "ESP32-S3",
+      "parts": [{ "path": "ESP32_GENERIC_S3-20241129-v1.24.1.bin", "offset": 0 }]
+    }
+  ]
+}

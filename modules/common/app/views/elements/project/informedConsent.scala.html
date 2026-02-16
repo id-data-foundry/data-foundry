@@ -1,0 +1,115 @@
+@(project: Project, language: String = "en")
+@if(language.equals("nl")) {
+<div class="row">
+	<div class="col s12">
+		<h5>Geïnformeerde Toestemming</h5>
+		<p>
+			U wordt uitgenodigd om deel te nemen aan een onderzoek getiteld '@project.getName()'. Dit onderzoek wordt uitgevoerd door @project.getOwner().getName().
+			@if(!project.getOrganization().isEmpty()) { @project.getOrganization() }
+		</p>
+		<p>
+			Het doel van dit onderzoek is als volgt:
+		</p>
+		<p>
+			<i>
+			@project.getIntro()
+			</i>
+		</p>
+		@defining(project.getStudyManagementDataset()) { osm =>
+		@if(osm.isPresent() && !osm.get().configuration("informed_consent", "").isEmpty()){
+		<p>
+			Lees alstublieft het toestemmingsformulier zorgvuldig door en download het: <a href="@api.routes.CompleteDSController.downloadLatestFile(osm.get().getId(),osm.get().configuration("informed_consent",""))">Toestemmingsformulier</a>
+		</p>
+		}}
+		<p>
+			Alle verzamelde gegevens worden uitsluitend gebruikt voor onderzoeksdoeleinden. Als u toestemming geeft, worden uw gegevens beschikbaar gesteld voor toekomstig onderzoek, bijvoorbeeld door deze te delen met andere onderzoekers of door geanonimiseerde/gepseudonimiseerde gegevens beschikbaar te stellen via een data-archief of repository.
+			<br><br>
+			Uw deelname aan dit onderzoek is volledig vrijwillig en u kunt op elk moment terugtrekken. U bent vrij om vragen of handelingen over te slaan.
+		</p>
+		<p>
+			Wij geloven dat er geen bekende risico's verbonden zijn aan dit onderzoek; echter, zoals bij elke online gegevensverwerking is het risico op een inbreuk altijd mogelijk. Voor zover mogelijk zullen wij ervoor zorgen dat uw informatie in dit onderzoek vertrouwelijk blijft. Wij zullen de risico's minimaliseren door uw persoonlijke gegevens (zoals naam, e-mailadres, geslacht en leeftijd) te scheiden van de studiegegevens, die anoniem worden verwerkt en opgeslagen. De gegevens worden veilig opgeslagen, er worden dagelijks back-ups gemaakt en wij zullen u tijdig informeren bij wijzigingen of een gegevensinbreuk.
+		</p>
+@*
+		<p>
+			Ons doel is om open wetenschap te bevorderen en wij streven ernaar om geanonimiseerde onderzoeksdatasets te delen met andere onderzoekers in een open en <a href="https://www.go-fair.org/fair-principles/" target="_blank" rel="noopener">FAIR-format</a>.
+		</p>
+*@
+	</div>
+</div>
+} else {
+@if(language.equals("de")) {
+<div class="row">
+	<div class="col s12">
+		<h5>Einverständniserklärung</h5>
+		<p>
+			Sie sind eingeladen, an einer Forschungsstudie mit dem Titel „@project.getName()“ teilzunehmen. Diese Studie wird von @project.getOwner().getName() durchgeführt.
+			@if(!project.getOrganization().isEmpty()) { @project.getOrganization() }
+		</p>
+		<p>
+			Beschreibung und Zweck dieser Forschungsstudie:
+		</p>
+		<p>
+			<i>
+			@project.getIntro()
+			</i>
+		</p>
+		@defining(project.getStudyManagementDataset()) { osm =>
+		@if(osm.isPresent() && !osm.get().configuration("informed_consent", "").isEmpty()){
+		<p>
+			Bitte laden Sie das Formular zur Einverständniserklärung herunter und lesen Sie es sorgfältig: <a href="@api.routes.CompleteDSController.downloadLatestFile(osm.get().getId(),osm.get().configuration("informed_consent",""))">Einverständniserklärung</a>
+		</p>
+		}}
+		<p>
+			Alle erhobenen Daten werden ausschließlich zu Forschungszwecken verwendet. Wenn Sie Ihre Einverständniserklärung geben, werden Ihre Daten auch für zukünftige Forschungsprojekte verfügbar gemacht, zum Beispiel durch Weitergabe an andere Forschende oder durch Bereitstellung anonymisierter bzw. pseudonymisierter Daten in einem Datenarchiv oder -repository.
+			<br><br>
+			Ihre Teilnahme an dieser Studie ist völlig freiwillig und Sie können jederzeit ohne Angabe von Gründen zurücktreten. Sie können Fragen oder Aktionen jederzeit auslassen.
+		</p>
+		<p>
+			Wir gehen davon aus, dass mit dieser Forschungsstudie keine Risiken verbunden sind. Wie bei jeder Online-Datenverarbeitung besteht jedoch immer das Risiko einer Datenschutzverletzung. Wir werden nach besten Kräften sicherstellen, dass Ihre Informationen in dieser Studie vertraulich bleiben. Wir minimieren jegliche Risiken, indem wir Ihre personenbezogenen Daten (wie Name, E-Mail-Adresse, Geschlecht und Alter) von den Studiendaten trennen, die anonym verarbeitet und gespeichert werden. Die Daten werden sicher gespeichert, täglich gesichert und wir informieren Sie umgehend über Änderungen oder Datenschutzverletzungen.
+		</p>
+@*
+		<p>
+			Unser Ziel ist es, Open Science zu fördern und anonymisierte Forschungsdatensätze mit anderen Forschenden in einem offenen und <a href="https://www.go-fair.org/fair-principles/" target="_blank" rel="noopener">FAIR-Format</a> zu teilen.
+		</p>
+*@
+	</div>
+</div>
+} else {
+<div class="row">
+	<div class="col s12">
+		<h5>Informed consent</h5>
+		<p>
+			You are being invited to participate in a research study titled '@project.getName()'. This study is being done by @project.getOwner().getName().
+			@if(!project.getOrganization().isEmpty()) { @project.getOrganization() }
+		</p>
+		<p>
+			The purpose of this research study is as follows:
+		</p>
+		<p>
+			<i>
+			@project.getIntro()
+			</i>
+		</p>
+		@defining(project.getStudyManagementDataset()) { osm =>
+		@if(osm.isPresent() && !osm.get().configuration("informed_consent", "").isEmpty()){
+		<p>
+			Please download and read the informed consent form carefully: <a href="@api.routes.CompleteDSController.downloadLatestFile(osm.get().getId(),osm.get().configuration("informed_consent",""))">Informed Consent</a>
+		</p>
+		}}
+		<p>
+			Any collected data will be used for research purposes only. If you give your consent, your data will be made available for future research, for example by sharing those data with fellow researchers or making anonymized/pseudonymized data available via a data archive or repository.
+			<br><br>
+			Your participation in this study is entirely voluntary and you can withdraw at any time. You are free to omit any question or action.
+		</p>
+		<p>
+			We believe there are no known risks associated with this research study; however, as with any online data processing the risk of a breach is always possible. To the best of our ability, we will ensure that your information in this study will remain confidential. We will minimize any risks by separating your personal information (such as name, email, gender and age) from study data, which is processed and stored anonymously. The data will be stored securely, there will be backups performed daily and we will inform you promptly in case of changes or a data breach.
+		</p>
+@*
+		<p>
+			Our purpose is to perform open science and we aim to share anonymised research datasets with other researchers in an open and <a href="https://www.go-fair.org/fair-principles/" target="_blank" rel="noopener">FAIR format</a>.
+		</p>
+*@
+	</div>
+</div>
+}
+}

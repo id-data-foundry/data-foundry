@@ -1,0 +1,246 @@
+@(id: Long, cluster: models.sr.Cluster, metadata: List[String])
+<script src="@routes.Assets.versioned("javascripts/vega_5.min.js")" type="text/javascript"></script>
+<style type="text/css">
+	.vg-tooltip table {
+		margin: 0;
+	}
+	.vg-tooltip tbody {
+		border: 0;
+	}
+</style>
+
+<div id="configuration-@id" style="padding: 1rem 0 0;">
+	<div class="row" style="margin-left: 1rem;">
+		<div class="col s12">
+			Select a column to visualize it. First two selections will be area plots (good for values), third and following will be line plots, which are suitable for both events and values. The dataset contains the following columns: 
+		</div>
+		@for(md <- metadata) {
+		<div class="col s6 m2">
+			<p style="margin: 0.3rem;">
+		      <label>
+		        <input type="checkbox" name="@md" />
+		        <span>@md</span>
+		      </label>
+		    </p>
+		</div>
+		}
+	</div>
+	<div class="row">
+		<div class="col s12">
+			<div id="deviceplot-@id"></div>
+		</div>
+		<div class="col s12" style="margin-left: 1rem;">
+			Use the lowest visualization to select a timeframe (click, drag horizontally, release) and zoom in or out (use mouse wheel on selected area).
+		</div>
+	</div>
+
+	<script type="module">
+		let data = [];
+		let configuration = []
+
+		
+		fetch('@routes.DatasetsController.downloadJson(id, -1L, -1L, -1L)')
+			.then(response => response.json())
+			.then(json => {
+				data = json;
+				buildVis(data, configuration);
+			});
+
+		document.querySelectorAll('#configuration-@id input').forEach((d) => d.addEventListener('click', function(e) {
+			if(e.target.checked) {
+				configuration.push(e.target.name)
+			} else {
+				let i = configuration.indexOf(e.target.name)
+				configuration.splice(i, 1)
+			}
+
+			// refresh visualization
+			document.querySelector('#deviceplot-@id').html = '';
+			buildVis(data, configuration);
+		}))
+
+		function buildVis(data, configuration) {
+			let layers = []
+			for(const col of configuration) {
+				if(layers.length < 2) {
+					layers.push({
+            "mark": {
+            	"type": 'line',
+            	"strokeWidth": 1
+          	},
+            "encoding": {
+            "y": {
+            	"aggregate": "mean",
+            "field": col,
+            "type": 'quantitative'
+            },
+            "color": {
+            	"datum": col,
+            "value": ["steelblue", "#85C5A6"][layers.length],
+            "type": "nominal",
+            "legend": {
+									"title": "Data series",
+								"orient": "right"
+								}
+            }
+            }
+					})
+				} else {
+					layers.push({
+            "mark": {
+            	"type": 'line',
+            	"strokeWidth": 1
+          	},
+            "encoding": {
+            "y": {
+            	"aggregate": "mean",
+            "field": col,
+            "type": 'quantitative',
+            "axis": null
+            },
+            "color": {
+            	"datum": col,
+            "value": [`#383867`, `#584c77`, `#33431e`, `#a36629`, `#92462f`, `#b63e36`, `#b74a70`, `#946943`][(layers.length-2) % 8],
+            "type": "nominal",
+            "legend": {
+									"title": "Data series",
+								"orient": "right"
+								}
+            }
+            }
+	        })
+				}
+			}
+
+			let width = document.querySelector('#deviceplot-@id').parentElement.clientWidth - 120;
+			let vconcat = [{
+	        "width": width,
+	        "height": 100,
+	        "mark": "tick",
+	        "encoding": {
+	          "x": {
+	            "field": 'ts', 
+	            "type": 'temporal',
+	            "scale": {"domain": {"param": "brush"}},
+	            "axis": {"tickCount":15, "title": null}
+	          },
+	          "y": {
+	            "field": "activity",
+	            "type": "nominal"
+	          },
+	          "color": {
+	            "field": "activity",
+	            "type": "nominal",
+	            "legend": {
+	            	"title": "Activity",
+	            	"orient": "right"
+	            }
+	          },
+						"tooltip": [
+				      {"field": "ts", "type": "temporal", "title": "Date"},
+				      {"field": "activity", "type": "nominal", "title": "Activity"},
+				      {"field": "pp1", "type": "nominal", "title": "PP1"}
+				    ]
+	        }
+		    }];
+		    if(layers.length > 0) {
+		    	vconcat.push({
+		        "width": width,
+		        "height": 400,
+			    	"encoding": {
+	            "x": {
+                "field": 'ts', 
+                "type": 'temporal',
+                "sort": "ascending",
+                "scale": {"domain": {"param": "brush"}},
+                "axis": {"tickCount":15, "title": null}
+	            }
+		    		},
+		        "layer": layers,
+				    "resolve": {
+				    	"scale": {
+				    		"y": "independent",
+				    	},
+				    }
+			    });
+		    }
+		    vconcat.push({
+	        "width": width,
+	    		"height": 60,
+	        "mark": {
+	        	"type": "area",
+	        	"line": {
+	        		"color": "#85C5A6",
+            	"strokeWidth": 1
+	        	},
+				    "color": {
+				      "gradient": "linear",
+				      "x1": 1,
+				      "y1": 1,
+				      "x2": 1,
+				      "y2": 0,
+				      "stops": [
+				        {"offset": 0, "color": "white"},
+				        {"offset": 1, "color": "#85C5A6"}
+				      ]
+				    }
+	        },
+	        "params": [{
+	          "name": "brush",
+	          "select": {"type": "interval", "encodings": ["x"]}
+	        }],
+					"transform": [{
+			      "aggregate": [
+			        {"op": "max", "field": configuration[0], "as": "windowValue"}
+			      ],
+			      "groupby": ["ts"]
+			    }],
+	        "encoding": {
+	          "x": {
+	            "field": "ts",
+	            "type": "temporal",
+	            "sort": "ascending",
+	            "axis": {"tickCount":15, "title": null}
+	          },
+	          "y": {
+	            "field": "windowValue",
+	            "type": "quantitative",
+	            "axis": {"tickCount": 3, "grid": false, "title": null}
+	          }
+	        }
+		    });
+
+			var yourVlSpec = {
+		    $schema: "https://vega.github.io/schema/vega-lite/v5.json",
+		    "description": '',
+		    "data": {
+		    	"values": data
+		    },
+		    "vconcat": vconcat,
+		    "resolve": {
+		    	"scale": {
+		    		"color": "independent"
+		    	},
+		    },
+		    "config": {
+			    "mark": {
+			    	"invalid": "filter"
+			  	},
+			    "tick": {
+			      "thickness": 5,
+			      "bandSize": 5
+			    }
+				}
+			};
+			var options = {
+				"theme": "quartz",
+				"actions": {
+					"source": false, "editor": false, "compiled": false
+				}
+			};
+			vegaEmbed('#deviceplot-@id', yourVlSpec, options);
+		}
+
+		buildVis(data, configuration);
+	</script>
+</div>

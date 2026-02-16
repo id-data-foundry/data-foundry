@@ -1,0 +1,753 @@
+## OpenAPI/Swagger ROUTES ## 
+## basic path:/api/v2/datasets ##
+
+###
+ #  summary: list all datasets of the user
+ #  responses:
+ #    200:
+ #      description: success
+ #  deprecated: true
+ ###
+GET       /                               controllers.swagger.DatasetApiController.datasets(request: Request)
+
+###
+ #  summary: view a specific dataset
+ #  parameters:
+ #    - name: "id"
+ #      in: "path"
+ #      description: "Dataset id"
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #  responses:
+ #    200:
+ #      description: success
+ #      schema:
+ #        type: object
+ #        properties:
+ #          id:
+ #            type: "integer"
+ #            format: "int64"
+ #          title:
+ #            type: "string"
+ #          type:
+ #            type: "string"
+ #          target:
+ #            type: "string"
+ #          description:
+ #            type: "string"
+ #          keywords:
+ #            type: "string"
+ #          doi:
+ #            type: "string"
+ #          relation:
+ #            type: "string"
+ #          organization:
+ #            type: "string"
+ #          remarks:
+ #            type: "string"
+ #          license:
+ #            type: "string"
+ #          creationDate:
+ #            type: "string"
+ #          startDate:
+ #            type: integer
+ #            format: "int64"
+ #          endDate:
+ #            type: integer
+ #            format: "int64"
+ #          owner:
+ #            type: "string"
+ #          isOpenParticipation:
+ #            type: boolean
+ #          project_id:
+ #            type: integer
+ #            format: "int64"
+ #          id:
+ #            type: integer
+ #            format: "int64"
+ #          data:
+ #            description: "information of files for Complete, Media, and Movement dataset"
+ #            type: array
+ #            items:
+ #              ts:
+ #                type: "string"
+ #                description: "uploading date"
+ #              name:
+ #                type: "string"
+ #              description:
+ #                type: "string"
+ #    400:
+ #      description: Not valid dataset.
+ #    403:
+ #      description: Not valid dataset, user, or api-token; or user can't access the dataset.
+ ###
+GET       /$id<[0-9]+>                            controllers.swagger.DatasetApiController.dataset(request: Request, id : Long)
+
+###
+ #  summary: list all visible datasets
+ #  responses:
+ #    200:
+ #      description: success
+ #      schema:
+ #        type: object
+ #        properties:
+ #          datasets:
+ #            description: "Ids of datasets fit the condition"
+ #            type: array
+ #            items:
+ #              type: integer
+ #              format: "int64"
+ ###
+GET       /search                         controllers.swagger.DatasetApiController.searchDatasets(request: Request, filter : String ?= "", query : String ?= "", relation : String ?= "", organization : String ?= "")
+
+###
+ #  summary: search datasets with a specific dataset type and keywords
+ #  parameters:
+ #    - name: "filter"
+ #      in: "path"
+ #      description: "Choose the type of dataset."
+ #      type: "string"
+ #      enum: ["All dataset", "IoT", "Movement", "Survey", "Media"]
+ #    - name: "query"
+ #      in: "path"
+ #      description: "Enter some keywords to search for"
+ #      type: "string"
+ #  responses:
+ #    200:
+ #      description: success
+ #      schema:
+ #        type: object
+ #        properties:
+ #          datsets:
+ #            description: "Ids of datasets fit the condition"
+ #            type: array
+ #            items:
+ #              type: integer
+ #              format: "int64"
+ ###
+GET       /search/:filter/:query          controllers.swagger.DatasetApiController.searchDatasets(request: Request, filter : String, query : String, relation : String ?= "", organization : String ?= "")
+GET       /search/                        controllers.swagger.DatasetApiController.searchDatasets(request: Request, filter : String ?= "", query : String ?= "", relation : String ?= "", organization : String ?= "")
+GET       /search                         controllers.swagger.DatasetApiController.searchDatasets(request: Request, filter : String ?= "", query : String ?= "", relation : String ?= "", organization : String ?= "")
+
+###
+ #  summary: search datasets with a specific dataset type and keywords
+ #  parameters:
+ #    - name: "filter"
+ #      in: "path"
+ #      description: "Choose the type of dataset, enter some keywords to search for."
+ #      type: "string"
+ #      enum: ["All dataset", "IoT", "Movement", "Survey/Form", "Media"]
+ #  responses:
+ #    200:
+ #      description: success
+ #      schema:
+ #        type: object
+ #        properties:
+ #          datasets:
+ #            description: "Ids of datasets fit the condition"
+ #            type: array
+ #            items:
+ #              type: integer
+ #              format: "int64"
+ ###
+GET       /search/:filter                 controllers.swagger.DatasetApiController.searchDatasets(request: Request, filter : String, query : String ?= "", relation : String ?= "", organization : String ?= "")
+
+###
+ #  summary: add a new dataset
+ #  parameters:
+ #    - name: "body"
+ #      in: "body"
+ #      description: "add a new dataset"
+ #      required: true
+ #      schema:
+ #        type: object
+ #        required:
+ #          - "dataset_name"
+ #          - "dataset_id"
+ #          - "dataset_type"
+ #          - "description"
+ #          - "start-date"
+ #          - "end-date"
+ #          - "isOpenParticipation"
+ #        properties:
+ #          dataset_name:
+ #            type: "string"
+ #          project_id:
+ #            type: "integer"
+ #            format: "int64"
+ #            description: "Id of the project for adding the new dataset."
+ #          dataset_type:
+ #            type: "string"
+ #            description: "Enter one of these: ANNOTATION,COMPLETE,DIARY,ENTITY,ES,FITBIT,FORM,GOOGLEFIT,IOT,LINKED,MOVEMENT,MEDIA,SURVEY,TIMESERIES"
+ #          description:
+ #            type: "string"
+ #          target_object:
+ #            type: "string"
+ #            description: "For Fitbit and GoogleFit dataset, target_object keeps the scopes in lower case to request data, such as step, calories, etc., check here: https://df-staging.id.tue.nl/documentation/datasets#wearable-dataset-types; for other datasets, target_object is the description for target subjects in this dataset."
+ #          start-date:
+ #            type: "string"
+ #            description: "yyyy-mm-dd"
+ #            example: "2020-07-08"
+ #          end-date:
+ #            type: "string"
+ #            description: "yyyy-mm-dd"
+ #            example: "2020-08-07"
+ #          keywords:
+ #            type: "string"
+ #            description: "Keywords relating to the content and the place/period of origin of the data."
+ #            example: "movement, running"
+ #          doi:
+ #            type: "string"
+ #            description: "Digital object identifier. In computing, a digital object identifier (DOI) is a persistent identifier or handle used to identify objects uniquely, standardized by the International Organization for Standardization (ISO). DOIs are in wide use mainly to identify academic, professional, and government information, such as journal articles, research reports and datasets, and official publications... (Wikipedia)"
+ #          relation:
+ #            type: "string"
+ #            description: "Relation is which refer to a related dataset, publication or journal article."
+ #          organization:
+ #            type: "string"
+ #            description: "Organizations involved, subsidizer (subsidy number)."
+ #          remarks:
+ #            type: "string"
+ #            description: "General remarks / comments."
+ #          isOpenParticipation:
+ #            type: boolean
+ #  responses:
+ #    200:
+ #      description: success
+ #      schema:
+ #        type: object
+ #        properties:
+ #          id:
+ #            description: "Id of the new dataset"
+ #            type: integer
+ #            format: "int64"
+ #    400:
+ #      description: Not valid user.
+ #    403:
+ #      description: User or api-token is not valid or user can't access the dataset.
+ ###
+POST      /add                            controllers.swagger.DatasetApiController.add(request: Request)
+
+###
+ #  summary: edit specific dataset 
+ #  parameters:
+ #    - name: "id"
+ #      in: "path"
+ #      description: "Dataset id"
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #    - in: "body"
+ #      name: "body"
+ #      description: "Maintain dataset informations"
+ #      required: true
+ #      schema:
+ #        type: object
+ #        properties:
+ #          dataset_name:
+ #            type: "string"
+ #          description:
+ #            type: "string"
+ #          target_object:
+ #            type: "string"
+ #            description: "For Fitbit and GoogleFit dataset, target_object keeps the scopes in lower case to request data, such as step, calories, etc., check here: https://df-staging.id.tue.nl/documentation/datasets#wearable-dataset-types; for other datasets, target_object is the description for target subjects in this dataset."
+ #          start-date:
+ #            type: "string"
+ #            description: "yyyy-mm-dd"
+ #            example: "2020-07-08"
+ #          end-date:
+ #            type: "string"
+ #            description: "yyyy-mm-dd"
+ #            example: "2020-08-07"
+ #          keywords:
+ #            type: "string"
+ #            description: "Keywords relating to the content and the place/period of origin of the data."
+ #            example: "movement, running, jogging"
+ #          doi:
+ #            type: "string"
+ #            description: "Digital object identifier. In computing, a digital object identifier (DOI) is a persistent identifier or handle used to identify objects uniquely, standardized by the International Organization for Standardization (ISO). DOIs are in wide use mainly to identify academic, professional, and government information, such as journal articles, research reports and datasets, and official publications... (Wikipedia)"
+ #          relation:
+ #            type: "string"
+ #            description: "Relation is which refer to a related dataset, publication or journal article."
+ #          organization:
+ #            type: "string"
+ #            description: "Organizations involved, subsidizer (subsidy number)."
+ #          remarks:
+ #            type: "string"
+ #            description: "General remarks / comments."
+ #          isOpenParticipation:
+ #            type: boolean
+ #  responses:
+ #    200:
+ #      description: success
+ #    400:
+ #      description: Not valid user.
+ #    403:
+ #      description: User or api-token is not valid or user can't access the dataset.
+ ###
+POST      /edit/:id                       controllers.swagger.DatasetApiController.edit(request: Request, id : Long)
+
+###
+ #  summary: delete specific dataset
+ #  parameters:
+ #    - name: "id"
+ #      in: "path"
+ #      description: "Dataset id"
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #  responses:
+ #    200:
+ #      description: success
+ #    400:
+ #      description: Not valid user.
+ #    403:
+ #      description: User or api-token is not valid or user can't access the dataset.
+ ###
+DELETE    /$id<[0-9]+>                    controllers.swagger.DatasetApiController.delete(request: Request, id : Long)
+
+###
+ #  summary: upload a file to dataset 
+ #  parameters:
+ #    - name: "id"
+ #      in: "path"
+ #      description: "Dataset id, only available for COMPLETE, MEDIA, MOVEMENT, and EXPERIENCE SAMPLING datasets"
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #    - name: "description"
+ #      in: "formData"
+ #      description: "Description for the file"
+ #      required: true
+ #      type: "string"
+ #    - name: "participant"
+ #      in: "formData"
+ #      description: "Full name of participant, required for MOVEMENT and EXPERIENCE SAMPLING dataset"
+ #      required: false
+ #      type: "string"
+ #    - name: "file"
+ #      in: "formData"
+ #      description: "Choose a file to upload: COMPLETE dataset are allowed with csv files, pdf files, text and image files; MOVEMENT dataset accept gpx or xml files; EXPERIENCE SAMPLING dataset is only available for csv files."
+ #      required: true
+ #      type: "file"
+ #  responses:
+ #    200:
+ #      description: success
+ #    400:
+ #      description: Not valid user.
+ #    403:
+ #      description: User or api-token is not valid or user can't access the dataset.
+ ###
+POST      /upload/:id                     controllers.swagger.DatasetApiController.uploadDatasetFile(request: Request, id : Long)
+
+###
+ #  summary: download data from a dataset in CSV format
+ #  parameters:
+ #    - name: "id"
+ #      in: "path"
+ #      description: "Dataset id"
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #    - name: "participant_id"
+ #      in: "query"
+ #      description: "ID of participant to filter with"
+ #      type: "integer"
+ #      format: "int64"
+ #    - name: "device_id"
+ #      in: "query"
+ #      description: "ID of device to filter with"
+ #      type: "integer"
+ #      format: "int64"
+ #    - name: "wearable_id"
+ #      in: "query"
+ #      description: "ID of wearable to filter with"
+ #      type: "integer"
+ #      format: "int64"
+ #    - name: "cluster_id"
+ #      in: "query"
+ #      description: "ID of cluster to filter with"
+ #      type: "integer"
+ #      format: "int64"
+ #    - name: "limit"
+ #      in: "query"
+ #      description: "limit number of returned records"
+ #      type: "integer"
+ #      format: "int64"
+ #    - name: "start"
+ #      in: "query"
+ #      description: "start timestamp (ms) of export interval"
+ #      type: "integer"
+ #      format: "int64"
+ #    - name: "end"
+ #      in: "query"
+ #      description: "end timestamp (ms) of export interval"
+ #      type: "integer"
+ #      format: "int64"
+ #  responses:
+ #    200:
+ #      description: success
+ #    400:
+ #      description: Not valid user.
+ #    403:
+ #      description: User or api-token is not valid or user can't access the dataset.
+ ###
+GET       /download/:id.csv               controllers.swagger.DatasetApiController.downloadCSV(request: Request, id : Long, participant_id : Long ?= -1, device_id : Long ?= -1, wearable_id: Long ?= -1, cluster_id : Long ?= -1, limit : Long ?= -1, start : Long ?= -1, end : Long ?= -1)
+
+###
+ #  summary: download data from a dataset in JSON format
+ #  parameters:
+ #    - name: "id"
+ #      in: "path"
+ #      description: "Dataset id"
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #    - name: "participant_id"
+ #      in: "query"
+ #      description: "ID of participant to filter with"
+ #      type: "integer"
+ #      format: "int64"
+ #    - name: "device_id"
+ #      in: "query"
+ #      description: "ID of device to filter with"
+ #      type: "integer"
+ #      format: "int64"
+ #    - name: "wearable_id"
+ #      in: "query"
+ #      description: "ID of wearable to filter with"
+ #      type: "integer"
+ #      format: "int64"
+ #    - name: "cluster_id"
+ #      in: "query"
+ #      description: "ID of cluster to filter with"
+ #      type: "integer"
+ #      format: "int64"
+ #    - name: "limit"
+ #      in: "query"
+ #      description: "limit number of returned records"
+ #      type: "integer"
+ #      format: "int64"
+ #    - name: "start"
+ #      in: "query"
+ #      description: "start timestamp (ms) of export interval"
+ #      type: "integer"
+ #      format: "int64"
+ #    - name: "end"
+ #      in: "query"
+ #      description: "end timestamp (ms) of export interval"
+ #      type: "integer"
+ #      format: "int64"
+ #  responses:
+ #    200:
+ #      description: success
+ #    400:
+ #      description: Not valid user.
+ #    403:
+ #      description: User or api-token is not valid or user can't access the dataset.
+ ###
+GET       /download/:id.json              controllers.swagger.DatasetApiController.downloadJson(request: Request, id : Long, participant_id : Long ?= -1, device_id : Long ?= -1, wearable_id: Long ?= -1, cluster_id : Long ?= -1, limit : Long ?= -1, start : Long ?= -1, end : Long ?= -1)
+
+###
+ #  summary: download a specific file from a dataset
+ #  parameters:
+ #    - name: "id"
+ #      in: "path"
+ #      description: "Dataset id"
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #    - name: "filename"
+ #      in: "path"
+ #      description: "Filename"
+ #      example: "pic.jpg"
+ #      required: true
+ #      type: "string"
+ #  responses:
+ #    200:
+ #      description: success
+ #    400:
+ #      description: Not valid user.
+ #    403:
+ #      description: User or api-token is not valid or user can't access the dataset.
+ ###
+GET       /download/:id/:filename         controllers.swagger.DatasetApiController.downloadDatasetFile(request: Request, id : Long, filename : String)
+
+###
+ #  summary: add a new record to an IOT dataset
+ #  description: Add a new record to an IOT dataset.
+ #  parameters:
+ #    - name: "id"
+ #      in: "path"
+ #      description: "Dataset id"
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #    - name: "body"
+ #      in: "body"
+ #      required: true
+ #      schema:
+ #        type: object
+ #        required:
+ #          - "source_id"
+ #          - "activity"
+ #          - "data"
+ #        properties:
+ #          source_id:
+ #            type: "string"
+ #            description: "Reference id of the device to get data"
+ #          activity:
+ #            type: "string"
+ #            example: "air quality"
+ #          data:
+ #            type: string
+ #            description: Data as JSON structure, and use '\' to escape the reserved characters.
+ #            example: "{\"parameter1\": 2, \"parameter2\": 5}"
+ #  responses:
+ #    200:
+ #      description: success
+ #    400:
+ #      description: Not valid user.
+ #    403:
+ #      description: User or api-token is not valid or user can't access the dataset.
+ ###
+POST      /iot/:id                        controllers.swagger.DatasetApiController.addIoTRecord(request: Request, id : Long)
+
+###
+ #  summary: get a specific item from an ENTITY dataset
+ #  description: Get a specific record from an ENTITY dataset.
+ #  parameters:
+ #    - name: "id"
+ #      in: "path"
+ #      description: "Dataset id"
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #    - name: "resource_id"
+ #      in: "query"
+ #      description: "Resource id of the item to get (max 60 characters)"
+ #      required: true
+ #      type: "string"
+ #    - name: "token"
+ #      in: "query"
+ #      description: "Token to access this item (max 60 characters)"
+ #      required: true
+ #      type: "string"
+ #  responses:
+ #    200:
+ #      description: success, response with the information record in the item.
+ #    400:
+ #      description: Not valid user.
+ #    403:
+ #      description: User or resource_id-token combination is not valid or user can't access the dataset.
+ ###
+GET       /entity/:id                     controllers.swagger.DatasetApiController.getItem(request: Request, id : Long, resource_id : String ?= "", token : String ?= "")
+
+###
+ #  summary: add a new item to an ENTITY dataset
+ #  description: Add a new item to an ENTITY dataset.
+ #  parameters:
+ #    - name: "id"
+ #      in: "path"
+ #      description: "Dataset id"
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #    - name: "body"
+ #      in: "body"
+ #      required: true
+ #      schema:
+ #        type: object
+ #        required:
+ #          - "resource_id"
+ #          - "token"
+ #          - "data"
+ #        properties:
+ #          resource_id:
+ #            type: "string"
+ #            description: "Resource id of the item to get (max 60 characters)"
+ #          token:
+ #            type: string
+ #            description: "Token to access this item (max 60 characters)"
+ #          data:
+ #            type: string
+ #            description: State the data by Json structure, and use '\' to escape the reserved characters.
+ #            example: "{\"parameter1\": 2, \"parameter2\": 5}"
+ #  responses:
+ #    200:
+ #      description: success, response with the data added.
+ #    400:
+ #      description: Not valid user.
+ #    403:
+ #      description: User or resource_id-token combination is not valid or user can't access the dataset.
+ ###
+POST      /entity/:id                     controllers.swagger.DatasetApiController.addItem(request: Request, id : Long)
+
+###
+ #  summary: update an item in an ENTITY dataset
+ #  description: Update an item in an ENTITY dataset.
+ #  parameters:
+ #    - name: "id"
+ #      in: "path"
+ #      description: "Dataset id"
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #    - name: "body"
+ #      in: "body"
+ #      required: true
+ #      schema:
+ #        type: object
+ #        properties:
+ #          resource_id:
+ #            type: "string"
+ #            description: "Resource id of the item to get (max 60 characters)"
+ #          token:
+ #            type: string
+ #            description: "Token to access this item (max 60 characters)"
+ #          data:
+ #            type: string
+ #            description: State the data by Json structure, and use '\' to escape the reserved characters.
+ #            example: "{\"parameter1\": 2, \"parameter2\": 5}"
+ #  responses:
+ #    200:
+ #      description: success
+ #    400:
+ #      description: Not valid user.
+ #    403:
+ #      description: User or resource_id-token combination is not valid or user can't access the dataset.
+ ###
+PUT       /entity/:id                     controllers.swagger.DatasetApiController.updateItem(request: Request, id : Long)
+
+###
+ #  summary: delete a specific item from an ENTITY dataset
+ #  description: delete a specific record from an ENTITY dataset.
+ #  parameters:
+ #    - name: "id"
+ #      in: "path"
+ #      description: "Dataset id"
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #    - name: "body"
+ #      in: "body"
+ #      required: true
+ #      schema:
+ #        type: object
+ #        required:
+ #          - "resource_id"
+ #          - "token"
+ #        properties:
+ #          resource_id:
+ #            type: "string"
+ #            description: "Resource id of the item to get (max 60 characters)"
+ #          token:
+ #            type: string
+ #            description: "Token to access this item (max 60 characters)"
+ #  responses:
+ #    200:
+ #      description: success, response with nothing.
+ #    400:
+ #      description: Not valid user.
+ #    403:
+ #      description: User or resource_id-token combination is not valid or user can't access the dataset.
+ ###
+DELETE    /entity/:id                     controllers.swagger.DatasetApiController.deleteItem(request: Request, id : Long)
+
+###
+ #  summary: add a new record to an Annotation dataset
+ #  description: Add a new record to an Annotation dataset.
+ #  parameters:
+ #    - name: "id"
+ #      in: "path"
+ #      description: "Dataset id"
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #    - name: "body"
+ #      in: "body"
+ #      required: true
+ #      schema:
+ #        type: object
+ #        required:
+ #          - "refId"
+ #          - "text"
+ #        properties:
+ #          refId:
+ #            type: "string"
+ #            description: The refId of the cluster to add record
+ #          title:
+ #            type: "string"
+ #            example: "air quality"
+ #          text:
+ #            type: string
+ #            description: State the data by Json structure, and use '\' to escape the reserved characters.
+ #          ts-date:
+ #            description: "Date for this record."
+ #            type: "string"
+ #            description: "yyyy-MM-dd, keep it empty for today."
+ #            example: "2020-07-08"
+ #          ts-time:
+ #            description: "Time of the day for this record."
+ #            type: "string"
+ #            description: "HH:mm:ss, keep it empty for the time right now."
+ #            example: "13:08:24"
+ #  responses:
+ #    200:
+ #      description: success
+ #    400:
+ #      description: Not valid user.
+ #    403:
+ #      description: User can't access the dataset or cluster not found in project.
+ ###
+POST      /annotation/:id                 controllers.swagger.DatasetApiController.addAnnotationRecord(request: Request, id : Long)
+
+###
+ #  summary: add a new record to an Diary dataset
+ #  description: Add a new record to an Diary dataset.
+ #  parameters:
+ #    - name: "id"
+ #      in: "path"
+ #      description: "Dataset id"
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #    - name: "participant_id"
+ #      in: "path"
+ #      description: "Participant id"
+ #      required: true
+ #      type: "integer"
+ #      format: "int64"
+ #    - name: "body"
+ #      in: "body"
+ #      required: true
+ #      schema:
+ #        type: object
+ #        required:
+ #          - "text"
+ #        properties:
+ #          title:
+ #            type: "string"
+ #            example: "air quality"
+ #          text:
+ #            type: string
+ #            description: State the data by Json structure, and use '\' to escape the reserved characters.
+ #          ts-date:
+ #            description: "Date for this record."
+ #            type: "string"
+ #            description: "yyyy-MM-dd, keep it empty for today."
+ #            example: "2020-07-08"
+ #          ts-time:
+ #            description: "Time of the day for this record."
+ #            type: "string"
+ #            description: "HH:mm:ss, keep it empty for the time right now."
+ #            example: "13:08:24"
+ #  responses:
+ #    200:
+ #      description: success
+ #    400:
+ #      description: Not valid user.
+ #    403:
+ #      description: User can't access the dataset or participant not found in project.
+ ###
+POST      /diary/:id/:participant_id               controllers.swagger.DatasetApiController.addDiaryRecord(request: Request, id : Long, participant_id : Long)

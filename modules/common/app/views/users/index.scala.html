@@ -1,0 +1,28 @@
+@(user : Person, projects : List[Project])
+
+@main("User projects") {
+
+  <!-- navigation -->
+  <nav class="">
+    <div class="row">
+      <div class="col s12">
+        <a href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+        <a href="#" class="breadcrumb">@user.getName</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- projects list -->
+  <div class="row">
+    <div class="col s12">
+		<h3 class="">
+			USER PROJECTS
+		</h3>
+	</div>
+
+  @for(p <- projects){  
+    @elements.project.projectCard(p)
+  }
+  </div>
+
+}

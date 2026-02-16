@@ -1,0 +1,22 @@
+@(dataset : Dataset, user : String)
+
+    <div class="col s12">
+      <ul class="tabs">
+        @if((dataset.getDsType().equals(DatasetType.IOT)
+            || dataset.getDsType().equals(DatasetType.ENTITY) 
+            || dataset.getDsType().equals(DatasetType.MEDIA)) 
+            && (dataset.editableBy(user))) {
+        <li class="tab col s3"><a id="postTab" href="#post">@elements.icon("cloud_upload") HTTP data upload</a></li>
+        }
+        @if((dataset.getDsType().equals(DatasetType.IOT) || dataset.getDsType().equals(DatasetType.ENTITY)) && (dataset.editableBy(user))) {
+        <li class="tab col s3"><a id="oocsi_inTab" href="#oocsi_in">@elements.icon("cloud_upload") Data from OOCSI</a></li>
+        }
+        <li class="tab col s3"><a id="csv_outTab" href="#csv_out">@elements.icon("cloud_download") CSV/JSON Download</a></li>
+        @if(dataset.editableBy(user)) {
+        @if(dataset.getDsType().equals(DatasetType.COMPLETE)) {
+        <li class="tab col s3"><a id="web_outTab" href="#web_out">@elements.icon("cloud_download") Web access</a></li>
+        }
+        <li class="tab col s3"><a id="oocsi_outTab" href="#oocsi_out">@elements.icon("cloud_download") Forward data to OOCSI</a></li>
+        }
+      </ul>
+    </div>

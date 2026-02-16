@@ -1,0 +1,130 @@
+@(activeUsers : Int, totalUsers : Int, activeWearables: Int, totalWearables: Int, csrfToken: String)
+@administrator("Overview", "overview") {
+<style type="text/css">
+	.metrics .col p {
+		font-size: 2em;
+		color: darkblue;
+	}
+</style>
+
+<div class="row">
+	<div class="col s12">
+		<h4>Project overview</h4>
+	</div>
+</div>
+
+<div class="row metrics">
+	<div class="col s3">
+		<b>Active projects</b>
+		<p>
+			<span id="activeProjects"></span> / <span id="totalProjects"></span>
+		</p>
+	</div>
+	<div class="col s3">
+		<b>Active users</b>
+		<p>
+			<span id="activeUsers">@activeUsers</span> / <span id="totalUsers">@totalUsers</span>
+		</p>
+	</div>
+	<div class="col s3">
+		<b>Active wearables</b>
+		<p>
+			<span id="activeWearables">@activeWearables</span> / <span id="totalWearables">@totalWearables</span>
+		</p>
+	</div>
+	<div class="col s3">
+		<b>Total dataitems</b>
+		<p>
+			<span id="totalDataItems"></span>
+		</p>
+	</div>
+</div>
+
+<div class="row">
+	<div id="loadData" class="col s12">
+		<p>
+			<b>Show database stats</b>
+			<form hx-post="@routes.AdminController.generateStats()" hx-swap="outerHTML">
+				<input type="hidden" name="csrfToken" value="@csrfToken" />
+				<button type="submit" class="btn">Generate all stats</button>
+			</form>
+		</p>
+		<table id="datatable" style="font-size: 0.8em"></table>
+	</div>
+</div>
+
+<script type="text/javascript">
+	(function() {
+		$(this).hide();
+		var headers  = ["project", "dataset", "type", "total events", "7 days", "trend", "active", "owner", "participants", "devices", "wearables", "handle"];
+		var data = [];
+		$.getJSON("@routes.AdminController.allStats()", function(projects) {
+
+			var totalEvents = 0;
+			var activeProjects = 0;
+			var totalProjects = projects.length;
+			var totalParticipants = 0;
+			var totalDevices = 0;
+			var totalWearables = 0;
+
+			projects.forEach(function(d) {
+				d.active && activeProjects++;
+				totalParticipants += d.participants;
+				totalDevices += d.devices;
+				totalWearables += d.wearables;
+
+				var temp = [];
+
+				// push dataset info
+				var projectEvents = 0;
+				var thisWeekProjectEvents = 0;
+				var lastWeekProjectEvents = 0;
+				d.datasets.forEach(function(e) {
+					projectEvents += e.items;
+					thisWeekProjectEvents += e.thisweek;
+					lastWeekProjectEvents += e.lastweek;
+					var trend = 0;
+					if(e.lastweek > 0) {
+						trend = 100 * (e.thisweek - e.lastweek) / e.lastweek;
+					} else if(e.thisweek > 0) {
+						trend = 100;
+					}
+
+					temp.push([d.name + " (pid:" + d.id + ")", e.name + " (did:" + e.id + ")", e.type, e.items, e.thisweek, Math.round(trend) + "%", "", d.owner, "", "", "", e.refId]);
+				})
+
+				var trend = 0;
+				if(lastWeekProjectEvents > 0) {
+					trend = 100 * (thisWeekProjectEvents - lastWeekProjectEvents) / lastWeekProjectEvents;
+				} else if(thisWeekProjectEvents > 0) {
+					trend = 100;
+				}
+
+				// push project info
+				data.push([d.name + " (pid:" + d.id + ")", "", "", projectEvents, thisWeekProjectEvents, Math.round(trend) + "%", d.active, d.owner, d.participants, d.devices, d.wearables, ""]);
+				temp.forEach(function(d) {
+					data.push(d);
+				})
+
+				totalEvents += projectEvents;
+			})
+
+			var input = {
+				data: data,
+    			columns: [],
+    			select: {
+					style: 'single'
+				}
+	        };
+	        headers.forEach(function(d,i) {
+				input.columns.push({"title": d});
+			});
+		    table = $('#datatable').DataTable(input);
+
+		    $('#activeProjects').text(activeProjects);
+		    $('#totalProjects').text(totalProjects);
+		    $('#totalDataItems').text(totalEvents);
+		});
+	})();
+</script>
+}

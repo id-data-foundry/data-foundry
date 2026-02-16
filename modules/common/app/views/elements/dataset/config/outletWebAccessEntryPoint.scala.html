@@ -1,0 +1,22 @@
+@(dataset: Dataset, files: List[models.vm.TimedMedia], token: String)
+<br>
+<p>
+  <b>Set an entry point for web access</b>
+  <br>
+  The entry point sends a visitor directly to the file that you want them to start with when they access this dataset from the web.
+  Also, you can use this to switch between different versions of your web pages in this dataset.
+</p>
+<form class="entryPointSelection" id="entrypointSelection"
+        hx-post="@routes.DatasetsController.webEntryPointSelection(dataset.getId())"
+        hx-trigger="change">
+  <input type="hidden" name="csrfToken" value="@token">
+  <select id="filename" name="filename" class="browser-default">
+    <option value="-1">no entry point selected</option>
+    @for(file <- files) {
+      <option value="@file.link" @if(dataset.configuration(Dataset.WEB_ACCESS_ENTRY, "").equals(file.link)) {selected}>@file.link</option>
+    }
+  </select>
+</form>
+<script type="text/javascript">
+  $('form.entryPointSelection select').formSelect();
+</script>

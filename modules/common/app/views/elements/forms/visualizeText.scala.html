@@ -1,0 +1,24 @@
+@(dataset: Dataset, choice: String)
+
+<div id="@(choice)_container" class="col s12" style="overflow-y: scroll;">
+	
+</div>
+
+<script type="text/javascript">
+
+	vega.loader()
+		.load("@routes.DatasetsController.download(dataset.getId())")
+		.then(function(data) {
+			var items = vega.format.csv(data);
+
+			if(items.length == 0) {
+				$('#@(choice)_container').append("<div class='col s12'><p>no data yet</p></div>");
+			}
+
+			items.forEach(function(d) {
+				$('#@(choice)_container').append("<div class='col s4' style='padding: 1em;'><div class='card' style='padding:1em;'>" + d['@choice'] + "<br><br><small><i>" + d.ts + "</i></small></div></div>");
+			});
+		});
+
+</script>
+

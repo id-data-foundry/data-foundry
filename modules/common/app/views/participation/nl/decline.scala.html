@@ -1,0 +1,24 @@
+@(invite_token: String)
+
+@participating("Geweigerde deelname", invite_token, "nl") {
+
+  <br><br>
+
+  <div class="row">
+    <div class="col 12">
+      <h3>Geweigerde deelname</h3>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col s12">
+      <h5>Bedankt,</h5>
+      <p>
+        We hebben je bericht ontvangen en genoteerd dat je deelname hebt geweigerd, bedankt voor je overweging.
+      </p>
+      <p>
+        Als je van gedachten verandert en alsnog wilt deelnemen, klik dan <a href="@routes.ParticipationController.confirm(invite_token)">hier</a> om je opnieuw aan te melden.
+      </p>
+    </div>
+  </div>
+}

@@ -1,0 +1,126 @@
+@(device : sr.Device, datasets: List[Dataset])
+
+@main("Device " + device.getName()) {
+
+<style type="text/css">
+    td, th {
+        padding: 0;
+    }
+</style>
+
+<!-- navigation -->
+<nav class="">
+    <div class="row">
+        <div class="col s12">
+            <a id="homeBtn" href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+            <a href="@routes.ProjectsController.view(device.getProject().getId())" class="breadcrumb">@device.getProject().getName()</a>
+            <a href="@routes.ProjectsController.viewResources(device.getProject().getId())" class="breadcrumb">Sources</a>
+            <a href="#" class="breadcrumb">@device.getName()</a>
+      </div>
+    </div>
+</nav>
+
+<!-- device data -->
+<div class="row">
+    <div class="col s12">
+        <h3>Device @device.getName()</h3>
+    </div>
+    <div class="col s12">
+        <h4>Device data</h4>
+    </div>
+</div>
+
+@for(ds <- datasets) {
+<div class="row">
+    <div class="col s12">
+        <details @if(datasets.indexOf(ds) == 0) {open}>
+            <summary>
+                <b>@ds.getName()</b> <a href="@routes.ResourcesController.deviceData(device.getProject().getId(), ds.getId(), device.getId())" download="@{ds.getName()}.csv">data</a> (click to download data) for @device.getName():
+            </summary>
+            <div hx-get="@routes.ResourcesController.deviceDataVis(device.getProject().getId(), ds.getId(), device.getId())"
+                 hx-trigger="load"></div>
+        </details>
+    </div>
+</div>
+}
+
+<!-- device info -->
+<div class="row">
+	<div class="col s12">
+		<h4>Device info</h4>
+	</div>
+    <div class="col s12">
+        <table class="striped">
+        	<thead>
+                    <th style="width: 30%"><b>Name</b></th>
+                    <th>@device.getName()</th>
+        	</thead>
+            <tbody>
+                <tr>
+                    <th><b>Reference ID</b></th>
+                    <td>@device.getRefId()</td>
+                </tr>
+                <tr>
+                    <th><b>Type</b></th>
+                    <td>
+                        @formatString(device.getCategory())
+                    </td>
+                </tr>
+                <tr>
+                    <th><b>Subtype</b></th>
+                    <td>
+                        @formatString(device.getSubtype())
+                    </td>
+                </tr>
+                <tr>
+                    <th><b>Location</b></th>
+                    <td>
+                        @formatString(device.getLocation())
+                    </td>
+                </tr>
+                <tr>
+                    <th><b>In Cluster</b></th>
+                    <td> @if(device.getClusters().size != 0) {
+                            @for(cl <- device.getClusters()) {
+                                <a href="@routes.ClustersController.view(cl.getId())">
+                                <span style="font-size: 1em;">@elements.icon("group_work")</span> @cl.getName()
+								</a>
+                            }
+                        } else {
+                            -
+                        }
+                    </td>
+                </tr>
+                <tr>
+                    <th><b>Public Parameter1</b></th>
+                    <td>
+                        @formatString(device.getPublicParameter1())
+                    </td>
+                </tr>
+                <tr>
+                    <th><b>Public Parameter2</b></th>
+                    <td>
+                        @formatString(device.getPublicParameter2())
+                    </td>
+                </tr>
+                <tr>
+                    <th><b>Public Parameter3</b></th>
+                    <td>
+                        @formatString(device.getPublicParameter3())
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="row">
+  <div class="col s12" >
+  	<a href="@routes.DevicesController.edit(device.getId())" class="btn">EDIT device</a>
+  </div>
+</div>
+}
+
+@formatString(str: String) = {
+    @if(str == null || str.isEmpty) { - } else { @str }
+}

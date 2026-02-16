@@ -1,0 +1,286 @@
+@(dataset: Dataset, fileId : Long, fileName : String, fileType : String, fileContent : String, fileLists : List[vm.TimedMedia], csrfToken : String)
+@main("Editing " + fileName, "profile", "collapsed-layout") {
+<script src='@routes.Assets.versioned("javascripts/codeflask.min.js")' type="text/javascript"></script>
+<script src="@routes.DatasetsController.jsRoutes()" type="text/javascript"></script>
+<style type="text/css">
+  .container {
+    height: 100vh;
+    overflow: hidden;
+    display: grid;
+    grid-template-rows: 60px 60px 1fr auto;
+  }
+  .console {
+    height: 25px;
+    background: darkgray;
+    padding: 0.1rem 0.3rem;
+    z-index: 1000;
+  }
+  .console:hover {
+    height: 200px;
+  }
+  .console > span {
+    display: block;
+  }
+  .console > div {
+    display: block;
+    background: lightgray;
+    height: 175px;
+    overflow: scroll;
+  }
+  .console > div > p {
+    margin: 0;
+    padding: 0 0.3rem;
+  }
+  .console > div > p error {
+    color: red;
+  }
+  footer {
+    display: none;
+  }
+  .splitview {
+    height: 100%;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+  .splitview > div {
+    display: grid;
+    grid-template-rows: 48px 1fr;
+  }
+  textarea.codeflask__textarea, pre.codeflask__pre, code.codeflask__code {
+    font-family: monospace !important;
+  }
+  textarea.codeflask__textarea {
+      word-wrap: normal;
+  }
+  .editor_contents, #playground {
+    height: 100%;
+    margin: 0.5rem 0;
+  }
+  #playground {
+    border-top: dotted grey 1px;
+    border-bottom: dotted grey 1px;
+    background: white;
+  }
+  .editor_contents div.codeflask .codeflask__pre {
+    width: 1000%;
+  }
+
+  .editor_contents div.codeflask .codeflask__lines {
+    background: rgba(100, 100, 100, 0.1);
+  }
+</style>
+
+<nav class="">
+  <div class="row">
+    <div class="col s12">
+      <a id="homeBtn" href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+      <a id="backToProjectBtn" href="@routes.ProjectsController.view(dataset.getProject().getId())" class="breadcrumb">@dataset.getProject().getName()</a>
+      <a id="backToDatasetBtn" href="@routes.DatasetsController.view(dataset.getId())" class="breadcrumb">@dataset.getName()</a>
+      <a href="#" class="breadcrumb">Edit file</a>
+    </div>
+  </div>
+</nav>
+
+<div class="row">
+  <div class="col s12">
+    <h4>Edit @fileName</h4>
+  </div>
+</div>
+
+@defining(fileLists.filter(_.link.endsWith(".html"))) { htmlFiles => 
+<div class="splitview">
+  <div>
+    <div style="display: flex; align-items: baseline; gap: 1rem;">
+      Editing:
+      <form id="fileSelector" style="flex: 2;">
+        <select>
+        @for(fileList <- fileLists) {
+          <option value="@api.routes.CompleteDSController.editFile(dataset.getId(),fileList.getId())" @if(fileList.getId().equals(fileId)) {selected}>@fileList.link</option>
+        }
+        </select>
+      </form>
+      <button class="btn disabled" id="saveBtn">Save</button>
+      @if(fileName.endsWith(".html") && !dataset.configuration(Dataset.WEB_ACCESS_TOKEN, "").isEmpty()) {
+        <a class="btn blue" href="@routes.DatasetsController.webToken(dataset.configuration(Dataset.WEB_ACCESS_TOKEN, ""), fileName)" target="_blank" rel="noopener">Open</a>
+      }
+      <a class="btn-flat grey-text" href="@routes.DatasetsController.view(dataset.getId())">Cancel</a>
+    </div>
+    <div style="height: 100%;">
+      <div id="editor_contents" class="editor_contents">loading file contents ...</div>
+    </div>
+  </div>
+  <div>
+    @if(!htmlFiles.isEmpty()) {
+    <div style="display: flex; align-items: baseline; gap: 1rem;">
+      Viewing: 
+      <form id="playgroundSelector" style="flex: 2;">
+        <select>
+        @for(fileList <- htmlFiles) {
+          <option value="@routes.DatasetsController.web(dataset.getId(),fileList.link)" @if(fileList.getId().equals(fileId)) {selected}>@fileList.link</option>
+        }
+        </select>
+      </form>
+      <button id="playgroundReloadBtn" class="btn">Reload</button>
+    </div>
+    }
+    <div id="playground">
+      @if(htmlFiles.isEmpty()) {
+      <span style="margin: 4rem auto; width: 50%; display: block; color: grey; font-size: 2rem; text-align: center;">
+        no content to play with, we need at least one HTML file in this dataset
+      </span>
+      } else {
+      <iframe id="playgroundContent" 
+              @if(fileName.indexOf(".html") > -1) {
+              src="@routes.DatasetsController.web(dataset.getId(),fileName)"
+              } else {
+              src="@routes.DatasetsController.web(dataset.getId(),htmlFiles.get(0).link)"
+              }
+              style="border: 0; width: 100%; height: 100%;"></iframe>
+      }
+    </div>
+  </div>
+</div>
+<div class="console">
+  <span>Console</span>
+  <div>
+  </div>
+</div>
+}
+<script type="text/javascript">
+  
+  document.addEventListener("DOMContentLoaded", (event) => {
+    document.getElementById('saveBtn').classList.add('disabled');
+
+    // init code editor
+    let flask = new CodeFlask('#editor_contents', {
+      language: '@fileType',
+      lineNumbers: true
+    });
+
+    // download file contents and insert into editor
+    fetch("@controllers.api.routes.CompleteDSController.downloadFile(dataset.getId(), fileId)")
+      .then((response) => response.text())
+      .then((data) => {
+        flask.updateCode(data);
+        setTimeout(() => {
+          flask.onUpdate((code) => {
+              document.getElementById('saveBtn').classList.remove('disabled');
+          });
+        }, 100);
+      });
+
+    ////////////////////////////////////////////////
+
+    document.getElementById('saveBtn').addEventListener('click', function(e) {
+        e.preventDefault();
+
+        // retrieve content
+        let content = flask.getCode();
+        @Html(utils.StringUtils.scrambleTransport("content"))
+
+        fetch('@controllers.api.routes.CompleteDSController.saveFile(dataset.getId(), fileId)', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'text/plain; charset=UTF-8',
+                'Csrf-Token': '@csrfToken'
+            },
+            body: content
+        })
+        .then(response => {
+            if (response.ok) {
+            document.getElementById('saveBtn').classList.add('disabled');
+                M.toast({html: 'File saved.', classes: 'green darken-2'});
+
+                // reload iframe on success
+                document.querySelector('#playgroundContent').contentWindow.location.reload();
+            } else {
+              if(response.status == 403) {
+                  M.toast({html: 'Problem saving file changes, you are logged out.', classes: 'red darken-2'});
+              } else {
+                M.toast({html: 'Problem saving file changes.', classes: 'red darken-2'});
+              }
+            }
+        })
+        .catch(error => {
+            M.toast({html: 'Problem saving file changes.', classes: 'red darken-2'});
+        });
+
+        return false;
+    });
+    document.addEventListener('keypress', function(e) {
+        // Check if the key pressed is 'S' and the 'Ctrl' key is held down
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+
+            // Simulate the save button click
+            let saveButton = document.getElementById('saveBtn');
+            if (saveButton) {
+                saveButton.click();
+            }
+        }
+    });
+
+    document.querySelector('#fileSelector select').addEventListener('change', function(e) {
+      window.location.href = this.value;
+    });
+    document.querySelector('#playgroundSelector select').addEventListener('change', function(e) {
+      document.querySelector('#playgroundContent').src = this.value;
+    });
+
+    document.querySelector('#playgroundReloadBtn').addEventListener('click', (e) => {
+      document.querySelector('#playgroundContent').contentWindow.location.reload();
+    })
+
+    let iframe = document.querySelector('iframe');
+    iframe.onload = function() {
+      let messageContainer = document.querySelector('.console > div');
+      while(messageContainer.children.length > 0) {
+        messageContainer.firstElementChild.remove();
+      }
+
+      // Event listener for the playground
+      let iflog = iframe.contentWindow.window.console.log;
+      iframe.contentWindow.window.console.log = function(...args) {
+        printMessage(`<p>&gt; ${serialize(args)}</p>`)
+        iflog.apply(iframe.contentWindow.window.console, args);
+      }
+      let iferr = iframe.contentWindow.window.console.error;
+      iframe.contentWindow.window.console.error = function(...args) {
+        printMessage(`<p><error>&gt; ${serialize(args)}</error></p>`)
+        iferr.apply(iframe.contentWindow.window.console, args);
+      }
+      iframe.contentWindow.window.onerror = (e, url, line, col) => {
+        printMessage(`<p><error>&gt; ${e} at ${url.substring(url.lastIndexOf("/"))} line ${line}:${col}</error></p>`)
+        return false;
+      }
+
+      const serialize = (args) => {
+        return args.map(j => {
+          if(Array.isArray(j) || Object.prototype.toString.call(j) === '[object Object]') { return JSON.stringify(j); }
+          if(typeof j === 'number' || typeof j === 'boolean' || j === null) { return j; }
+          return j.toString();
+        }).join(" ");
+      }
+
+      const printMessage = (msg) => {
+        messageContainer.insertAdjacentHTML("beforeend", msg);
+        while (messageContainer.children.length > 100) {
+          messageContainer.firstElementChild.remove();
+        }
+        document.querySelector('.console > span').innerText = `Console (${messageContainer.children.length})`;        
+      }
+    };
+
+    // Event listener for the beforeunload event
+    window.addEventListener('beforeunload', function(e) {
+        if (!document.getElementById('saveBtn').classList.contains('disabled')) {
+            const confirmationMessage = 'You have unsaved changes. Are you sure you want to leave?';
+            e.returnValue = confirmationMessage; // For most browsers
+            return confirmationMessage; // For some older browsers
+        }
+    });
+  });
+</script>
+}

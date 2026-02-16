@@ -1,0 +1,89 @@
+@(projectId: Long, pai: services.api.GenericApiService.ProjectAPIInfo, csrfToken: String)
+
+<form
+    hx-post="@routes.ProjectsController.activateOpenAIApiAccess(projectId)"
+    @if(pai.created > 0) {
+    hx-confirm="Are you sure that you want to generate a new key? Click OK to generate the new key."
+    }
+    hx-trigger="submit">
+    <input type="hidden" name="csrfToken" value="@csrfToken">
+    <h5>Project API access</h5>
+    <p>
+        You can configure API access for this project here. That means, you can generate an API key for this project (and you as a user) that allows to access a Data Foundry API. If it is configured in your Data Foundry, you can access the <a href="/documentation/Learning/LocalAI/index.html" target="_blank" rel="noopener">LocalAI API</a> with a generated key below. Check our <a href="/documentation/Reference/LocalAI/AIAPI.html" target="_blank" rel="noopener">documentation</a> to learn how to use this API from Data Foundry.
+    </p>
+    <p>
+        <i>
+            Please note: Do not use OpenAI API functionality for collecting sensitive and confidential information. Furthermore, do not use it to collect personal data including special category of personal data.
+        </i>
+    </p>
+
+    @if(pai.created > 0) {
+    <table class="table">
+        <tr>
+            <td>
+                Your API key: 
+            </td>
+            <td>
+                <code style="background: lightgrey; padding: 0.125rem 0.5rem; border-radius: 0.3rem;">@pai.apiKey</code>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                Created: 
+            </td>
+            <td>
+                <code>@{new Date(pai.created).toString()}</code>
+            </td>
+        </tr>
+        <tr>
+            <td>
+                Used tokens:
+            </td>
+            <td>
+                <code>@pai.tokensUsed</code> of <code>@pai.tokensMax</code>
+            </td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>
+                <a href="/links/contact" target="_blank">Contact us</a> if you need more credits.
+            </td>
+        </tr>
+    </table>
+    <p>
+        <button 
+            type="submit" 
+            class="btn">Generate API access key
+        </button>
+        <small>Click again to generate a new key. The old key will be invalid after that.</small>
+    </p>
+    } else {
+    @if(pai.error.isPresent()) {
+    <p>
+        @pai.error.get()
+    </p>
+    } else {
+    <p>
+        There is no API key configured for this project yet.
+    </p>
+    <p>
+        <button 
+            type="submit" 
+            class="btn">Generate your API access key
+        </button>
+    </p>
+    }
+    }
+    <details open>
+        <summary class="active">Important information</summary>
+        <p>
+            The use of this API is controlled by Data Foundry and at the moment <i>free</i>. We will monitor the usage of the API and also log any prompts that are submitted for quality assurance and debugging purposes. We will only log data that is exchanged with OpenAI as an external party, not data that is exchanged with our LocalAI instance.
+        </p>
+        <p>
+            If you suspect that your API key has somehow leaked, generate a new one (which invalidates the old one) <i>and</i> <a href="/links/contact" target="_blank">contact us</a> for help.
+        </p>
+        <p>
+            By using the API key above you acknowledge these terms.
+        </p>
+    </details>
+</form>

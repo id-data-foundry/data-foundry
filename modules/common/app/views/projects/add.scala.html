@@ -1,0 +1,118 @@
+@(csrfToken : String, user : Person, template : String, availableTemplates : java.util.List[String])
+
+@main("Add new project", "profile") {
+
+  <!-- navigation -->
+  <nav class="">
+    <div class="row">
+      <div class="col s12">
+        <a id="homeBtn" href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+        <a href="#" class="breadcrumb">New project</a>
+      </div>
+    </div>
+  </nav>
+
+	<div class="row">
+	  <div class="col s12">
+  		<h2>Add New Project</h2>
+  	</div>
+  </div>
+
+  <div class="row">
+    <form class="col s12" action="@routes.ProjectsController.addMe()" method="POST">
+      
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <input placeholder="Ex: 'IoT home jogging study', 'Office snacking behavior study', ... " id="project_name" name="project_name" type="text" class="validate" required="">
+          <label for="project_name">Project name</label>
+        </div>
+    		<div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+    			This should make sense to other people as well, so nothing like "test project", "Joe's first project", "final study"... ;-)
+    		</div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <textarea placeholder="Ex: This study reports on... We survey home owners and joggers..." id="project_introduction" class="materialize-textarea countMe" name="intro" data-length="1000" required="" maxlength="1000"></textarea>
+          <label for="project_introduction">Project introduction</label>
+        </div>
+    		<div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+    			This text will be shown also to participants as part of the consent form, so adding a few details helps in getting consent from your participants.
+    		</div>
+      </div>
+
+      <div class="row">
+        <div class="input-field col s12 m7" id="licenseSelector">
+          <select id="license" name="license" required="required" class="validate">
+            <option value="" disabled>Choose project license</option>
+            <option value="MIT" selected>MIT license</option>
+            <option value="CC BY">CreativeCommons Attribution</option>
+            <option value="CC BY-SA">CreativeCommons Attribution ShareAlike</option>
+            <option value="CC BY-ND">CreativeCommons Attribution-NoDerivs</option>
+            <option value="CC BY-NC">CreativeCommons Attribution-NonCommercial</option>
+            <option value="CC BY-NC-SA">CreativeCommons Attribution-NonCommercial-ShareAlike</option>
+            <option value="CC BY-NC-ND">CreativeCommons Attribution-NonCommercial-NoDerivs</option>
+          </select>
+          <label>Project license</label>
+        </div>
+    		<div class="col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+    			Enter a license for this project (including all its datasets). We support different <a href="@routes.HomeController.licenses()" target="_blank">licenses</a>, please do take a moment to choose the right license.
+    		</div>
+      </div>
+
+      <details id= "advancedSettings" style="margin-bottom: 20px;">
+        <summary>Advanced settings</summary>
+        <div class="row">
+          <div class="input-field col s12 m7">
+            <select id="project_template" name="project_template" class="browser-default">
+              <option value="" disabled @if(template.isEmpty()) {selected}>Choose an optional project template</option>
+              @for(t <- availableTemplates) {
+                  <option value="@t" @if(template.equals(t)) {selected}>@t</option>
+              }
+              <option value="wearable" @if(template.equals("wearable")) {selected}>Wearable project with 10 participants and their wearables</option>
+              <option value="remote_study" @if(template.equals("remote_study")) {selected}>Remote study with digital prototype amd 10 participants</option>
+              <option value="iot_devices" @if(template.equals("iot_devices")) {selected}>IoT project with 10 devices</option>
+              <option value="mss_datalogger" @if(template.equals("mss_datalogger")) {selected}>Making Sense of Sensors (MSS)</option>
+              <option value="diary_study" @if(template.equals("diary_study")) {selected}>Qualitative research project with 10 participants</option>
+              <option value="ded_contextual" @if(template.equals("ded_contextual")) {selected}>Data-enabled Design project (contextual step) with 10 participants and 20 devices</option>
+              <option value="ded_informed" @if(template.equals("ded_informed")) {selected}>Data-enabled Design project (informed step) with 10 participants, 20 devices and scripting</option>
+            </select>
+          </div>
+          <div class="input-field col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+            <p>
+              You can use a project template to initialize a project with datasets, files and resources (devices, participants). After that, your project is practically ready to go.
+            </p>
+          </div>
+        </div>
+      </details>
+
+      <hr style="border: lightgray 1px solid;">
+
+      <div class="row">
+        <div class="input-field col s12 m7">
+          <p id="dataProtectionSection">
+            <label>
+              <input id="isDataProtectionAgreed" name="isDataProtectionAgreed" type="checkbox" required="required" class="validate">
+              <span>I understand and accept that I need the consent of anyone whose personally-identifiable information I store in this project. This includes the participant information (name, email) that is used to register participants in the platform.</span>
+            </label>
+          </p>
+        </div>
+        <div class="input-field col s12 m5 green-text text-lighten-2" style="font-size: 0.8em">
+          <p>
+            Data Foundry acts as a data processor for personally-identifiable data that you as the project owner and legal data controller choose to store in the platform. Please ensure that you familiarize yourself with the definition of PII data and how it needs to be handled according to national and European data protection laws.
+          </p>
+        </div>
+      </div>
+      
+      <input type="hidden" name="csrfToken" value="@csrfToken"/>
+
+      <div class="row">
+        <div class="col s12">
+          <button id="submitBtn" class="btn" type="submit">ADD</button>
+          <a href="@routes.ProjectsController.index()" class="btn-flat cancelBtn">CANCEL</a>
+      	</div>
+      </div>
+
+    </form>
+  </div>
+}

@@ -1,0 +1,38 @@
+@(dataset : Dataset)(implicit request: Http.Request)
+<html>
+<head>
+	<title>Image Uploader Example</title>
+	<meta charset="UTF-8" />
+</head>
+<body>
+	<div>
+		<form id="myform" enctype="multipart/form-data" method="post">
+			File: 
+			<input type="file" name="file" id="fileInput" accept=".png, .jpg, .jpeg, .gif">
+			<br>
+			Participant ID:
+			<input type="text" name="participant_id" id="participant_id"/>
+			<br>
+			Description:
+			<input type="text" name="description" id="description"/>
+		</form>
+		<button onclick="uploadFile()">upload</button>
+	</div>
+</body>
+
+<script type="text/javascript">
+// upload function
+const uploadFile = () => {
+	// retrieve the form
+	const myform = document.querySelector('#myform');
+	const formData = new FormData(myform);
+
+	// create upload request
+	const request = new XMLHttpRequest();
+	request.open("POST", '@api.routes.MediaDSController.addItem(dataset.getId()).absoluteURL(request, request.secure())', @request.secure());
+	request.setRequestHeader('api_token', '@dataset.configuration(Dataset.API_TOKEN, "TOKEN")')
+	request.send(formData);
+};
+
+</script>
+</html>

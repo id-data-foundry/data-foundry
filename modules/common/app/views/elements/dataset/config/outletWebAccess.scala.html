@@ -1,0 +1,62 @@
+@(dataset : Dataset, user : String)(implicit request: Http.Request)
+
+    <div id="web_out" class="col s12 tab-contents">
+      <div class="row" id="webaccessConfiguration">
+        <div class="col s12">
+          <p>
+            <b>Access the data as a website</b>
+          </p>
+
+          @if(dataset.editableBy(user)) {
+          <p>
+            As the <i>research team</i>, you can always access the dataset as a <a href="@routes.DatasetsController.webRedirect(dataset.getId())" target="_blank" rel="noopener">website</a>, if the dataset is <a href="/documentation/dataset-active">active</a>. (This is independent from public accessibility.)
+          </p>
+          }
+
+          @if(!dataset.configuration(Dataset.WEB_ACCESS_TOKEN, "").isEmpty()) {
+          <p id="webTokenDescription">
+            This dataset is accessible as a public website with the following link:
+          </p>
+          <div class="row" id="webAccessLink">
+          	<div class="col s10">
+              <textarea rows="1" class="weblinkTextarea">@routes.DatasetsController.webToken(dataset.configuration(Dataset.WEB_ACCESS_TOKEN, ""), "").absoluteURL(request, true)</textarea>
+            </div>
+            <div class="col s1">
+              <a class="btn" href="@routes.DatasetsController.webToken(dataset.configuration(Dataset.WEB_ACCESS_TOKEN, ""), "").absoluteURL(request, true)" target="_blank" rel="noopener">
+                @elements.icon("open_in_new")
+              </a>
+            </div>
+            <div class="col s1">
+              <a href="#" class="btn" onclick="navigator.clipboard.writeText(document.querySelector('textarea.weblinkTextarea').value); return false;">
+                @elements.icon("content_copy")
+              </a>
+            </div>
+          </div>
+          } else {
+          <p id="webTokenDescription">
+            This dataset is currently not publicly accessible.
+          </p>
+          } 
+
+          @if(dataset.editableBy(user)) {
+          <a class="btn"
+              id="activateWebAccessBtn"
+              hx-get="@routes.DatasetsController.configureWithToken(dataset.getId(), Dataset.WEB_ACCESS_TOKEN)" 
+              hx-target="#webaccessConfiguration" 
+              hx-swap="outerHTML" 
+              hx-select="#webaccessConfiguration">Activate web access</a>
+          <a class="btn-flat red-text" 
+              hx-get="@routes.DatasetsController.configure(dataset.getId(), Dataset.WEB_ACCESS_TOKEN, "")" 
+              hx-target="#webaccessConfiguration" 
+              hx-swap="outerHTML" 
+              hx-select="#webaccessConfiguration">Disable web access</a>
+          }
+        </div>
+        @if(dataset.editableBy(user)) {
+        <div class="col s12"
+            hx-get="@routes.DatasetsController.webEntryPointSelection(dataset.getId())"
+            hx-trigger="load"
+            hx-swap="innerHTML"></div>
+        }
+      </div>
+    </div>

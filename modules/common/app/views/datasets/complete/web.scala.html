@@ -1,0 +1,48 @@
+@(p : Project, dataset : Dataset, message : String)
+
+@main("File error", "profile") {
+<!-- navigation -->
+<nav class="">
+	<div class="row">
+		<div class="col s12">
+			<a href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+			<a href="@routes.ProjectsController.view(p.getId())" class="breadcrumb">@p.getName()</a>
+			<a href="@routes.DatasetsController.view(dataset.getId())" class="breadcrumb">@dataset.getName()</a>
+		</div>
+	</div>
+</nav>
+
+<div class="row">
+	<div class="col s12">
+		<h3>Content problem</h3>
+	</div>
+	<div class="col s12">
+		@message
+	</div>
+</div>
+
+<div class="row">
+	<div class="col s12">
+		<p>
+			Do you need a starting point for a website here on Data Foundry? No problem.
+		</p>
+		<p>
+			Just paste the following code into a <code>index.html</code> file on your computer and <a href="@routes.DatasetsController.view(dataset.getId())">upload it to this dataset</a>.
+		</p>
+
+		<pre class="language-html"><code class="language-html">@template()</code></pre>
+	</div>
+</div>
+
+}
+
+@template() = {&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+	&lt;title&gt;My web page&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+	Hey, you made it! This is a website with a &lt;a href="/"&gt;link&lt;/a&gt; back to Data Foundry.
+&lt;/body&gt;
+&lt;/html&gt;
+}

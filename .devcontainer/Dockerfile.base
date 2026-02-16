@@ -1,0 +1,36 @@
+# Base build
+FROM ubuntu:latest
+
+# Set PATH
+WORKDIR /app
+
+# Install system dependencies needed for sbt
+RUN apt-get update && apt-get install -y \
+    curl \
+    unzip \
+    zip \
+    systemd \
+    gnupg \
+    bash \
+    npm \
+    file \
+    python3-libsass \
+    ruby \
+    bundler \
+    jekyll \
+    && apt-get clean
+
+RUN curl -s "https://get.sdkman.io?ci=true&rcupdate=false" | bash
+
+RUN /bin/bash -c "source /root/.sdkman/bin/sdkman-init.sh \
+    && sdk version \
+    && sdk install java 25.0.1-graalce \
+    && sdk install sbt"
+
+ENV PATH="/root/.sdkman/candidates/java/current/bin:/root/.sdkman/candidates/sbt/current/bin:/root/.sdkman/candidates/scala/current/bin:${PATH}"
+
+# Test java
+RUN java --version
+
+# Test sbt
+RUN sbt -version

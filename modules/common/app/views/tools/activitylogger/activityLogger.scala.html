@@ -1,0 +1,211 @@
+@(datasetName: String, participantName: String, participantId: String, directActivities: String, stateActivities: String, logEndpointUrl: String)
+
+@import helper._
+@import play.libs.Json
+@import utils.auth.TokenResolverUtil
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Activity Logger</title>
+    <link rel="stylesheet" href="@routes.Assets.versioned("stylesheets/picoCSS/pico.min.css")">
+    <link rel="stylesheet" href="@routes.Assets.versioned("stylesheets/picoCSS/pico.colors.min.css")">
+    <style>
+        :root {
+            --pico-border-radius: 1rem;
+        }
+        .activity-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .activity-button {
+            height: 120px;
+            font-size: 1.1em;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            word-break: break-word;
+            padding: 15px;
+            cursor: pointer;
+            transition: transform 0.1s ease, filter 0.2s ease, box-shadow 0.2s ease;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        .activity-button:active {
+            transform: scale(0.95);
+            filter: brightness(0.9);
+        }
+        .activity-button.state-on {
+            background-color: var(--pico-color-jade-300);
+            color: var(--pico-color-white);
+            border-color: var(--pico-color-jade-600);
+            animation: pulse 2s infinite;
+        }
+        @@keyframes pulse {
+            0% { background-color: var(--pico-color-jade-300); }
+            50% { background-color: var(--pico-color-jade-100); }
+            100% { background-color: var(--pico-color-jade-300); }
+        }
+        #status-message {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 10px 20px;
+            border-radius: 2rem;
+            background: var(--pico-card-background-color);
+            box-shadow: var(--pico-box-shadow);
+            z-index: 1000;
+            display: none;
+            font-size: 0.9rem;
+            border: 1px solid var(--pico-muted-border-color);
+        }
+        .success-flash {
+            background-color: var(--pico-color-jade-100) !important;
+            transition: background-color 0.2s ease-in-out;
+        }
+    </style>
+</head>
+<body>
+    <main class="container">
+        <header>
+            <hgroup>
+                <h1>Activity Logger</h1>
+                <p>
+                    @datasetName: <strong>@participantName</strong>
+                </p>
+            </hgroup>
+        </header>
+
+        <div class="activity-buttons" id="activity-buttons-container">
+            <!-- Buttons will be rendered here by JavaScript -->
+        </div>
+
+        <div id="status-message"></div>
+    </main>
+
+    <script>
+        const logEndpointUrl = '@logEndpointUrl';
+        const directActivitiesString = '@directActivities';
+        const stateActivitiesString = '@stateActivities';
+        const participantId = '@participantId';
+
+        let stateActivityTimers = {};
+
+        function showStatus(message, duration = 2000) {
+            const statusEl = document.getElementById('status-message');
+            statusEl.textContent = message;
+            statusEl.style.display = 'block';
+            setTimeout(() => {
+                statusEl.style.display = 'none';
+            }, duration);
+        }
+
+        function initializeActivityLogger() {
+            const container = document.getElementById('activity-buttons-container');
+            container.innerHTML = '';
+
+            const directActivities = directActivitiesString ? directActivitiesString.split(',').map(s => s.trim()).filter(s => s.length > 0) : [];
+            const stateActivities = stateActivitiesString ? stateActivitiesString.split(',').map(s => s.trim()).filter(s => s.length > 0) : [];
+
+            directActivities.forEach(activityName => {
+                const button = createActivityButton(activityName, 'direct');
+                container.appendChild(button);
+            });
+
+            stateActivities.forEach(activityName => {
+                const button = createActivityButton(activityName, 'state');
+                container.appendChild(button);
+            });
+        }
+
+        function createActivityButton(activityName, type) {
+            const button = document.createElement('button');
+            button.className = 'activity-button secondary outline';
+            button.setAttribute('data-activity-name', activityName);
+            button.setAttribute('data-activity-type', type);
+
+            const icon = type === 'direct' ? '⚡' : '🔄';
+            button.innerHTML = `<div>${icon}<br>${activityName}</div>`;
+
+            button.onclick = () => handleActivityClick(activityName, type, button);
+            return button;
+        }
+
+        async function handleActivityClick(activityName, type, button) {
+            const payload = {
+                activity: activityName,
+                participantId: participantId,
+                timestamp: Date.now()
+            };
+
+            if (type === 'direct') {
+                const success = await logActivity(payload);
+                if (success) {
+                    triggerVisualFeedback(button);
+                    showStatus('Logged: ' + activityName);
+                }
+            } else if (type === 'state') {
+                const isOn = button.classList.contains('state-on');
+                const newActivity = activityName + (isOn ? ':off' : ':on');
+                payload.activity = newActivity;
+
+                const success = await logActivity(payload);
+                if (success) {
+                    if (isOn) {
+                        button.classList.remove('state-on');
+                        button.classList.add('outline');
+                        button.classList.add('secondary');
+                        showStatus('Stopped: ' + activityName);
+                    } else {
+                        button.classList.add('state-on');
+                        button.classList.remove('outline');
+                        button.classList.remove('secondary');
+                        showStatus('Started: ' + activityName);
+                    }
+                }
+            }
+        }
+
+        async function logActivity(payload) {
+            try {
+                const response = await fetch(logEndpointUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('Failed to log activity:', errorText);
+                    showStatus('Error: ' + errorText, 5000);
+                    return false;
+                }
+                return true;
+            } catch (error) {
+                console.error('Network error while logging activity:', error);
+                showStatus('Network Error', 5000);
+                return false;
+            }
+        }
+
+        function triggerVisualFeedback(button) {
+            button.classList.add('success-flash');
+            setTimeout(() => {
+                button.classList.remove('success-flash');
+            }, 150);
+        }
+
+        document.addEventListener('DOMContentLoaded', initializeActivityLogger);
+    </script>
+</body>
+</html>

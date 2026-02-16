@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project default="compile" basedir="../../" name="Minify JS Assets">
+	<target name="compile" description="Create a minified version of the various JS scripts using Closure Compiler">
+	    <taskdef name="jscomp" classname="com.google.javascript.jscomp.ant.CompileTask">
+	    	<classpath>
+	    		<pathelement location="${basedir}/tools/js-build/closure-compiler-v20210808.jar" />
+	    	</classpath>
+	    </taskdef>
+	    
+	    <jscomp compilationLevel="simple" debug="true" output="${basedir}/public/javascripts/common.min.js">
+ 	        <sources dir="${basedir}/app/assets/javascripts/">
+	            <file name="common.js"/> 
+	        </sources>
+ 	    </jscomp>
+
+ 	</target>
+</project>

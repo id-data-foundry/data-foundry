@@ -1,0 +1,176 @@
+@(dataset: Dataset, participants: List[sr.Participant], user : String, fileLists : List[vm.TimedMedia])(implicit request: Http.Request)
+@main("View dataset", "profile") {
+  <script src='@routes.Assets.versioned("javascripts/vega.min.js")' type="text/javascript"></script>
+  @elements.dataset.datasetTitlebar(dataset, user) {
+    @elements.dataset.datasetDownloadButton(dataset, user)
+  }
+
+  <div class="row">
+    <div class="col s12 m4 offset-m8 right-align">
+      @if(dataset.editableBy(user)) {
+        <a id="uploadFileBtn" href="#modal_add_file" class="btn modal-trigger">
+          @elements.icon("add")
+          Upload files
+        </a>
+      }
+    </div>
+  </div>
+
+  <div class="row white">
+    <div class="col s12 bottom-line">
+      <h5>Dataset files</h5>
+    </div>
+    <br><br><br>
+
+    <div class="col s12">
+      <table class="striped">
+        <thead>
+          <tr>
+              <th class="">File name</th>
+              <th class="">Participant</th>
+              <th class="">Description</th>
+              <th class="">Uploaded</th>
+              <th></th>
+          </tr>
+        </thead>
+
+        <tbody>
+          @if(fileLists != null) {
+            @for(fileList <- fileLists) {
+          <tr>
+            <td class="">
+              <a href="@api.routes.ExpSamplingDSController.downloadFile(dataset.getId(),fileList.link)">@fileList.link</a>
+            </td>
+            <td class="">
+            @if(fileList.participant != null) {
+              <a href="@routes.ParticipantsController.view(fileList.participant.getId())">@fileList.participant.getName()</a>
+            }
+            </td>
+            <td class="">@fileList.caption</td>
+            <td class="">@fileList.datetime()</td>
+            <td class="">
+            @if(fileList.participant != null){
+              <a href="#annotationModal" class="modal-trigger" onclick="initAnnotation('@fileList.link', '@fileList.participant.getName()', '@fileList.datetime()');">
+                @elements.icon("art_track")
+              </a>
+            }
+            </td>
+          </tr>
+            }
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  @if(dataset.editableBy(user)) {
+    <div id="modal_add_file" class="modal">
+      <div class="modal-content">
+        <h4 class="center-align">Upload files</h4>
+        <div class="row">
+          <div class="col s12 m6 l8">
+              <br>
+              <form action="@api.routes.ExpSamplingDSController.uploadFile(dataset.getId())" method="POST" enctype="multipart/form-data">
+                <div class="file-field input-field">
+                  <div class="btn">
+                    <span>File</span>
+                    <input id="files" type="file" name="files" multiple required="" accept=".csv">
+                  </div>
+                  <div class="file-path-wrapper">
+                    <input class="file-path validate" type="text" placeholder="Upload one or more files">
+                  </div>
+                </div>
+                <br>
+
+                <div class="input-field col s12">
+                  <select name="participant_id" required="">
+                    <option value="">Not from participant</option>
+                    @if(participants.size() > 1) {
+                    @for(c <- participants) {
+                    <option value="@c.getId()">@c.getName()</option>
+                    }
+                    } else {
+                    @for(c <- participants) {
+                    <option value="@c.getId()" selected>@c.getName()</option>
+                    }
+                    }
+                  </select>
+                  <label for="dsType">Choose a participant</label>
+                </div>
+
+                <br>
+                <textarea placeholder="File description" id="description" class="materialize-textarea" name="description" data-length="250"></textarea>
+                <label for="description">File Description</label>
+                <br>
+                <p>
+                  <a href="#!" onclick="$('form')[0].reset();" class="modal-close btn-flat grey-text">Cancel</a>
+                  <input type="submit" name="submit" id="submit" class="btn green">
+                </p>
+              </form>
+          </div>
+
+          <div class="col s12 m6 l3 offset-l1 card red lighten-4" style="padding: 1em;">
+          	<b>Attention</b>
+          	<br>
+          	<p>
+          	  Do not upload files that contain private data (personal information, medical data, financial data and passwords, amongst many other sensitive data).
+              <br><br>
+              Only upload and share data here if you have the right to do so. If in doubt, please check with support.
+          	</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- annotation modal -->
+    <div id="annotationModal" class="modal">
+      <div class="modal-content">
+        <h4>Annotate media</h4>
+        <div class="row">
+          <div class="col s12">
+            <img id="annotationImage" src="" style="width: 60%; max-height: 200px" />
+          </div>
+          <form>
+            <div class="input-field col s12">
+              <textarea id="annotation" name="text" class="materialize-textarea"></textarea>
+              <label for="annotation">Annotation text</label>
+            </div>
+            <input type="hidden" id="title" name="title">
+            <input type="hidden" id="participant_id" name="participant_id">
+            <input type="hidden" id="timestamp" name="timestamp">
+          </form>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <a href="#!" id="" class="modal-close btn-flat grey-text">Cancel</a>
+        <a href="#!" id="annotateBtn" class="modal-close btn green">Done</a>
+      </div>
+    </div>
+
+    <script type="text/javascript">
+      
+      function initAnnotation(file, participant, timestamp) {
+        $('#participant_id').val(participant);
+        $('#timestamp').val(+(new Date(timestamp)));
+        $('#annotation').val('');
+        $('#annotationImage').attr('src', '@api.routes.MediaDSController.image(dataset.getId(), "")' + file);
+      }
+
+      $('#annotateBtn').click(function(e) {
+        var project_id = @dataset.getProject().getId();
+        let r = jsRoutes.controllers.api.AnnotationDSController.recordForProject(project_id);
+        $.ajax({
+          url: r.url,
+          type: r.type,
+          data: $('form').serialize(),
+          success: function(e) {},
+          error: function(e) {}
+        });
+      });
+
+    </script>
+
+  }
+
+  @elements.dataset.config.standard(dataset, user)
+}

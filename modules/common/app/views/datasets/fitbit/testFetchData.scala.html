@@ -1,0 +1,53 @@
+@()(implicit request: Http.Request)
+@main("Test fetch data", "profile") {
+  <script src='@routes.Assets.versioned("javascripts/fetchHR.js")' type="text/javascript"></script>
+  <script src="@routes.DatasetsController.jsRoutes()" type="text/javascript"></script>
+  <div class="row">
+    <div class="col s12">
+      <a href="#" class="btn green" onclick="fetchData('activity');">activity</a>
+      <a href="#" class="btn green" onclick="fetchData('profile');">profile</a>
+      <a href="#" class="btn green" onclick="fetchData('weight');">weight</a>
+      <a href="#" class="btn green" onclick="fetchData('sleep');">sleep</a>
+      <a href="#" class="btn green" onclick="fetchData('social');">social</a>
+      <a href="#" class="btn green" onclick="fetchHeartrate();">heartrate</a>
+      <a href="#" class="btn green" onclick="fetchData('steps');">steps</a>
+      <a href="#" class="btn green" onclick="fetchData('calories');">calories</a>
+      <a href="#" class="btn green" onclick="fetchData('distance');">distance</a>
+      <a href="#" class="btn green" onclick="fetchData('floors');">floors</a>
+      <a href="#" class="btn green" onclick="fetchData('elevation');">elevation</a>
+      <a href="#" class="btn green" onclick="fetchData('device');">device</a>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col">
+      <a href="#" class="btn green" onclick="refreshTokens();">update tokens</a>
+      <a href="#" class="btn green" onclick="getTokens();">get tokens</a>
+    </div>
+  </div>
+  
+  <pre></pre>
+  <script type="text/javascript">
+    
+
+    var yourVlSpec = {
+        $schema: 'https://vega.github.io/schema/vega-lite/v4.json',
+        description: 'Dataset activity visualisation',
+        width: 600,
+        height: 200,
+        data: {
+          "url": "",
+          "format": { "type": "csv"}
+        },
+        mark: { type:'line', point: true},
+        encoding: {
+          x: {field: 'day', type: 'temporal'},
+          y: {field: 'events', type: 'quantitative'}
+        }
+      };
+      
+    // vegaEmbed('#vis', yourVlSpec);
+
+  </script>
+
+}

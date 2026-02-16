@@ -1,0 +1,58 @@
+@(token : String, validity : String, service : String)
+@main("Token for API authentication") {
+<script src="@routes.DatasetsController.jsRoutes()" type="text/javascript"></script>
+
+<br><br>
+
+<h2 class="center-align">API authentication</h2>
+<h3 class="center-align">Token</h3>
+<br>
+<div class="row">
+  <div class="col s12 m6 offset-m3 l6 offset-l3">
+    <div class="row">
+      <div class="input-field col s12">
+        <p>
+        	<b>Token for API authentication.</b>
+        	Please note that this token will give the client access to your projects and datasets.
+        </p>
+        <textarea id="token" name="token" type="text" style="height: 4rem; font-family: monospace;">@token</textarea>
+      </div>
+    </div>
+
+    <div class="row">
+      <div class="col s12 center-align" >
+	    <p id="message">
+		@if(token == null || token.isEmpty()) {
+			No token given yet, click button below to generate a new token for the next <i>two months</i>.
+		} else {
+			This token is valid until @validity.
+		}
+		</p>
+        <a id="generateBtn" class="btn">Generate token</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="text/javascript">
+	$("#generateBtn").click(function(e) {
+		let r = jsRoutes.controllers.api2.AuthApiController.generate('@service');
+        $.ajax({
+    		url: r.url,
+    		type: r.type,
+			contentType: "application/json",
+    		success: function(json) {
+    			$('#token').val(json.token)
+    			$('#message').html('This token is valid for two months. Yay!')
+    			$('#generateBtn').addClass('disabled')
+    		},
+        	error: function(e) {
+        		console.log(e)
+        	}
+        });
+
+        e.preventDefault();
+        return false;
+	});
+</script>
+}
