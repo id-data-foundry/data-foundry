@@ -6,10 +6,10 @@
 
 <p align="center">
   <!-- Badges -->
-  <a href="#"><img src="https://img.shields.io/badge/build-passing-brightgreen" alt="Build Status"></a>
+  <a href="https://github.com/id-data-foundry/data-foundry/actions"><img src="https://img.shields.io/github/actions/workflow/status/id-data-foundry/data-foundry/ci.yml?branch=main" alt="Build Status"></a>
   <a href="https://www.gnu.org/licenses/agpl-3.0"><img src="https://img.shields.io/badge/license-AGPL_v3-blue.svg" alt="License: AGPL v3"></a>
-  <a href="#"><img src="https://img.shields.io/github/issues/data-foundry-id/data-foundry" alt="Open Issues"></a>
-  <a href="#"><img src="https://img.shields.io/github/release/data-foundry-id/data-foundry.svg" alt="GitHub release"></a>
+  <a href="https://github.com/id-data-foundry/data-foundry/issues"><img src="https://img.shields.io/github/issues/id-data-foundry/data-foundry" alt="Open Issues"></a>
+  <a href="https://github.com/id-data-foundry/data-foundry/releases"><img src="https://img.shields.io/github/v/release/id-data-foundry/data-foundry" alt="Latest Release"></a>
 </p>
 
 **DataFoundry** is a data infrastructure platform built for the Eindhoven University of Technology Department of Industrial Design. Data Foundry contains tools for data collection and prototyping, aimed at design research and education. This repo contains the main web server component. The webserver has been built ontop of the Play Framework.
