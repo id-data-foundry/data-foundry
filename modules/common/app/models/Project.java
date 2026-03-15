@@ -379,11 +379,25 @@ public class Project extends Model {
 		        .collect(Collectors.toList());
 	}
 
+	/**
+	 * return a sorted names of team members, the first name will be the project owner
+	 *
+	 * @param project
+	 * @return
+	 */
+	public String getOwnerAndTeamNames() {
+		return Stream
+		        .concat(Stream.of(getOwner()),
+		                collaborators.stream().map(c -> c.getCollaborator())
+		                        .sorted((a, b) -> a.getLastname().compareToIgnoreCase(b.getLastname())))
+		        .map(p -> p.getName()).collect(Collectors.joining(", "));
+	}
+
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	/**
 	 * can this project be annotated, i.e., is an annotation dataset available
-	 * 
+	 *
 	 * @return
 	 */
 	public boolean canAnnotate() {

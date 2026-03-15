@@ -16,6 +16,19 @@
         :root {
             --pico-border-radius: 1rem;
         }
+        main.container {
+            display: flex;
+            flex-direction: column;
+            min-height: calc(100vh - 40px);
+        }
+        .upper-content {
+            flex: 1;
+        }
+        .lower-content {
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid var(--pico-muted-border-color);
+        }
         .activity-buttons {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
@@ -84,8 +97,21 @@
             </hgroup>
         </header>
 
-        <div class="activity-buttons" id="activity-buttons-container">
-            <!-- Buttons will be rendered here by JavaScript -->
+        <div class="upper-content">
+            <div class="activity-buttons" id="activity-buttons-container">
+                <!-- Buttons will be rendered here by JavaScript -->
+            </div>
+        </div>
+
+        <div class="lower-content">
+            <h3>Ad-hoc Activity</h3>
+            <form id="adhoc-form">
+                <div class="grid">
+                    <input type="text" id="adhoc-activity" placeholder="Activity title" required>
+                    <button type="submit" id="adhoc-submit">Log Activity</button>
+                </div>
+                <textarea id="adhoc-message" placeholder="Optional text message (erased after submission)"></textarea>
+            </form>
         </div>
 
         <div id="status-message"></div>
@@ -124,6 +150,8 @@
                 const button = createActivityButton(activityName, 'state');
                 container.appendChild(button);
             });
+
+            document.getElementById('adhoc-form').onsubmit = handleAdhocSubmit;
         }
 
         function createActivityButton(activityName, type) {
@@ -172,6 +200,38 @@
                     }
                 }
             }
+        }
+
+        async function handleAdhocSubmit(event) {
+            event.preventDefault();
+            const activityInput = document.getElementById('adhoc-activity');
+            const messageInput = document.getElementById('adhoc-message');
+            const submitButton = document.getElementById('adhoc-submit');
+
+            const activityName = activityInput.value.trim();
+            const message = messageInput.value.trim();
+
+            if (!activityName) return;
+
+            submitButton.disabled = true;
+            submitButton.setAttribute('aria-busy', 'true');
+
+            const payload = {
+                activity: activityName,
+                text: message,
+                participantId: participantId,
+                timestamp: Date.now()
+            };
+
+            const success = await logActivity(payload);
+            if (success) {
+                showStatus('Logged: ' + activityName);
+                messageInput.value = '';
+                activityInput.value = '';
+            }
+
+            submitButton.disabled = false;
+            submitButton.removeAttribute('aria-busy');
         }
 
         async function logActivity(payload) {

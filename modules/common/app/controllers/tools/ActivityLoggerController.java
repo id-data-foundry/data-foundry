@@ -235,12 +235,13 @@ public class ActivityLoggerController extends AbstractAsyncController {
 			}
 
 			String activity = dataToLog.get("activity").asText();
+			String text = dataToLog.has("text") ? dataToLog.get("text").asText() : "";
 
 			// Log the activity.
 			if (participantOpt.isPresent()) {
-				diaryDS.addRecord(participantOpt.get(), new Date(), activity, "");
+				diaryDS.addRecord(participantOpt.get(), new Date(), activity, text);
 			} else {
-				diaryDS.addRecord(participantId, new Date(), activity, "");
+				diaryDS.addRecord(participantId, new Date(), activity, text);
 			}
 
 			cache.set("ActivityLogger_httpPostDiagnostics_" + datasetId,

@@ -13,9 +13,14 @@
       align-items: baseline;
       gap: 1rem;
     }
-
     .selected-dataset {
       display: none;
+    }
+    .vg-tooltip table {
+      margin: 0;
+    }
+    .vg-tooltip table tbody {
+      border: 0;
     }
   </style>
 
@@ -246,14 +251,15 @@
         // The template has project_id as first '1' and dataset_id as second '1'
         // Given the controller generates it as .../logger/1/1/token/device
         // We replace them in order from the end of the path
-        const urlParts = loggerUrl.split('/');
+        const [protocol, rest] = loggerUrl.split('//');
+        const urlParts = rest.split('/');
         // .../logger/:projectId/:datasetId/:datasetToken/:participantId
         urlParts[urlParts.length - 4] = selectedProjectId;
         urlParts[urlParts.length - 3] = currentSelectedDataset.id;
         urlParts[urlParts.length - 2] = currentSelectedDataset.token;
         urlParts[urlParts.length - 1] = selectedParticipantId;
-        
-        loggerUrl = urlParts.join('/');
+
+        loggerUrl = protocol + "//" + urlParts.join('/');
 
         activityLoggerStartLink.href = loggerUrl;
 
@@ -263,7 +269,7 @@
 
     function processRawActivityData(rawData) {
         const processedData = [];
-        const openStateActivities = new Map(); // Map: activityBaseName -> {ts: ..., activity: ...}
+        const openStateActivities = new Map(); // Map: activityBaseName -> {ts: ..., activity: ..., text: ...}
 
         // Sort rawData by timestamp to ensure correct pairing of 'on' and 'off' events
         rawData.sort((a, b) => new Date(a.ts).getTime() - new Date(b.ts).getTime());
@@ -271,6 +277,7 @@
         rawData.forEach(d => {
             const fullActivityName = d.activity || d.title;
             const timestamp = new Date(d.ts);
+            const text = d.text || "";
 
             const parts = fullActivityName.split(':');
             const activityBaseName = parts[0];
@@ -290,7 +297,8 @@
                         activityName: activityBaseName,
                         type: (new Date(timestamp) - new Date(onEvent.ts) < 60000) ? 'direct' : 'state',
                         startTime: new Date(onEvent.ts),
-                        endTime: timestamp // The 'off' event's timestamp is the end time
+                        endTime: timestamp, // The 'off' event's timestamp is the end time
+                        text: (onEvent.text ? onEvent.text : "") + (onEvent.text && d.text ? " | " : "") + (d.text ? d.text : "")
                     });
                 } else {
                     // 'off' event without a preceding 'on', treat as direct activity
@@ -299,7 +307,8 @@
                         activityName: fullActivityName,
                         type: 'direct',
                         startTime: timestamp,
-                        endTime: null
+                        endTime: null,
+                        text: text
                     });
                 }
             } else {
@@ -309,7 +318,8 @@
                     activityName: fullActivityName,
                     type: 'direct',
                     startTime: timestamp,
-                    endTime: null
+                    endTime: null,
+                    text: text
                 });
             }
         });
@@ -322,7 +332,8 @@
                 activityName: `${activityBaseName}:on`, // Keep the original "on" tag for direct display
                 type: 'direct',
                 startTime: new Date(onEvent.ts),
-                endTime: null
+                endTime: null,
+                text: onEvent.text || ""
             });
         });
 
@@ -371,7 +382,9 @@
               "description": "Activity Timeline for Dataset",
               "data": { "values": processedData },
               "transform": [
-                {"as": "endTime", "calculate": "datum.endTime || datum.startTime"}
+                {"as": "endTime", "calculate": "datum.endTime || datum.startTime"},
+                {"as": "durationMin", "calculate": "round((datum.endTime - datum.startTime) / 60000)"},
+                {"as": "timeLabel", "calculate": "datum.type === 'state' ? timeFormat(datum.startTime, '%B %d, %Y %H:%M') + ' - ' + timeFormat(datum.endTime, '%H:%M') + ' (' + datum.durationMin + ' min)' : timeFormat(datum.startTime, '%B %d, %Y %H:%M:%S')"}
               ],
               "width": "container",
               "height": 400,
@@ -384,7 +397,8 @@
                     "type": "bar",
                     "height": {
                       "band": 0.2
-                    }
+                    },
+                    "tooltip": true
                   },
                   "encoding": {
                     "y": {
@@ -396,14 +410,17 @@
                     "x": {
                       "field": "startTime",
                       "type": "temporal",
-                      "title": "Time",
-                      "axis": {"format": "%H:%M"}
+                      "title": "Time"
                     },
                     "x2": {
                       "field": "endTime",
                       "type": "temporal"
                     },
-                    "color": {"field": "activityName", "type": "nominal", "legend": null}
+                    "color": {"field": "activityName", "type": "nominal", "legend": null},
+                    "tooltip": [
+                      {"field": "timeLabel", "type": "nominal", "title": "Time/Duration"},
+                      {"field": "text", "type": "nominal", "title": "Message"}
+                    ]
                   },
                   "selection": {
                     "timebrush": {"type": "interval", "bind": "scales", "encodings": ["x"]}
@@ -416,7 +433,8 @@
                   "mark": {
                     "type": "point",
                     "filled": true,
-                    "size": 80
+                    "size": 80,
+                    "tooltip": true
                   },
                   "encoding": {
                     "y": {
@@ -428,11 +446,14 @@
                     "x": {
                       "field": "startTime",
                       "type": "temporal",
-                      "title": "Time",
-                      "axis": {"format": "%H:%M"}
+                      "title": "Time"
                     },
                     "color": {"field": "activityName", "type": "nominal", "legend": null},
-                    "shape": {"value": "circle"}
+                    "shape": {"value": "circle"},
+                    "tooltip": [
+                      {"field": "timeLabel", "type": "nominal", "title": "Time"},
+                      {"field": "text", "type": "nominal", "title": "Message"}
+                    ]
                   }
                 }
               ],

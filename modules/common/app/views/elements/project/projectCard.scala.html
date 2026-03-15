@@ -1,40 +1,38 @@
 @(p : Project)
 
 <project class="col s12 m6 xl4">
-	<a id="project_@p.getId()" href="@routes.ProjectsController.view(p.getId())" class="black-text">
-		<div class="card white" style="font-size: 0.8rem">
-			<div class="grey-text" style="position: absolute; top: 22px; right: 1rem;">
-			@if(!p.isPublicProject()) {
-				<i class="tooltipped" data-tooltip="Private project">
-					@elements.icon("visibility_off")
-				</i>
-			}
-			@if(p.isApproved()) {
-				<i class="tooltipped" data-tooltip="Project reviewed and approved">
-					@elements.icon("thumb_up")
-				</i>
-			}
-			</div>
-			<div class="card-content" style="height: 12em;">
-				<span class="card-title truncate">
-						@p.getName() @if(p.isFrozen()){🧊}
-				</span>
-				<p class="">
-	    			@for(person <- p.getOwnerAndTeam()) {
-	    				@person.getName()
-	    			}
-				</p>
-				<p style="margin-top: 1em;">
-	 				@for((name, background) <- p.getAllDatasetUIStringSet()) {
-						<span class="typetag @background">@name</span>
-					}
-					@if(p.getDatasets().isEmpty()) {
-						<span class="typetag grey lighten-3">
-							NO DATASETS
-						</span>
-					}
-				</p>
-			</div>
-		</div>
-	</a>
+    <a id="project_@p.getId()" href="@routes.ProjectsController.view(p.getId())" class="black-text">
+        <div class="card white" style="font-size: 0.8rem">
+            <div class="grey-text" style="position: absolute; top: 22px; right: 1rem;">
+            @if(!p.isPublicProject()) {
+                <i class="tooltipped" data-tooltip="Private project">
+                    @elements.icon("visibility_off")
+                </i>
+            }
+            @if(p.isApproved()) {
+                <i class="tooltipped" data-tooltip="Project reviewed and approved">
+                    @elements.icon("thumb_up")
+                </i>
+            }
+            </div>
+            <div class="card-content" style="height: 12em;">
+                <span class="card-title truncate">
+                        @p.getName() @if(p.isFrozen()){🧊}
+                </span>
+                <p class="">
+                    @p.getOwnerAndTeamNames()
+                </p>
+                <p style="margin-top: 1em;">
+                     @for((name, background) <- p.getAllDatasetUIStringSet()) {
+                        <span class="typetag @background">@name</span>
+                    }
+                    @if(p.getDatasets().isEmpty()) {
+                        <span class="typetag grey lighten-3">
+                            NO DATASETS
+                        </span>
+                    }
+                </p>
+            </div>
+        </div>
+    </a>
 </project>
