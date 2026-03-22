@@ -104,6 +104,14 @@
         </div>
 
         <div class="lower-content">
+            <h3>Comments</h3>
+            <form id="comment-form">
+                <textarea id="comment-text" placeholder="Type your comment here..." required></textarea>
+                <button type="submit" id="comment-submit">Log Comment</button>
+            </form>
+
+            <hr>
+
             <h3>Ad-hoc Activity</h3>
             <form id="adhoc-form">
                 <div class="grid">
@@ -111,6 +119,10 @@
                     <button type="submit" id="adhoc-submit">Log Activity</button>
                 </div>
                 <textarea id="adhoc-message" placeholder="Optional text message (erased after submission)"></textarea>
+                <label for="adhoc-add-button">
+                    <input type="checkbox" id="adhoc-add-button">
+                    Add as button for this session
+                </label>
             </form>
         </div>
 
@@ -122,6 +134,9 @@
         const directActivitiesString = '@directActivities';
         const stateActivitiesString = '@stateActivities';
         const participantId = '@participantId';
+
+        // Use a more reliable way to get a unique key for this logger session
+        const storageKey = `actilogger_custom_buttons_${participantId}`;
 
         let stateActivityTimers = {};
 
@@ -146,21 +161,31 @@
                 container.appendChild(button);
             });
 
+            // Load custom buttons from localStorage
+            const customButtons = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            customButtons.forEach(activityName => {
+                if (!directActivities.includes(activityName)) {
+                    const button = createActivityButton(activityName, 'direct', true);
+                    container.appendChild(button);
+                }
+            });
+
             stateActivities.forEach(activityName => {
                 const button = createActivityButton(activityName, 'state');
                 container.appendChild(button);
             });
 
             document.getElementById('adhoc-form').onsubmit = handleAdhocSubmit;
+            document.getElementById('comment-form').onsubmit = handleCommentSubmit;
         }
 
-        function createActivityButton(activityName, type) {
+        function createActivityButton(activityName, type, isCustom = false) {
             const button = document.createElement('button');
-            button.className = 'activity-button secondary outline';
+            button.className = 'activity-button ' + (isCustom ? 'primary outline' : 'secondary outline');
             button.setAttribute('data-activity-name', activityName);
             button.setAttribute('data-activity-type', type);
 
-            const icon = type === 'direct' ? '⚡' : '🔄';
+            const icon = type === 'direct' ? (isCustom ? '⭐' : '⚡') : '🔄';
             button.innerHTML = `<div>${icon}<br>${activityName}</div>`;
 
             button.onclick = () => handleActivityClick(activityName, type, button);
@@ -202,10 +227,39 @@
             }
         }
 
+        async function handleCommentSubmit(event) {
+            event.preventDefault();
+            const commentInput = document.getElementById('comment-text');
+            const submitButton = document.getElementById('comment-submit');
+            const comment = commentInput.value.trim();
+
+            if (!comment) return;
+
+            submitButton.disabled = true;
+            submitButton.setAttribute('aria-busy', 'true');
+
+            const payload = {
+                activity: 'Comments',
+                text: comment,
+                participantId: participantId,
+                timestamp: Date.now()
+            };
+
+            const success = await logActivity(payload);
+            if (success) {
+                showStatus('Comment logged');
+                commentInput.value = '';
+            }
+
+            submitButton.disabled = false;
+            submitButton.removeAttribute('aria-busy');
+        }
+
         async function handleAdhocSubmit(event) {
             event.preventDefault();
             const activityInput = document.getElementById('adhoc-activity');
             const messageInput = document.getElementById('adhoc-message');
+            const addButtonCheckbox = document.getElementById('adhoc-add-button');
             const submitButton = document.getElementById('adhoc-submit');
 
             const activityName = activityInput.value.trim();
@@ -226,8 +280,33 @@
             const success = await logActivity(payload);
             if (success) {
                 showStatus('Logged: ' + activityName);
+                
+                if (addButtonCheckbox.checked) {
+                    const container = document.getElementById('activity-buttons-container');
+                    // Avoid duplicates in the UI
+                    if (!document.querySelector(`[data-activity-name="${activityName}"]`)) {
+                        const button = createActivityButton(activityName, 'direct', true);
+                        
+                        // Insert before first state button, or append if no state button exists
+                        const firstStateButton = container.querySelector('[data-activity-type="state"]');
+                        if (firstStateButton) {
+                            container.insertBefore(button, firstStateButton);
+                        } else {
+                            container.appendChild(button);
+                        }
+                        
+                        // Persist to localStorage
+                        const customButtons = JSON.parse(localStorage.getItem(storageKey) || '[]');
+                        if (!customButtons.includes(activityName)) {
+                            customButtons.push(activityName);
+                            localStorage.setItem(storageKey, JSON.stringify(customButtons));
+                        }
+                    }
+                }
+
                 messageInput.value = '';
                 activityInput.value = '';
+                addButtonCheckbox.checked = false;
             }
 
             submitButton.disabled = false;

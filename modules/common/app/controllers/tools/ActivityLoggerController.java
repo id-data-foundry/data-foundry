@@ -66,7 +66,7 @@ public class ActivityLoggerController extends AbstractAsyncController {
 
 		user.getOwnAndCollabProjects().stream().forEach(p -> {
 			List<Dataset> diaryDatasets = p.getDiaryDatasets().stream().filter(ds -> ds.isActive())
-			        .collect(Collectors.toList());
+					.collect(Collectors.toList());
 
 			if (!diaryDatasets.isEmpty()) {
 				ObjectNode projectNode = projectsAndDatasets.putObject(p.getId() + "");
@@ -83,23 +83,23 @@ public class ActivityLoggerController extends AbstractAsyncController {
 					ds.update();
 
 					datasetsNode.putObject(ds.getId() + "").put("id", ds.getId()).put("name", ds.getName())
-					        .put("open", ds.isOpenParticipation()).put("token", ds.configuration(Dataset.API_TOKEN, ""))
-					        .put("direct_event_activities", ds.configuration(Dataset.DIRECT_EVENT_ACTIVITIES, ""))
-					        .put("state_event_activities", ds.configuration(Dataset.STATE_EVENT_ACTIVITIES, ""));
+							.put("open", ds.isOpenParticipation()).put("token", ds.configuration(Dataset.API_TOKEN, ""))
+							.put("direct_event_activities", ds.configuration(Dataset.DIRECT_EVENT_ACTIVITIES, ""))
+							.put("state_event_activities", ds.configuration(Dataset.STATE_EVENT_ACTIVITIES, ""));
 				});
 
 				ArrayNode participants = projectNode.putArray("participants");
 				p.getParticipants().stream().forEach(participant -> participants.addObject()
-				        .put("id", participant.getRefId()).put("name", participant.getName()));
+						.put("id", participant.getRefId()).put("name", participant.getName()));
 			}
 		});
 
 		return ok(views.html.tools.activitylogger.index.render(projectsAndDatasets,
-		        controllers.tools.routes.ActivityLoggerController.updateActivities(1L).absoluteURL(request,
-		                !environment.isDev()),
-		        controllers.tools.routes.ActivityLoggerController.logger(1L, 1L, "token", "NO_PARTICIPANT")
-		                .absoluteURL(request, !environment.isDev()),
-		        csrfToken(request)));
+				controllers.tools.routes.ActivityLoggerController.updateActivities(1L).absoluteURL(request,
+						!environment.isDev()),
+				controllers.tools.routes.ActivityLoggerController.logger(1L, 1L, "token", "NO_PARTICIPANT")
+						.absoluteURL(request, !environment.isDev()),
+				csrfToken(request)));
 	}
 
 	/**
@@ -119,32 +119,33 @@ public class ActivityLoggerController extends AbstractAsyncController {
 
 		// Basic authorization checks
 		if (ds == null || !ds.getProject().getId().equals(projectId) || !ds.isActive()
-		        || !datasetToken.equals(ds.configuration(Dataset.API_TOKEN, ""))) {
+				|| !datasetToken.equals(ds.configuration(Dataset.API_TOKEN, ""))) {
 			logger.warn("Access denied for activity logger: datasetId={}, projectId={}, participantId={}", datasetId,
-			        projectId, participantId);
+					projectId, participantId);
 			return redirect(HOME);
 		}
 
 		Optional<Participant> part = project.getParticipants().stream().filter(p -> p.getRefId().equals(participantId))
-		        .findFirst();
+				.findFirst();
 
 		// Check whether participant Id belongs to project if not open participation
 		if (!ds.isOpenParticipation() && part.isEmpty()) {
-			logger.warn("Access denied for activity logger: participant {} not registered for project {}",
-			        participantId, projectId);
+			logger.warn(
+					"Access denied for activity logger: participant {} not registered for project {}. Activate 'open participation' to allow for unregistered participants.",
+					participantId, projectId);
 			return redirect(HOME);
 		}
 
 		String logEndpointUrl = controllers.tools.routes.ActivityLoggerController
-		        .log(datasetId, datasetToken, participantId).absoluteURL(request, !environment.isDev());
+				.log(datasetId, datasetToken, participantId).absoluteURL(request, !environment.isDev());
 
 		// Retrieve configured activities from dataset
 		String directActivities = ds.configuration(Dataset.DIRECT_EVENT_ACTIVITIES, "");
 		String stateActivities = ds.configuration(Dataset.STATE_EVENT_ACTIVITIES, "");
 
 		return ok(views.html.tools.activitylogger.activityLogger.render(ds.getName(),
-		        part.isPresent() ? part.get().getName() : "No participant selected", participantId, directActivities,
-		        stateActivities, logEndpointUrl));
+				part.isPresent() ? part.get().getName() : "No participant selected", participantId, directActivities,
+				stateActivities, logEndpointUrl));
 	}
 
 	/**
@@ -173,8 +174,8 @@ public class ActivityLoggerController extends AbstractAsyncController {
 			}
 
 			String directEventActivities = json.has("directEventActivities")
-			        ? json.get("directEventActivities").asText()
-			        : "";
+					? json.get("directEventActivities").asText()
+					: "";
 			String stateActivities = json.has("stateEventActivities") ? json.get("stateEventActivities").asText() : "";
 
 			ds.getConfiguration().put(Dataset.DIRECT_EVENT_ACTIVITIES, directEventActivities);
@@ -198,7 +199,7 @@ public class ActivityLoggerController extends AbstractAsyncController {
 	 * @return
 	 */
 	public CompletionStage<Result> log(Request request, final Long datasetId, final String datasetToken,
-	        final String participantId) {
+			final String participantId) {
 		return CompletableFuture.supplyAsync(() -> {
 			final JsonNode jn = request.body().asJson();
 			if (jn == null || !jn.isObject()) {
@@ -218,11 +219,11 @@ public class ActivityLoggerController extends AbstractAsyncController {
 
 			ds.getProject().refresh();
 			Optional<Participant> participantOpt = ds.getProject().getParticipants().stream()
-			        .filter(d -> d.getRefId().equals(participantId)).findFirst();
+					.filter(d -> d.getRefId().equals(participantId)).findFirst();
 
 			if (participantOpt.isEmpty() && !ds.isOpenParticipation()) {
 				cache.set("ActivityLogger_httpPostDiagnostics_" + datasetId,
-				        "Participant " + participantId + " not found at " + new Date(), 300);
+						"Participant " + participantId + " not found at " + new Date(), 300);
 				return notFound("Source participant not registered");
 			}
 
@@ -245,7 +246,7 @@ public class ActivityLoggerController extends AbstractAsyncController {
 			}
 
 			cache.set("ActivityLogger_httpPostDiagnostics_" + datasetId,
-			        "Participant " + participantId + " logged activity at " + new Date(), 300);
+					"Participant " + participantId + " logged activity at " + new Date(), 300);
 
 			return ok("Activity logged successfully.");
 		}).exceptionally(e -> {
