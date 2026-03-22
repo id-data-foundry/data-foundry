@@ -393,7 +393,7 @@ public class Dataset extends Model {
 	 */
 	public boolean isAuthorized(String apiToken) {
 		return this.isOpenParticipation() && apiToken != null && apiToken.length() > 10
-		        && apiToken.equals(this.getApiToken());
+				&& apiToken.equals(this.getApiToken());
 	}
 
 	/**
@@ -406,7 +406,7 @@ public class Dataset extends Model {
 	 */
 	public boolean isAuthorized(String sourceId, String apiToken) {
 		return (this.openParticipation || getProject().hasDevice(sourceId)) && apiToken != null
-		        && apiToken.length() > 10 && apiToken.equals(this.getApiToken());
+				&& apiToken.length() > 10 && apiToken.equals(this.getApiToken());
 	}
 
 	/**
@@ -418,7 +418,7 @@ public class Dataset extends Model {
 	 */
 	public boolean isEditable() {
 		if ((getDsType().equals(DatasetType.FITBIT) || getDsType().equals(DatasetType.GOOGLEFIT))
-		        && ((new Date().getTime() - this.getStart().getTime()) > 23 * 60 * 60 * 1000l)) {
+				&& ((new Date().getTime() - this.getStart().getTime()) > 23 * 60 * 60 * 1000l)) {
 			return false;
 		}
 
@@ -432,7 +432,7 @@ public class Dataset extends Model {
 	 */
 	public boolean isSavedExport() {
 		return this.getDsType().equals(DatasetType.COMPLETE) && this.getCollectorType() != null
-		        && this.getCollectorType().equals(Dataset.SAVED_EXPORT);
+				&& this.getCollectorType().equals(Dataset.SAVED_EXPORT);
 	}
 
 	/**
@@ -443,7 +443,7 @@ public class Dataset extends Model {
 	 */
 	public boolean isStudyManagement() {
 		return this.getDsType().equals(DatasetType.COMPLETE) && this.getCollectorType() != null
-		        && this.getCollectorType().equals(Dataset.STUDY_MANAGEMENT);
+				&& this.getCollectorType().equals(Dataset.STUDY_MANAGEMENT);
 	}
 
 	/**
@@ -453,7 +453,7 @@ public class Dataset extends Model {
 	 */
 	public boolean isNarrativeSurvey() {
 		return this.getDsType().equals(DatasetType.COMPLETE) && this.getCollectorType() != null
-		        && this.getCollectorType().equals(Dataset.NARRATIVE_SURVEY);
+				&& this.getCollectorType().equals(Dataset.NARRATIVE_SURVEY);
 	}
 
 	/**
@@ -463,7 +463,7 @@ public class Dataset extends Model {
 	 */
 	public boolean isWebsite() {
 		return this.getDsType().equals(DatasetType.COMPLETE) && !isScript() && !isChatbot() && !isSavedExport()
-		        && !isStudyManagement();
+				&& !isStudyManagement();
 	}
 
 	/**
@@ -473,7 +473,7 @@ public class Dataset extends Model {
 	 */
 	public boolean isWebsiteLive() {
 		return this.getDsType().equals(DatasetType.COMPLETE) && !isScript() && !isChatbot() && !isSavedExport()
-		        && !isStudyManagement() && !configuration.getOrDefault(WEB_ACCESS_TOKEN, "").trim().isEmpty();
+				&& !isStudyManagement() && !configuration.getOrDefault(WEB_ACCESS_TOKEN, "").trim().isEmpty();
 	}
 
 	/**
@@ -483,7 +483,7 @@ public class Dataset extends Model {
 	 */
 	public boolean isScript() {
 		return this.getDsType().equals(DatasetType.COMPLETE) && this.getCollectorType() != null
-		        && this.getCollectorType().equals(Dataset.ACTOR);
+				&& this.getCollectorType().equals(Dataset.ACTOR);
 	}
 
 	/**
@@ -503,7 +503,7 @@ public class Dataset extends Model {
 	 */
 	public boolean isChatbot() {
 		return this.getDsType().equals(DatasetType.COMPLETE) && this.getCollectorType() != null
-		        && this.getCollectorType().equals(Dataset.CHATBOT);
+				&& this.getCollectorType().equals(Dataset.CHATBOT);
 	}
 
 	/**
@@ -588,9 +588,9 @@ public class Dataset extends Model {
 		// count rows in table for given time span
 		long result = 0;
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection
-		                .prepareStatement("SELECT count(*) FROM " + dataTableName + " WHERE ts >= ? AND ts < ?;");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("SELECT count(*) FROM " + dataTableName + " WHERE ts >= ? AND ts < ?;");) {
 			stmt.setTimestamp(1, new Timestamp(DateUtils.thisMonday(monday).getTime()));
 			stmt.setTimestamp(2, new Timestamp(DateUtils.toNextMonday(monday).getTime()));
 			ResultSet rs = stmt.executeQuery();
@@ -617,7 +617,7 @@ public class Dataset extends Model {
 		}
 
 		long quantityThisWeek = getItemQuantity(date),
-		        quantityLastWeek = getItemQuantity(DateUtils.toPreviousWeek(date));
+				quantityLastWeek = getItemQuantity(DateUtils.toPreviousWeek(date));
 
 		// if there is no data last week, then this week is defined as 100%
 		if (quantityLastWeek == 0) {
@@ -649,7 +649,7 @@ public class Dataset extends Model {
 
 	public float datasetCompleteness() {
 		List<String> items = Arrays.asList(getName(), getRefId(), getTargetObject(), getDescription(), getKeywords(),
-		        getDoi(), getRelation(), getOrganization(), getRemarks(), getLicense());
+				getDoi(), getRelation(), getOrganization(), getRemarks(), getLicense());
 		return items.stream().filter(s -> nnne(s)).count() / (float) items.size();
 	}
 
@@ -724,7 +724,7 @@ public class Dataset extends Model {
 					try {
 						String num = s.replaceAll("\\D", "");
 						// return 0 if no digits found
-						return num.isEmpty() ? 0l : Long.parseLong(num);
+						return num.isEmpty() ? 0l : DataUtils.parseLong(num);
 					} catch (Exception e) {
 						logger.error("Exception in numberComparator", e);
 						return 0l;
@@ -769,7 +769,7 @@ public class Dataset extends Model {
 						try {
 							String num = s.replaceAll("\\D", "");
 							// return 0 if no digits found
-							return num.isEmpty() ? 0l : Long.parseLong(num);
+							return num.isEmpty() ? 0l : DataUtils.parseLong(num);
 						} catch (Exception e) {
 							logger.error("Exception in numberComparator", e);
 							return 0l;

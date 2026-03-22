@@ -36,7 +36,7 @@ public class FitbitWearablesController extends AbstractAsyncController {
 
 	@Inject
 	public FitbitWearablesController(Configurator configurator, FormFactory formFactory, FitBitService fitbitService,
-	        TokenResolverUtil tokenResolverUtil, OnboardingSupport onboardingSupport) {
+			TokenResolverUtil tokenResolverUtil, OnboardingSupport onboardingSupport) {
 
 		this.configurator = configurator;
 		this.formFactory = formFactory;
@@ -89,12 +89,12 @@ public class FitbitWearablesController extends AbstractAsyncController {
 			Participant participant = Participant.find.byId(participantId);
 			if (participant == null || !p.hasParticipant(participant)) {
 				return redirect(HOME).addingToSession(request, "error",
-				        "This participant is not existed in this project.");
+						"This participant is not existed in this project.");
 			}
 		}
 
 		return ok(views.html.sources.wearable.fitbit.add.render(csrfToken(request), p, p.getFitbitDatasets(),
-		        participantId));
+				participantId));
 	}
 
 	@Authenticated(UserAuth.class)
@@ -118,7 +118,7 @@ public class FitbitWearablesController extends AbstractAsyncController {
 		final Dataset dataset = Dataset.find.byId(ds_id);
 		if (dataset == null || !id.equals(dataset.getProject().getId())) {
 			return redirect(routes.ProjectsController.viewResources(project.getId())).addingToSession(request, "error",
-			        "This dataset is not in the project");
+					"This dataset is not in the project");
 		}
 
 		Wearable wearable = new Wearable();
@@ -144,7 +144,7 @@ public class FitbitWearablesController extends AbstractAsyncController {
 			}
 
 			Optional<Cluster> cluster = project.getClusters().stream()
-			        .filter(c -> c.hasParticipant(participant) && c.getParticipants().size() == 1).findFirst();
+					.filter(c -> c.hasParticipant(participant) && c.getParticipants().size() == 1).findFirst();
 
 			if (cluster.isPresent()) {
 				// if cluster is existed, add new wearable directly
@@ -191,7 +191,7 @@ public class FitbitWearablesController extends AbstractAsyncController {
 		}
 
 		return ok(views.html.sources.wearable.fitbit.edit.render(csrfToken(request), wearable,
-		        project.getFitbitDatasets(), ds));
+				project.getFitbitDatasets(), ds));
 	}
 
 	@Authenticated(UserAuth.class)
@@ -218,7 +218,7 @@ public class FitbitWearablesController extends AbstractAsyncController {
 		final Optional<Dataset> dataset = project.findDatasetById(ds_id);
 		if (!dataset.isPresent()) {
 			return redirect(PROJECT(project.getId())).addingToSession(request, "error",
-			        "Edit Fitbit wearable:" + wearable.getName() + " failed.");
+					"Edit Fitbit wearable:" + wearable.getName() + " failed.");
 		}
 
 		if (wearable.getBrand() == null) {
@@ -280,18 +280,18 @@ public class FitbitWearablesController extends AbstractAsyncController {
 		}
 		if (participant.getClusterWearables().stream().noneMatch(cw -> cw.getId().equals(wearable.getId()))) {
 			return redirect(LANDING).addingToSession(request, "error",
-			        "Wearable not associated to participant in project.");
+					"Wearable not associated to participant in project.");
 		}
 
 		DynamicForm df = formFactory.form().bindFromRequest(request);
 		if (df == null) {
 			return redirect(routes.ParticipationController.view(invite_token)).addingToSession(request, "error",
-			        "Expecting some data");
+					"Expecting some data");
 		}
 
 		if (df.get("error") != null) {
 			return redirect(routes.ParticipationController.view(invite_token)).addingToSession(request, "error",
-			        "access denied.");
+					"access denied.");
 		}
 
 		// access code
@@ -299,12 +299,12 @@ public class FitbitWearablesController extends AbstractAsyncController {
 
 		// create redirect url
 		String redirectUrl = controllers.routes.FitbitWearablesController.finishWearableRegistration("0")
-		        .absoluteURL(true, request.host());
+				.absoluteURL(true, request.host());
 		// start the second step of the process
 		fitbitService.authorizationRequest(wearable, code, redirectUrl);
 
 		return redirect(controllers.routes.ParticipationController.view(invite_token)).addingToSession(request,
-		        "message", "FitBit wearable successfully connected.");
+				"message", "FitBit wearable successfully connected.");
 	}
 
 	public Result finishWearableRegistration(Request request, String state) {
@@ -318,15 +318,13 @@ public class FitbitWearablesController extends AbstractAsyncController {
 			return redirect(routes.HomeController.index()).addingToSession(request, "error", "Insufficient info!");
 		}
 
-		Long wearable_id;
-		Wearable wearable;
-		try {
-			wearable_id = Long.parseLong(states[0]);
-		} catch (Exception e) {
+		long wearable_id = DataUtils.parseLong(states[0]);
+		if (wearable_id == -1L) {
 			return redirect(routes.HomeController.index()).addingToSession(request, "error",
-			        "Fail to parse wearable id!");
+					"Fail to parse wearable id!");
 		}
 
+		Wearable wearable;
 		wearable = Wearable.find.byId(wearable_id);
 		if (wearable == null) {
 			return redirect(routes.HomeController.index()).addingToSession(request, "error", "Wearable not found!");
@@ -363,18 +361,18 @@ public class FitbitWearablesController extends AbstractAsyncController {
 		}
 		if (participant.getClusterWearables().stream().noneMatch(cw -> cw.getId().equals(wearable.getId()))) {
 			return redirect(LANDING).addingToSession(request, "error",
-			        "Wearable not associated to participant in project.");
+					"Wearable not associated to participant in project.");
 		}
 
 		DynamicForm df = formFactory.form().bindFromRequest(request);
 		if (df == null) {
 			return redirect(routes.ParticipationController.view(invite_token)).addingToSession(request, "error",
-			        "Expecting some data");
+					"Expecting some data");
 		}
 
 		if (df.get("error") != null) {
 			return redirect(routes.ParticipationController.view(invite_token)).addingToSession(request, "error",
-			        "access denied.");
+					"access denied.");
 		}
 
 		// access code
@@ -382,12 +380,12 @@ public class FitbitWearablesController extends AbstractAsyncController {
 
 		// create redirect url
 		String redirectUrl = controllers.routes.FitbitWearablesController.finishWearableRegistration("0")
-		        .absoluteURL(true, request.host());
+				.absoluteURL(true, request.host());
 		// start the second step of the process
 		fitbitService.authorizationRequest(wearable, code, redirectUrl);
 
 		return redirect(controllers.routes.ParticipationController.view(invite_token)).addingToSession(request,
-		        "message", "FitBit wearable successfully connected.");
+				"message", "FitBit wearable successfully connected.");
 	}
 
 	@Authenticated(UserAuth.class)
@@ -467,11 +465,8 @@ public class FitbitWearablesController extends AbstractAsyncController {
 	public Result delete(Request request, String string_id) {
 		String username = getAuthenticatedUserNameOrReturn(request, redirect(HOME));
 
-		long id = -1l;
-
-		try {
-			id = Long.parseLong(string_id.trim());
-		} catch (Exception e) {
+		long id = DataUtils.parseLong(string_id.trim());
+		if (id == -1L) {
 			return redirect(HOME).addingToSession(request, "error", "fail to parse Fitbit wearalbe id.");
 		}
 

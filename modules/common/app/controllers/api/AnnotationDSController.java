@@ -29,6 +29,7 @@ import play.filters.csrf.RequireCSRFCheck;
 import play.mvc.Http.Request;
 import play.mvc.Result;
 import play.mvc.Security.Authenticated;
+import utils.DataUtils;
 import utils.components.OnboardingMessage;
 import utils.components.OnboardingSupport;
 
@@ -280,7 +281,8 @@ public class AnnotationDSController extends AbstractDSController {
 				// do nothing: if parsing does not work, we insert the current date
 			}
 		} else {
-			parsed = new Date(Long.parseLong(timestamp));
+			long timestampLong = DataUtils.parseLong(timestamp);
+			parsed = timestampLong > -1L ? new Date(timestampLong) : null;
 		}
 
 		ansc.addRecord(cluster, parsed != null ? parsed : new Date(), title, text);

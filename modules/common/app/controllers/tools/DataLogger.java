@@ -43,6 +43,7 @@ import play.mvc.Http.MultipartFormData.FilePart;
 import play.mvc.Http.Request;
 import play.mvc.Result;
 import play.mvc.Security.Authenticated;
+import utils.DataUtils;
 import utils.StringUtils;
 import utils.auth.TokenResolverUtil;
 
@@ -69,8 +70,8 @@ public class DataLogger extends AbstractAsyncController {
 		ObjectNode projectsAndDatasets = Json.newObject();
 		user.getOwnAndCollabProjects().stream().forEach(p -> {
 			List<Dataset> datasetList = p.getIoTDatasets().stream()
-			        .filter(ds -> ds.isActive() && !ds.configuration(Dataset.API_TOKEN, "").isEmpty())
-			        .collect(Collectors.toList());
+					.filter(ds -> ds.isActive() && !ds.configuration(Dataset.API_TOKEN, "").isEmpty())
+					.collect(Collectors.toList());
 			if (datasetList.isEmpty()) {
 				return;
 			}
@@ -81,23 +82,23 @@ public class DataLogger extends AbstractAsyncController {
 
 			ObjectNode datasets = pon.putObject("datasets");
 			datasetList.stream().filter(ds -> ds.isActive())
-			        .forEach(ds -> datasets.putObject(ds.getId() + "").put("id", ds.getId()).put("name", ds.getName())
-			                .put("open", ds.isOpenParticipation())
-			                .put("token", ds.configuration(Dataset.API_TOKEN, "")));
+					.forEach(ds -> datasets.putObject(ds.getId() + "").put("id", ds.getId()).put("name", ds.getName())
+							.put("open", ds.isOpenParticipation())
+							.put("token", ds.configuration(Dataset.API_TOKEN, "")));
 
 			ArrayNode devices = pon.putArray("devices");
 			p.getDevices().stream()
-			        .forEach(dev -> devices.addObject().put("id", dev.getRefId()).put("name", dev.getName()));
+					.forEach(dev -> devices.addObject().put("id", dev.getRefId()).put("name", dev.getName()));
 		});
 
 		// just render the tools page
 		return ok(views.html.tools.datalogger.index.render(projectsAndDatasets,
-		        routes.DataLogger.datalogger(1000000, 2000000, "DATASET", "DEVICE")
-		                .absoluteURL(request, !environment.isDev()).toString(),
-		        routes.DataLogger.log(2000000, "DATASET", "DEVICE").absoluteURL(request, !environment.isDev())
-		                .toString(),
-		        routes.DataLogger.importLog(2000000, "DATASET", "DEVICE").absoluteURL(request, !environment.isDev())
-		                .toString()));
+				routes.DataLogger.datalogger(1000000, 2000000, "DATASET", "DEVICE")
+						.absoluteURL(request, !environment.isDev()).toString(),
+				routes.DataLogger.log(2000000, "DATASET", "DEVICE").absoluteURL(request, !environment.isDev())
+						.toString(),
+				routes.DataLogger.importLog(2000000, "DATASET", "DEVICE").absoluteURL(request, !environment.isDev())
+						.toString()));
 	}
 
 	public Result datalogger(Request request, long projectId, long datasetId, String datasetToken, String deviceId) {
@@ -109,18 +110,18 @@ public class DataLogger extends AbstractAsyncController {
 
 		// check whether dataset exists, belongs to project and is active
 		if (ds == null || !ds.getProject().getId().equals(project.getId()) || !ds.isActive()
-		        || !datasetToken.equals(ds.configuration(Dataset.API_TOKEN, ""))) {
+				|| !datasetToken.equals(ds.configuration(Dataset.API_TOKEN, ""))) {
 			return redirect(HOME);
 		}
 
 		// check whether device Id belongs to project
 		if (!ds.isOpenParticipation()
-		        && project.getDevices().stream().noneMatch(dev -> dev.getRefId().equals(deviceId))) {
+				&& project.getDevices().stream().noneMatch(dev -> dev.getRefId().equals(deviceId))) {
 			return redirect(HOME);
 		}
 
 		String datasetRecordUrl = controllers.api.routes.TimeseriesDSController
-		        .record(ds.getId(), ds.configuration(Dataset.API_TOKEN, "")).absoluteURL(request, !environment.isDev());
+				.record(ds.getId(), ds.configuration(Dataset.API_TOKEN, "")).absoluteURL(request, !environment.isDev());
 
 		// render the data logger interface
 		return ok(views.html.tools.datalogger.datalogger.render(project.getName(), datasetRecordUrl, deviceId));
@@ -165,7 +166,7 @@ public class DataLogger extends AbstractAsyncController {
 		// get all devices
 		ds.getProject().refresh();
 		Optional<Device> deviceOpt = ds.getProject().getDevices().stream().filter(d -> d.getRefId().equals(deviceId))
-		        .findFirst();
+				.findFirst();
 		if (deviceOpt.isEmpty()) {
 			return notFound("Source device not registered");
 		}
@@ -185,7 +186,7 @@ public class DataLogger extends AbstractAsyncController {
 	 */
 	@Authenticated(UserAuth.class)
 	public CompletionStage<Result> importCSV(Request request, Long id, String token, String deviceId,
-	        String selectedColumns) {
+			String selectedColumns) {
 		// high-load possibility, wrap in CompletableFuture
 		return CompletableFuture.supplyAsync(() -> {
 			// check body first
@@ -217,13 +218,13 @@ public class DataLogger extends AbstractAsyncController {
 			// get all devices
 			ds.getProject().refresh();
 			Optional<Device> deviceOpt = ds.getProject().getDevices().stream()
-			        .filter(d -> d.getRefId().equals(deviceId)).findFirst();
+					.filter(d -> d.getRefId().equals(deviceId)).findFirst();
 
 			// quick abort if there is no device and dataset not open
 			if (deviceOpt.isEmpty() && !ds.isOpenParticipation()) {
 				// notify the diagnostics
 				cache.set("DatasetsController_httpPostDiagnostics_" + id,
-				        "Device " + deviceId + " not found at " + new Date(), 300);
+						"Device " + deviceId + " not found at " + new Date(), 300);
 
 				// abort
 				return notFound("Source device not registered");
@@ -249,14 +250,14 @@ public class DataLogger extends AbstractAsyncController {
 				String columnsStr = selectedColumns.contains("=") ? selectedColumns.split("=", 2)[1] : selectedColumns;
 				final String[] columns = columnsStr.split(",");
 				CSVFormat format = CSVFormat.Builder.create(CSVFormat.EXCEL).setHeader().setSkipHeaderRecord(true)
-				        .build();
+						.build();
 				CSVParser.parse(new FileReader(file), format).forEach((record) -> {
 					try {
 						// parse date and time
 						String timestampStr = record.get("time");
 
 						// truncate to seconds
-						long timestamp = (Long.parseLong(timestampStr) / 1_000_000_000) * 1000;
+						long timestamp = (DataUtils.parseLong(timestampStr) / 1_000_000_000) * 1000;
 						if (timestamp == currentTimestamp.get()) {
 							return;
 						}
@@ -296,7 +297,7 @@ public class DataLogger extends AbstractAsyncController {
 	 */
 	@Authenticated(UserAuth.class)
 	public CompletionStage<Result> importJSON(Request request, Long id, String token, String deviceId,
-	        String selectedProperties) {
+			String selectedProperties) {
 		// high-load possibility, wrap in CompletableFuture
 		return CompletableFuture.supplyAsync(() -> {
 			// check body first
@@ -328,13 +329,13 @@ public class DataLogger extends AbstractAsyncController {
 			// get all devices
 			ds.getProject().refresh();
 			Optional<Device> deviceOpt = ds.getProject().getDevices().stream()
-			        .filter(d -> d.getRefId().equals(deviceId)).findFirst();
+					.filter(d -> d.getRefId().equals(deviceId)).findFirst();
 
 			// quick abort if there is no device and dataset not open
 			if (deviceOpt.isEmpty() && !ds.isOpenParticipation()) {
 				// notify the diagnostics
 				cache.set("DatasetsController_httpPostDiagnostics_" + id,
-				        "Device " + deviceId + " not found at " + new Date(), 300);
+						"Device " + deviceId + " not found at " + new Date(), 300);
 
 				// abort
 				return notFound("Source device not registered");
@@ -346,7 +347,7 @@ public class DataLogger extends AbstractAsyncController {
 
 			// get some more parameters...?
 			String columnsStr = selectedProperties.contains("=") ? selectedProperties.split("=", 2)[1]
-			        : selectedProperties;
+					: selectedProperties;
 			final String[] columns = columnsStr.split(",");
 			AtomicInteger lineCount = new AtomicInteger(0);
 			try {
@@ -362,15 +363,15 @@ public class DataLogger extends AbstractAsyncController {
 				// parse file and group object nodes by second-truncated timestamp
 				JsonNode jn = Json.parse(new FileInputStream(file));
 				Map<Long, List<ObjectNode>> map = StreamSupport.stream(((ArrayNode) jn).spliterator(), true)
-				        .map(node -> (ObjectNode) node).filter(jo -> jo.has("time"))
-				        .collect(Collectors.groupingBy(jo -> {
-					        // parse date and time
-					        String timestampStr = jo.get("time").asText("");
+						.map(node -> (ObjectNode) node).filter(jo -> jo.has("time"))
+						.collect(Collectors.groupingBy(jo -> {
+							// parse date and time
+							String timestampStr = jo.get("time").asText("");
 
-					        // truncate to seconds
-					        long timestamp = (Long.parseLong(timestampStr) / 1_000_000_000) * 1000;
-					        return timestamp;
-				        }));
+							// truncate to seconds
+							long timestamp = (DataUtils.parseLong(timestampStr) / 1_000_000_000) * 1000;
+							return timestamp;
+						}));
 				// iterate through all object nodes per second, merge, extract and record
 				map.entrySet().stream().forEach(e -> {
 					Date ts = new Date(e.getKey());
@@ -442,13 +443,13 @@ public class DataLogger extends AbstractAsyncController {
 			// get all devices
 			ds.getProject().refresh();
 			Optional<Device> deviceOpt = ds.getProject().getDevices().stream()
-			        .filter(d -> d.getRefId().equals(deviceId)).findFirst();
+					.filter(d -> d.getRefId().equals(deviceId)).findFirst();
 
 			// quick abort if there is no device and dataset not open
 			if (deviceOpt.isEmpty() && !ds.isOpenParticipation()) {
 				// notify the diagnostics
 				cache.set("DatasetsController_httpPostDiagnostics_" + id,
-				        "Device " + deviceId + " not found at " + new Date(), 300);
+						"Device " + deviceId + " not found at " + new Date(), 300);
 
 				// abort
 				return notFound("Source device not registered");
@@ -465,7 +466,7 @@ public class DataLogger extends AbstractAsyncController {
 			if (payloadArray == null || !payloadArray.isArray() || payloadArray.size() > 500) {
 				// notify the diagnostics
 				cache.set("DatasetsController_httpPostDiagnostics_" + id,
-				        "Device " + deviceId + " upload is broken or too large at " + new Date(), 300);
+						"Device " + deviceId + " upload is broken or too large at " + new Date(), 300);
 
 				// abort
 				return badRequest("Payload broken or too large");
@@ -516,7 +517,7 @@ public class DataLogger extends AbstractAsyncController {
 
 			// notify the diagnostics
 			cache.set("DatasetsController_httpPostDiagnostics_" + id, "Device " + deviceId + " uploaded "
-			        + StringUtils.pluralize("record", itemMaps.size()) + " at " + new Date(), 300);
+					+ StringUtils.pluralize("record", itemMaps.size()) + " at " + new Date(), 300);
 
 			return ok();
 		}).exceptionally((e) -> {

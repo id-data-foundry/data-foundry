@@ -40,6 +40,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import models.Dataset;
 import play.libs.Json;
+import utils.DataUtils;
 
 /**
  * Translates MarkDown with form fields to HTML and also a data projection
@@ -68,20 +69,20 @@ public class FormMarkdown {
 
 	public FormMarkdown(Dataset ds) {
 		final List<Extension> visualizationExtensions = Arrays.asList(new VisualizationTableRenderer(ds),
-		        TablesExtension.create());
+				TablesExtension.create());
 		parser = Parser.builder().extensions(renderExtensions).build();
 		renderer = HtmlRenderer.builder().extensions(renderExtensions)
-		        .nodeRendererFactory(new HtmlNodeRendererFactory() {
-			        public NodeRenderer create(HtmlNodeRendererContext context) {
-				        return new FormNodeRenderer(context, false);
-			        }
-		        }).build();
+				.nodeRendererFactory(new HtmlNodeRendererFactory() {
+					public NodeRenderer create(HtmlNodeRendererContext context) {
+						return new FormNodeRenderer(context, false);
+					}
+				}).build();
 		visualizer = HtmlRenderer.builder().extensions(visualizationExtensions)
-		        .nodeRendererFactory(new HtmlNodeRendererFactory() {
-			        public NodeRenderer create(HtmlNodeRendererContext context) {
-				        return new VisualizationRenderer(context, ds);
-			        }
-		        }).build();
+				.nodeRendererFactory(new HtmlNodeRendererFactory() {
+					public NodeRenderer create(HtmlNodeRendererContext context) {
+						return new VisualizationRenderer(context, ds);
+					}
+				}).build();
 	}
 
 	/**
@@ -123,11 +124,11 @@ public class FormMarkdown {
 	public String renderFormPreview(String input) {
 		itemCount = 0;
 		HtmlRenderer previewRenderer = HtmlRenderer.builder().extensions(renderExtensions)
-		        .nodeRendererFactory(new HtmlNodeRendererFactory() {
-			        public NodeRenderer create(HtmlNodeRendererContext context) {
-				        return new FormNodeRenderer(context, true);
-			        }
-		        }).build();
+				.nodeRendererFactory(new HtmlNodeRendererFactory() {
+					public NodeRenderer create(HtmlNodeRendererContext context) {
+						return new FormNodeRenderer(context, true);
+					}
+				}).build();
 		return previewRenderer.render(parser.parse(input));
 	}
 
@@ -148,11 +149,11 @@ public class FormMarkdown {
 
 	public String getProjection() {
 		return itemMap.keySet().stream().sorted(Comparator.comparingLong(k -> extractNumber(k)))
-		        .collect(Collectors.joining(","));
+				.collect(Collectors.joining(","));
 	}
 
 	public static long extractNumber(String str) {
-		return Long.parseLong(str.replaceAll("\\D", ""));
+		return DataUtils.parseLong(str.replaceAll("\\D", ""));
 	}
 
 	public Map<String, List<String>> getItemList() {
@@ -215,7 +216,7 @@ public class FormMarkdown {
 
 							// start and end --> scale
 							html.raw(views.html.elements.forms.scale.render(itemCount, start, end, startLabel, endLabel)
-							        .toString());
+									.toString());
 							itemMap.put("numerical_" + itemCount++, Collections.<String>emptyList());
 						} else {
 							// unbounded --> spinner via HTML5
@@ -258,10 +259,10 @@ public class FormMarkdown {
 				String itemKey = "choice_" + itemCount;
 
 				html.raw("""
-				        <div class="row" data="%s">
-				        		<div class="input-field col s12">
-				        			<fieldset class="validate" required>\n
-				        """.formatted(itemKey));
+						<div class="row" data="%s">
+								<div class="input-field col s12">
+									<fieldset class="validate" required>\n
+						""".formatted(itemKey));
 
 				int choiceCount = 0;
 				List<String> items = new LinkedList<String>();
@@ -270,7 +271,7 @@ public class FormMarkdown {
 					if (n instanceof ListItem) {
 						String itemText = getText(n);
 						html.raw(views.html.elements.forms.multiChoice.render(itemCount, itemText, choiceCount++)
-						        .toString());
+								.toString());
 						html.line();
 						items.add(itemText);
 					} else {
@@ -279,10 +280,10 @@ public class FormMarkdown {
 				} while ((n = n.getNext()) != null);
 
 				html.raw("""
-				        			</fieldset>
-				           </div>
-				        </div>
-				        """);
+									</fieldset>
+						   </div>
+						</div>
+						""");
 				itemMap.put(itemKey, items);
 				itemCount++;
 			}
@@ -292,9 +293,9 @@ public class FormMarkdown {
 				String itemKey = "choice_" + itemCount;
 
 				html.raw("""
-				        <div class="row" data="%s">
-				        		<div class="input-field col s12">
-				        """.formatted(itemKey));
+						<div class="row" data="%s">
+								<div class="input-field col s12">
+						""".formatted(itemKey));
 
 				int choiceCount = 0;
 				List<String> items = new LinkedList<String>();
@@ -303,7 +304,7 @@ public class FormMarkdown {
 					if (n instanceof ListItem) {
 						String itemText = getText(n);
 						html.raw(views.html.elements.forms.singleChoice.render(itemCount, itemText, choiceCount++)
-						        .toString());
+								.toString());
 						html.line();
 						items.add(itemText);
 					} else {
@@ -312,9 +313,9 @@ public class FormMarkdown {
 				} while ((n = n.getNext()) != null);
 
 				html.raw("""
-				           </div>
-				        </div>
-				        """);
+						   </div>
+						</div>
+						""");
 				itemMap.put(itemKey, items);
 				itemCount++;
 			}
@@ -322,9 +323,9 @@ public class FormMarkdown {
 			if (node instanceof HtmlBlock) {
 				if (filterHTML) {
 					html.raw("""
-					        <p>
-					        		<code>Filtered HTML</code>
-					        	</p>""");
+							<p>
+									<code>Filtered HTML</code>
+								</p>""");
 				} else {
 					html.raw(((HtmlBlock) node).getLiteral());
 				}
@@ -396,7 +397,7 @@ public class FormMarkdown {
 
 				String choice = "choice_" + itemCount++;
 				html.raw(views.html.elements.forms.visualizeMultiChoice
-				        .render(dataset, choice, getJsonItems(itemMap.get(choice))).toString());
+						.render(dataset, choice, getJsonItems(itemMap.get(choice))).toString());
 			}
 			if (node instanceof OrderedList) {
 				// OrderedList ol = (OrderedList) node;
@@ -414,7 +415,7 @@ public class FormMarkdown {
 
 				String choice = "choice_" + itemCount++;
 				html.raw(views.html.elements.forms.visualizeChoice
-				        .render(dataset, choice, getJsonItems(itemMap.get(choice))).toString());
+						.render(dataset, choice, getJsonItems(itemMap.get(choice))).toString());
 			}
 
 			// note: we registered for HtmlBlock but we don't render anything here.
@@ -490,7 +491,7 @@ public class FormMarkdown {
 				super.renderCell(tb);
 			} else {
 				html.raw(views.html.elements.forms.singleChoiceTC.render(itemCount, "", items.get(choiceCount))
-				        .toString());
+						.toString());
 			}
 			choiceCount++;
 		}
@@ -538,7 +539,7 @@ public class FormMarkdown {
 			} else {
 				String choice = "choice_" + itemCount++;
 				html.raw(views.html.elements.forms.visualizeChoice.render(dataset, choice, getJsonItems(gridColumns))
-				        .toString());
+						.toString());
 			}
 		}
 

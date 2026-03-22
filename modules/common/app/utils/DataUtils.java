@@ -3,6 +3,8 @@ package utils;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 
+import org.apache.commons.lang3.math.NumberUtils;
+
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import play.libs.Json;
@@ -52,11 +54,7 @@ public class DataUtils {
 	 * @return
 	 */
 	public static int parseInt(String valueStr, int defaultValue) {
-		try {
-			return Integer.parseInt(valueStr.trim());
-		} catch (Exception e) {
-			return defaultValue;
-		}
+		return NumberUtils.toInt(valueStr, defaultValue);
 	}
 
 	/**
@@ -77,11 +75,7 @@ public class DataUtils {
 	 * @return
 	 */
 	public static long parseLong(String valueStr, long defaultValue) {
-		try {
-			return Long.parseLong(valueStr.trim());
-		} catch (Exception e) {
-			return defaultValue;
-		}
+		return NumberUtils.toLong(valueStr, defaultValue);
 	}
 
 	/**
@@ -102,11 +96,7 @@ public class DataUtils {
 	 * @return
 	 */
 	public static float parseFloat(String valueStr, float defaultValue) {
-		try {
-			return Float.parseFloat(valueStr.trim());
-		} catch (Exception e) {
-			return defaultValue;
-		}
+		return NumberUtils.toFloat(valueStr, defaultValue);
 	}
 
 	/**
@@ -127,11 +117,7 @@ public class DataUtils {
 	 * @return
 	 */
 	public static double parseDouble(String valueStr, double defaultValue) {
-		try {
-			return Double.parseDouble(valueStr.trim());
-		} catch (Exception e) {
-			return defaultValue;
-		}
+		return NumberUtils.toDouble(valueStr, defaultValue);
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -163,7 +149,7 @@ public class DataUtils {
 			Field[] fields = obj.getClass().getFields();
 			for (Field field : fields) {
 				if (!Modifier.isFinal(field.getModifiers())
-				        && (field.getType().isPrimitive() || field.getType().equals(String.class))) {
+						&& (field.getType().isPrimitive() || field.getType().equals(String.class))) {
 					on.putPOJO(field.getName(), field.get(obj));
 				}
 			}

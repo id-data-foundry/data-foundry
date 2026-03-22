@@ -43,6 +43,7 @@ import play.mvc.Http.Request;
 import play.mvc.Result;
 import play.mvc.Security.Authenticated;
 import services.slack.Slack;
+import utils.DataUtils;
 import utils.DateUtils;
 import utils.auth.TokenResolverUtil;
 import utils.export.MetaDataUtils;
@@ -548,7 +549,7 @@ public class ApiSpecs extends AbstractAsyncController {
 				}
 			}
 
-			Long id = Long.parseLong(projectId);
+			Long id = DataUtils.parseLong(projectId);
 			p = Project.find.byId(id);
 		} catch (Exception e) {
 			return badRequest(errorJSONResponseObject("Wrong format of project ID."));

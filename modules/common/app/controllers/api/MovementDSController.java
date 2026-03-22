@@ -36,6 +36,7 @@ import play.mvc.Http.Request;
 import play.mvc.Result;
 import play.mvc.Security.Authenticated;
 import services.slack.Slack;
+import utils.DataUtils;
 import utils.components.OnboardingSupport;
 import utils.validators.FileTypeUtils;
 
@@ -45,7 +46,7 @@ public class MovementDSController extends AbstractDSController {
 
 	@Inject
 	public MovementDSController(FormFactory formFactory, SyncCacheApi cache, DatasetConnector datasetConnector,
-	        OnboardingSupport onboardingSupport) {
+			OnboardingSupport onboardingSupport) {
 		super(formFactory, cache, datasetConnector, onboardingSupport);
 	}
 
@@ -61,7 +62,7 @@ public class MovementDSController extends AbstractDSController {
 		Project project = ds.getProject();
 		if (!ds.visibleFor(username)) {
 			return redirect(controllers.routes.ProjectsController.view(project.getId())).addingToSession(request,
-			        "error", "Project is not accessible.");
+					"error", "Project is not accessible.");
 		}
 
 		final MovementDS cpsc = (MovementDS) datasetConnector.getDatasetDS(ds);
@@ -82,7 +83,7 @@ public class MovementDSController extends AbstractDSController {
 		Project p = Project.find.byId(id);
 		if (p == null || !p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "Project not valid or you don't have permissions for this action. Need to be the owner or a collaborator of the project.");
+					"Project not valid or you don't have permissions for this action. Need to be the owner or a collaborator of the project.");
 		}
 
 		return ok(views.html.datasets.movement.add.render(csrfToken(request), p));
@@ -96,7 +97,7 @@ public class MovementDSController extends AbstractDSController {
 		Project p = Project.find.byId(id);
 		if (p == null || !p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "Project not valid or you don't have permissions for this action. Need to be the owner or a collaborator of the project.");
+					"Project not valid or you don't have permissions for this action. Need to be the owner or a collaborator of the project.");
 		}
 
 		DynamicForm df = formFactory.form().bindFromRequest(request);
@@ -105,7 +106,7 @@ public class MovementDSController extends AbstractDSController {
 		}
 
 		Dataset ds = datasetConnector.create(df.get("dataset_name"), DatasetType.MOVEMENT, p, df.get("description"),
-		        df.get("target_object"), df.get("isPublic"), df.get("license"));
+				df.get("target_object"), df.get("isPublic"), df.get("license"));
 
 		// dates
 		storeDates(ds, df);
@@ -128,7 +129,7 @@ public class MovementDSController extends AbstractDSController {
 
 		if (!ds.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "You don't have permissions for this action. Need to be the owner or a collaborator of the project.");
+					"You don't have permissions for this action. Need to be the owner or a collaborator of the project.");
 		}
 
 		return ok(views.html.datasets.movement.edit.render(csrfToken(request), ds));
@@ -146,13 +147,13 @@ public class MovementDSController extends AbstractDSController {
 
 		if (!ds.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "You don't have permissions for this action. Need to be the owner or a collaborator of the project.");
+					"You don't have permissions for this action. Need to be the owner or a collaborator of the project.");
 		}
 
 		DynamicForm df = formFactory.form().bindFromRequest(request);
 		if (df == null) {
 			return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
-			        "Expecting some data");
+					"Expecting some data");
 		}
 
 		ds.setName(htmlTagEscape(nss(df.get("dataset_name"), 64)));
@@ -168,7 +169,7 @@ public class MovementDSController extends AbstractDSController {
 		ds.update();
 
 		LabNotesEntry.log(MovementDSController.class, LabNotesEntryType.MODIFY, "Dataset edited: " + ds.getName(),
-		        ds.getProject());
+				ds.getProject());
 		return redirect(controllers.routes.DatasetsController.view(ds.getId()));
 	}
 
@@ -182,10 +183,10 @@ public class MovementDSController extends AbstractDSController {
 				return redirect(HOME).addingToSession(request, "error", "We could not find this dataset.");
 			} else if (!ds.canAppend()) {
 				return redirect(HOME).addingToSession(request, "error",
-				        "Dataset is closed (adjust start and end dates to open).");
+						"Dataset is closed (adjust start and end dates to open).");
 			} else if (!ds.editableBy(username)) {
 				return redirect(HOME).addingToSession(request, "error",
-				        "You need to be either project owner or collaborator to perform this action.");
+						"You need to be either project owner or collaborator to perform this action.");
 			}
 
 			Project project = ds.getProject();
@@ -205,12 +206,12 @@ public class MovementDSController extends AbstractDSController {
 				Participant participant = Participant.EMPTY_PARTICIPANT;
 				String participantId = df.get("participant_id");
 				if (participantId != null && participantId.length() > 0) {
-					pid = Long.parseLong(participantId);
+					pid = DataUtils.parseLong(participantId);
 					participant = Participant.find.byId(pid);
 					if (participant == null || !project.hasParticipant(participant)) {
 						// don't add if participant is empty or does not belong to this project
 						return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request,
-						        "error", "No valid participant Id provided.");
+								"error", "No valid participant Id provided.");
 					}
 				}
 
@@ -257,7 +258,7 @@ public class MovementDSController extends AbstractDSController {
 					}
 
 					LabNotesEntry.log(MovementDSController.class, LabNotesEntryType.MODIFY,
-					        "Files uploaded to dataset: " + ds.getName(), ds.getProject());
+							"Files uploaded to dataset: " + ds.getName(), ds.getProject());
 				}
 
 				return redirect(controllers.routes.DatasetsController.view(ds.getId()));
@@ -267,7 +268,7 @@ public class MovementDSController extends AbstractDSController {
 			}
 
 			return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
-			        "Invalid request, no files have been included in the request.");
+					"Invalid request, no files have been included in the request.");
 		});
 	}
 
@@ -285,13 +286,13 @@ public class MovementDSController extends AbstractDSController {
 		project.refresh();
 		if (!project.visibleFor(username)) {
 			return redirect(controllers.routes.ProjectsController.view(project.getId())).addingToSession(request,
-			        "error", "Project is not accessible.");
+					"error", "Project is not accessible.");
 		}
 
 		if (acceptLicenseFirst(request, username, project)) {
 			// redirect to accept license first
 			return redirect(controllers.routes.ProjectsController.license(project.getId(),
-			        routes.MovementDSController.downloadFile(id, fileId, fileName).relativeTo("/")));
+					routes.MovementDSController.downloadFile(id, fileId, fileName).relativeTo("/")));
 		}
 
 		// compose file path and check existence
@@ -299,30 +300,30 @@ public class MovementDSController extends AbstractDSController {
 		Optional<File> requestedFile = cpds.getFile(fileId);
 		if (!requestedFile.isPresent() || !requestedFile.get().exists()) {
 			return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
-			        "No file found: " + fileName);
+					"No file found: " + fileName);
 		}
 
 		LabNotesEntry.log(MovementDSController.class, LabNotesEntryType.DOWNLOAD, "Dataset downloaded: " + ds.getName(),
-		        ds.getProject());
+				ds.getProject());
 
 		return ok(requestedFile.get()).as("application/x-download").withHeader("Content-disposition",
-		        "attachment; filename=" + fileName);
+				"attachment; filename=" + fileName);
 	}
 
 	public CompletionStage<Result> downloadExternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
 		// get participant ids (if cluster is given)
 		final List<Long> participantIds = cluster.getParticipantList();
 		return CompletableFuture.supplyAsync(() -> internalExport(ds, participantIds, limit, start, end))
-		        .thenApplyAsync(chunks -> ok().chunked(chunks)
-		                .withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
-		                .as("text/csv"));
+				.thenApplyAsync(chunks -> ok().chunked(chunks)
+						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
+						.as("text/csv"));
 	}
 
 	public CompletionStage<Result> downloadInternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
 		// get participant ids (if cluster is given)
 		final List<Long> participantIds = cluster.getParticipantList();
 		return CompletableFuture.supplyAsync(() -> internalExport(ds, participantIds, limit, start, end))
-		        .thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
+				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -336,7 +337,7 @@ public class MovementDSController extends AbstractDSController {
 	 * @return
 	 */
 	private Source<ByteString, ?> internalExport(Dataset ds, List<Long> participantIds, long limit, long start,
-	        long end) {
+			long end) {
 		MovementDS mvsc = (MovementDS) datasetConnector.getDatasetDS(ds);
 		return createStream().mapMaterializedValue(sourceActor -> {
 			CompletableFuture.runAsync(() -> mvsc.export(sourceActor, participantIds, limit, start, end));

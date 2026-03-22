@@ -18,6 +18,7 @@ import play.libs.Json;
 import play.mvc.Http.Request;
 import play.mvc.Result;
 import play.mvc.Security.Authenticated;
+import utils.DataUtils;
 import utils.auth.TokenResolverUtil;
 
 @Singleton
@@ -91,7 +92,7 @@ public class DeviceApiController extends AbstractApiController {
 		if (!nnne(projectId)) {
 			return badRequest(errorJSONResponseObject("Wrong format of project ID."));
 		}
-		Project p = Project.find.byId(Long.parseLong(projectId));
+		Project p = Project.find.byId(DataUtils.parseLong(projectId));
 		// check ownership and existence of the project
 		if (p == null || !p.belongsTo(user) && !p.collaboratesWith(user)) {
 			return forbidden(errorJSONResponseObject("Given project not available or owned by user account."));
@@ -231,8 +232,7 @@ public class DeviceApiController extends AbstractApiController {
 
 		device.delete();
 
-		LabNotesEntry.log(DeviceApiController.class, LabNotesEntryType.DELETE, "Device deleted: " + name,
-				project);
+		LabNotesEntry.log(DeviceApiController.class, LabNotesEntryType.DELETE, "Device deleted: " + name, project);
 
 		return ok(okJSONResponseObject("Device deleted."));
 	}

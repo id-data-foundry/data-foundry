@@ -141,8 +141,8 @@ public class WearableApiController extends AbstractApiController {
 		ds.getProject().getWearables().add(wearable);
 		ds.getProject().update();
 
-		LabNotesEntry.log(WearableApiController.class, LabNotesEntryType.CREATE, "wearable created: " + wearable.getName(),
-		        wearable.getProject());
+		LabNotesEntry.log(WearableApiController.class, LabNotesEntryType.CREATE,
+				"wearable created: " + wearable.getName(), wearable.getProject());
 
 		ObjectNode on = okJSONResponseObject();
 		on.put("id", wearable.getId());
@@ -213,8 +213,8 @@ public class WearableApiController extends AbstractApiController {
 		}
 		wearable.update();
 
-		LabNotesEntry.log(WearableApiController.class, LabNotesEntryType.MODIFY, "wearable updated: " + wearable.getName(),
-		        wearable.getProject());
+		LabNotesEntry.log(WearableApiController.class, LabNotesEntryType.MODIFY,
+				"wearable updated: " + wearable.getName(), wearable.getProject());
 
 		return ok(okJSONResponseObject("Information updated."));
 	}
@@ -269,8 +269,7 @@ public class WearableApiController extends AbstractApiController {
 
 		wearable.delete();
 
-		LabNotesEntry.log(WearableApiController.class, LabNotesEntryType.DELETE, "wearable deleted: " + name,
-				project);
+		LabNotesEntry.log(WearableApiController.class, LabNotesEntryType.DELETE, "wearable deleted: " + name, project);
 
 		return ok(okJSONResponseObject("Wearable deleted."));
 	}
@@ -362,7 +361,7 @@ public class WearableApiController extends AbstractApiController {
 		newObject.put("name", wearable.getName());
 		newObject.put("brand", wearable.getBrand());
 		newObject.put("project", wearable.getProject().getId());
-		newObject.put("dataset", Long.parseLong(wearable.getScopes()));
+		newObject.put("dataset", DataUtils.parseLong(wearable.getScopes()));
 
 		// cluster list
 		{

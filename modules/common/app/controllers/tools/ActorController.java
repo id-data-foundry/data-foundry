@@ -28,6 +28,7 @@ import play.mvc.Result;
 import play.mvc.Security.Authenticated;
 import services.jsexecutor.JSActor;
 import services.jsexecutor.JSExecutorService;
+import utils.DataUtils;
 import utils.StringUtils;
 
 @Authenticated(UserAuth.class)
@@ -39,7 +40,7 @@ public class ActorController extends AbstractAsyncController {
 
 	@Inject
 	public ActorController(JSExecutorService jsExecService, FormFactory formFactory,
-	        DatasetConnector datasetConnector) {
+			DatasetConnector datasetConnector) {
 		this.jsExecService = jsExecService;
 		this.formFactory = formFactory;
 		this.datasetConnector = datasetConnector;
@@ -51,7 +52,7 @@ public class ActorController extends AbstractAsyncController {
 
 		if (user.projects().size() + user.collaborations().size() == 0) {
 			return redirect(controllers.routes.ProjectsController.index()).addingToSession(request, "message",
-			        "No project scripts to show.");
+					"No project scripts to show.");
 		}
 
 		return ok(views.html.tools.actor.index.render(user, csrfToken(request)));
@@ -69,11 +70,10 @@ public class ActorController extends AbstractAsyncController {
 		// check project id, replace by form project id, if necessary
 		if (id == -1l) {
 			String projectId = nss(df.get("project"));
-			try {
-				id = Long.parseLong(projectId);
-			} catch (NumberFormatException nfe) {
-				return redirect(HOME).addingToSession(request, "error", "Project id not valid.");
-			}
+			id = DataUtils.parseLong(projectId);
+		}
+		if (id == -1l) {
+			return redirect(HOME).addingToSession(request, "error", "Project id not valid.");
 		}
 
 		// scripts can only be added by the project owner
@@ -84,7 +84,7 @@ public class ActorController extends AbstractAsyncController {
 
 		// create new dataset for the actor
 		Dataset ds = datasetConnector.create(nss(df.get("name")), DatasetType.COMPLETE, p, "Script dataset",
-		        "Data Foundry scripting", null, df.get("license"));
+				"Data Foundry scripting", null, df.get("license"));
 		ds.setCollectorType(Dataset.ACTOR);
 		ds.save();
 
@@ -92,7 +92,7 @@ public class ActorController extends AbstractAsyncController {
 		jsExecService.addActor(ds);
 
 		return redirect(routes.ActorController.view(ds.getId())).addingToSession(request, "message",
-		        "Script " + ds.getName() + " created in project " + p.getName());
+				"Script " + ds.getName() + " created in project " + p.getName());
 	}
 
 	public Result view(Request request, long id) {

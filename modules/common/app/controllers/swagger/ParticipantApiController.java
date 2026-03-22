@@ -23,6 +23,7 @@ import play.mvc.Result;
 import play.mvc.Security.Authenticated;
 import play.twirl.api.Html;
 import services.email.NotificationService;
+import utils.DataUtils;
 import utils.auth.TokenResolverUtil;
 
 @Singleton
@@ -120,7 +121,7 @@ public class ParticipantApiController extends AbstractApiController {
 				}
 			}
 
-			Long id = Long.parseLong(projectId);
+			Long id = DataUtils.parseLong(projectId);
 			p = Project.find.byId(id);
 		} catch (Exception e) {
 			return badRequest(errorJSONResponseObject("Wrong format of project ID."));
@@ -202,13 +203,13 @@ public class ParticipantApiController extends AbstractApiController {
 		participant.setFirstname(df.get("first_name"));
 		participant.setLastname(df.get("last_name"));
 		if (df.get("gender") != null) {
-			participant.setGender(Integer.parseInt(df.get("gender")));
+			participant.setGender(DataUtils.parseInt(df.get("gender")));
 		}
 		if (df.get("career") != null) {
 			participant.setCareer(df.get("career"));
 		}
 		if (df.get("age_range") != null) {
-			participant.setAgeRange(Integer.parseInt(df.get("age_range")));
+			participant.setAgeRange(DataUtils.parseInt(df.get("age_range")));
 		}
 		if (df.get("public_parameter1") != null) {
 			participant.setPublicParameter1(df.get("public_parameter1"));
@@ -253,8 +254,8 @@ public class ParticipantApiController extends AbstractApiController {
 
 		participant.delete();
 
-		LabNotesEntry.log(ParticipantApiController.class, LabNotesEntryType.DELETE,
-				"Participant deleted: " + name, project);
+		LabNotesEntry.log(ParticipantApiController.class, LabNotesEntryType.DELETE, "Participant deleted: " + name,
+				project);
 
 		return ok(okJSONResponseObject("Participant deleted."));
 	}
@@ -301,8 +302,8 @@ public class ParticipantApiController extends AbstractApiController {
 
 		notificationService.sendMail(participant.getEmail(), textBody, htmlBody,
 				getParticipantViewLink(participant.getProject(), participant.getId(), request.host()),
-		        "[ID Data Foundry] Invitation",
-		        "Invitation link: " + getParticipantViewLink(participant.getProject(), participant.getId(), request.host()));
+				"[ID Data Foundry] Invitation", "Invitation link: "
+						+ getParticipantViewLink(participant.getProject(), participant.getId(), request.host()));
 
 		return ok(okJSONResponseObject("Invitation mail sent."));
 	}

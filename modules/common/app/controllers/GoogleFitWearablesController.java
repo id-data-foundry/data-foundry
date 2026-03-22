@@ -36,8 +36,8 @@ public class GoogleFitWearablesController extends AbstractAsyncController {
 
 	@Inject
 	public GoogleFitWearablesController(Configurator configurator, FormFactory formFactory,
-	        GoogleFitService googleFitService, TokenResolverUtil tokenResolverUtil,
-	        OnboardingSupport onboardingSupport) {
+			GoogleFitService googleFitService, TokenResolverUtil tokenResolverUtil,
+			OnboardingSupport onboardingSupport) {
 		this.configurator = configurator;
 		this.formFactory = formFactory;
 		this.googleFitService = googleFitService;
@@ -93,7 +93,7 @@ public class GoogleFitWearablesController extends AbstractAsyncController {
 		}
 
 		return ok(views.html.sources.wearable.googlefit.add.render(csrfToken(request), p, p.getGoogleFitDatasets(),
-		        participantId));
+				participantId));
 	}
 
 	@Authenticated(UserAuth.class)
@@ -117,7 +117,7 @@ public class GoogleFitWearablesController extends AbstractAsyncController {
 		final Dataset dataset = Dataset.find.byId(ds_id);
 		if (dataset == null || !id.equals(dataset.getProject().getId())) {
 			return redirect(routes.ProjectsController.viewResources(project.getId())).addingToSession(request, "error",
-			        "This dataset is not in the project");
+					"This dataset is not in the project");
 		}
 
 		Wearable wearable = new Wearable();
@@ -143,7 +143,7 @@ public class GoogleFitWearablesController extends AbstractAsyncController {
 			}
 
 			Optional<Cluster> cluster = project.getClusters().stream()
-			        .filter(c -> c.hasParticipant(participant) && c.getParticipants().size() == 1).findFirst();
+					.filter(c -> c.hasParticipant(participant) && c.getParticipants().size() == 1).findFirst();
 
 			if (cluster.isPresent()) {
 				// if cluster is existed, add new wearable directly
@@ -191,7 +191,7 @@ public class GoogleFitWearablesController extends AbstractAsyncController {
 		}
 
 		return ok(views.html.sources.wearable.googlefit.edit.render(csrfToken(request), wearable,
-		        project.getGoogleFitDatasets(), ds));
+				project.getGoogleFitDatasets(), ds));
 	}
 
 	@Authenticated(UserAuth.class)
@@ -238,7 +238,7 @@ public class GoogleFitWearablesController extends AbstractAsyncController {
 			wearable.update();
 		} else {
 			return redirect(PROJECT(project.getId())).addingToSession(request, "error",
-			        "Edit GoogleFit wearable:" + wearable.getName() + " failed.");
+					"Edit GoogleFit wearable:" + wearable.getName() + " failed.");
 		}
 
 		LabNotesEntry.log(Wearable.class, LabNotesEntryType.MODIFY, "Wearable updated: " + wearable.getName(), project);
@@ -282,30 +282,30 @@ public class GoogleFitWearablesController extends AbstractAsyncController {
 		}
 		if (participant.getClusterWearables().stream().noneMatch(cw -> cw.getId().equals(wearable.getId()))) {
 			return redirect(LANDING).addingToSession(request, "error",
-			        "Wearable not associated to participant in project.");
+					"Wearable not associated to participant in project.");
 		}
 
 		DynamicForm df = formFactory.form().bindFromRequest(request);
 		if (df == null) {
 			return redirect(routes.ParticipationController.view(invite_token)).addingToSession(request, "error",
-			        "Expecting some data.");
+					"Expecting some data.");
 		}
 
 		if (df.get("error") != null) {
 			return redirect(routes.ParticipationController.view(invite_token)).addingToSession(request, "error",
-			        "Access denied.");
+					"Access denied.");
 		}
 
 		// access code
 		String code = df.get("code");
 		String redirectUrl = controllers.routes.GoogleFitWearablesController.finishWearableRegistration("0")
-		        .absoluteURL(true, request.host());
+				.absoluteURL(true, request.host());
 
 		// start the second step of the process
 		googleFitService.authorizationRequest(wearable, code, redirectUrl);
 
 		return redirect(controllers.routes.ParticipationController.view(invite_token)).addingToSession(request,
-		        "message", "GoogleFit wearable successfully connected.");
+				"message", "GoogleFit wearable successfully connected.");
 	}
 
 	public Result finishWearableRegistration(Request request, String state) {
@@ -319,15 +319,13 @@ public class GoogleFitWearablesController extends AbstractAsyncController {
 			return redirect(routes.HomeController.index()).addingToSession(request, "error", "Insufficient info!");
 		}
 
-		Long wearable_id;
-		Wearable wearable;
-		try {
-			wearable_id = Long.parseLong(states[0]);
-		} catch (Exception e) {
+		long wearable_id = DataUtils.parseLong(states[0]);
+		if (wearable_id == -1L) {
 			return redirect(routes.HomeController.index()).addingToSession(request, "error",
-			        "Fail to parse wearable id!");
+					"Fail to parse wearable id!");
 		}
 
+		Wearable wearable;
 		wearable = Wearable.find.byId(wearable_id);
 		if (wearable == null) {
 			return redirect(routes.HomeController.index()).addingToSession(request, "error", "Wearable not found!");
@@ -364,30 +362,30 @@ public class GoogleFitWearablesController extends AbstractAsyncController {
 		}
 		if (participant.getClusterWearables().stream().noneMatch(cw -> cw.getId().equals(wearable.getId()))) {
 			return redirect(LANDING).addingToSession(request, "error",
-			        "Wearable not associated to participant in project.");
+					"Wearable not associated to participant in project.");
 		}
 
 		DynamicForm df = formFactory.form().bindFromRequest(request);
 		if (df == null) {
 			return redirect(routes.ParticipationController.view(invite_token)).addingToSession(request, "error",
-			        "Expecting some data.");
+					"Expecting some data.");
 		}
 
 		if (df.get("error") != null) {
 			return redirect(routes.ParticipationController.view(invite_token)).addingToSession(request, "error",
-			        "Access denied.");
+					"Access denied.");
 		}
 
 		// access code
 		String code = df.get("code");
 		String redirectUrl = controllers.routes.GoogleFitWearablesController.finishWearableRegistration("0")
-		        .absoluteURL(request, true);
+				.absoluteURL(request, true);
 
 		// start the second step of the process
 		googleFitService.authorizationRequest(wearable, code, redirectUrl);
 
 		return redirect(controllers.routes.ParticipationController.view(invite_token)).addingToSession(request,
-		        "message", "GoogleFit wearable successfully connected.");
+				"message", "GoogleFit wearable successfully connected.");
 	}
 
 	@Authenticated(UserAuth.class)
@@ -408,7 +406,7 @@ public class GoogleFitWearablesController extends AbstractAsyncController {
 		wearable.reset();
 
 		return redirect(controllers.routes.ProjectsController.viewResources(project.getId())).addingToSession(request,
-		        "message", "GoogleFit wearable successfully reset.");
+				"message", "GoogleFit wearable successfully reset.");
 	}
 
 	/**
@@ -469,12 +467,9 @@ public class GoogleFitWearablesController extends AbstractAsyncController {
 	public Result delete(Request request, String string_id) {
 		String username = getAuthenticatedUserNameOrReturn(request, redirect(HOME));
 
-		long id = -1l;
-
-		try {
-			id = Long.parseLong(string_id.trim());
-		} catch (Exception e) {
-			return redirect(HOME).addingToSession(request, "error", "fail to parse GoogleFit wearalbe id.");
+		long id = DataUtils.parseLong(string_id.trim());
+		if (id == -1L) {
+			return redirect(HOME).addingToSession(request, "error", "fail to parse GoogleFit wearable id.");
 		}
 
 		// check wearable
@@ -508,6 +503,8 @@ public class GoogleFitWearablesController extends AbstractAsyncController {
 		LabNotesEntry.log(Wearable.class, LabNotesEntryType.DELETE, "Wearable deleted: " + wearable.getName(), project);
 
 		// back to project
-		return redirect(routes.ProjectsController.view(project.getId()));
+		return
+
+		redirect(routes.ProjectsController.view(project.getId()));
 	}
 }

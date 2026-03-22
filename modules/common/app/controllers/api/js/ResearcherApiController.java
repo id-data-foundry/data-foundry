@@ -20,6 +20,7 @@ import play.data.FormFactory;
 import play.libs.Json;
 import play.mvc.Http.Request;
 import play.mvc.Result;
+import utils.DataUtils;
 import utils.auth.TokenResolverUtil;
 
 public class ResearcherApiController extends AbstractApiController {
@@ -48,7 +49,7 @@ public class ResearcherApiController extends AbstractApiController {
 		if (m.find()) {
 			String datasetId = m.group(1);
 			if (datasetId != null && !datasetId.isEmpty()) {
-				Dataset ds = Dataset.find.byId(Long.parseLong(datasetId));
+				Dataset ds = Dataset.find.byId(DataUtils.parseLong(datasetId));
 				Project project = ds.getProject();
 				if (project.belongsTo(user) || project.collaboratesWith(user)) {
 					on = projectToJson(project);

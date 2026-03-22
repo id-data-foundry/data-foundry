@@ -12,9 +12,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.stream.Collectors;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
@@ -58,6 +58,7 @@ import play.mvc.Http.Request;
 import play.mvc.Result;
 import play.mvc.Security.Authenticated;
 import services.slack.Slack;
+import utils.DataUtils;
 import utils.DateUtils;
 import utils.auth.TokenResolverUtil;
 import utils.export.MetaDataUtils;
@@ -71,7 +72,7 @@ public class DatasetApiController extends AbstractApiController {
 
 	@Inject
 	public DatasetApiController(DatasetsController datasetsController, FormFactory formFactory,
-	        DatasetConnector datasetConnector, TokenResolverUtil tokenResolverUtil) {
+			DatasetConnector datasetConnector, TokenResolverUtil tokenResolverUtil) {
 		super(formFactory, datasetConnector, tokenResolverUtil);
 		this.datasetsController = datasetsController;
 	}
@@ -147,7 +148,7 @@ public class DatasetApiController extends AbstractApiController {
 			// check ownership
 			if (!project.belongsTo(user) && !project.collaboratesWith(user) && !project.subscribedBy(user)) {
 				return forbidden(
-				        errorJSONResponseObject("Dataset not accessible to user and dataset not publicly accessible."));
+						errorJSONResponseObject("Dataset not accessible to user and dataset not publicly accessible."));
 			}
 		}
 
@@ -180,15 +181,15 @@ public class DatasetApiController extends AbstractApiController {
 		// search for non-empty query
 		if (query.length() > 0) {
 			ExpressionList<Dataset> esdl = Dataset.find.query().where().and().or().contains("LOWER(name)", query)
-			        .contains("LOWER(description)", query).contains("LOWER(targetObject)", query)
-			        .contains("LOWER(keywords)", query).contains("LOWER(relation)", query)
-			        .contains("LOWER(organization)", query).contains("LOWER(remarks)", query)
-			        .contains("LOWER(license)", query).endOr();
+					.contains("LOWER(description)", query).contains("LOWER(targetObject)", query)
+					.contains("LOWER(keywords)", query).contains("LOWER(relation)", query)
+					.contains("LOWER(organization)", query).contains("LOWER(remarks)", query)
+					.contains("LOWER(license)", query).endOr();
 			ExpressionList<Project> espl = Project.find.query().where().and().or().contains("LOWER(name)", query)
-			        .contains("LOWER(intro)", query).contains("LOWER(description)", query)
-			        .contains("LOWER(keywords)", query).contains("LOWER(relation)", query)
-			        .contains("LOWER(organization)", query).contains("LOWER(remarks)", query)
-			        .contains("LOWER(license)", query).endOr();
+					.contains("LOWER(intro)", query).contains("LOWER(description)", query)
+					.contains("LOWER(keywords)", query).contains("LOWER(relation)", query)
+					.contains("LOWER(organization)", query).contains("LOWER(remarks)", query)
+					.contains("LOWER(license)", query).endOr();
 
 			// add relation filtering
 			if (relation.trim().length() > 0) {
@@ -215,7 +216,7 @@ public class DatasetApiController extends AbstractApiController {
 
 			// check access for all datasets
 			datasets = esdl.findList().stream().filter(ds -> ds.getProject().isPublicProject() || ds.visibleFor(user))
-			        .limit(30).collect(Collectors.toList());
+					.limit(30).collect(Collectors.toList());
 
 			// now search for project metadata that might match
 			projects = espl.findList();
@@ -253,10 +254,10 @@ public class DatasetApiController extends AbstractApiController {
 
 			for (Dataset ds : p.getDatasets()) {
 				if ((filterType == null || ds.getDsType().equals(filterType))
-				        && (relation.trim().length() == 0 || nss(p.getRelation()).contains(relation)
-				                || nss(ds.getRelation()).contains(relation))
-				        && (organization.trim().length() == 0 || nss(p.getOrganization()).contains(organization)
-				                || nss(ds.getOrganization()).contains(organization))) {
+						&& (relation.trim().length() == 0 || nss(p.getRelation()).contains(relation)
+								|| nss(ds.getRelation()).contains(relation))
+						&& (organization.trim().length() == 0 || nss(p.getOrganization()).contains(organization)
+								|| nss(ds.getOrganization()).contains(organization))) {
 
 					// check for existing datasets in result
 					if (datasets.stream().noneMatch(d -> d.getId().equals(ds.getId()))) {
@@ -299,13 +300,13 @@ public class DatasetApiController extends AbstractApiController {
 		Long id = 0l;
 		String projectId = getValue(df, json, "project_id");
 		if (nnne(projectId)) {
-			id = Long.parseLong(projectId);
+			id = DataUtils.parseLong(projectId);
 		}
 		p = Project.find.byId(id);
 
 		if (p == null || !p.belongsTo(user) && !p.collaboratesWith(user)) {
 			return forbidden(
-			        errorJSONResponseObject("Given project not available or not owned / collaborated by user."));
+					errorJSONResponseObject("Given project not available or not owned / collaborated by user."));
 		}
 
 		// COMPLETE, LINKED, MOVEMENT
@@ -377,7 +378,7 @@ public class DatasetApiController extends AbstractApiController {
 		ds.save();
 
 		LabNotesEntry.log(DatasetApiController.class, LabNotesEntryType.CREATE, "Data set created: " + ds.getName(),
-		        ds.getProject());
+				ds.getProject());
 
 		ObjectNode on = okJSONResponseObject();
 		on.put("id", ds.getId());
@@ -496,7 +497,7 @@ public class DatasetApiController extends AbstractApiController {
 		ds.update();
 
 		LabNotesEntry.log(DatasetApiController.class, LabNotesEntryType.MODIFY, "Data set edited: " + ds.getName(),
-		        ds.getProject());
+				ds.getProject());
 
 		return ok(okJSONResponseObject("Information updated."));
 	}
@@ -660,7 +661,7 @@ public class DatasetApiController extends AbstractApiController {
 	 */
 	@Authenticated(V2UserApiAuth.class)
 	public CompletionStage<Result> downloadCSV(Request request, long id, long participant_id, long device_id,
-	        long wearable_id, long cluster_id, long limit, long start, long end) {
+			long wearable_id, long cluster_id, long limit, long start, long end) {
 
 		// check dataset
 		Dataset ds = Dataset.find.byId(id);
@@ -725,7 +726,7 @@ public class DatasetApiController extends AbstractApiController {
 	 */
 	@Authenticated(V2UserApiAuth.class)
 	public CompletionStage<Result> downloadJson(Request request, long id, long participant_id, long device_id,
-	        long wearable_id, long cluster_id, long limit, long start, long end) {
+			long wearable_id, long cluster_id, long limit, long start, long end) {
 
 		// check dataset and dataset type
 		Dataset ds = Dataset.find.byId(id);
@@ -790,7 +791,7 @@ public class DatasetApiController extends AbstractApiController {
 		Dataset ds = Dataset.find.byId(id);
 		if (ds == null || ds.getDsType() != DatasetType.IOT) {
 			return badRequest(errorJSONResponseObject(
-			        "No or invalid dataset ID given. Only IoT dataset is available for this request."));
+					"No or invalid dataset ID given. Only IoT dataset is available for this request."));
 		} else if (!ds.canAppend()) {
 			return forbidden(errorJSONResponseObject("Dataset is closed (adjust start and end dates to open)."));
 		}
@@ -959,16 +960,16 @@ public class DatasetApiController extends AbstractApiController {
 
 		final Optional<String> finalToken = tempTokenOpt;
 		return CompletableFuture.supplyAsync(() -> eds.addItem(resource_id, finalToken, newData))
-		        .thenApplyAsync(data -> {
-			        if (!data.isPresent()) {
-				        return badRequest(errorJSONResponseObject("JSON data invalid")).as("application/json");
-			        } else {
-				        return ok(data.orElse(Json.newObject())).as("application/json");
-			        }
-		        }).exceptionally(e -> {
-			        logger.error("Entity dataset add problem", e);
-			        return badRequest(errorJSONResponseObject("Unspecified problem in addItem"));
-		        });
+				.thenApplyAsync(data -> {
+					if (!data.isPresent()) {
+						return badRequest(errorJSONResponseObject("JSON data invalid")).as("application/json");
+					} else {
+						return ok(data.orElse(Json.newObject())).as("application/json");
+					}
+				}).exceptionally(e -> {
+					logger.error("Entity dataset add problem", e);
+					return badRequest(errorJSONResponseObject("Unspecified problem in addItem"));
+				});
 	}
 
 	/**
@@ -1027,16 +1028,16 @@ public class DatasetApiController extends AbstractApiController {
 
 		final Optional<String> finalToken = tempTokenOpt;
 		return CompletableFuture.supplyAsync(() -> eds.updateItem(resource_id, finalToken, newData))
-		        .thenApplyAsync(data -> {
-			        if (!data.isPresent()) {
-				        return notFound(errorJSONResponseObject("Item not found")).as("application/json");
-			        } else {
-				        return ok(data.get()).as("application/json");
-			        }
-		        }).exceptionally(e -> {
-			        logger.error("Entity dataset update problem", e);
-			        return badRequest();
-		        });
+				.thenApplyAsync(data -> {
+					if (!data.isPresent()) {
+						return notFound(errorJSONResponseObject("Item not found")).as("application/json");
+					} else {
+						return ok(data.get()).as("application/json");
+					}
+				}).exceptionally(e -> {
+					logger.error("Entity dataset update problem", e);
+					return badRequest();
+				});
 	}
 
 	/**
@@ -1117,7 +1118,7 @@ public class DatasetApiController extends AbstractApiController {
 		Dataset ds = Dataset.find.byId(id);
 		if (ds == null || ds.getDsType() != DatasetType.ANNOTATION) {
 			return badRequest(errorJSONResponseObject(
-			        "No or invalid dataset ID given. Only Annotation dataset is available for this request."));
+					"No or invalid dataset ID given. Only Annotation dataset is available for this request."));
 		} else if (!ds.canAppend()) {
 			return forbidden(errorJSONResponseObject("Dataset is closed (adjust start and end dates to open)."));
 		}
@@ -1187,7 +1188,7 @@ public class DatasetApiController extends AbstractApiController {
 		Dataset ds = Dataset.find.byId(id);
 		if (ds == null || ds.getDsType() != DatasetType.DIARY) {
 			return badRequest(errorJSONResponseObject(
-			        "No or invalid dataset ID given. Only Diary dataset is available for this request."));
+					"No or invalid dataset ID given. Only Diary dataset is available for this request."));
 		} else if (!ds.canAppend()) {
 			return forbidden(errorJSONResponseObject("Dataset is closed (adjust start and end dates to open)."));
 		}
@@ -1279,7 +1280,7 @@ public class DatasetApiController extends AbstractApiController {
 	 * @throws IOException
 	 */
 	private boolean internalAddCompleteDSUpload(Dataset ds, String description,
-	        List<Http.MultipartFormData.FilePart<TemporaryFile>> fileParts) throws IOException {
+			List<Http.MultipartFormData.FilePart<TemporaryFile>> fileParts) throws IOException {
 
 		boolean success = true;
 		if (!fileParts.isEmpty()) {
@@ -1315,10 +1316,10 @@ public class DatasetApiController extends AbstractApiController {
 
 		if (success) {
 			LabNotesEntry.log(CompleteDSController.class, LabNotesEntryType.MODIFY,
-			        "Files uploaded to dataset: " + ds.getName(), ds.getProject());
+					"Files uploaded to dataset: " + ds.getName(), ds.getProject());
 		} else {
 			LabNotesEntry.log(CompleteDSController.class, LabNotesEntryType.MODIFY,
-			        "Some files failed to be uploaded to dataset: " + ds.getName(), ds.getProject());
+					"Some files failed to be uploaded to dataset: " + ds.getName(), ds.getProject());
 		}
 
 		return success;
@@ -1334,7 +1335,7 @@ public class DatasetApiController extends AbstractApiController {
 	 * @throws IOException
 	 */
 	private boolean internalAddMovementDSUpload(Dataset ds, String participantName, String description,
-	        List<Http.MultipartFormData.FilePart<TemporaryFile>> fileParts) throws IOException {
+			List<Http.MultipartFormData.FilePart<TemporaryFile>> fileParts) throws IOException {
 
 		boolean success = true;
 
@@ -1342,15 +1343,15 @@ public class DatasetApiController extends AbstractApiController {
 
 			// find or create participant
 			Participant participant = ds.getProject().getParticipants().stream()
-			        .filter(p -> p.getRealName().equals(participantName)).findAny().orElseGet(() -> {
-				        // create new participant
-				        Participant p = Participant.createInstance(participantName, "", "", ds.getProject());
-				        p.setStatus(ParticipationStatus.ACCEPT);
-				        p.setProject(ds.getProject());
-				        p.save();
+					.filter(p -> p.getRealName().equals(participantName)).findAny().orElseGet(() -> {
+						// create new participant
+						Participant p = Participant.createInstance(participantName, "", "", ds.getProject());
+						p.setStatus(ParticipationStatus.ACCEPT);
+						p.setProject(ds.getProject());
+						p.save();
 
-				        return p;
-			        });
+						return p;
+					});
 
 			final MovementDS mvds = (MovementDS) datasetConnector.getDatasetDS(ds);
 
@@ -1409,10 +1410,10 @@ public class DatasetApiController extends AbstractApiController {
 
 		if (success) {
 			LabNotesEntry.log(MovementDSController.class, LabNotesEntryType.MODIFY,
-			        "Files uploaded to dataset: " + ds.getName(), ds.getProject());
+					"Files uploaded to dataset: " + ds.getName(), ds.getProject());
 		} else {
 			LabNotesEntry.log(MovementDSController.class, LabNotesEntryType.MODIFY,
-			        "Some files failed to be uploaded to dataset: " + ds.getName(), ds.getProject());
+					"Some files failed to be uploaded to dataset: " + ds.getName(), ds.getProject());
 		}
 
 		return success;
@@ -1428,21 +1429,21 @@ public class DatasetApiController extends AbstractApiController {
 	 * @throws IOException
 	 */
 	private boolean internalAddExpSamplingDSUpload(Dataset ds, String participantName, String description,
-	        List<Http.MultipartFormData.FilePart<TemporaryFile>> fileParts) throws IOException {
+			List<Http.MultipartFormData.FilePart<TemporaryFile>> fileParts) throws IOException {
 
 		boolean success = true;
 
 		// find or create participant
 		Participant participant = ds.getProject().getParticipants().stream()
-		        .filter(p -> p.getRealName().equals(participantName)).findAny().orElseGet(() -> {
-			        // create new participant
-			        Participant p = Participant.createInstance(participantName, "", "", ds.getProject());
-			        p.setStatus(ParticipationStatus.ACCEPT);
-			        p.setProject(ds.getProject());
-			        p.save();
+				.filter(p -> p.getRealName().equals(participantName)).findAny().orElseGet(() -> {
+					// create new participant
+					Participant p = Participant.createInstance(participantName, "", "", ds.getProject());
+					p.setStatus(ParticipationStatus.ACCEPT);
+					p.setProject(ds.getProject());
+					p.save();
 
-			        return p;
-		        });
+					return p;
+				});
 
 		if (!fileParts.isEmpty()) {
 
@@ -1491,10 +1492,10 @@ public class DatasetApiController extends AbstractApiController {
 
 		if (success) {
 			LabNotesEntry.log(ExpSamplingDSController.class, LabNotesEntryType.MODIFY,
-			        "Files uploaded to dataset: " + ds.getName(), ds.getProject());
+					"Files uploaded to dataset: " + ds.getName(), ds.getProject());
 		} else {
 			LabNotesEntry.log(ExpSamplingDSController.class, LabNotesEntryType.MODIFY,
-			        "Some files failed to be uploaded to dataset: " + ds.getName(), ds.getProject());
+					"Some files failed to be uploaded to dataset: " + ds.getName(), ds.getProject());
 		}
 
 		return success;
@@ -1510,22 +1511,22 @@ public class DatasetApiController extends AbstractApiController {
 	 * @throws IOException
 	 */
 	private boolean internalAddMediaDSUpload(Request request, Dataset ds, String participantName, String description,
-	        List<Http.MultipartFormData.FilePart<TemporaryFile>> fileParts) throws IOException {
+			List<Http.MultipartFormData.FilePart<TemporaryFile>> fileParts) throws IOException {
 
 		boolean success = true;
 
 		// find or create participant
 		Participant participant = participantName == null ? Participant.EMPTY_PARTICIPANT
-		        : ds.getProject().getParticipants().stream().filter(p -> p.getRealName().equals(participantName))
-		                .findAny().orElseGet(() -> {
-			                // create new participant
-			                Participant p = Participant.createInstance(participantName, "", "", ds.getProject());
-			                p.setStatus(ParticipationStatus.ACCEPT);
-			                p.setProject(ds.getProject());
-			                p.save();
+				: ds.getProject().getParticipants().stream().filter(p -> p.getRealName().equals(participantName))
+						.findAny().orElseGet(() -> {
+							// create new participant
+							Participant p = Participant.createInstance(participantName, "", "", ds.getProject());
+							p.setStatus(ParticipationStatus.ACCEPT);
+							p.setProject(ds.getProject());
+							p.save();
 
-			                return p;
-		                });
+							return p;
+						});
 
 		if (!fileParts.isEmpty()) {
 
@@ -1567,16 +1568,11 @@ public class DatasetApiController extends AbstractApiController {
 				if (isCorrectFormat) {
 					Optional<String> storeFile = mdds.storeFile(tempfile.path().toFile(), fileName);
 					if (storeFile.isPresent()) {
-						long ts = -1;
-						try {
-							ts = Long.parseLong(timestamp);
-						} catch (Exception e) {
-						}
-
+						long ts = DataUtils.parseLong(timestamp);
 						// import file content, and record status after importing the content
 						mdds.addRecord(participant, storeFile.get(), description, now, "imported fully");
 						mdds.importFileContents(participant, ds, storeFile.get(), request, fileType, description,
-						        ts != -1 ? new Date(ts) : now);
+								ts != -1 ? new Date(ts) : now);
 					}
 				} else {
 					mdds.addRecord(participant, fileName, description, now, "wrong file format");
@@ -1590,10 +1586,10 @@ public class DatasetApiController extends AbstractApiController {
 
 		if (success) {
 			LabNotesEntry.log(MediaDSController.class, LabNotesEntryType.MODIFY,
-			        "Files uploaded to dataset: " + ds.getName(), ds.getProject());
+					"Files uploaded to dataset: " + ds.getName(), ds.getProject());
 		} else {
 			LabNotesEntry.log(MediaDSController.class, LabNotesEntryType.MODIFY,
-			        "Some files failed to be uploaded to dataset: " + ds.getName(), ds.getProject());
+					"Some files failed to be uploaded to dataset: " + ds.getName(), ds.getProject());
 		}
 
 		return success;

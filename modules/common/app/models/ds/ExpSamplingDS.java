@@ -38,6 +38,7 @@ import play.Logger;
 import play.libs.Json;
 import services.outlets.OOCSIStreamOutService;
 import services.slack.Slack;
+import utils.DataUtils;
 import utils.conf.ConfigurationUtils;
 
 public class ExpSamplingDS extends LinkedDS {
@@ -77,8 +78,8 @@ public class ExpSamplingDS extends LinkedDS {
 		try (Transaction transaction = DB.beginTransaction(); Connection connection = transaction.connection();) {
 			// use raw JDBC
 			connection.createStatement().execute("CREATE TABLE IF NOT EXISTS " + dataTableNameRawFiles
-			        + " ( id bigint auto_increment not null," + "participant_id bigint," + "file_name varchar(255),"
-			        + "description varchar(255)," + "status varchar(20)," + "ts timestamp," + "PRIMARY KEY (id) );");
+					+ " ( id bigint auto_increment not null," + "participant_id bigint," + "file_name varchar(255),"
+					+ "description varchar(255)," + "status varchar(20)," + "ts timestamp," + "PRIMARY KEY (id) );");
 
 			transaction.commit();
 		} catch (SQLException e) {
@@ -101,10 +102,10 @@ public class ExpSamplingDS extends LinkedDS {
 		try (Transaction transaction = DB.beginTransaction(); Connection connection = transaction.connection();) {
 			// use raw JDBC
 			connection.createStatement()
-			        .execute("CREATE TABLE IF NOT EXISTS " + dataTableName + " ( id bigint auto_increment not null,"
-			                + "participant_id bigint," + "ts timestamp," + "ts_done timestamp," + "pp1 varchar(255),"
-			                + "pp2 varchar(255)," + "pp3 varchar(255)," + "data varchar(1024),"
-			                + "PRIMARY KEY (id) );");
+					.execute("CREATE TABLE IF NOT EXISTS " + dataTableName + " ( id bigint auto_increment not null,"
+							+ "participant_id bigint," + "ts timestamp," + "ts_done timestamp," + "pp1 varchar(255),"
+							+ "pp2 varchar(255)," + "pp3 varchar(255)," + "data varchar(1024),"
+							+ "PRIMARY KEY (id) );");
 
 			transaction.commit();
 		} catch (SQLException e) {
@@ -122,9 +123,9 @@ public class ExpSamplingDS extends LinkedDS {
 
 		// insert record
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("INSERT INTO " + dataTableNameRawFiles
-		                + " ( participant_id, file_name, description, status, ts )" + " VALUES (?, ?, ?, ?, ?);");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("INSERT INTO " + dataTableNameRawFiles
+						+ " ( participant_id, file_name, description, status, ts )" + " VALUES (?, ?, ?, ?, ?);");) {
 
 			stmt.setLong(1, participantId);
 			stmt.setString(2, nss(fileName, 255));
@@ -136,8 +137,8 @@ public class ExpSamplingDS extends LinkedDS {
 
 			// post update on OOCSI
 			oocsiStreaming.datasetUpdate(dataset,
-			        OOCSIStreamOutService.map().put("operation", "add").put("filename", nss(fileName, 255))
-			                .put("description", nss(description, 255)).put("participant_id", participantId).build());
+					OOCSIStreamOutService.map().put("operation", "add").put("filename", nss(fileName, 255))
+							.put("description", nss(description, 255)).put("participant_id", participantId).build());
 		} catch (SQLException e) {
 			logger.error("Error in inserting record in dataset.", e);
 			Slack.call("Exception", e.getLocalizedMessage());
@@ -146,12 +147,12 @@ public class ExpSamplingDS extends LinkedDS {
 
 	public boolean importFileContents(File dataFile, Participant participant) {
 		try (FileReader reader = new FileReader(dataFile.getAbsoluteFile());
-		        CSVReader csvReader = new CSVReader(reader);) {
+				CSVReader csvReader = new CSVReader(reader);) {
 			try (Transaction transaction = DB.beginTransaction();
-			        Connection connection = transaction.connection();
-			        PreparedStatement stmt = connection.prepareStatement(
-			                "INSERT INTO " + dataTableName + " ( participant_id, ts, ts_done, pp1, pp2, pp3, data )"
-			                        + " VALUES (?, ?, ?, ?, ?, ?, ?);");) {
+					Connection connection = transaction.connection();
+					PreparedStatement stmt = connection.prepareStatement(
+							"INSERT INTO " + dataTableName + " ( participant_id, ts, ts_done, pp1, pp2, pp3, data )"
+									+ " VALUES (?, ?, ?, ?, ?, ?, ?);");) {
 
 				// read first 4 lines
 				csvReader.readNext();
@@ -189,7 +190,7 @@ public class ExpSamplingDS extends LinkedDS {
 
 					// update projection
 					dataset.getConfiguration().put("projection", IntStream.range(1, data.length - 1).boxed()
-					        .map(i -> "item" + i).collect(Collectors.joining(",")));
+							.map(i -> "item" + i).collect(Collectors.joining(",")));
 
 					// clean timing row
 					csvReader.readNext();
@@ -228,9 +229,9 @@ public class ExpSamplingDS extends LinkedDS {
 
 		// delete all data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement(
-		                "DELETE FROM " + dataTableName + "; DELETE FROM " + dataTableNameRawFiles + ";");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement(
+						"DELETE FROM " + dataTableName + "; DELETE FROM " + dataTableNameRawFiles + ";");) {
 			stmt.execute();
 			transaction.commit();
 		} catch (SQLException e) {
@@ -241,37 +242,37 @@ public class ExpSamplingDS extends LinkedDS {
 
 	public File getFolder() {
 		return new File(
-		        UPLOAD_DIR_PARENT + UPLOADS_DATASETS + dataset.getProject().getRefId() + "__" + dataset.getRefId());
+				UPLOAD_DIR_PARENT + UPLOADS_DATASETS + dataset.getProject().getRefId() + "__" + dataset.getRefId());
 	}
 
 	public File getFile(String filename) {
 		return new File(UPLOAD_DIR_PARENT + UPLOADS_DATASETS + dataset.getProject().getRefId() + "__"
-		        + dataset.getRefId() + "/" + filename.replace("..", ""));
+				+ dataset.getRefId() + "/" + filename.replace("..", ""));
 	}
 
 	public List<TimedMedia> getFiles() {
 
 		List<TimedMedia> result = new LinkedList<TimedMedia>();
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection
-		                .prepareStatement("SELECT id, ts, file_name, description, status, participant_id FROM "
-		                        + dataTableNameRawFiles + " ORDER BY ts DESC;");
-		        ResultSet rs = stmt.executeQuery()) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("SELECT id, ts, file_name, description, status, participant_id FROM "
+								+ dataTableNameRawFiles + " ORDER BY ts DESC;");
+				ResultSet rs = stmt.executeQuery()) {
 
 			while (rs.next()) {
 				String filename = rs.getString("file_name");
 				if (getFile(filename).exists()) {
 
 					String participantName = rs.getString("participant_id");
-					long pid = Long.parseLong(participantName);
+					long pid = DataUtils.parseLong(participantName);
 					Participant participant = Participant.find.byId(pid);
 					if (participant != null) {
 						participantName = participant.getName();
 					}
 
 					TimedMedia tm = new TimedMedia(rs.getLong("id"), rs.getTimestamp("ts"), filename,
-					        rs.getString("description"), rs.getString("description"), participant);
+							rs.getString("description"), rs.getString("description"), participant);
 					result.add(tm);
 				}
 			}
@@ -293,24 +294,24 @@ public class ExpSamplingDS extends LinkedDS {
 		}
 
 		final String whereClause = " WHERE participant_id IN ("
-		        + participants.stream().map(p -> p.getId().toString()).collect(Collectors.joining(",")) + ")";
+				+ participants.stream().map(p -> p.getId().toString()).collect(Collectors.joining(",")) + ")";
 
 		List<TimedMedia> result = new LinkedList<TimedMedia>();
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection
-		                .prepareStatement("SELECT id, ts, file_name, description, status, participant_id FROM "
-		                        + dataTableNameRawFiles + whereClause + " ORDER BY ts DESC;");
-		        ResultSet rs = stmt.executeQuery()) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("SELECT id, ts, file_name, description, status, participant_id FROM "
+								+ dataTableNameRawFiles + whereClause + " ORDER BY ts DESC;");
+				ResultSet rs = stmt.executeQuery()) {
 
 			while (rs.next()) {
 				String filename = rs.getString("file_name");
 				if (getFile(filename).exists()) {
 					String participantName = rs.getString("participant_id");
-					long pid = Long.parseLong(participantName);
+					long pid = DataUtils.parseLong(participantName);
 					Participant participant = Participant.find.byId(pid);
 					TimedMedia tm = new TimedMedia(rs.getLong("id"), rs.getTimestamp("ts"), filename, "",
-					        rs.getString("description"), participant);
+							rs.getString("description"), participant);
 					result.add(tm);
 				}
 			}
@@ -332,28 +333,28 @@ public class ExpSamplingDS extends LinkedDS {
 	}
 
 	public void exportProjected(SourceQueueWithComplete<ByteString> queue, List<Long> participantIds, long limit,
-	        long start, long end) {
+			long start, long end) {
 
 		final String whereClause;
 		if (participantIds.isEmpty()) {
 			whereClause = timeFilterWhereClause(start, end);
 		} else {
 			whereClause = " WHERE participant_id IN ("
-			        + participantIds.stream().map(l -> l.toString()).collect(Collectors.joining(",")) + ") "
-			        + timeFilterWhereClause(start, end).replace("WHERE", "AND");
+					+ participantIds.stream().map(l -> l.toString()).collect(Collectors.joining(",")) + ") "
+					+ timeFilterWhereClause(start, end).replace("WHERE", "AND");
 		}
 		// create the actual database for the data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection
-		                .prepareStatement("SELECT id, participant_id, ts, ts_done, pp1, pp2, pp3, data FROM "
-		                        + dataTableName + whereClause + " ORDER BY id ASC " + limitExpression(limit) + ";");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("SELECT id, participant_id, ts, ts_done, pp1, pp2, pp3, data FROM "
+								+ dataTableName + whereClause + " ORDER BY id ASC " + limitExpression(limit) + ";");
+				ResultSet rs = stmt.executeQuery();) {
 
 			final String[] projection = dataset.getConfiguration().getOrDefault(Dataset.DATA_PROJECTION, "").split(",");
 			queue.offer(ByteString
-			        .fromString("id,participant_id,ts,ts_done,pp1,pp2,pp3," + String.join(",", projection) + "\n"))
-			        .toCompletableFuture().get();
+					.fromString("id,participant_id,ts,ts_done,pp1,pp2,pp3," + String.join(",", projection) + "\n"))
+					.toCompletableFuture().get();
 			while (rs.next()) {
 				StringBuffer sb = new StringBuffer();
 				sb.append(rs.getLong("id") + ",");
@@ -402,18 +403,18 @@ public class ExpSamplingDS extends LinkedDS {
 			whereClause = timeFilterWhereClause(start, end);
 		} else {
 			whereClause = " WHERE participant_id IN ("
-			        + cluster.getParticipants().stream().map(p -> p.getId().toString()).collect(Collectors.joining(","))
-			        + ") " + timeFilterWhereClause(start, end).replace("WHERE", "AND");
+					+ cluster.getParticipants().stream().map(p -> p.getId().toString()).collect(Collectors.joining(","))
+					+ ") " + timeFilterWhereClause(start, end).replace("WHERE", "AND");
 		}
 
 		List<ObjectNode> objects = new LinkedList<ObjectNode>();
 		// export the data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection
-		                .prepareStatement("SELECT id, participant_id, ts, ts_done, pp1, pp2, pp3, data FROM "
-		                        + dataTableName + whereClause + " ORDER BY id DESC LIMIT " + limit + ";");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("SELECT id, participant_id, ts, ts_done, pp1, pp2, pp3, data FROM "
+								+ dataTableName + whereClause + " ORDER BY id DESC LIMIT " + limit + ";");
+				ResultSet rs = stmt.executeQuery();) {
 
 			while (rs.next()) {
 				// ObjectNode on = result.addObject();

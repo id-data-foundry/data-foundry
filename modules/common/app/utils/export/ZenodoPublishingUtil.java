@@ -29,6 +29,7 @@ import play.libs.ws.InMemoryBodyWritable;
 import play.libs.ws.WSClient;
 import play.libs.ws.WSRequest;
 import play.libs.ws.WSResponse;
+import utils.DataUtils;
 import utils.conf.ConfigurationUtils;
 import utils.conf.Configurator;
 
@@ -378,7 +379,7 @@ public class ZenodoPublishingUtil {
 			try {
 				// Parse status code
 				String[] parts = message.split(" - ");
-				int status = Integer.parseInt(parts[0].replace("HTTP error: ", ""));
+				int status = DataUtils.parseInt(parts[0].replace("HTTP error: ", ""), 500);
 
 				if (status == 401 || status == 403) {
 					return "Authentication failed. Please check your Zenodo access token.";

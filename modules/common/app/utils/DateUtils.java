@@ -59,12 +59,8 @@ public class DateUtils {
 			return new Date();
 		}
 
-		try {
-			long ts = Long.parseLong(timestamp);
-			return new Date(ts);
-		} catch (Exception e) {
-			return new Date();
-		}
+		long ts = DataUtils.parseLong(timestamp);
+		return ts > -1L ? new Date(ts) : new Date();
 	}
 
 	/**
@@ -331,7 +327,7 @@ public class DateUtils {
 		}
 
 		return new Date[] { parsedStartDate == null ? new Date() : parsedStartDate,
-		        parsedEndDate == null ? new Date() : parsedEndDate };
+				parsedEndDate == null ? new Date() : parsedEndDate };
 	}
 
 	/**
@@ -360,7 +356,7 @@ public class DateUtils {
 				if (ds.getEnd() != null && endDate.equals(ds.getEnd().toString())) {
 					String[] dateSlice = endDate.split(" ");
 					if (LocalDate.parse(dateSlice[5] + "-" + DateUtils.getMonthNum(dateSlice[1]) + "-" + dateSlice[2])
-					        .isBefore(LocalDate.now())) {
+							.isBefore(LocalDate.now())) {
 						startDate = dateSlice[5] + "-" + DateUtils.getMonthNum(dateSlice[1]) + "-" + dateSlice[2];
 					} else {
 						startDate = LocalDate.now().toString();
@@ -397,7 +393,7 @@ public class DateUtils {
 		}
 
 		return new Date[] { parsedStartDate == null ? new Date() : parsedStartDate,
-		        parsedEndDate == null ? new Date() : parsedEndDate };
+				parsedEndDate == null ? new Date() : parsedEndDate };
 	}
 
 	/**

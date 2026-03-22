@@ -34,6 +34,7 @@ import play.libs.Json;
 import play.mvc.Http.Request;
 import services.outlets.OOCSIStreamOutService;
 import services.slack.Slack;
+import utils.DataUtils;
 
 public class MediaDS extends CompleteDS {
 
@@ -62,8 +63,8 @@ public class MediaDS extends CompleteDS {
 		try (Transaction transaction = DB.beginTransaction(); Connection connection = transaction.connection();) {
 			// use raw JDBC
 			connection.createStatement().execute("CREATE TABLE IF NOT EXISTS " + dataTableNameRawFiles
-			        + " ( id bigint auto_increment not null," + "participant_id bigint," + "file_name varchar(255),"
-			        + "description varchar(255)," + "status varchar(20)," + "ts timestamp," + "PRIMARY KEY (id) );");
+					+ " ( id bigint auto_increment not null," + "participant_id bigint," + "file_name varchar(255),"
+					+ "description varchar(255)," + "status varchar(20)," + "ts timestamp," + "PRIMARY KEY (id) );");
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in creating dataset table in DB.", e);
@@ -86,10 +87,10 @@ public class MediaDS extends CompleteDS {
 		try (Transaction transaction = DB.beginTransaction(); Connection connection = transaction.connection();) {
 			// use raw JDBC
 			connection.createStatement()
-			        .execute("CREATE TABLE IF NOT EXISTS " + dataTableName + " ( id bigint auto_increment not null,"
-			                + "participant_id bigint," + "ts timestamp," + "link varchar(255),"
-			                + "mediatype varchar(31)," + "description varchar(255)," + "pp1 varchar(255),"
-			                + "pp2 varchar(255)," + "pp3 varchar(255)," + "PRIMARY KEY (id) );");
+					.execute("CREATE TABLE IF NOT EXISTS " + dataTableName + " ( id bigint auto_increment not null,"
+							+ "participant_id bigint," + "ts timestamp," + "link varchar(255),"
+							+ "mediatype varchar(31)," + "description varchar(255)," + "pp1 varchar(255),"
+							+ "pp2 varchar(255)," + "pp3 varchar(255)," + "PRIMARY KEY (id) );");
 
 			transaction.commit();
 		} catch (SQLException e) {
@@ -110,9 +111,9 @@ public class MediaDS extends CompleteDS {
 
 		// insert record
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("INSERT INTO " + dataTableNameRawFiles
-		                + " ( participant_id, file_name, description, status, ts )" + " VALUES (?, ?, ?, ?, ?);");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("INSERT INTO " + dataTableNameRawFiles
+						+ " ( participant_id, file_name, description, status, ts )" + " VALUES (?, ?, ?, ?, ?);");) {
 
 			stmt.setLong(1, participant.getId());
 			stmt.setString(2, nss(fileName, 255));
@@ -124,9 +125,9 @@ public class MediaDS extends CompleteDS {
 
 			// post update on OOCSI
 			oocsiStreaming.datasetUpdate(dataset,
-			        OOCSIStreamOutService.map().put("operation", "add").put("filename", nss(fileName, 255))
-			                .put("description", nss(description, 255))
-			                .put("participant_id", nss(participant.getRefId(), 32)).build());
+					OOCSIStreamOutService.map().put("operation", "add").put("filename", nss(fileName, 255))
+							.put("description", nss(description, 255))
+							.put("participant_id", nss(participant.getRefId(), 32)).build());
 		} catch (Exception e) {
 			logger.error("Error in inserting record in dataset.", e);
 			Slack.call("Exception", e.getLocalizedMessage());
@@ -134,14 +135,14 @@ public class MediaDS extends CompleteDS {
 	}
 
 	public void importFileContents(Participant participant, String link, String mediatype, String description,
-	        Date ts) {
+			Date ts) {
 
 		// insert record
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("INSERT INTO " + dataTableName
-		                + " ( participant_id, ts, link, mediatype, description, pp1, pp2, pp3 )"
-		                + " VALUES (?, ?, ?, ?, ?, ?, ?, ?);");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("INSERT INTO " + dataTableName
+						+ " ( participant_id, ts, link, mediatype, description, pp1, pp2, pp3 )"
+						+ " VALUES (?, ?, ?, ?, ?, ?, ?, ?);");) {
 
 			stmt.setLong(1, participant != null ? participant.getId() : -1);
 			stmt.setTimestamp(2, new Timestamp(ts.getTime()));
@@ -160,7 +161,7 @@ public class MediaDS extends CompleteDS {
 	}
 
 	public void importFileContents(Participant participant, Dataset ds, String fileName, Request url, String mediatype,
-	        String description, Date ts) {
+			String description, Date ts) {
 
 		String link = controllers.api.routes.MediaDSController.image(ds.getId(), fileName).absoluteURL(url, true);
 
@@ -169,8 +170,8 @@ public class MediaDS extends CompleteDS {
 
 			// use raw JDBC
 			PreparedStatement stmt = connection.prepareStatement("INSERT INTO " + dataTableName
-			        + " ( participant_id, ts, link, mediatype, description, pp1, pp2, pp3 )"
-			        + " VALUES (?, ?, ?, ?, ?, ?, ?, ?);");
+					+ " ( participant_id, ts, link, mediatype, description, pp1, pp2, pp3 )"
+					+ " VALUES (?, ?, ?, ?, ?, ?, ?, ?);");
 			stmt.setLong(1, participant != null ? participant.getId() : -1);
 			stmt.setTimestamp(2, new Timestamp(ts.getTime()));
 			stmt.setString(3, nss(link, 255));
@@ -197,9 +198,9 @@ public class MediaDS extends CompleteDS {
 
 		// delete record
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection
-		                .prepareStatement("DELETE FROM " + dataTableNameRawFiles + " WHERE id = ?;");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("DELETE FROM " + dataTableNameRawFiles + " WHERE id = ?;");) {
 
 			stmt.setLong(1, fileId);
 			stmt.executeUpdate();
@@ -222,9 +223,9 @@ public class MediaDS extends CompleteDS {
 
 		// delete all data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement(
-		                "DELETE FROM " + dataTableName + "; DELETE FROM " + dataTableNameRawFiles + ";");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement(
+						"DELETE FROM " + dataTableName + "; DELETE FROM " + dataTableNameRawFiles + ";");) {
 			stmt.execute();
 			transaction.commit();
 		} catch (SQLException e) {
@@ -242,9 +243,9 @@ public class MediaDS extends CompleteDS {
 
 		long participantId = -2l;
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("SELECT participant_id FROM "
-		                + dataTableNameRawFiles + " WHERE file_name LIKE ? ORDER BY ts DESC;");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("SELECT participant_id FROM "
+						+ dataTableNameRawFiles + " WHERE file_name LIKE ? ORDER BY ts DESC;");) {
 			stmt.setString(1, fileName);
 			ResultSet rs = stmt.executeQuery();
 			if (rs.next()) {
@@ -288,13 +289,13 @@ public class MediaDS extends CompleteDS {
 	 * @return
 	 */
 	private Optional<Long> getLatestFileVersionForParticipantInternal(Participant p, String filename,
-	        String dataTableName) {
+			String dataTableName) {
 
 		Optional<Long> id = Optional.empty();
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement(
-		                "SELECT MAX(id) FROM " + dataTableName + " WHERE participant_id = ? AND file_name LIKE ?;")) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement(
+						"SELECT MAX(id) FROM " + dataTableName + " WHERE participant_id = ? AND file_name LIKE ?;")) {
 
 			stmt.setLong(1, p.getId());
 			stmt.setString(2, filename);
@@ -341,11 +342,11 @@ public class MediaDS extends CompleteDS {
 
 		final List<TimedMedia> fileList = new LinkedList<TimedMedia>();
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection
-		                .prepareStatement("SELECT id, ts, file_name, description, status, participant_id FROM "
-		                        + maxIdJoinExpression(dataTableNameRawFiles) + " ORDER BY ts DESC LIMIT " + n + ";");
-		        ResultSet rs = stmt.executeQuery()) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("SELECT id, ts, file_name, description, status, participant_id FROM "
+								+ maxIdJoinExpression(dataTableNameRawFiles) + " ORDER BY ts DESC LIMIT " + n + ";");
+				ResultSet rs = stmt.executeQuery()) {
 
 			while (rs.next()) {
 				String filename = rs.getString("file_name");
@@ -357,13 +358,13 @@ public class MediaDS extends CompleteDS {
 
 				if (fileOpt.isPresent()) {
 					String participantId = rs.getString("participant_id");
-					long pid = Long.parseLong(participantId);
+					long pid = DataUtils.parseLong(participantId);
 					Participant participant = Participant.find.byId(pid);
 					// if (participant != null) {
 					// participantName = participant.getName();
 					// }
 					TimedMedia tm = new TimedMedia(rs.getLong("id"), timestamp, filename, rs.getString("status"),
-					        rs.getString("description"), participant);
+							rs.getString("description"), participant);
 					fileList.add(tm);
 				}
 			}
@@ -393,11 +394,11 @@ public class MediaDS extends CompleteDS {
 
 		final List<TimedMedia> fileList = new LinkedList<TimedMedia>();
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection
-		                .prepareStatement("SELECT id, ts, file_name, description, status, participant_id FROM "
-		                        + maxIdJoinExpression(dataTableNameRawFiles)
-		                        + " WHERE status = ? ORDER BY ts DESC LIMIT ?;")) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("SELECT id, ts, file_name, description, status, participant_id FROM "
+								+ maxIdJoinExpression(dataTableNameRawFiles)
+								+ " WHERE status = ? ORDER BY ts DESC LIMIT ?;")) {
 			stmt.setString(1, status);
 			stmt.setInt(2, n);
 			ResultSet rs = stmt.executeQuery();
@@ -413,10 +414,10 @@ public class MediaDS extends CompleteDS {
 
 				if (fileOpt.isPresent()) {
 					String participantId = rs.getString("participant_id");
-					long pid = Long.parseLong(participantId);
+					long pid = DataUtils.parseLong(participantId);
 					Participant participant = Participant.find.byId(pid);
 					TimedMedia tm = new TimedMedia(rs.getLong("id"), timestamp, filename, rs.getString("status"),
-					        rs.getString("description"), participant);
+							rs.getString("description"), participant);
 					fileList.add(tm);
 				}
 			}
@@ -444,16 +445,16 @@ public class MediaDS extends CompleteDS {
 		}
 
 		final String whereClause = " WHERE participant_id IN ("
-		        + participants.stream().map(p -> p.getId().toString()).collect(Collectors.joining(",")) + ")";
+				+ participants.stream().map(p -> p.getId().toString()).collect(Collectors.joining(",")) + ")";
 
 		final List<TimedMedia> fileList = new LinkedList<TimedMedia>();
 
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection
-		                .prepareStatement("SELECT id, ts, file_name, description, status, participant_id FROM "
-		                        + maxIdJoinExpression(dataTableNameRawFiles) + whereClause + " ORDER BY ts DESC;");
-		        ResultSet rs = stmt.executeQuery()) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("SELECT id, ts, file_name, description, status, participant_id FROM "
+								+ maxIdJoinExpression(dataTableNameRawFiles) + whereClause + " ORDER BY ts DESC;");
+				ResultSet rs = stmt.executeQuery()) {
 
 			while (rs.next()) {
 				String filename = rs.getString("file_name");
@@ -465,10 +466,10 @@ public class MediaDS extends CompleteDS {
 
 				if (fileOpt.isPresent()) {
 					String participantId = rs.getString("participant_id");
-					long pid = Long.parseLong(participantId);
+					long pid = DataUtils.parseLong(participantId);
 					Participant participant = Participant.find.byId(pid);
 					TimedMedia tm = new TimedMedia(rs.getLong("id"), timestamp, filename, "",
-					        rs.getString("description"), participant);
+							rs.getString("description"), participant);
 					fileList.add(tm);
 				}
 			}
@@ -493,14 +494,14 @@ public class MediaDS extends CompleteDS {
 	public List<TimedAnnotatedMedia> getMediaForParticipant(Long id) {
 		final List<TimedAnnotatedMedia> result = new LinkedList<TimedAnnotatedMedia>();
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("SELECT id, ts, link, mediatype, description FROM "
-		                + dataTableName + " WHERE participant_id = ? ORDER BY ts DESC;");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("SELECT id, ts, link, mediatype, description FROM "
+						+ dataTableName + " WHERE participant_id = ? ORDER BY ts DESC;");) {
 			stmt.setLong(1, id);
 			ResultSet rs = stmt.executeQuery();
 			while (rs.next()) {
 				TimedAnnotatedMedia am = new TimedAnnotatedMedia(rs.getLong("id"), rs.getTimestamp("ts"),
-				        rs.getString("link"), rs.getString("mediatype"), rs.getString("description"));
+						rs.getString("link"), rs.getString("mediatype"), rs.getString("description"));
 				result.add(am);
 			}
 			transaction.commit();
@@ -529,27 +530,27 @@ public class MediaDS extends CompleteDS {
 	}
 
 	public void export(SourceQueueWithComplete<ByteString> queue,
-	        Function<String, String> filePathTransformationFunction, List<Long> participantIds, long limit, long start,
-	        long end) {
+			Function<String, String> filePathTransformationFunction, List<Long> participantIds, long limit, long start,
+			long end) {
 		final String whereClause;
 		if (participantIds.isEmpty()) {
 			whereClause = timeFilterWhereClause(start, end);
 		} else {
 			whereClause = " WHERE participant_id IN ("
-			        + participantIds.stream().map(l -> l.toString()).collect(Collectors.joining(",")) + ") "
-			        + timeFilterWhereClause(start, end).replace("WHERE", "AND");
+					+ participantIds.stream().map(l -> l.toString()).collect(Collectors.joining(",")) + ") "
+					+ timeFilterWhereClause(start, end).replace("WHERE", "AND");
 		}
 		// create the actual database for the data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement(
-		                "SELECT id, participant_id, ts, link, mediatype, description, pp1, pp2, pp3 FROM "
-		                        + dataTableName + whereClause + " ORDER BY id ASC " + limitExpression(limit) + ";");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement(
+						"SELECT id, participant_id, ts, link, mediatype, description, pp1, pp2, pp3 FROM "
+								+ dataTableName + whereClause + " ORDER BY id ASC " + limitExpression(limit) + ";");
+				ResultSet rs = stmt.executeQuery();) {
 
 			// header
 			queue.offer(ByteString.fromString("id,participant_id,ts,link,mediatype,description,pp1,pp2,pp3\n"))
-			        .toCompletableFuture().get();
+					.toCompletableFuture().get();
 
 			// data
 			while (rs.next()) {
@@ -584,25 +585,25 @@ public class MediaDS extends CompleteDS {
 	}
 
 	public ArrayNode retrieveProjected(Function<String, String> linkMapper, Cluster cluster, long limit, long start,
-	        long end) {
+			long end) {
 
 		final String whereClause;
 		if (cluster.getParticipants().isEmpty()) {
 			whereClause = timeFilterWhereClause(start, end);
 		} else {
 			whereClause = " WHERE participant_id IN ("
-			        + cluster.getParticipants().stream().map(p -> p.getId().toString()).collect(Collectors.joining(","))
-			        + ") " + timeFilterWhereClause(start, end).replace("WHERE", "AND");
+					+ cluster.getParticipants().stream().map(p -> p.getId().toString()).collect(Collectors.joining(","))
+					+ ") " + timeFilterWhereClause(start, end).replace("WHERE", "AND");
 		}
 
 		List<ObjectNode> objects = new LinkedList<ObjectNode>();
 		// export the data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement(
-		                "SELECT id, participant_id, ts, link, mediatype, description, pp1, pp2, pp3 FROM "
-		                        + dataTableName + whereClause + " ORDER BY id DESC LIMIT " + limit + ";");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement(
+						"SELECT id, participant_id, ts, link, mediatype, description, pp1, pp2, pp3 FROM "
+								+ dataTableName + whereClause + " ORDER BY id DESC LIMIT " + limit + ";");
+				ResultSet rs = stmt.executeQuery();) {
 
 			while (rs.next()) {
 

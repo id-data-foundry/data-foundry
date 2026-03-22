@@ -28,6 +28,7 @@ import models.sr.Wearable;
 import play.Logger;
 import play.libs.Json;
 import services.slack.Slack;
+import utils.DataUtils;
 
 public class GoogleFitDS extends LinkedDS {
 
@@ -46,23 +47,23 @@ public class GoogleFitDS extends LinkedDS {
 	public void createInstance() {
 		try (Transaction transaction = DB.beginTransaction(); Connection connection = transaction.connection();) {
 			connection.createStatement().execute("CREATE TABLE IF NOT EXISTS " + dataTableName + " ( " //
-			        + "id bigint auto_increment not null," //
-			        + "wearable_id bigint not null," //
-			        + "user_id varchar(50) not null," //
-			        + "ts timestamp not null," //
-			        + "pp1 varchar(255)," //
-			        + "pp2 varchar(255)," //
-			        + "pp3 varchar(255)," //
-			        + "data_date bigint," //
-			        + "activity int," //
-			        + "calories float," //
-			        + "speed float," //
-			        + "heart_rate float," //
-			        + "step_count int," //
-			        + "distance float," //
-			        + "weight float," //
-			        + "sleep int," //
-			        + "PRIMARY KEY (id) );");
+					+ "id bigint auto_increment not null," //
+					+ "wearable_id bigint not null," //
+					+ "user_id varchar(50) not null," //
+					+ "ts timestamp not null," //
+					+ "pp1 varchar(255)," //
+					+ "pp2 varchar(255)," //
+					+ "pp3 varchar(255)," //
+					+ "data_date bigint," //
+					+ "activity int," //
+					+ "calories float," //
+					+ "speed float," //
+					+ "heart_rate float," //
+					+ "step_count int," //
+					+ "distance float," //
+					+ "weight float," //
+					+ "sleep int," //
+					+ "PRIMARY KEY (id) );");
 
 			transaction.commit();
 		} catch (SQLException e) {
@@ -83,7 +84,7 @@ public class GoogleFitDS extends LinkedDS {
 				// scheme is ok, do nothing
 			} else {
 				connection.createStatement()
-				        .execute("ALTER TABLE " + dataTableName + " ADD COLUMN IF NOT EXISTS sleep int;");
+						.execute("ALTER TABLE " + dataTableName + " ADD COLUMN IF NOT EXISTS sleep int;");
 				logger.info("Applied db table migration for " + dataTableName + ": added column 'SLEEP'.");
 			}
 			transaction.commit();
@@ -95,7 +96,7 @@ public class GoogleFitDS extends LinkedDS {
 	@Override
 	public String[] getSchema() {
 		return new String[] { "id", "wearable_id", "user_id", "ts", "pp1", "pp2", "pp3", "data_date", "activity",
-		        "calories", "speed", "heart_rate", "step_count", "distance", "weight", "sleep" };
+				"calories", "speed", "heart_rate", "step_count", "distance", "weight", "sleep" };
 	}
 
 	/**
@@ -110,26 +111,26 @@ public class GoogleFitDS extends LinkedDS {
 
 		// insert record
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement(
-		                "INSERT INTO " + dataTableName + " (wearable_id, user_id, ts, pp1, pp2, pp3, data_date,"
-		                        + " activity, calories, speed, heart_rate, step_count, distance, weight, sleep)"
-		                        + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement(
+						"INSERT INTO " + dataTableName + " (wearable_id, user_id, ts, pp1, pp2, pp3, data_date,"
+								+ " activity, calories, speed, heart_rate, step_count, distance, weight, sleep)"
+								+ " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);");) {
 			Participant participant = wearable.getClusterParticipant();
 			if (participant != null) {
 				stmt.setString(2, participant.getId() + "");
 				stmt.setString(4,
-				        wearable.getPublicParameter1() == null
-				                ? (participant.getPublicParameter1() == null ? "" : participant.getPublicParameter1())
-				                : wearable.getPublicParameter1());
+						wearable.getPublicParameter1() == null
+								? (participant.getPublicParameter1() == null ? "" : participant.getPublicParameter1())
+								: wearable.getPublicParameter1());
 				stmt.setString(5,
-				        wearable.getPublicParameter2() == null
-				                ? (participant.getPublicParameter2() == null ? "" : participant.getPublicParameter2())
-				                : wearable.getPublicParameter2());
+						wearable.getPublicParameter2() == null
+								? (participant.getPublicParameter2() == null ? "" : participant.getPublicParameter2())
+								: wearable.getPublicParameter2());
 				stmt.setString(6,
-				        wearable.getPublicParameter3() == null
-				                ? (participant.getPublicParameter3() == null ? "" : participant.getPublicParameter3())
-				                : wearable.getPublicParameter3());
+						wearable.getPublicParameter3() == null
+								? (participant.getPublicParameter3() == null ? "" : participant.getPublicParameter3())
+								: wearable.getPublicParameter3());
 			} else {
 				stmt.setString(2, wearable.getUserId());
 				stmt.setString(4, wearable.getPublicParameter1() == null ? "" : wearable.getPublicParameter1());
@@ -176,9 +177,9 @@ public class GoogleFitDS extends LinkedDS {
 
 		// insert record
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("UPDATE " + dataTableName + " SET "
-		                + "sleep = ?, ts = ? WHERE wearable_id = ? AND data_date = ?;");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("UPDATE " + dataTableName + " SET "
+						+ "sleep = ?, ts = ? WHERE wearable_id = ? AND data_date = ?;");) {
 
 			stmt.setString(1, data);
 			stmt.setTimestamp(2, new Timestamp(new Date().getTime()));
@@ -194,8 +195,8 @@ public class GoogleFitDS extends LinkedDS {
 			// no such record, add a new one
 			if (rs <= 0) {
 				String[][] scopeList = { { "activity", "0" }, { "calories", "0" }, { "speed", "0" },
-				        { "heart_rate", "0" }, { "step_count", "0" }, { "distance", "0" }, { "weight", "0" },
-				        { "sleep", data } };
+						{ "heart_rate", "0" }, { "step_count", "0" }, { "distance", "0" }, { "weight", "0" },
+						{ "sleep", data } };
 
 				addRecord(wearable, scopeList, dataDate);
 			}
@@ -215,16 +216,16 @@ public class GoogleFitDS extends LinkedDS {
 
 		// insert record
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("UPDATE " + dataTableName + " SET"
-		                + " activity = ?, calories = ?, speed = ?, heart_rate = ?, step_count = ?, distance = ?,"
-		                + " weight = ?, sleep = ?, ts = ? WHERE wearable_id = ? AND data_date = ?;");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("UPDATE " + dataTableName + " SET"
+						+ " activity = ?, calories = ?, speed = ?, heart_rate = ?, step_count = ?, distance = ?,"
+						+ " weight = ?, sleep = ?, ts = ? WHERE wearable_id = ? AND data_date = ?;");) {
 
 			for (int i = 0; i < scopeList.length; i++) {
 				if (i == 0 || i == 4 || i == 8) {
-					stmt.setLong((i + 1), Long.parseLong(scopeList[i][1]));
+					stmt.setLong((i + 1), DataUtils.parseLong(scopeList[i][1]));
 				} else {
-					stmt.setFloat((i + 1), Float.parseFloat(scopeList[i][1]));
+					stmt.setFloat((i + 1), DataUtils.parseFloat(scopeList[i][1]));
 				}
 			}
 
@@ -258,13 +259,13 @@ public class GoogleFitDS extends LinkedDS {
 	public void export(SourceQueueWithComplete<ByteString> queue, long limit, long start, long end) {
 
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("SELECT * FROM " + dataTableName
-		                + timeFilterWhereClause(start, end) + " ORDER BY id ASC " + limitExpression(limit) + ";");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("SELECT * FROM " + dataTableName
+						+ timeFilterWhereClause(start, end) + " ORDER BY id ASC " + limitExpression(limit) + ";");
+				ResultSet rs = stmt.executeQuery();) {
 
 			queue.offer(ByteString.fromString("id,wearable_id,user_id,ts,pp1,pp2,pp3,data_date,activity,calories,speed"
-			        + ",heart_rate,step_count,distance,weight,sleep\n")).toCompletableFuture().get();
+					+ ",heart_rate,step_count,distance,weight,sleep\n")).toCompletableFuture().get();
 
 			while (rs.next()) {
 				StringBuffer sb = new StringBuffer();
@@ -307,18 +308,18 @@ public class GoogleFitDS extends LinkedDS {
 			whereClause = timeFilterWhereClause(start, end);
 		} else {
 			whereClause = " WHERE wearable_id IN ("
-			        + cluster.getWearables().stream().map(w -> w.getId().toString()).collect(Collectors.joining(","))
-			        + ") " + timeFilterWhereClause(start, end).replace("WHERE", "AND");
+					+ cluster.getWearables().stream().map(w -> w.getId().toString()).collect(Collectors.joining(","))
+					+ ") " + timeFilterWhereClause(start, end).replace("WHERE", "AND");
 		}
 
 		List<ObjectNode> objects = new LinkedList<ObjectNode>();
 		// export the data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement(
-		                "SELECT id, wearable_id, ts, activity, calories, speed, heart_rate, step_count, distance, weight, sleep, pp1, pp2, pp3 FROM "
-		                        + dataTableName + whereClause + " ORDER BY id DESC LIMIT " + limit + ";");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement(
+						"SELECT id, wearable_id, ts, activity, calories, speed, heart_rate, step_count, distance, weight, sleep, pp1, pp2, pp3 FROM "
+								+ dataTableName + whereClause + " ORDER BY id DESC LIMIT " + limit + ";");
+				ResultSet rs = stmt.executeQuery();) {
 
 			while (rs.next()) {
 
@@ -370,9 +371,9 @@ public class GoogleFitDS extends LinkedDS {
 
 		// insert record
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement(
-		                "SELECT id FROM " + dataTableName + " WHERE wearable_id = ? AND data_date = ?;");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement(
+						"SELECT id FROM " + dataTableName + " WHERE wearable_id = ? AND data_date = ?;");) {
 
 			stmt.setLong(1, wearable.getId());
 			stmt.setLong(2, dataDate);

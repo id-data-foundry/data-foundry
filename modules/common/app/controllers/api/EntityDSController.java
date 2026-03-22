@@ -39,7 +39,7 @@ public class EntityDSController extends AbstractDSController {
 
 	@Inject
 	public EntityDSController(FormFactory formFactory, SyncCacheApi cache, DatasetConnector datasetConnector,
-	        OnboardingSupport onboardingSupport) {
+			OnboardingSupport onboardingSupport) {
 		super(formFactory, cache, datasetConnector, onboardingSupport);
 	}
 
@@ -56,7 +56,7 @@ public class EntityDSController extends AbstractDSController {
 		// check permissions
 		if (!ds.visibleFor(username)) {
 			return redirect(PROJECT(ds.getProject().getId())).addingToSession(request, "error",
-			        "Dataset is not visible.");
+					"Dataset is not visible.");
 		}
 
 		return ok(views.html.datasets.entity.view.render(ds, username, request));
@@ -70,8 +70,8 @@ public class EntityDSController extends AbstractDSController {
 		Project p = Project.find.byId(id);
 		if (p == null || !p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "Project not valid or you don't have permissions for this action. Need to be the owner or "
-			                + "a collaborator of the project.");
+					"Project not valid or you don't have permissions for this action. Need to be the owner or "
+							+ "a collaborator of the project.");
 		}
 
 		// display the add form page
@@ -86,8 +86,8 @@ public class EntityDSController extends AbstractDSController {
 		Project p = Project.find.byId(id);
 		if (p == null || !p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "Project not valid or you don't have permissions for this action. Need to be the owner or "
-			                + "a collaborator of the project.");
+					"Project not valid or you don't have permissions for this action. Need to be the owner or "
+							+ "a collaborator of the project.");
 		}
 
 		DynamicForm df = formFactory.form().bindFromRequest(request);
@@ -96,7 +96,7 @@ public class EntityDSController extends AbstractDSController {
 		}
 
 		Dataset ds = datasetConnector.create(df.get("dataset_name"), DatasetType.ENTITY, p, df.get("description"),
-		        df.get("target_object"), df.get("isPublic"), df.get("license"));
+				df.get("target_object"), df.get("isPublic"), df.get("license"));
 
 		// dates
 		storeDates(ds, df);
@@ -126,8 +126,8 @@ public class EntityDSController extends AbstractDSController {
 		p.refresh();
 		if (!p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "You don't have permissions for this action. Need to be the owner or a collaborator of the "
-			                + "project.");
+					"You don't have permissions for this action. Need to be the owner or a collaborator of the "
+							+ "project.");
 		}
 
 		// display the add form page
@@ -148,14 +148,14 @@ public class EntityDSController extends AbstractDSController {
 		p.refresh();
 		if (!p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "You don't have permissions for this action. Need to be the owner or a collaborator of the "
-			                + "project.");
+					"You don't have permissions for this action. Need to be the owner or a collaborator of the "
+							+ "project.");
 		}
 
 		DynamicForm df = formFactory.form().bindFromRequest(request);
 		if (df == null) {
 			return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
-			        "Expecting some data");
+					"Expecting some data");
 		}
 
 		ds.setName(htmlTagEscape(nss(df.get("dataset_name"), 64)));
@@ -173,7 +173,7 @@ public class EntityDSController extends AbstractDSController {
 
 		// display the add form page
 		return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "message",
-		        "Changes saved.");
+				"Changes saved.");
 	}
 
 	@Authenticated(UserAuth.class)
@@ -286,7 +286,7 @@ public class EntityDSController extends AbstractDSController {
 				String username = getAuthenticatedUserNameOrReturn(request, redirect(LANDING));
 				if (username == null || username.isEmpty() || !ds.editableBy(username)) {
 					return badRequest(errorJSONResponseObject(
-					        "No token given, no user logged in with edit permissions for this dataset."));
+							"No token given, no user logged in with edit permissions for this dataset."));
 				}
 			}
 
@@ -298,6 +298,11 @@ public class EntityDSController extends AbstractDSController {
 				return ok(data.orElse(Json.newObject())).as("application/json");
 			}
 		}).exceptionally(e -> {
+			Throwable cause = e.getCause() != null ? e.getCause() : e;
+			if (cause instanceof ResponseException) {
+				return ((ResponseException) cause).getResponse();
+			}
+
 			logger.error("Entity dataset add problem", e);
 			return badRequest();
 		});
@@ -342,6 +347,11 @@ public class EntityDSController extends AbstractDSController {
 				return ok(data.get()).as("application/json");
 			}
 		}).exceptionally(e -> {
+			Throwable cause = e.getCause() != null ? e.getCause() : e;
+			if (cause instanceof ResponseException) {
+				return ((ResponseException) cause).getResponse();
+			}
+
 			logger.error("Entity dataset get problem", e);
 			return badRequest();
 		});
@@ -393,6 +403,11 @@ public class EntityDSController extends AbstractDSController {
 				return ok(data.orElse(Json.newObject())).as("application/json");
 			}
 		}).exceptionally(e -> {
+			Throwable cause = e.getCause() != null ? e.getCause() : e;
+			if (cause instanceof ResponseException) {
+				return ((ResponseException) cause).getResponse();
+			}
+
 			logger.error("Entity dataset update problem", e);
 			return badRequest();
 		});
@@ -437,6 +452,11 @@ public class EntityDSController extends AbstractDSController {
 				return ok(data.get()).as("application/json");
 			}
 		}).exceptionally(e -> {
+			Throwable cause = e.getCause() != null ? e.getCause() : e;
+			if (cause instanceof ResponseException) {
+				return ((ResponseException) cause).getResponse();
+			}
+
 			logger.error("Entity dataset delete problem", e);
 			return badRequest();
 		});
@@ -485,7 +505,7 @@ public class EntityDSController extends AbstractDSController {
 			return redirect(HOME).addingToSession(request, "error", "Dataset is not available.");
 		} else if (!ds.canAppend()) {
 			return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
-			        "Dataset is closed (adjust start and end dates to open).");
+					"Dataset is closed (adjust start and end dates to open).");
 		}
 
 		Project p = ds.getProject();
@@ -502,7 +522,7 @@ public class EntityDSController extends AbstractDSController {
 		});
 
 		return redirect(routes.EntityDSController.table(ds.getId())).addingToSession(request, "message",
-		        StringUtils.pluralize("participant", p.getParticipants().size()) + " added.");
+				StringUtils.pluralize("participant", p.getParticipants().size()) + " added.");
 	}
 
 	@Authenticated(UserAuth.class)
@@ -514,7 +534,7 @@ public class EntityDSController extends AbstractDSController {
 			return redirect(HOME).addingToSession(request, "error", "Dataset is not available.");
 		} else if (!ds.canAppend()) {
 			return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
-			        "Dataset is closed (adjust start and end dates to open).");
+					"Dataset is closed (adjust start and end dates to open).");
 		}
 
 		Project p = ds.getProject();
@@ -531,7 +551,7 @@ public class EntityDSController extends AbstractDSController {
 		});
 
 		return redirect(routes.EntityDSController.table(ds.getId())).addingToSession(request, "message",
-		        StringUtils.pluralize("wearable", p.getWearables().size()) + " added.");
+				StringUtils.pluralize("wearable", p.getWearables().size()) + " added.");
 	}
 
 	@Authenticated(UserAuth.class)
@@ -543,7 +563,7 @@ public class EntityDSController extends AbstractDSController {
 			return redirect(HOME).addingToSession(request, "error", "Dataset is not available.");
 		} else if (!ds.canAppend()) {
 			return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
-			        "Dataset is closed (adjust start and end dates to open).");
+					"Dataset is closed (adjust start and end dates to open).");
 		}
 
 		Project p = ds.getProject();
@@ -560,7 +580,7 @@ public class EntityDSController extends AbstractDSController {
 		});
 
 		return redirect(routes.EntityDSController.table(ds.getId())).addingToSession(request, "message",
-		        StringUtils.pluralize("device", p.getDevices().size()) + " added.");
+				StringUtils.pluralize("device", p.getDevices().size()) + " added.");
 	}
 
 	@Authenticated(UserAuth.class)
@@ -572,7 +592,7 @@ public class EntityDSController extends AbstractDSController {
 			return redirect(HOME).addingToSession(request, "error", "Dataset is not available.");
 		} else if (!ds.canAppend()) {
 			return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
-			        "Dataset is closed (adjust start and end dates to open).");
+					"Dataset is closed (adjust start and end dates to open).");
 		}
 
 		Project p = ds.getProject();
@@ -588,14 +608,14 @@ public class EntityDSController extends AbstractDSController {
 
 	public CompletionStage<Result> downloadExternal(Dataset ds, long limit, long start, long end) {
 		return CompletableFuture.supplyAsync(() -> internalExport(ds, limit, start, end))
-		        .thenApplyAsync(chunks -> ok().chunked(chunks)
-		                .withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
-		                .as("text/csv"));
+				.thenApplyAsync(chunks -> ok().chunked(chunks)
+						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
+						.as("text/csv"));
 	}
 
 	public CompletionStage<Result> downloadInternal(Dataset ds, long limit, long start, long end) {
 		return CompletableFuture.supplyAsync(() -> internalExport(ds, limit, start, end))
-		        .thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
+				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
 	}
 
 	@Authenticated(UserAuth.class)
@@ -617,13 +637,13 @@ public class EntityDSController extends AbstractDSController {
 		if (acceptLicenseFirst(request, username, project)) {
 			// redirect to accept license first
 			return redirectCS(controllers.routes.ProjectsController.license(project.getId(),
-			        routes.EntityDSController.downloadRaw(id, limit, start, end).relativeTo("/")));
+					routes.EntityDSController.downloadRaw(id, limit, start, end).relativeTo("/")));
 		}
 
 		return CompletableFuture.supplyAsync(() -> internalExportRaw(ds, limit, start, end))
-		        .thenApplyAsync(chunks -> ok().chunked(chunks)
-		                .withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
-		                .as("text/csv"));
+				.thenApplyAsync(chunks -> ok().chunked(chunks)
+						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
+						.as("text/csv"));
 	}
 
 	public CompletionStage<Result> downloadRawPublic(Request request, String token) {
@@ -644,9 +664,9 @@ public class EntityDSController extends AbstractDSController {
 		}
 
 		return CompletableFuture.supplyAsync(() -> internalExportRaw(ds, -1, -1, -1))
-		        .thenApplyAsync(chunks -> ok().chunked(chunks)
-		                .withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
-		                .as("text/csv"));
+				.thenApplyAsync(chunks -> ok().chunked(chunks)
+						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
+						.as("text/csv"));
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////

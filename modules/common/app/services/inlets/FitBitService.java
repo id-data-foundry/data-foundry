@@ -26,6 +26,7 @@ import play.api.db.evolutions.ApplicationEvolutions;
 import play.libs.ws.WSClient;
 import play.libs.ws.WSResponse;
 import services.slack.Slack;
+import utils.DataUtils;
 import utils.DateUtils;
 import utils.conf.ConfigurationUtils;
 
@@ -51,13 +52,13 @@ public class FitBitService implements ScheduledService {
 
 	@Inject
 	public FitBitService(WSClient ws, Config config, DatasetConnector datasetConnector,
-	        ApplicationEvolutions evolutions) {
+			ApplicationEvolutions evolutions) {
 		this.ws = ws;
 		this.datasetConnector = datasetConnector;
 
 		// configuration
 		if (!config.hasPath(ConfigurationUtils.DF_VENDOR_FITBIT_ID)
-		        || !config.hasPath(ConfigurationUtils.DF_VENDOR_FITBIT_SECRET)) {
+				|| !config.hasPath(ConfigurationUtils.DF_VENDOR_FITBIT_SECRET)) {
 			APP_CLIENT_ID = "";
 			APP_CLIENT_SECRET = "";
 			logger.info("FitBit service not configured");
@@ -85,7 +86,7 @@ public class FitBitService implements ScheduledService {
 
 			// update scopes if scopes is null, empty, contains :: or -1
 			if (!nnne(w.getScopeFromDataset()) || w.getScopeFromDataset().contains("::")
-			        || w.getScopeFromDataset().equals("-1")) {
+					|| w.getScopeFromDataset().equals("-1")) {
 				if (w.isFitbit()) {
 					if (w.getProject().getFitbitDataset().getId() >= 0) {
 						tempScopes = w.getProject().getFitbitDataset().getId().toString();
@@ -109,7 +110,7 @@ public class FitBitService implements ScheduledService {
 			// update wearable expiry if scopes is changed
 			if (isModified && nnne(tempScopes)) {
 				try {
-					w.setExpiry(DateUtils.getMillisFromDS(Long.parseLong(tempScopes))[0]);
+					w.setExpiry(DateUtils.getMillisFromDS(DataUtils.parseLong(tempScopes))[0]);
 					w.setScopes(tempScopes);
 					w.update();
 					logger.info(" - Updated " + w.getBrand() + " wearable (" + w.getRefId() + ")");
@@ -195,9 +196,9 @@ public class FitBitService implements ScheduledService {
 		// compose authorization token request
 		try {
 			WSResponse response = ws.url(OAUTH_TOKEN_URL).addHeader("Authorization", getAuthorizationValue())
-			        .setRequestTimeout(Duration.ofSeconds(10)).setContentType("application/x-www-form-urlencoded")
-			        .post("grant_type=authorization_code&redirect_uri=" + redirectUrl + "&code=" + authorizationCode)
-			        .toCompletableFuture().get();
+					.setRequestTimeout(Duration.ofSeconds(10)).setContentType("application/x-www-form-urlencoded")
+					.post("grant_type=authorization_code&redirect_uri=" + redirectUrl + "&code=" + authorizationCode)
+					.toCompletableFuture().get();
 
 			// retrieve and save the request parameters
 			JsonNode jn = response.asJson();
@@ -221,7 +222,7 @@ public class FitBitService implements ScheduledService {
 			wearable.update();
 
 			LabNotesEntry.log(Wearable.class, LabNotesEntryType.CONFIGURE, "Wearable connected: " + wearable.getName(),
-			        wearable.getProject(), Dataset.find.byId(wearable.getDatasetId()));
+					wearable.getProject(), Dataset.find.byId(wearable.getDatasetId()));
 			showFitbitInfo(wearable, "fitbit wearable setup");
 
 			return true;
@@ -229,7 +230,7 @@ public class FitBitService implements ScheduledService {
 		} catch (Exception e) {
 			logger.error("Exception in authorizationTokenRequest", e);
 			Slack.call("Exception: Authorization fail by wearable: " + wearable.getRefId() + ". ",
-			        e.getLocalizedMessage());
+					e.getLocalizedMessage());
 		} finally {
 			// refreshAndFetchWearable(wearable);
 			// refresh();
@@ -247,9 +248,9 @@ public class FitBitService implements ScheduledService {
 		try {
 			// compose refresh token request
 			WSResponse response = ws.url(OAUTH_TOKEN_URL).addHeader("Authorization", getAuthorizationValue())
-			        .setRequestTimeout(Duration.ofSeconds(10)).setContentType("application/x-www-form-urlencoded")
-			        .post("refresh_token=" + wearable.getApiKey() + "&grant_type=refresh_token").toCompletableFuture()
-			        .get();
+					.setRequestTimeout(Duration.ofSeconds(10)).setContentType("application/x-www-form-urlencoded")
+					.post("refresh_token=" + wearable.getApiKey() + "&grant_type=refresh_token").toCompletableFuture()
+					.get();
 
 			// retrieve and save the request parameters
 			JsonNode jn = response.asJson();
@@ -334,7 +335,7 @@ public class FitBitService implements ScheduledService {
 			if (syncTime <= -1l) {
 				// empty Fitbit account?
 				logger.info(
-				        "  -- Fail to get sync time, maybe " + wearable.getRefId() + " is not connected to end-user.");
+						"  -- Fail to get sync time, maybe " + wearable.getRefId() + " is not connected to end-user.");
 				// return;
 			} else if (wearable.getExpiry() == ds.start().getTime() && wearable.getExpiry() > today) {
 				// no fetching, as wearable is waiting for next dataset starts
@@ -391,16 +392,16 @@ public class FitBitService implements ScheduledService {
 			Dataset ds = Dataset.find.byId(dsList.get(i).getId());
 
 			if (ds.isActive(wearable.getExpiry()) && wearable.getExpiry() <= timeToFetch
-			        && timeToFetch >= DateUtils.getMillis(ds.startDate(), "00:00:00")) {
+					&& timeToFetch >= DateUtils.getMillis(ds.startDate(), "00:00:00")) {
 				// final long targetDate = timeToFetch > DatasetUtils.getMillis(ds.endDate(), "00:00:00")
 				// ? DatasetUtils.getMillis(ds.endDate(), "00:00:00")
 				// : timeToFetch;
 				final long targetDate = timeToFetch > DateUtils.startOfDay(ds.getEnd()).getTime()
-				        ? DateUtils.startOfDay(ds.getEnd()).getTime()
-				        : timeToFetch;
+						? DateUtils.startOfDay(ds.getEnd()).getTime()
+						: timeToFetch;
 
 				logger.info("  -- Starting to fetch for Fitbit wearable " + wearable.getRefId() + " for dataset "
-				        + ds.getId());
+						+ ds.getId());
 
 				final FitbitDS fbds = (FitbitDS) datasetConnector.getDatasetDS(ds.getId());
 				final int tmpCalls = calls;
@@ -410,7 +411,7 @@ public class FitBitService implements ScheduledService {
 					{
 						long interCalls = tmpCalls;
 						for (long missingDate = wearable
-						        .getExpiry(); missingDate <= targetDate; missingDate += 86400000l) {
+								.getExpiry(); missingDate <= targetDate; missingDate += 86400000l) {
 							if (!fbds.hasRecord(wearable, missingDate)) {
 								final String requestDate = DateUtils.getDateFromMillis(missingDate);
 								logger.info("  --- " + requestDate);
@@ -510,7 +511,7 @@ public class FitBitService implements ScheduledService {
 	 * @return
 	 */
 	private boolean dataFetchRequest(Wearable wearable, String scope, String date, boolean firstScope, FitbitDS fbds,
-	        boolean isWeightScope, List<String> weightScopes) {
+			boolean isWeightScope, List<String> weightScopes) {
 		// check scope first
 		if (!DATA_URL.containsKey(scope)) {
 			logger.info("Fail to fetch, no such scope: " + scope + ".");
@@ -526,8 +527,8 @@ public class FitBitService implements ScheduledService {
 		try {
 			// retrieve data
 			WSResponse response = ws.url(getDataUrl).addHeader("accept", "application/json")
-			        .addHeader("Authorization", getAuthorizationValue(wearable.getApiToken())).setFollowRedirects(true)
-			        .setRequestTimeout(Duration.ofSeconds(10)).get().toCompletableFuture().get();
+					.addHeader("Authorization", getAuthorizationValue(wearable.getApiToken())).setFollowRedirects(true)
+					.setRequestTimeout(Duration.ofSeconds(10)).get().toCompletableFuture().get();
 
 			// parse data as JsonNode
 			List<JsonNode> dataList = getDataList(scope, response.asJson());
@@ -579,7 +580,7 @@ public class FitBitService implements ScheduledService {
 	 * @param firstScope
 	 */
 	private void storeData(FitbitDS fbds, Wearable wearable, String scope, List<JsonNode> jn, String date,
-	        boolean firstScope) {
+			boolean firstScope) {
 
 		logger.info("  -- " + wearable.getRefId() + " storing data for " + date);
 
@@ -589,7 +590,7 @@ public class FitBitService implements ScheduledService {
 		case "sleep":
 			long dataDateNext = 0l;
 			dataDate = DateUtils.getMillis(jn.get(0).get("dateTime").asText().split(".000")[0].split("T")[0],
-			        jn.get(0).get("dateTime").asText().split(".000")[0].split("T")[1]);
+					jn.get(0).get("dateTime").asText().split(".000")[0].split("T")[1]);
 
 			// make sure the time is start from the minute with 0 sec
 			dataDate = setByMinute(dataDate);
@@ -598,8 +599,8 @@ public class FitBitService implements ScheduledService {
 			if (firstScope) {
 				for (int i = 0; i < (jn.size() - 1); i++) {
 					dataDateNext = DateUtils.getMillis(
-					        jn.get(i + 1).get("dateTime").asText().split(".000")[0].split("T")[0],
-					        jn.get(i + 1).get("dateTime").asText().split(".000")[0].split("T")[1]);
+							jn.get(i + 1).get("dateTime").asText().split(".000")[0].split("T")[0],
+							jn.get(i + 1).get("dateTime").asText().split(".000")[0].split("T")[1]);
 
 					dataDateNext = setByMinute(dataDateNext);
 
@@ -613,7 +614,7 @@ public class FitBitService implements ScheduledService {
 				// deal with the last one node
 				dataDateNext = setByMinute(dataDate + jn.get(jn.size() - 1).get("seconds").asLong() * 1000);
 				dataDateNext = dataDateNext % 60000l != 0 ? dataDateNext + (60000l - dataDateNext % 60000l)
-				        : dataDateNext;
+						: dataDateNext;
 
 				while (dataDate <= dataDateNext) {
 					fbds.addRecord(wearable, scope, jn.get(jn.size() - 1), dataDate);
@@ -622,8 +623,8 @@ public class FitBitService implements ScheduledService {
 			} else {
 				for (int i = 0; i < (jn.size() - 1); i++) {
 					dataDateNext = DateUtils.getMillis(
-					        jn.get(i + 1).get("dateTime").asText().split(".000")[0].split("T")[0],
-					        jn.get(i + 1).get("dateTime").asText().split(".000")[0].split("T")[1]);
+							jn.get(i + 1).get("dateTime").asText().split(".000")[0].split("T")[0],
+							jn.get(i + 1).get("dateTime").asText().split(".000")[0].split("T")[1]);
 
 					dataDateNext = setByMinute(dataDateNext);
 
@@ -637,7 +638,7 @@ public class FitBitService implements ScheduledService {
 				// deal with the last one node
 				dataDateNext = setByMinute(dataDate + jn.get(jn.size() - 1).get("seconds").asLong() * 1000);
 				dataDateNext = dataDateNext % 60000l != 0 ? dataDateNext + (60000l - dataDateNext % 60000l)
-				        : dataDateNext;
+						: dataDateNext;
 
 				while (dataDate <= dataDateNext) {
 					fbds.updateRecord(wearable, scope, jn.get(jn.size() - 1), dataDate);
@@ -732,16 +733,16 @@ public class FitBitService implements ScheduledService {
 		try {
 			// compose data fetch URL
 			WSResponse response = ws.url(getDataUrl)
-			        .addHeader("Authorization", getAuthorizationValue(wearable.getApiToken())).setFollowRedirects(true)
-			        .setRequestTimeout(Duration.ofSeconds(10)).get().toCompletableFuture().get();
+					.addHeader("Authorization", getAuthorizationValue(wearable.getApiToken())).setFollowRedirects(true)
+					.setRequestTimeout(Duration.ofSeconds(10)).get().toCompletableFuture().get();
 
 			// TODO Eden: what should happen here, if there is not lastSyncTime? Just return -1L or do something else?
 			// -> basically, there should be always some value in "lastSyncTime", I think it would make sense that the
 			// the first sync would be automatically executed as conneting the mobile app to a new Fitbit wearable.
 			// And, check again is also good.
 			String lastSyncTime = response.asJson().findValues("lastSyncTime").size() > 0
-			        ? response.asJson().get(0).get("lastSyncTime").asText()
-			        : "";
+					? response.asJson().get(0).get("lastSyncTime").asText()
+					: "";
 
 			long syncedTime = lastSyncTime.trim().length() != 0 ? DateUtils.getMillis(lastSyncTime) : -1l;
 			return syncedTime;
@@ -792,7 +793,7 @@ public class FitBitService implements ScheduledService {
 			default:
 				// not null
 				if (!isNullJsonNode(jn.get(getFieldName(scope)))
-				        && jn.get(getFieldName(scope)).findValues("value").size() > 0) {
+						&& jn.get(getFieldName(scope)).findValues("value").size() > 0) {
 					dataList = jn.get(getFieldName(scope)).get("dataset").findParents("value");
 				}
 			}

@@ -55,7 +55,7 @@ public class MediaDSController extends AbstractDSController {
 
 	@Inject
 	public MediaDSController(Environment environment, FormFactory formFactory, SyncCacheApi cache,
-	        DatasetConnector datasetConnector, ImageUtil imageUtil, OnboardingSupport onboardingSupport) {
+			DatasetConnector datasetConnector, ImageUtil imageUtil, OnboardingSupport onboardingSupport) {
 		super(formFactory, cache, datasetConnector, onboardingSupport);
 		this.environment = environment;
 		this.imageUtil = imageUtil;
@@ -89,7 +89,7 @@ public class MediaDSController extends AbstractDSController {
 		Project p = Project.find.byId(id);
 		if (p == null || !p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "Project not valid or you don't have permissions for this action. Need to be the owner or a collaborator of the project.");
+					"Project not valid or you don't have permissions for this action. Need to be the owner or a collaborator of the project.");
 		}
 
 		return ok(views.html.datasets.media.add.render(csrfToken(request), p));
@@ -103,7 +103,7 @@ public class MediaDSController extends AbstractDSController {
 		Project p = Project.find.byId(id);
 		if (p == null || !p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "Project not valid or you don't have permissions for this action. Need to be the owner or a collaborator of the project.");
+					"Project not valid or you don't have permissions for this action. Need to be the owner or a collaborator of the project.");
 		}
 
 		DynamicForm df = formFactory.form().bindFromRequest(request);
@@ -112,7 +112,7 @@ public class MediaDSController extends AbstractDSController {
 		}
 
 		Dataset ds = datasetConnector.create(df.get("dataset_name"), DatasetType.MEDIA, p, df.get("description"),
-		        df.get("target_object"), df.get("isPublic"), df.get("license"));
+				df.get("target_object"), df.get("isPublic"), df.get("license"));
 
 		// dates
 		storeDates(ds, df);
@@ -135,7 +135,7 @@ public class MediaDSController extends AbstractDSController {
 
 		if (!ds.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "You don't have permissions for this action. Need to be the owner or a collaborator of the project.");
+					"You don't have permissions for this action. Need to be the owner or a collaborator of the project.");
 		}
 
 		return ok(views.html.datasets.media.edit.render(csrfToken(request), ds));
@@ -153,13 +153,13 @@ public class MediaDSController extends AbstractDSController {
 
 		if (!ds.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "You don't have permissions for this action. Need to be the owner or a collaborator of the project.");
+					"You don't have permissions for this action. Need to be the owner or a collaborator of the project.");
 		}
 
 		DynamicForm df = formFactory.form().bindFromRequest(request);
 		if (df == null) {
 			return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
-			        "Expecting some data");
+					"Expecting some data");
 		}
 
 		ds.setName(htmlTagEscape(nss(df.get("dataset_name"), 64)));
@@ -175,9 +175,9 @@ public class MediaDSController extends AbstractDSController {
 		ds.update();
 
 		LabNotesEntry.log(MediaDSController.class, LabNotesEntryType.MODIFY, "Dataset edited: " + ds.getName(),
-		        ds.getProject());
+				ds.getProject());
 		return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "message",
-		        "Changes saved.");
+				"Changes saved.");
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -222,13 +222,13 @@ public class MediaDSController extends AbstractDSController {
 			}
 
 			LabNotesEntry.log(MediaDSController.class, LabNotesEntryType.DOWNLOAD,
-			        "Dataset downloaded: " + ds.getName(), ds.getProject());
+					"Dataset downloaded: " + ds.getName(), ds.getProject());
 
 			// remove all non-printable, non-ASCII characters
 			fileName = fileName.replaceAll("\\P{Print}", "%");
 			fileName = fileName.replaceAll("\\s", "%");
 			return ok(requestedFile.get()).as("application/x-download").withHeader("Content-disposition",
-			        "attachment; filename=" + fileName);
+					"attachment; filename=" + fileName);
 		});
 
 	}
@@ -318,23 +318,18 @@ public class MediaDSController extends AbstractDSController {
 						// store file, add record
 						Optional<String> storeFile = cpds.storeFile(tempfile.path().toFile(), fileName);
 						if (storeFile.isPresent()) {
-							long ts = -1;
-							try {
-								ts = Long.parseLong(timestamp);
-							} catch (Exception e) {
-							}
-
+							long ts = DataUtils.parseLong(timestamp);
 							String description = nss(df.get("description"));
 							cpds.addRecord(participant, storeFile.get(), description, now, "imported fully");
 							cpds.importFileContents(participant,
-							        routes.MediaDSController.image(id, storeFile.get()).absoluteURL(request,
-							                environment.isProd()),
-							        fileType, description, ts != -1 ? new Date(ts) : now);
+									routes.MediaDSController.image(id, storeFile.get()).absoluteURL(request,
+											environment.isProd()),
+									fileType, description, ts != -1 ? new Date(ts) : now);
 						}
 					}
 
 					LabNotesEntry.log(MediaDSController.class, LabNotesEntryType.DATA,
-					        "Files uploaded to dataset: " + ds.getName(), ds.getProject());
+							"Files uploaded to dataset: " + ds.getName(), ds.getProject());
 				}
 			} catch (Exception e) {
 				// do nothing
@@ -373,14 +368,14 @@ public class MediaDSController extends AbstractDSController {
 			return redirect(HOME).addingToSession(request, "error", "We could not find this dataset.");
 		} else if (!ds.canAppend()) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "Dataset is closed (adjust start and end dates to open).");
+					"Dataset is closed (adjust start and end dates to open).");
 		}
 
 		Project p = ds.getProject();
 		p.refresh();
 		if (!p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "You need to be either project owner or collaborator to perform this action.");
+					"You need to be either project owner or collaborator to perform this action.");
 		}
 
 		try {
@@ -398,12 +393,12 @@ public class MediaDSController extends AbstractDSController {
 			Participant participant = Participant.EMPTY_PARTICIPANT;
 			String participantId = df.get("participant_id");
 			if (participantId != null && participantId.length() > 0) {
-				pid = Long.parseLong(participantId);
+				pid = DataUtils.parseLong(participantId);
 				participant = Participant.find.byId(pid);
 				if (participant == null || !p.hasParticipant(participant)) {
 					// don't add if participant is empty or does not belong to this project
 					return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request,
-					        "error", "No valid participant Id provided.");
+							"error", "No valid participant Id provided.");
 				}
 			}
 
@@ -445,23 +440,18 @@ public class MediaDSController extends AbstractDSController {
 					// store file, add record
 					Optional<String> storeFile = cpds.storeFile(tempfile.path().toFile(), fileName);
 					if (storeFile.isPresent()) {
-						long ts = -1;
-						try {
-							ts = Long.parseLong(timestamp);
-						} catch (Exception e) {
-						}
-
+						long ts = DataUtils.parseLong(timestamp);
 						String description = nss(df.get("description"));
 						cpds.addRecord(participant, storeFile.get(), description, now, "imported fully");
 						cpds.importFileContents(participant,
-						        routes.MediaDSController.image(id, storeFile.get()).absoluteURL(request,
-						                environment.isProd()),
-						        fileType, description, ts != -1 ? new Date(ts) : new Date());
+								routes.MediaDSController.image(id, storeFile.get()).absoluteURL(request,
+										environment.isProd()),
+								fileType, description, ts != -1 ? new Date(ts) : new Date());
 					}
 				}
 
 				LabNotesEntry.log(MediaDSController.class, LabNotesEntryType.DATA,
-				        "Files uploaded to dataset: " + ds.getName(), ds.getProject());
+						"Files uploaded to dataset: " + ds.getName(), ds.getProject());
 			}
 
 			return redirect(controllers.routes.DatasetsController.view(ds.getId()));
@@ -471,7 +461,7 @@ public class MediaDSController extends AbstractDSController {
 		}
 
 		return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
-		        "Invalid request, no files have been included in the request.");
+				"Invalid request, no files have been included in the request.");
 	}
 
 	@Authenticated(UserAuth.class)
@@ -493,7 +483,7 @@ public class MediaDSController extends AbstractDSController {
 		if (acceptLicenseFirst(request, username, project)) {
 			// redirect to accept license first
 			return redirect(controllers.routes.ProjectsController.license(project.getId(),
-			        routes.MediaDSController.downloadFile(id, fileName).relativeTo("/")));
+					routes.MediaDSController.downloadFile(id, fileName).relativeTo("/")));
 		}
 
 		// compose file path and check existence
@@ -501,17 +491,17 @@ public class MediaDSController extends AbstractDSController {
 		Optional<File> requestedFile = meds.getFile(fileName);
 		if (!requestedFile.isPresent()) {
 			return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
-			        "No file found: " + fileName);
+					"No file found: " + fileName);
 		}
 
 		LabNotesEntry.log(MediaDSController.class, LabNotesEntryType.DOWNLOAD, "Dataset downloaded: " + ds.getName(),
-		        ds.getProject());
+				ds.getProject());
 
 		// remove all non-printable, non-ASCII characters
 		fileName = fileName.replaceAll("\\P{Print}", "%");
 		fileName = fileName.replaceAll("\\s", "%");
 		return ok(requestedFile.get()).as("application/x-download").withHeader("Content-disposition",
-		        "attachment; filename=" + fileName);
+				"attachment; filename=" + fileName);
 	}
 
 	public CompletionStage<Result> image(Request request, long id, String fileName) {
@@ -626,31 +616,31 @@ public class MediaDSController extends AbstractDSController {
 		String acceptHeader = request.header(ACCEPT).orElseGet(() -> "");
 		if (acceptHeader.contains("image/avif")) {
 			return RangeResults.ofFile(request, imageUtil.deliverScaledFile(originalImageFile, scale, "avif"))
-			        .withHeader(CACHE_CONTROL, "public, max-age=31536000");
+					.withHeader(CACHE_CONTROL, "public, max-age=31536000");
 		} else {
 			return RangeResults.ofFile(request, imageUtil.deliverScaledFile(originalImageFile, scale, "png"))
-			        .withHeader(CACHE_CONTROL, "public, max-age=31536000");
+					.withHeader(CACHE_CONTROL, "public, max-age=31536000");
 		}
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	public CompletionStage<Result> downloadExternal(Dataset ds, Function<String, String> linkMapper, Cluster cluster,
-	        long limit, long start, long end) {
+			long limit, long start, long end) {
 		// get participant ids (if cluster is given)
 		final List<Long> participantIds = cluster.getParticipantList();
 		return CompletableFuture.supplyAsync(() -> internalExport(ds, linkMapper, participantIds, limit, start, end))
-		        .thenApplyAsync(chunks -> ok().chunked(chunks)
-		                .withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
-		                .as("text/csv"));
+				.thenApplyAsync(chunks -> ok().chunked(chunks)
+						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
+						.as("text/csv"));
 	}
 
 	public CompletionStage<Result> downloadInternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
 		// get participant ids (if cluster is given)
 		final List<Long> participantIds = cluster.getParticipantList();
 		return CompletableFuture
-		        .supplyAsync(() -> internalExport(ds, Function.identity(), participantIds, limit, start, end))
-		        .thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
+				.supplyAsync(() -> internalExport(ds, Function.identity(), participantIds, limit, start, end))
+				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -664,7 +654,7 @@ public class MediaDSController extends AbstractDSController {
 	 * @return
 	 */
 	private Source<ByteString, ?> internalExport(Dataset ds, Function<String, String> linkMapper,
-	        List<Long> participantIds, long limit, long start, long end) {
+			List<Long> participantIds, long limit, long start, long end) {
 		MediaDS meds = (MediaDS) datasetConnector.getDatasetDS(ds);
 		return createStream().mapMaterializedValue(sourceActor -> {
 			CompletableFuture.runAsync(() -> meds.export(sourceActor, linkMapper, participantIds, limit, start, end));

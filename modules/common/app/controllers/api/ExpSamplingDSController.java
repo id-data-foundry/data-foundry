@@ -35,6 +35,7 @@ import play.mvc.Http.Request;
 import play.mvc.Result;
 import play.mvc.Security.Authenticated;
 import services.slack.Slack;
+import utils.DataUtils;
 import utils.components.OnboardingSupport;
 import utils.validators.FileTypeUtils;
 
@@ -44,7 +45,7 @@ public class ExpSamplingDSController extends AbstractDSController {
 
 	@Inject
 	public ExpSamplingDSController(FormFactory formFactory, SyncCacheApi cache, DatasetConnector datasetConnector,
-	        OnboardingSupport onboardingSupport) {
+			OnboardingSupport onboardingSupport) {
 		super(formFactory, cache, datasetConnector, onboardingSupport);
 	}
 
@@ -70,7 +71,7 @@ public class ExpSamplingDSController extends AbstractDSController {
 		// enumerate participants before render, beanlist needs it.
 		ds.getProject().getParticipants().size();
 		return ok(views.html.datasets.expsampling.view.render(ds, ds.getProject().getParticipants(), username, fileList,
-		        request));
+				request));
 	}
 
 	@Authenticated(UserAuth.class)
@@ -81,7 +82,7 @@ public class ExpSamplingDSController extends AbstractDSController {
 		Project p = Project.find.byId(id);
 		if (p == null || !p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "Project not valid or you don't have permissions for this action. Need to be the owner or a collaborator of the project.");
+					"Project not valid or you don't have permissions for this action. Need to be the owner or a collaborator of the project.");
 		}
 
 		return ok(views.html.datasets.expsampling.add.render(csrfToken(request), p));
@@ -95,7 +96,7 @@ public class ExpSamplingDSController extends AbstractDSController {
 		Project p = Project.find.byId(id);
 		if (p == null || !p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "Project not valid or you don't have permissions for this action. Need to be the owner or a collaborator of the project.");
+					"Project not valid or you don't have permissions for this action. Need to be the owner or a collaborator of the project.");
 		}
 
 		DynamicForm df = formFactory.form().bindFromRequest(request);
@@ -104,7 +105,7 @@ public class ExpSamplingDSController extends AbstractDSController {
 		}
 
 		Dataset ds = datasetConnector.create(df.get("dataset_name"), DatasetType.ES, p, df.get("description"),
-		        df.get("target_object"), df.get("isPublic"), df.get("license"));
+				df.get("target_object"), df.get("isPublic"), df.get("license"));
 
 		// dates
 		storeDates(ds, df);
@@ -129,7 +130,7 @@ public class ExpSamplingDSController extends AbstractDSController {
 		p.refresh();
 		if (!p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "You don't have permissions for this action. Need to be the owner or a collaborator of the project.");
+					"You don't have permissions for this action. Need to be the owner or a collaborator of the project.");
 		}
 
 		return ok(views.html.datasets.expsampling.edit.render(csrfToken(request), ds));
@@ -147,13 +148,13 @@ public class ExpSamplingDSController extends AbstractDSController {
 
 		if (!ds.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "You don't have permissions for this action. Need to be the owner or a collaborator of the project.");
+					"You don't have permissions for this action. Need to be the owner or a collaborator of the project.");
 		}
 
 		DynamicForm df = formFactory.form().bindFromRequest(request);
 		if (df == null) {
 			return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
-			        "Expecting some data");
+					"Expecting some data");
 		}
 
 		ds.setName(htmlTagEscape(nss(df.get("dataset_name"), 64)));
@@ -169,7 +170,7 @@ public class ExpSamplingDSController extends AbstractDSController {
 		ds.update();
 
 		LabNotesEntry.log(ExpSamplingDSController.class, LabNotesEntryType.MODIFY, "Dataset edited: " + ds.getName(),
-		        ds.getProject());
+				ds.getProject());
 		return redirect(controllers.routes.DatasetsController.view(ds.getId()));
 	}
 
@@ -182,13 +183,13 @@ public class ExpSamplingDSController extends AbstractDSController {
 			return redirect(HOME).addingToSession(request, "error", "We could not find this dataset.");
 		} else if (!ds.canAppend()) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "Dataset is closed (adjust start and end dates to open).");
+					"Dataset is closed (adjust start and end dates to open).");
 		}
 
 		Project project = Project.find.byId(ds.getProject().getId());
 		if (project == null || (!project.editableBy(username))) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "You need to be either project owner or collaborator to perform this action.");
+					"You need to be either project owner or collaborator to perform this action.");
 		}
 
 		try {
@@ -203,12 +204,12 @@ public class ExpSamplingDSController extends AbstractDSController {
 			}
 
 			String participantId = df.get("participant_id");
-			long pid = Long.parseLong(participantId);
+			long pid = DataUtils.parseLong(participantId);
 			Participant participant = Participant.find.byId(pid);
 			if (participant == null || !project.hasParticipant(participant)) {
 				// don't add if participant is empty or does not belong to this project
 				return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request,
-				        "error", "No valid participant Id provided.");
+						"error", "No valid participant Id provided.");
 			}
 
 			List<Http.MultipartFormData.FilePart<TemporaryFile>> fileParts = body.getFiles();
@@ -252,7 +253,7 @@ public class ExpSamplingDSController extends AbstractDSController {
 				}
 
 				LabNotesEntry.log(ExpSamplingDSController.class, LabNotesEntryType.MODIFY,
-				        "Files uploaded to dataset: " + ds.getName(), ds.getProject());
+						"Files uploaded to dataset: " + ds.getName(), ds.getProject());
 			}
 
 			return redirect(controllers.routes.DatasetsController.view(ds.getId()));
@@ -262,7 +263,7 @@ public class ExpSamplingDSController extends AbstractDSController {
 		}
 
 		return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
-		        "Invalid request, no files have been included in the request.");
+				"Invalid request, no files have been included in the request.");
 	}
 
 	@Authenticated(UserAuth.class)
@@ -284,7 +285,7 @@ public class ExpSamplingDSController extends AbstractDSController {
 		if (acceptLicenseFirst(request, username, project)) {
 			// redirect to accept license first
 			return redirect(controllers.routes.ProjectsController.license(project.getId(),
-			        routes.ExpSamplingDSController.downloadFile(id, fileName).relativeTo("/")));
+					routes.ExpSamplingDSController.downloadFile(id, fileName).relativeTo("/")));
 		}
 
 		// compose file path and check existence
@@ -292,27 +293,27 @@ public class ExpSamplingDSController extends AbstractDSController {
 		File requestedFile = cpds.getFile(fileName);
 		if (requestedFile.exists()) {
 			LabNotesEntry.log(ExpSamplingDSController.class, LabNotesEntryType.DOWNLOAD,
-			        "Dataset downloaded: " + ds.getName(), ds.getProject());
+					"Dataset downloaded: " + ds.getName(), ds.getProject());
 			return ok(requestedFile).as("application/x-download").withHeader("Content-disposition",
-			        "attachment; filename=" + fileName);
+					"attachment; filename=" + fileName);
 		}
 
 		return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
-		        "No file found: " + fileName);
+				"No file found: " + fileName);
 	}
 
 	public CompletionStage<Result> downloadExternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
 		final List<Long> participantIds = cluster.getParticipantList();
 		return CompletableFuture.supplyAsync(() -> internalExport(ds, participantIds, limit, start, end))
-		        .thenApplyAsync(chunks -> ok().chunked(chunks)
-		                .withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
-		                .as("text/csv"));
+				.thenApplyAsync(chunks -> ok().chunked(chunks)
+						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
+						.as("text/csv"));
 	}
 
 	public CompletionStage<Result> downloadInternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
 		final List<Long> participantIds = cluster.getParticipantList();
 		return CompletableFuture.supplyAsync(() -> internalExport(ds, participantIds, limit, start, end))
-		        .thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
+				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -326,7 +327,7 @@ public class ExpSamplingDSController extends AbstractDSController {
 	 * @return
 	 */
 	private Source<ByteString, ?> internalExport(Dataset ds, List<Long> participantIds, long limit, long start,
-	        long end) {
+			long end) {
 		ExpSamplingDS essc = (ExpSamplingDS) datasetConnector.getDatasetDS(ds);
 		return createStream().mapMaterializedValue(sourceActor -> {
 			CompletableFuture.runAsync(() -> essc.exportProjected(sourceActor, participantIds, limit, start, end));

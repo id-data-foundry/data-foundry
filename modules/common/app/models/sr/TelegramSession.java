@@ -61,25 +61,25 @@ public class TelegramSession extends Model {
 
 	public static enum TelegramSessionAction {
 
-	    // idle, waiting for stuff to happen
+		// idle, waiting for stuff to happen
 		NONE,
 
-	    // from /start to authenticated participant or researcher
+		// from /start to authenticated participant or researcher
 		REGISTER_AS_PARTICIPANT, REGISTER_AS_RESEARCHER,
 
-	    // from participant to study (consent form)
+		// from participant to study (consent form)
 		SIGNIN_PROJECT,
 
-	    // from researcher
+		// from researcher
 		ACTIVATE_PROJECT,
 
-	    // based on project: consented participant contributing ...
+		// based on project: consented participant contributing ...
 		DIARY, SURVEY, MEDIA,
 
-	    // participant: message researcher
+		// participant: message researcher
 		MESSAGE_RESEARCHER,
 
-	    // researcher: message participant(s)
+		// researcher: message participant(s)
 		MESSAGE_PARTICIPANTS, MESSAGE_PARTICIPANT
 	}
 
@@ -210,7 +210,7 @@ public class TelegramSession extends Model {
 
 	public boolean is(TelegramSessionState tss) {
 		return (getState() == null && tss == TelegramSessionState.NEW)
-		        || (getState() != null && getState().toUpperCase().equals(tss.name()));
+				|| (getState() != null && getState().toUpperCase().equals(tss.name()));
 	}
 
 	public boolean currently(TelegramSessionAction tsa) {
@@ -236,7 +236,7 @@ public class TelegramSession extends Model {
 	 */
 	public boolean isActive() {
 		return this.getLastAction() != null
-		        && this.getLastAction().after(new Date(System.currentTimeMillis() - (5 * 60 * 1000l)));
+				&& this.getLastAction().after(new Date(System.currentTimeMillis() - (5 * 60 * 1000l)));
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -363,7 +363,7 @@ public class TelegramSession extends Model {
 			project.refresh();
 			// check for available active media dataset and that the participant has accepted the study
 			return project.getMediaDataset().getId() > -1
-			        && (participant.accepted() || project.getMediaDataset().isOpenParticipation());
+					&& (participant.accepted() || project.getMediaDataset().isOpenParticipation());
 		}
 		return false;
 	}
@@ -414,8 +414,8 @@ public class TelegramSession extends Model {
 		if (text.startsWith(STOP)) {
 			stopSession();
 			replies.add(response(
-			        "Ok, see you around! :wave: You can click the START button below to start a new conversation.",
-			        new String[] { START }));
+					"Ok, see you around! :wave: You can click the START button below to start a new conversation.",
+					new String[] { START }));
 		}
 		// START
 		else if (text.startsWith(START)) {
@@ -431,8 +431,8 @@ public class TelegramSession extends Model {
 					Optional<Participant> participantOpt = project.getParticipants().stream().filter(p -> {
 						String legacyUserName = TelegramBotUtils.getLegacyUserName(user);
 						return (legacyUserName != null && !p.getEmail().isEmpty()
-						        && p.getEmail().equals(legacyUserName))
-						        || p.getEmail().equals(TelegramBotUtils.getUserName(user));
+								&& p.getEmail().equals(legacyUserName))
+								|| p.getEmail().equals(TelegramBotUtils.getUserName(user));
 					}).findAny();
 					if (participantOpt.isPresent()) {
 						this.participant = participantOpt.get();
@@ -465,7 +465,7 @@ public class TelegramSession extends Model {
 
 				// response with the next steps
 				replies.add(response("Hey, it seems we have never met, are you a participant or researcher?",
-				        new String[] { ANSWER_PARTICIPANT, ANSWER_RESEARCHER }));
+						new String[] { ANSWER_PARTICIPANT, ANSWER_RESEARCHER }));
 			} else {
 				// do nothing, the participant is already registered
 			}
@@ -476,7 +476,7 @@ public class TelegramSession extends Model {
 
 			// response with the next steps
 			replies.add(response("Hey, it seems we have never met, are you a participant or researcher?",
-			        new String[] { ANSWER_PARTICIPANT, ANSWER_RESEARCHER }));
+					new String[] { ANSWER_PARTICIPANT, ANSWER_RESEARCHER }));
 		}
 		// CANCEL
 		else if (text.startsWith(CANCEL)) {
@@ -492,15 +492,15 @@ public class TelegramSession extends Model {
 					this.setToken(null);
 				}
 				replies.add(response("Nice to meet you :) \nYou can click START button to get back in connection.",
-				        new String[] { START }));
+						new String[] { START }));
 			}
 		}
 		// HELP
 		else if (text.startsWith(HELP)) {
 			if (is(TelegramSessionState.RESEARCHER)) {
 				replies.add(response(
-				        "You can switch the active project by typing /project, and within a project you can use /messageAll to send a message to all participants or /message for a single participant (we will let you choose which one).",
-				        new String[] { PROJECT, MESSAGE, MESSAGE_ALL, HELP }));
+						"You can switch the active project by typing /project, and within a project you can use /messageAll to send a message to all participants or /message for a single participant (we will let you choose which one).",
+						new String[] { PROJECT, MESSAGE, MESSAGE_ALL, HELP }));
 			} else if (is(TelegramSessionState.PARTICIPANT)) {
 				replies.add(replyParticipantHelp(""));
 			} else {
@@ -521,13 +521,13 @@ public class TelegramSession extends Model {
 						// parse index and select it
 						try {
 							// parse and convert from 1-based to 0-based index
-							int index = Integer.parseInt(comps[1]) - 1;
+							int index = DataUtils.parseInt(comps[1]) - 1;
 							if (index >= 0 && index < researchProjects.size()) {
 								Project project = researchProjects.get(index);
 								this.setActiveProjectId(project.getId());
 								completeAction();
 								replies.add(response("Selected project #" + (index + 1) + ":" + project.getName()
-								        + ". You can now /messageAll participants or /message individuals."));
+										+ ". You can now /messageAll participants or /message individuals."));
 							}
 						} catch (Exception e) {
 							// parsing error is no problem, just output the list below
@@ -538,11 +538,11 @@ public class TelegramSession extends Model {
 						// output the list of projects
 						AtomicInteger mi = new AtomicInteger(1);
 						String indexedProjectList = researchProjects.stream()
-						        .map(p -> mi.getAndIncrement() + " " + p.getName()).collect(Collectors.joining(", "));
+								.map(p -> mi.getAndIncrement() + " " + p.getName()).collect(Collectors.joining(", "));
 						// startAction(TelegramSessionAction.ACTIVATE_PROJECT);
 						replies.add(response(
-						        "Yes, choose one of your current projects, type '/project 1' for the first project: "
-						                + indexedProjectList));
+								"Yes, choose one of your current projects, type '/project 1' for the first project: "
+										+ indexedProjectList));
 					}
 				}
 			}
@@ -553,12 +553,12 @@ public class TelegramSession extends Model {
 				} else {
 					if (getActiveProject().getParticipants().isEmpty()) {
 						replies.add(response(
-						        ":woman_shrug: There are no particiants in this project yet, add them first please."));
+								":woman_shrug: There are no particiants in this project yet, add them first please."));
 					} else {
 						// message all activated
 						startAction(TelegramSessionAction.MESSAGE_PARTICIPANTS);
 						replies.add(response("Type your message and send it, we will take care of delivery.",
-						        new String[] { DONE }));
+								new String[] { DONE }));
 					}
 				}
 			}
@@ -573,16 +573,15 @@ public class TelegramSession extends Model {
 					String[] comps = text.split(" ", 2);
 					// check if we are indexing already
 					if (comps.length == 2 && comps[1] != null && comps[1].trim().length() > 0
-					        && this.getActiveProjectId() > -1) {
+							&& this.getActiveProjectId() > -1) {
 						// parse index and select it
 						try {
 							// parse and convert from 1-based to 0-based index
-							int index = Integer.parseInt(comps[1]) - 1;
-
+							int index = DataUtils.parseInt(comps[1]) - 1;
 							if (index >= 0 && index < project.getParticipants().size()) {
 								setAction(TelegramSessionAction.MESSAGE_PARTICIPANT + " " + index);
 								replies.add(response("Type your message and send it, we will take care of delivery.",
-								        new String[] { DONE }));
+										new String[] { DONE }));
 							}
 						} catch (Exception e) {
 							// parsing error is no problem, just output the list below
@@ -593,15 +592,15 @@ public class TelegramSession extends Model {
 					if (replies.isEmpty()) {
 						if (project.getParticipants().isEmpty()) {
 							replies.add(response(
-							        ":woman_shrug: There are no particiants in this project yet, add them first please."));
+									":woman_shrug: There are no particiants in this project yet, add them first please."));
 						} else {
 							// output the entire list
 							AtomicInteger mi = new AtomicInteger(1);
 							String participantList = project.getParticipants().stream()
-							        .map(p -> mi.getAndIncrement() + " " + p.getName())
-							        .collect(Collectors.joining(", "));
+									.map(p -> mi.getAndIncrement() + " " + p.getName())
+									.collect(Collectors.joining(", "));
 							replies.add(response("Select any participant to message, type '/message 1' for the first. "
-							        + participantList));
+									+ participantList));
 						}
 					}
 				}
@@ -615,7 +614,7 @@ public class TelegramSession extends Model {
 			if (text.startsWith(MESSAGE)) {
 				startAction(TelegramSessionAction.MESSAGE_RESEARCHER);
 				replies.add(response("Ready to go, type your messages or click /cancel to end sending messages.",
-				        new String[] { DONE }));
+						new String[] { DONE }));
 			}
 			// DIARY
 			else if (text.startsWith(DIARY)) {
@@ -655,7 +654,7 @@ public class TelegramSession extends Model {
 	 * @return
 	 */
 	public List<TelegramResponse> processTextMessage(final String text, Optional<User> userOpt, SyncCacheApi cache,
-	        DatasetConnector datasetConnector) {
+			DatasetConnector datasetConnector) {
 
 		final List<TelegramResponse> replies = new ArrayList<>();
 
@@ -667,7 +666,7 @@ public class TelegramSession extends Model {
 					startAction(TelegramSessionAction.REGISTER_AS_RESEARCHER);
 					if (missingEmail()) {
 						replies.add(
-						        response("Ok, could you type your email address quickly?", new String[] { CANCEL }));
+								response("Ok, could you type your email address quickly?", new String[] { CANCEL }));
 					} else if (missingToken()) {
 						replies.add(response("Ok, could you enter your PIN?", new String[] { CANCEL }));
 					}
@@ -675,13 +674,13 @@ public class TelegramSession extends Model {
 					startAction(TelegramSessionAction.REGISTER_AS_PARTICIPANT);
 					if (missingEmail()) {
 						replies.add(
-						        response("Ok, could you type your email address quickly?", new String[] { CANCEL }));
+								response("Ok, could you type your email address quickly?", new String[] { CANCEL }));
 					} else if (missingToken()) {
 						replies.add(response("Ok, could you enter your PIN?", new String[] { CANCEL }));
 					}
 				} else {
 					replies.add(response("Hey, are you a participant or researcher?",
-					        new String[] { ANSWER_PARTICIPANT, ANSWER_RESEARCHER }));
+							new String[] { ANSWER_PARTICIPANT, ANSWER_RESEARCHER }));
 				}
 			} else {
 				String trimmedText = text.trim();
@@ -694,40 +693,40 @@ public class TelegramSession extends Model {
 							Person r = person.get();
 							this.setEmail(text.toLowerCase());
 							replies.add(response(":smiley:" + " Hi " + r.getName()
-							        + "! I knew I recognized your style. Could you quickly enter the PIN from your 'profile' page (looks like 12345)?"));
+									+ "! I knew I recognized your style. Could you quickly enter the PIN from your 'profile' page (looks like 12345)?"));
 						} else {
 							replies.add(response(
-							        ":female_shrug: Could not find you, can you try again? Or /cancel this operation.",
-							        new String[] { CANCEL }));
+									":female_shrug: Could not find you, can you try again? Or /cancel this operation.",
+									new String[] { CANCEL }));
 						}
 					}
 					// second step
 					else if (missingToken()) {
 						// check token
 						Optional<String> cachedToken = cache
-						        .get(TelegramBotUtils.TG_USER_CACHE_PREFIX + this.getEmail());
+								.get(TelegramBotUtils.TG_USER_CACHE_PREFIX + this.getEmail());
 						if (cachedToken.isPresent() && cachedToken.get().trim().length() > 0
-						        && cachedToken.get().equals(trimmedText)) {
+								&& cachedToken.get().equals(trimmedText)) {
 							this.setToken(text);
 							completeAction();
 							this.setState(TelegramSessionState.RESEARCHER.name());
 							replies.add(response(
-							        ":+1: Worked perfectly. Now you can choose the active project by typing /project.",
-							        new String[] { PROJECT }));
+									":+1: Worked perfectly. Now you can choose the active project by typing /project.",
+									new String[] { PROJECT }));
 						} else {
 							// fail
 							replies.add(response(":female_shrug: That PIN was not correct, can you check? Or /cancel",
-							        new String[] { CANCEL }));
+									new String[] { CANCEL }));
 						}
 					}
 				} else if (currently(TelegramSessionAction.REGISTER_AS_PARTICIPANT)
-				        && !text.equalsIgnoreCase("participant")) {
+						&& !text.equalsIgnoreCase("participant")) {
 
 					// first step (with anonymous sign-up, the first step just records the email)
 					if (missingEmail()) {
 						this.setEmail(text.toLowerCase());
 						replies.add(response(
-						        ":smiley: Hi, can you type the sign-up code? Something like 12345 or ABCDEFGH."));
+								":smiley: Hi, can you type the sign-up code? Something like 12345 or ABCDEFGH."));
 					}
 					// second step
 					else if (missingToken() && userOpt.isPresent()) {
@@ -755,12 +754,12 @@ public class TelegramSession extends Model {
 
 										// check if we have by chance an existing user in the project
 										Optional<Participant> existingUserOpt = project.getParticipants().stream()
-										        .filter(p -> {
-											        String legacyUserName = TelegramBotUtils.getLegacyUserName(user);
-											        return (legacyUserName != null && !p.getEmail().isEmpty()
-											                && p.getEmail().equals(legacyUserName))
-											                || p.getEmail().equals(TelegramBotUtils.getUserName(user));
-										        }).findAny();
+												.filter(p -> {
+													String legacyUserName = TelegramBotUtils.getLegacyUserName(user);
+													return (legacyUserName != null && !p.getEmail().isEmpty()
+															&& p.getEmail().equals(legacyUserName))
+															|| p.getEmail().equals(TelegramBotUtils.getUserName(user));
+												}).findAny();
 										if (existingUserOpt.isPresent()) {
 											// complete the session setup
 											this.participant = existingUserOpt.get();
@@ -768,7 +767,7 @@ public class TelegramSession extends Model {
 										} else {
 											// if signup open, create new participant
 											Participant newParticipant = new Participant(
-											        TelegramBotUtils.getUserName(user));
+													TelegramBotUtils.getUserName(user));
 											newParticipant.setFirstname(user.getFirstName());
 											newParticipant.setLastname(user.getLastName());
 											newParticipant.setProject(project);
@@ -795,12 +794,12 @@ public class TelegramSession extends Model {
 							List<Participant> participants = Participant.findByEmail(this.getEmail());
 							for (final Participant p : participants) {
 								Optional<String> cachedToken = cache
-								        .get(TelegramBotUtils.TG_PARTICIPANT_CACHE_PREFIX + p.getId());
+										.get(TelegramBotUtils.TG_PARTICIPANT_CACHE_PREFIX + p.getId());
 								if (cachedToken.isPresent() && cachedToken.get().trim().length() > 0) {
 									String[] cachedTokenComponents = cachedToken.get().split(",", 2);
 									String pin = cachedTokenComponents[0];
 									try {
-										Long projectId = Long.parseLong(cachedTokenComponents[1]);
+										Long projectId = DataUtils.parseLong(cachedTokenComponents[1]);
 										if (pin.equals(trimmedText) && projectId.equals(p.getProject().getId())) {
 											completeAction();
 											this.setToken(trimmedText);
@@ -808,7 +807,7 @@ public class TelegramSession extends Model {
 											this.setActiveProjectId(p.getProject().getId());
 											this.setState(TelegramSessionState.PARTICIPANT.name());
 											replies.add(response(
-											        ":+1: Worked perfectly. Now you can wait for messages and respond when available."));
+													":+1: Worked perfectly. Now you can wait for messages and respond when available."));
 											break;
 										}
 									} catch (Exception e) {
@@ -838,11 +837,11 @@ public class TelegramSession extends Model {
 				AtomicInteger mi = new AtomicInteger(1);
 				final List<Project> researchProjects = researcher.getOwnAndCollabProjects();
 				String indexedProjectList = researchProjects.stream().map(p -> mi.getAndIncrement() + " " + p.getName())
-				        .collect(Collectors.joining(", "));
+						.collect(Collectors.joining(", "));
 				startAction(TelegramSessionAction.ACTIVATE_PROJECT);
 				replies.add(
-				        response("Ok, choose one of your current projects, type '/project 1' for the first project: "
-				                + indexedProjectList));
+						response("Ok, choose one of your current projects, type '/project 1' for the first project: "
+								+ indexedProjectList));
 			}
 			// message to all participants and researchers
 			else if (this.getActiveProjectId() > -1 && currently(TelegramSessionAction.MESSAGE_PARTICIPANTS)) {
@@ -856,7 +855,7 @@ public class TelegramSession extends Model {
 			}
 			// message to one participant
 			else if (this.getActiveProjectId() > -1 && getAction() != null
-			        && getAction().startsWith(TelegramSessionAction.MESSAGE_PARTICIPANT.name())) {
+					&& getAction().startsWith(TelegramSessionAction.MESSAGE_PARTICIPANT.name())) {
 				// log messages
 				addMessage("researcher", text);
 
@@ -890,7 +889,7 @@ public class TelegramSession extends Model {
 					DiaryDS dds = (DiaryDS) datasetConnector.getDatasetDS(diary);
 					dds.addRecord(participant, new Date(), "from Telegram", textWithoutEmojis);
 					replies.add(response(":handshake: Entry added, ready for another one, /cancel to stop.",
-					        new String[] { DONE }));
+							new String[] { DONE }));
 				}
 			} else {
 				// add nothing
@@ -898,7 +897,7 @@ public class TelegramSession extends Model {
 		} else {
 			// nothing for now
 			replies.add(response("And a random emoji for you: " + TelegramBotUtils.randomEmoji()
-			        + "\n Perhaps /start a conversation?", new String[] { START }));
+					+ "\n Perhaps /start a conversation?", new String[] { START }));
 		}
 
 		return replies;
@@ -949,7 +948,7 @@ public class TelegramSession extends Model {
 
 				// reply to researcher after sending image
 				replies.add(response("Image sent, choose another photo to send or click /cancel to end sending. ",
-				        new String[] { DONE }));
+						new String[] { DONE }));
 			}
 			// to a specific participant
 			else if (this.getActiveProjectId() > -1 && currently(TelegramSessionAction.MESSAGE_PARTICIPANT)) {
@@ -978,8 +977,8 @@ public class TelegramSession extends Model {
 	private List<TelegramResponse> sendToParticipant(final String text, Participant recipient) {
 		// find connected chat from researchers
 		List<TelegramSession> ots = TelegramSession.find.query().where().ieq("email", recipient.getEmail())
-		        .eq("activeProjectId", this.getActiveProjectId()).eq("state", TelegramSessionState.PARTICIPANT.name())
-		        .findList();
+				.eq("activeProjectId", this.getActiveProjectId()).eq("state", TelegramSessionState.PARTICIPANT.name())
+				.findList();
 
 		// stream transform
 		final List<TelegramResponse> responses = new LinkedList<TelegramResponse>();
@@ -1003,8 +1002,8 @@ public class TelegramSession extends Model {
 	private List<TelegramResponse> sendToParticipants(final String text) {
 		// find connected chat from researchers
 		List<TelegramSession> ots = TelegramSession.find.query().where()
-		        .eq("activeProjectId", this.getActiveProjectId()).eq("state", TelegramSessionState.PARTICIPANT.name())
-		        .findList();
+				.eq("activeProjectId", this.getActiveProjectId()).eq("state", TelegramSessionState.PARTICIPANT.name())
+				.findList();
 
 		// stream transform
 		final List<TelegramResponse> responses = new LinkedList<TelegramResponse>();
@@ -1028,8 +1027,8 @@ public class TelegramSession extends Model {
 	private List<TelegramResponse> sendToResearchers(final String text) {
 		// find connected chat from researchers
 		List<TelegramSession> ots = TelegramSession.find.query().where()
-		        .eq("activeProjectId", this.getActiveProjectId()).eq("state", TelegramSessionState.RESEARCHER.name())
-		        .findList();
+				.eq("activeProjectId", this.getActiveProjectId()).eq("state", TelegramSessionState.RESEARCHER.name())
+				.findList();
 
 		// message all researchers
 		final List<TelegramResponse> responses = new LinkedList<TelegramResponse>();
@@ -1069,11 +1068,11 @@ public class TelegramSession extends Model {
 	 * @return
 	 */
 	private List<TelegramResponse> sendToParticipant(Participant recipient, String caption, String fileId,
-	        String filePath) {
+			String filePath) {
 		// find connected chat from researchers
 		List<TelegramSession> ots = TelegramSession.find.query().where().ieq("email", recipient.getEmail())
-		        .eq("activeProjectId", this.getActiveProjectId()).eq("state", TelegramSessionState.PARTICIPANT.name())
-		        .findList();
+				.eq("activeProjectId", this.getActiveProjectId()).eq("state", TelegramSessionState.PARTICIPANT.name())
+				.findList();
 
 		// stream transform
 		final List<TelegramResponse> responses = new LinkedList<TelegramResponse>();
@@ -1101,8 +1100,8 @@ public class TelegramSession extends Model {
 	private List<TelegramResponse> sendToParticipants(String caption, String fileId, String filePath) {
 		// find connected chat from researchers
 		List<TelegramSession> ots = TelegramSession.find.query().where()
-		        .eq("activeProjectId", this.getActiveProjectId()).eq("state", TelegramSessionState.PARTICIPANT.name())
-		        .findList();
+				.eq("activeProjectId", this.getActiveProjectId()).eq("state", TelegramSessionState.PARTICIPANT.name())
+				.findList();
 
 		// stream transform
 		final List<TelegramResponse> responses = new LinkedList<TelegramResponse>();
@@ -1127,7 +1126,7 @@ public class TelegramSession extends Model {
 	private TelegramResponse replyParticipantHelp(String prepend) {
 
 		String reply = is(TelegramSessionState.PARTICIPANT) ? "Now you can /message the researcher"
-		        : "You are participant in a project, you can /message the researcher";
+				: "You are participant in a project, you can /message the researcher";
 
 		int items = countDS(), current = 0;
 
@@ -1211,7 +1210,7 @@ public class TelegramSession extends Model {
 	private Project getActiveProject() {
 		// get project
 		Project project = researcher.getOwnAndCollabProjects().stream()
-		        .filter(p -> p.getId().equals(this.getActiveProjectId())).findFirst().get();
+				.filter(p -> p.getId().equals(this.getActiveProjectId())).findFirst().get();
 		return project;
 	}
 
@@ -1229,9 +1228,8 @@ public class TelegramSession extends Model {
 		String[] comps = getAction().split(" ", 2);
 		if (comps.length == 2 && comps[1] != null && comps[1].length() > 0) {
 			try {
-				int index = Integer.parseInt(comps[1]);
+				int index = DataUtils.parseInt(comps[1]);
 				recipient = project.getParticipants().get(index);
-
 			} catch (Exception e) {
 			}
 		}
@@ -1279,8 +1277,8 @@ public class TelegramSession extends Model {
 			return response("No idea. Do you need /help?", new String[] { HELP });
 		} else if (is(TelegramSessionState.PARTICIPANT)) {
 			return response(
-			        "Got your text, but is it a diary entry or a message? Please send /diary or /message first. :pray:",
-			        new String[] { MESSAGE, DIARY, HELP });
+					"Got your text, but is it a diary entry or a message? Please send /diary or /message first. :pray:",
+					new String[] { MESSAGE, DIARY, HELP });
 		} else {
 			return response("Hey, who are you? Hit /start !", new String[] { START });
 		}

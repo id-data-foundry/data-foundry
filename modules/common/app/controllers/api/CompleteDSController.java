@@ -56,6 +56,7 @@ import play.mvc.Result;
 import play.mvc.Security.Authenticated;
 import services.slack.Slack;
 import utils.CSVLineParserUtil;
+import utils.DataUtils;
 import utils.StringUtils;
 import utils.components.OnboardingSupport;
 import utils.validators.FileTypeUtils;
@@ -69,7 +70,7 @@ public class CompleteDSController extends AbstractDSController {
 
 	@Inject
 	public CompleteDSController(FormFactory formFactory, SyncCacheApi cache, DatasetConnector datasetConnector,
-	        OnboardingSupport onboardingSupport, ActorSystem actorSystem) {
+			OnboardingSupport onboardingSupport, ActorSystem actorSystem) {
 		super(formFactory, cache, datasetConnector, onboardingSupport);
 
 		this.actorSystem = actorSystem;
@@ -103,8 +104,8 @@ public class CompleteDSController extends AbstractDSController {
 		Project p = Project.find.byId(id);
 		if (p == null || !p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "Project not valid or you don't have permissions for this action. Need to be the owner or "
-			                + "a collaborator of the project.");
+					"Project not valid or you don't have permissions for this action. Need to be the owner or "
+							+ "a collaborator of the project.");
 		}
 
 		return ok(views.html.datasets.complete.add.render(csrfToken(request), p));
@@ -118,8 +119,8 @@ public class CompleteDSController extends AbstractDSController {
 		Project p = Project.find.byId(id);
 		if (p == null || !p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "Project not valid or you don't have permissions for this action. Need to be the owner or "
-			                + "a collaborator of the project.");
+					"Project not valid or you don't have permissions for this action. Need to be the owner or "
+							+ "a collaborator of the project.");
 		}
 
 		DynamicForm df = formFactory.form().bindFromRequest(request);
@@ -128,7 +129,7 @@ public class CompleteDSController extends AbstractDSController {
 		}
 
 		Dataset ds = datasetConnector.create(df.get("dataset_name"), DatasetType.COMPLETE, p, df.get("description"),
-		        df.get("target_object"), df.get("isPublic"), df.get("license"));
+				df.get("target_object"), df.get("isPublic"), df.get("license"));
 
 		// dates
 		storeDates(ds, df);
@@ -153,8 +154,8 @@ public class CompleteDSController extends AbstractDSController {
 		p.refresh();
 		if (!p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "You don't have permissions for this action. Need to be the owner or a collaborator of the "
-			                + "project.");
+					"You don't have permissions for this action. Need to be the owner or a collaborator of the "
+							+ "project.");
 		}
 
 		return ok(views.html.datasets.complete.edit.render(csrfToken(request), ds));
@@ -174,14 +175,14 @@ public class CompleteDSController extends AbstractDSController {
 		p.refresh();
 		if (!p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "You don't have permissions for this action. Need to be the owner or a collaborator of the "
-			                + "project.");
+					"You don't have permissions for this action. Need to be the owner or a collaborator of the "
+							+ "project.");
 		}
 
 		DynamicForm df = formFactory.form().bindFromRequest(request);
 		if (df == null) {
 			return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
-			        "Expecting some data");
+					"Expecting some data");
 		}
 
 		ds.setName(htmlTagEscape(nss(df.get("dataset_name"), 64)));
@@ -197,7 +198,7 @@ public class CompleteDSController extends AbstractDSController {
 		ds.update();
 
 		LabNotesEntry.log(CompleteDSController.class, LabNotesEntryType.MODIFY, "Dataset edited: " + ds.getName(),
-		        ds.getProject());
+				ds.getProject());
 		return redirect(controllers.routes.DatasetsController.view(ds.getId()));
 	}
 
@@ -213,19 +214,19 @@ public class CompleteDSController extends AbstractDSController {
 			return redirect(HOME).addingToSession(request, "error", "Dataset is not available.");
 		} else if (!ds.canAppend()) {
 			return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
-			        "Dataset is closed (adjust start and end dates to open).");
+					"Dataset is closed (adjust start and end dates to open).");
 		}
 
 		Optional<String> filenameOpt = request.header("HX-Prompt");
 		if (filenameOpt.isEmpty()) {
 			return redirect(controllers.routes.DatasetsController.view(id)).addingToSession(request, "error",
-			        "Name of new file is not given.");
+					"Name of new file is not given.");
 		}
 
 		Project project = ds.getProject();
 		if (!project.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "You need to be either project owner or collaborator to perform this action.");
+					"You need to be either project owner or collaborator to perform this action.");
 		}
 
 		// restrict file type
@@ -259,13 +260,13 @@ public class CompleteDSController extends AbstractDSController {
 			return redirect(HOME).addingToSession(request, "error", "Dataset is not available.");
 		} else if (!ds.canAppend()) {
 			return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
-			        "Dataset is closed (adjust start and end dates to open).");
+					"Dataset is closed (adjust start and end dates to open).");
 		}
 
 		Project project = ds.getProject();
 		if (!project.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "You need to be either project owner or collaborator to perform this action.");
+					"You need to be either project owner or collaborator to perform this action.");
 		}
 
 		// invalidate cache
@@ -310,7 +311,7 @@ public class CompleteDSController extends AbstractDSController {
 				}
 
 				LabNotesEntry.log(CompleteDSController.class, LabNotesEntryType.DATA,
-				        "Files uploaded to dataset: " + ds.getName(), ds.getProject());
+						"Files uploaded to dataset: " + ds.getName(), ds.getProject());
 			}
 
 			return redirect(controllers.routes.DatasetsController.view(ds.getId()));
@@ -320,7 +321,7 @@ public class CompleteDSController extends AbstractDSController {
 		}
 
 		return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
-		        "Invalid request, no files have been included in the request.");
+				"Invalid request, no files have been included in the request.");
 	}
 
 	@Authenticated(UserAuth.class)
@@ -338,7 +339,7 @@ public class CompleteDSController extends AbstractDSController {
 		// only the owner can delete
 		if (!p.belongsTo(username)) {
 			return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
-			        "Only the project owner can delete files.");
+					"Only the project owner can delete files.");
 		}
 
 		// remove the file
@@ -350,7 +351,7 @@ public class CompleteDSController extends AbstractDSController {
 				requestedFile.delete();
 				cpds.deleteRecord(fileId);
 				LabNotesEntry.log(CompleteDSController.class, LabNotesEntryType.DELETE,
-				        "Files deleted from dataset: " + ds.getName(), ds.getProject());
+						"Files deleted from dataset: " + ds.getName(), ds.getProject());
 			}
 		}
 
@@ -376,7 +377,7 @@ public class CompleteDSController extends AbstractDSController {
 		// only the owner can delete
 		if (!p.editableBy(username)) {
 			return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
-			        "Only the project owner or collaborators can import files.");
+					"Only the project owner or collaborators can import files.");
 		}
 
 		// remove the file
@@ -389,7 +390,7 @@ public class CompleteDSController extends AbstractDSController {
 				// read first line of file for CSV header and separator heuristics
 				char separator = ',';
 				try (FileReader fileReader = new FileReader(requestedFile);
-				        BufferedReader br = new BufferedReader(fileReader);) {
+						BufferedReader br = new BufferedReader(fileReader);) {
 					String header = br.readLine();
 					int commas = Strings.countOccurrencesOf(header, ",");
 					int semics = Strings.countOccurrencesOf(header, ";");
@@ -409,10 +410,10 @@ public class CompleteDSController extends AbstractDSController {
 
 				// read again for the column names in the header with initialized parser
 				CSVParser parser = new CSVParserBuilder().withSeparator(separator).withIgnoreLeadingWhiteSpace(true)
-				        .build();
+						.build();
 				String[] header = {};
 				try (FileReader fileReader = new FileReader(requestedFile);
-				        CSVReader reader = new CSVReaderBuilder(fileReader).withCSVParser(parser).build();) {
+						CSVReader reader = new CSVReaderBuilder(fileReader).withCSVParser(parser).build();) {
 					try {
 						header = reader.readNext();
 					} catch (CsvValidationException e) {
@@ -431,16 +432,16 @@ public class CompleteDSController extends AbstractDSController {
 				// read iot datasets for choice
 				Person user = Person.findByEmail(username).get();
 				List<Dataset> datasets = user.projects().stream().flatMap(prj -> prj.getIoTDatasets().stream())
-				        .collect(Collectors.toList());
+						.collect(Collectors.toList());
 
 				// render choices
 				return ok(views.html.datasets.complete.importFile.render(csrfToken(request), ds, fileId, fileName,
-				        header, datasets, request));
+						header, datasets, request));
 			}
 		}
 
 		return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
-		        "File was not found.");
+				"File was not found.");
 	}
 
 	@Authenticated(UserAuth.class)
@@ -459,7 +460,7 @@ public class CompleteDSController extends AbstractDSController {
 		// only the owner can delete
 		if (!p.editableBy(username)) {
 			return forbidden(
-			        Json.newObject().put("error", "Only the project owner or collaborators can import files."));
+					Json.newObject().put("error", "Only the project owner or collaborators can import files."));
 		}
 
 		// check the file
@@ -481,10 +482,8 @@ public class CompleteDSController extends AbstractDSController {
 					return badRequest(Json.newObject().put("error", "Expecting some dataset selection."));
 				}
 
-				final Long did;
-				try {
-					did = Long.parseLong(datasetId);
-				} catch (NumberFormatException nfe) {
+				final Long did = DataUtils.parseLong(datasetId);
+				if (did == -1L) {
 					return badRequest(Json.newObject().put("error", "Expecting some dataset selection."));
 				}
 
@@ -497,7 +496,7 @@ public class CompleteDSController extends AbstractDSController {
 				// read first line of file for CSV header and separator heuristics
 				char separator = ',';
 				try (FileReader fileReader = new FileReader(requestedFile);
-				        BufferedReader br = new BufferedReader(fileReader);) {
+						BufferedReader br = new BufferedReader(fileReader);) {
 					String header = br.readLine();
 					int commas = Strings.countOccurrencesOf(header, ",");
 					int semics = Strings.countOccurrencesOf(header, ";");
@@ -533,14 +532,14 @@ public class CompleteDSController extends AbstractDSController {
 				// check the time format with the first data row
 				{
 					CSVParser parser = new CSVParserBuilder().withSeparator(sep).withIgnoreLeadingWhiteSpace(true)
-					        .build();
+							.build();
 					try (FileReader fileReader = new FileReader(requestedFile);
-					        CSVReader reader = new CSVReaderBuilder(fileReader).withSkipLines(0).withCSVParser(parser)
-					                .build();) {
+							CSVReader reader = new CSVReaderBuilder(fileReader).withSkipLines(0).withCSVParser(parser)
+									.build();) {
 						final String[] headerSplit = reader.readNext();
 						if (headerSplit != null) {
 							final List<String> headers = Arrays.stream(headerSplit).map(h -> h.trim())
-							        .collect(Collectors.toList());
+									.collect(Collectors.toList());
 
 							// process manual timestamp column
 							if (!nss(df.get("timestamp_column")).isEmpty()) {
@@ -552,7 +551,7 @@ public class CompleteDSController extends AbstractDSController {
 							for (int i = 0; i < headers.size(); i++) {
 								String col = headers.get(i);
 								if (col.equalsIgnoreCase("ts") || col.equalsIgnoreCase("timestamp")
-								        || col.equalsIgnoreCase("date") || col.equalsIgnoreCase("datetime")) {
+										|| col.equalsIgnoreCase("date") || col.equalsIgnoreCase("datetime")) {
 									clpu.putIndex("timestamp", i);
 								} else if (col.equalsIgnoreCase("time")) {
 									clpu.putIndex("timestamp", i);
@@ -600,10 +599,10 @@ public class CompleteDSController extends AbstractDSController {
 				this.actorSystem.dispatcher().execute(() -> {
 					// read again for the column names in the header with initialized parser
 					CSVParser parser = new CSVParserBuilder().withSeparator(sep).withIgnoreLeadingWhiteSpace(true)
-					        .build();
+							.build();
 					try (FileReader fileReader = new FileReader(requestedFile);
-					        CSVReader reader = new CSVReaderBuilder(fileReader).withSkipLines(1).withCSVParser(parser)
-					                .build();) {
+							CSVReader reader = new CSVReaderBuilder(fileReader).withSkipLines(1).withCSVParser(parser)
+									.build();) {
 						int counter = 0;
 						while (counter++ < totalCount) {
 							try {
@@ -636,7 +635,7 @@ public class CompleteDSController extends AbstractDSController {
 
 								// cache progress
 								this.cache.set("import_file_progress_" + uuid,
-								        Math.round((100 * counter) / totalCount + 1), 3600);
+										Math.round((100 * counter) / totalCount + 1), 3600);
 
 							} catch (CsvValidationException e) {
 								// do nothing, move to next line
@@ -683,7 +682,7 @@ public class CompleteDSController extends AbstractDSController {
 		// only the owner can edit
 		if (!p.editableBy(username)) {
 			return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
-			        "Only the project owner or collaborators can edit files.");
+					"Only the project owner or collaborators can edit files.");
 		}
 
 		// acquire file
@@ -691,13 +690,13 @@ public class CompleteDSController extends AbstractDSController {
 		Optional<File> requestedFileOpt = cpds.getFile(fileId);
 		if (!requestedFileOpt.isPresent()) {
 			return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
-			        "File was not found.");
+					"File was not found.");
 		}
 
 		File requestedFile = requestedFileOpt.get();
 		if (!requestedFile.exists()) {
 			return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
-			        "File was not found.");
+					"File was not found.");
 		}
 
 		// check file name to support extension selection
@@ -709,18 +708,18 @@ public class CompleteDSController extends AbstractDSController {
 
 		try {
 			String fileContents = org.apache.commons.io.FileUtils.readFileToString(requestedFile,
-			        Charset.defaultCharset());
+					Charset.defaultCharset());
 
 			if (fileType.equalsIgnoreCase("gg")) {
 				// render notebook editor
 				return ok(views.html.tools.starboard.editNotebook.render(csrfToken(request), ds, fileId, fileName,
-				        fileType, fileContents, request));
+						fileType, fileContents, request));
 			} else if (fileType.equalsIgnoreCase("twee") || fileType.equalsIgnoreCase("tw")) {
 				// redirect to Twine editor
 				return redirect(controllers.tools.routes.NarrativeSurveysController.loadTwee(id, fileId));
 			} else {
 				final List<TimedMedia> fileList = cache.getOrElseUpdate(CACHE_FILES + id, () -> cpds.getFiles(), 30)
-				        .stream().filter(tl -> FileTypeUtils.lookLikeTextFile(tl.link)).collect(Collectors.toList());
+						.stream().filter(tl -> FileTypeUtils.lookLikeTextFile(tl.link)).collect(Collectors.toList());
 
 				// edit json files as js
 				if (fileType.equals("json")) {
@@ -728,11 +727,11 @@ public class CompleteDSController extends AbstractDSController {
 				}
 				// render default text editor
 				return ok(views.html.datasets.complete.editFile.render(ds, fileId, fileName, fileType, fileContents,
-				        fileList, csrfToken(request)));
+						fileList, csrfToken(request)));
 			}
 		} catch (Exception e) {
 			return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "message",
-			        "File contents could not be read.");
+					"File contents could not be read.");
 		}
 	}
 
@@ -806,7 +805,7 @@ public class CompleteDSController extends AbstractDSController {
 		if (acceptLicenseFirst(request, username, project) && !datasetConnector.checkLibrarianAccess(username)) {
 			// redirect to accept license first
 			return redirectCS(controllers.routes.ProjectsController.license(project.getId(),
-			        routes.CompleteDSController.downloadFile(id, fileId).relativeTo("/")));
+					routes.CompleteDSController.downloadFile(id, fileId).relativeTo("/")));
 		}
 
 		// compose file path and check existence
@@ -814,17 +813,17 @@ public class CompleteDSController extends AbstractDSController {
 		Optional<File> requestedFileOpt = cpds.getFile(fileId);
 		if (!requestedFileOpt.isPresent()) {
 			return cs(() -> redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request,
-			        "error", "No file found: " + fileId));
+					"error", "No file found: " + fileId));
 		}
 
 		File requestedFile = requestedFileOpt.get();
 		if (!requestedFile.exists()) {
 			return cs(() -> redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request,
-			        "error", "No file found: " + fileId));
+					"error", "No file found: " + fileId));
 		}
 
 		LabNotesEntry.log(CompleteDSController.class, LabNotesEntryType.DOWNLOAD, "Dataset downloaded: " + ds.getName(),
-		        ds.getProject());
+				ds.getProject());
 
 		return cs(() -> ok(requestedFile).as("application/x-download"));
 	}
@@ -855,7 +854,7 @@ public class CompleteDSController extends AbstractDSController {
 		if (acceptLicenseFirst(request, username, project)) {
 			// redirect to accept license first
 			return redirectCS(controllers.routes.ProjectsController.license(project.getId(),
-			        routes.CompleteDSController.downloadLatestFile(id, fileName).relativeTo("/")));
+					routes.CompleteDSController.downloadLatestFile(id, fileName).relativeTo("/")));
 		}
 
 		// compose file path and check existence
@@ -863,17 +862,17 @@ public class CompleteDSController extends AbstractDSController {
 		Optional<File> requestedFileOpt = cpds.getFile(fileName);
 		if (!requestedFileOpt.isPresent()) {
 			return cs(() -> redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request,
-			        "error", "No file found: " + fileName));
+					"error", "No file found: " + fileName));
 		}
 
 		File requestedFile = requestedFileOpt.get();
 		if (!requestedFile.exists()) {
 			return cs(() -> redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request,
-			        "error", "No file found: " + fileName));
+					"error", "No file found: " + fileName));
 		}
 
 		LabNotesEntry.log(CompleteDSController.class, LabNotesEntryType.DOWNLOAD, "Dataset downloaded: " + ds.getName(),
-		        ds.getProject());
+				ds.getProject());
 
 		return cs(() -> ok(requestedFile).as("application/x-download"));
 	}
@@ -923,12 +922,12 @@ public class CompleteDSController extends AbstractDSController {
 	 * @param start
 	 */
 	public CompletionStage<Result> downloadExternal(Function<String, String> linkMapper, Dataset ds, long limit,
-	        long start, long end) {
+			long start, long end) {
 
 		return CompletableFuture.supplyAsync(() -> internalExport(ds, linkMapper, limit, start, end))
-		        .thenApplyAsync(chunks -> ok().chunked(chunks)
-		                .withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
-		                .as("text/csv"));
+				.thenApplyAsync(chunks -> ok().chunked(chunks)
+						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
+						.as("text/csv"));
 	}
 
 	/**
@@ -940,9 +939,9 @@ public class CompleteDSController extends AbstractDSController {
 	 * @param start
 	 */
 	public CompletionStage<Result> downloadInternal(Function<String, String> linkMapper, Dataset ds, long limit,
-	        long start, long end) {
+			long start, long end) {
 		return CompletableFuture.supplyAsync(() -> internalExport(ds, linkMapper, limit, start, end))
-		        .thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
+				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -956,7 +955,7 @@ public class CompleteDSController extends AbstractDSController {
 	 * @return
 	 */
 	private Source<ByteString, ?> internalExport(Dataset ds, Function<String, String> linkMapper, long limit,
-	        long start, long end) {
+			long start, long end) {
 		CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
 		return createStream().mapMaterializedValue(sourceActor -> {
 			CompletableFuture.runAsync(() -> cpds.export(sourceActor, linkMapper, limit, start, end));

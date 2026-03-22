@@ -39,6 +39,7 @@ import play.libs.Json;
 import play.mvc.Http.Request;
 import play.mvc.Result;
 import play.mvc.Security.Authenticated;
+import utils.DataUtils;
 
 public class DataExportController extends AbstractAsyncController {
 
@@ -55,7 +56,7 @@ public class DataExportController extends AbstractAsyncController {
 	@Authenticated(UserAuth.class)
 	public Result index(Request request, Long id) {
 		Person user = getAuthenticatedUserOrReturn(request,
-		        redirect(LANDING).addingToSession(request, "error", "Please log in first to use this tool."));
+				redirect(LANDING).addingToSession(request, "error", "Please log in first to use this tool."));
 
 		ArrayNode metaData = Json.newArray();
 
@@ -91,7 +92,7 @@ public class DataExportController extends AbstractAsyncController {
 		// check the dataset
 		if (id == -1) {
 			return ok(views.html.tools.export.index.render(user, projects, collaborations, subscriptions,
-			        metaData.toString(), null, "[]", "[]"));
+					metaData.toString(), null, "[]", "[]"));
 		}
 
 		// Dataset dataset = null;
@@ -99,14 +100,14 @@ public class DataExportController extends AbstractAsyncController {
 		if (id > -1 && (dataset == null || !dataset.visibleFor(user))) {
 			// select projects / datasets within projects
 			return ok(views.html.tools.export.index.render(user, projects, collaborations, subscriptions,
-			        metaData.toString(), null, "[]", "[]")).addingToSession(request, "error",
-			                "Selected saved query is not available.");
+					metaData.toString(), null, "[]", "[]"))
+					.addingToSession(request, "error", "Selected saved query is not available.");
 
 		}
 
 		if (projects.size() + collaborations.size() + subscriptions.size() == 0) {
 			return redirect(controllers.routes.ProjectsController.index()).addingToSession(request, "message",
-			        "No project data to export.");
+					"No project data to export.");
 		}
 
 		String json = dataset.getConfiguration().get(Dataset.SAVED_EXPORT);
@@ -116,14 +117,14 @@ public class DataExportController extends AbstractAsyncController {
 		return
 
 		ok(views.html.tools.export.index.render(user, projects, collaborations, subscriptions, metaData.toString(),
-		        dataset.getName(), datasets, json));
+				dataset.getName(), datasets, json));
 	}
 
 	@Authenticated(UserAuth.class)
 	public CompletableFuture<Result> data(Request request, Long limit, Integer samplingFactor, Long start, Long end,
-	        Long datasetId) {
+			Long datasetId) {
 		String username = getAuthenticatedUserNameOrReturn(request,
-		        redirect(LANDING).addingToSession(request, "error", "Please log in first to use this tool."));
+				redirect(LANDING).addingToSession(request, "error", "Please log in first to use this tool."));
 
 		if (samplingFactor > 1) {
 			limit = EXTRACTION_LIMIT;
@@ -153,7 +154,7 @@ public class DataExportController extends AbstractAsyncController {
 					continue;
 				}
 
-				final Dataset ds = Dataset.find.byId(Long.parseLong(dsId));
+				final Dataset ds = Dataset.find.byId(DataUtils.parseLong(dsId));
 				if (ds == null || !ds.visibleFor(username)) {
 					continue;
 				}
@@ -218,7 +219,7 @@ public class DataExportController extends AbstractAsyncController {
 				sql.append(where + " ORDER BY ts ASC LIMIT " + limit + ";");
 			} else if (datasetTables.size() == 2) {
 				final String select = twoWaySelect(cols, datasetTables,
-				        Arrays.asList(datasetTableNames.get(0), datasetTableNames.get(1)));
+						Arrays.asList(datasetTableNames.get(0), datasetTableNames.get(1)));
 				final String where = whereClause("", start, end, samplingFactor);
 
 				sql.append(outerSelect);
@@ -248,7 +249,7 @@ public class DataExportController extends AbstractAsyncController {
 				{
 					// left outer join 1
 					final String select = twoWaySelect(cols, datasetTables,
-					        Arrays.asList(datasetTableNames.get(0), datasetTableNames.get(1)));
+							Arrays.asList(datasetTableNames.get(0), datasetTableNames.get(1)));
 					sql.append(select);
 					sql.append(" FROM ");
 					sql.append(datasetTableNames.get(0) + " LEFT OUTER JOIN " + datasetTableNames.get(1));
@@ -270,7 +271,7 @@ public class DataExportController extends AbstractAsyncController {
 				{
 					// left outer join 2
 					final String select = twoWaySelect(cols, datasetTables,
-					        Arrays.asList(datasetTableNames.get(1), datasetTableNames.get(2)));
+							Arrays.asList(datasetTableNames.get(1), datasetTableNames.get(2)));
 					sql.append(select);
 					sql.append(" FROM ");
 					sql.append(datasetTableNames.get(1) + " LEFT OUTER JOIN " + datasetTableNames.get(2));
@@ -292,7 +293,7 @@ public class DataExportController extends AbstractAsyncController {
 				{
 					// left outer join 3
 					final String select = twoWaySelect(cols, datasetTables,
-					        Arrays.asList(datasetTableNames.get(2), datasetTableNames.get(0)));
+							Arrays.asList(datasetTableNames.get(2), datasetTableNames.get(0)));
 					sql.append(select);
 					sql.append(" FROM ");
 					sql.append(datasetTableNames.get(2) + " LEFT OUTER JOIN " + datasetTableNames.get(0));
@@ -388,13 +389,13 @@ public class DataExportController extends AbstractAsyncController {
 		}
 
 		return CompletableFuture.supplyAsync(() -> internalExport(sql.toString(), samplingFactor, projection))
-		        .thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
+				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
 	}
 
 	@Authenticated(UserAuth.class)
 	public Result save(Request request, String name, Integer samplingFactor) {
 		String username = getAuthenticatedUserNameOrReturn(request,
-		        redirect(LANDING).addingToSession(request, "error", "Please log in first to use this tool."));
+				redirect(LANDING).addingToSession(request, "error", "Please log in first to use this tool."));
 
 		// collect data from request
 		ArrayNode jn = (ArrayNode) request.body().asJson();
@@ -420,7 +421,7 @@ public class DataExportController extends AbstractAsyncController {
 					continue;
 				}
 
-				Dataset ds = Dataset.find.byId(Long.parseLong(dsId));
+				Dataset ds = Dataset.find.byId(DataUtils.parseLong(dsId));
 				if (ds == null || !ds.visibleFor(username)) {
 					continue;
 				}
@@ -445,7 +446,7 @@ public class DataExportController extends AbstractAsyncController {
 
 		// add dataset into the project of choice
 		Dataset selds = datasetConnector.create(name, DatasetType.COMPLETE, project,
-		        "This dataset represents a saved export.", "", null, null);
+				"This dataset represents a saved export.", "", null, null);
 		selds.setCollectorType(Dataset.SAVED_EXPORT);
 		selds.getConfiguration().put(Dataset.SAVED_EXPORT, Json.stringify(jn));
 		selds.getConfiguration().put(Dataset.SAVED_EXPORT_LIMIT, "" + EXTRACTION_LIMIT);
@@ -454,7 +455,7 @@ public class DataExportController extends AbstractAsyncController {
 		selds.save();
 
 		selds.setTargetObject(
-		        controllers.tools.routes.DataExportController.index(selds.getId()).absoluteURL(request, true));
+				controllers.tools.routes.DataExportController.index(selds.getId()).absoluteURL(request, true));
 		selds.update();
 
 		return ok();
@@ -468,7 +469,7 @@ public class DataExportController extends AbstractAsyncController {
 	 * @return
 	 */
 	private String twoWaySelect(final Map<String, List<String[]>> cols, final Map<String, String> datasetTables,
-	        final List<String> datasetTableNames) {
+			final List<String> datasetTableNames) {
 		StringBuffer select = new StringBuffer();
 		select.append("SELECT ");
 		select.append(cols.entrySet().stream().map(e -> {
@@ -506,7 +507,7 @@ public class DataExportController extends AbstractAsyncController {
 
 		if (start > -1 && end > -1) {
 			where = " WHERE " + ts + " >= TIMESTAMP '" + new Timestamp(start).toString() + "' AND " + ts
-			        + " < TIMESTAMP '" + new Timestamp(end).toString() + "'";
+					+ " < TIMESTAMP '" + new Timestamp(end).toString() + "'";
 			if (samplingFactor != 1) {
 				float percent = 1 - 1.0f / samplingFactor;
 				where += " AND RAND() >= " + percent + " ";

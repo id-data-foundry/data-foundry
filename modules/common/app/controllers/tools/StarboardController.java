@@ -33,6 +33,7 @@ import play.libs.Json;
 import play.mvc.Http.Request;
 import play.mvc.Result;
 import play.mvc.Security.Authenticated;
+import utils.DataUtils;
 
 public class StarboardController extends AbstractAsyncController {
 
@@ -48,13 +49,13 @@ public class StarboardController extends AbstractAsyncController {
 	private static final Pattern URL_PATTERN = Pattern.compile("https?://[^/]+/web/[^/]+/(.+)");
 	private static final Pattern PYODIDE_OPEN_URL_PATTERN = Pattern.compile("pyodide\\.open_url\\(([^)]+)\\)");
 	private static final Pattern PD_TO_DATETIME_PATTERN = Pattern
-	        .compile("pd\\.to_datetime\\((\\s*\\w+\\[(\"|')Date\\2\\]\\s*)(?![^)]*format\\s*=)[^)]*\\)");
+			.compile("pd\\.to_datetime\\((\\s*\\w+\\[(\"|')Date\\2\\]\\s*)(?![^)]*format\\s*=)[^)]*\\)");
 
 	@AddCSRFToken
 	@Authenticated(UserAuth.class)
 	public Result index(Request request) {
 		Person user = getAuthenticatedUserOrReturn(request,
-		        redirect(LANDING).addingToSession(request, "error", "Please log in first to use this tool."));
+				redirect(LANDING).addingToSession(request, "error", "Please log in first to use this tool."));
 
 		List<Dataset> allNotebookDatasets = user.getUserNotebookDatasets(datasetConnector);
 		List<TimedMedia> allNotebooks = allNotebookDatasets.stream().flatMap(ds -> {
@@ -78,20 +79,20 @@ public class StarboardController extends AbstractAsyncController {
 
 		String token = csrfToken(request);
 		return ok(views.html.tools.starboard.index.render(allNotebookDatasets, allNotebooks, allCollabNotebooks, token,
-		        request));
+				request));
 	}
 
 	@RequireCSRFCheck
 	@Authenticated(UserAuth.class)
 	public Result addNotebook(Request request) {
 		getAuthenticatedUserOrReturn(request,
-		        redirect(LANDING).addingToSession(request, "error", "Please log in first to use this tool."));
+				redirect(LANDING).addingToSession(request, "error", "Please log in first to use this tool."));
 
 		DynamicForm df = formFactory.form().bindFromRequest(request);
 		String datasetId = df.get("dataset");
 		long dsId = -1;
 		try {
-			dsId = Long.parseLong(datasetId);
+			dsId = DataUtils.parseLong(datasetId);
 		} catch (Exception e) {
 			return redirect(routes.StarboardController.index()).flashing("error", "Dataset id not valid.");
 		}
@@ -107,8 +108,8 @@ public class StarboardController extends AbstractAsyncController {
 
 		CompleteDS cds = datasetConnector.getTypedDatasetDS(ds);
 		Optional<String> nbNameOpt = cds.createNotebookFile(notebookName, new Date(),
-		        new String[] { "# %% [javascript]", "let what = {", "	test: true", "}", "", "console.log(what)",
-		                "# %% [python]", "globalWhat = {}", "", "print(globalWhat)" });
+				new String[] { "# %% [javascript]", "let what = {", "	test: true", "}", "", "console.log(what)",
+						"# %% [python]", "globalWhat = {}", "", "print(globalWhat)" });
 		if (nbNameOpt.isPresent()) {
 			cds.addRecord(nbNameOpt.get(), "", new Date());
 		}
@@ -122,7 +123,7 @@ public class StarboardController extends AbstractAsyncController {
 	@Authenticated(UserAuth.class)
 	public Result datasets(Request request) {
 		Person user = getAuthenticatedUserOrReturn(request,
-		        redirect(LANDING).addingToSession(request, "error", "Please log in first to use this tool."));
+				redirect(LANDING).addingToSession(request, "error", "Please log in first to use this tool."));
 
 		List<Project> projects = user.getOwnAndCollabProjects();
 		projects.stream().forEach(p -> {
@@ -176,7 +177,7 @@ public class StarboardController extends AbstractAsyncController {
 
 		// List of blocked patterns
 		List<String> BLOCKED_PATTERNS = List.of("import pyodide", "import micropip",
-		        "await micropip.install('seaborn==0.13.2')", "await micropip.install('scipy')");
+				"await micropip.install('seaborn==0.13.2')", "await micropip.install('scipy')");
 
 		// construct translated data structure
 		ArrayNode cells = Json.newArray();
@@ -232,7 +233,7 @@ public class StarboardController extends AbstractAsyncController {
 					if (pdToDatetimeMatcher.find()) {
 						String dataset = pdToDatetimeMatcher.group(1);
 						l = l.replaceAll(PD_TO_DATETIME_PATTERN.pattern(),
-						        "pd.to_datetime(" + dataset + ", format=\"%d-%m-%Y\")");
+								"pd.to_datetime(" + dataset + ", format=\"%d-%m-%Y\")");
 					}
 
 					// split the line by commas and join with newline characters
@@ -262,41 +263,41 @@ public class StarboardController extends AbstractAsyncController {
 
 		// construct rest of data structure
 		String metadata = """
-		        {
-		          "kernelspec": {
-		           "display_name": "Python 3",
-		           "language": "python",
-		           "name": "python3"
-		          },
-		          "language_info": {
-		           "codemirror_mode": {
-		            "name": "ipython",
-		            "version": 3
-		           },
-		           "file_extension": ".py",
-		           "mimetype": "text/x-python",
-		           "name": "python",
-		           "nbconvert_exporter": "python",
-		           "pygments_lexer": "ipython3",
-		           "version": "3.8.5"
-		          },
-		          "toc": {
-		           "base_numbering": 1,
-		           "nav_menu": {
-		            "height": "228px",
-		            "width": "252px"
-		           },
-		           "number_sections": false,
-		           "sideBar": true,
-		           "skip_h1_title": false,
-		           "title_cell": "Table of Contents",
-		           "title_sidebar": "Contents",
-		           "toc_cell": true,
-		           "toc_position": {},
-		           "toc_section_display": "block",
-		           "toc_window_display": true
-		          }
-		        }""";
+				{
+				  "kernelspec": {
+				   "display_name": "Python 3",
+				   "language": "python",
+				   "name": "python3"
+				  },
+				  "language_info": {
+				   "codemirror_mode": {
+				    "name": "ipython",
+				    "version": 3
+				   },
+				   "file_extension": ".py",
+				   "mimetype": "text/x-python",
+				   "name": "python",
+				   "nbconvert_exporter": "python",
+				   "pygments_lexer": "ipython3",
+				   "version": "3.8.5"
+				  },
+				  "toc": {
+				   "base_numbering": 1,
+				   "nav_menu": {
+				    "height": "228px",
+				    "width": "252px"
+				   },
+				   "number_sections": false,
+				   "sideBar": true,
+				   "skip_h1_title": false,
+				   "title_cell": "Table of Contents",
+				   "title_sidebar": "Contents",
+				   "toc_cell": true,
+				   "toc_position": {},
+				   "toc_section_display": "block",
+				   "toc_window_display": true
+				  }
+				}""";
 
 		// Create a new Jupyter notebook structure
 		ObjectNode jupyterNotebook = Json.newObject();
