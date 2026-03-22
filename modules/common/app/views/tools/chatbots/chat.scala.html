@@ -97,6 +97,33 @@
       #chat article b, #chat article strong {
         font-weight: 500;
       }
+      .sources-refs a {
+        text-decoration: none;
+        font-weight: bold;
+        padding: 0 2px;
+      }
+      #modal-content {
+        max-height: 60vh;
+        overflow-y: auto;
+      }
+      #modal-content h1,
+      #modal-content h2, 
+      #modal-content h3, 
+      #modal-content h4, 
+      #modal-content h5, 
+      #modal-content h6 {
+        font-size: 1.2rem;
+        line-height: 2rem;
+      }
+      #modal-title {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-bottom: 0;
+        padding-right: 2.5rem;
+        display: block;
+        box-sizing: border-box;
+      }
     </style>
 </head>
 <body class="container">
@@ -122,23 +149,56 @@
   <main>
     <!-- chat messages go here -->
     <section id="chat" class="container">
-    @for(item <- history.items()) {
-      @if(item.isAssistant) {
-      <div class="msg-left">
-        <p class="role">@item.actor()</p>
-        <article>@Html(item.renderedContent())</article>
-      </div>
-      } else {
-      <div class="msg-right">
-        <p class="role">@item.actor()</p>
-        <article>@Html(item.renderedContent())</article>
-        <!-- 
-          expanded prompt: @item.content()
-        -->
-      </div>
+    @for(i <- 0 until history.items().size()) {
+      @defining(history.items().get(i)) { item =>
+        @if(item.isAssistant) {
+          <div class="msg-left">
+            <p class="role">@item.actor()</p>
+            <article>
+              @Html(item.renderedContent())
+              @if(dataset.configuration(Dataset.CHATBOT_SHOW_SOURCES, "false").equals("true") && i > 0 && history.items().get(i-1).isUser) {
+                @defining(history.items().get(i-1).context()) { contexts =>
+                  @if(!contexts.isEmpty() && contexts.get(0).ranking() > 0) {
+                    <div class="sources-refs" style="margin-top: 10px; border-top: 1px solid var(--pico-color-grey-300); padding-top: 5px; font-size: 0.8rem;">
+                      Sources: 
+                      @for(j <- 0 until contexts.size()) {
+                        @defining(contexts.get(j)) { ctx =>
+                          @if(ctx.document() != null && !ctx.document().isEmpty()) {
+                            <a href="#" onclick="showSource('@(new utils.rendering.MarkdownRenderer().render(ctx.content()).replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r").replace("'", "\\'"))', '@(ctx.document().replace("\\", "\\\\").replace("\"", "\\\"").replace("'", "\\'"))'); return false;">
+                              [@(j + 1)]
+                            </a>
+                          }
+                        }
+                      }
+                    </div>
+                  }
+                }
+              }
+            </article>
+          </div>
+        } else {
+          <div class="msg-right">
+            <p class="role">@item.actor()</p>
+            <article>@Html(item.renderedContent())</article>
+            <!-- 
+              expanded prompt: @item.content()
+            -->
+          </div>
+        }
       }
     }
     </section>
+
+    <!-- source modal -->
+    <dialog id="source-modal">
+      <article>
+        <header>
+          <button aria-label="Close" rel="prev" onclick="closeModal()"></button>
+          <span id="modal-title">Source Reference</span>
+        </header>
+        <div id="modal-content"></div>
+      </article>
+    </dialog>
     <!-- assistant typing indicator -->
     <section class="container">
       <div id="load" class="typing-indicator htmx-indicator">
@@ -165,6 +225,22 @@
       </section>
     </form>
     <script>
+      function showSource(content, title) {
+        document.getElementById('modal-title').innerText = title || "Source Reference";
+        document.getElementById('modal-content').innerHTML = content;
+        document.getElementById('source-modal').showModal();
+      }
+      function closeModal() {
+        document.getElementById('source-modal').close();
+      }
+
+      // Close modal on backdrop click
+      document.getElementById('source-modal').addEventListener('click', (event) => {
+        if (event.target.id === 'source-modal') {
+          closeModal();
+        }
+      });
+
       document.querySelector('#userInputForm').addEventListener('submit', (e) => {
         setTimeout(() => {
           let input = document.querySelector('#userInput').value;

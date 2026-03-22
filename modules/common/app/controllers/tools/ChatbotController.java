@@ -74,8 +74,8 @@ import services.api.remoting.RemoteApiRequest;
 import services.processing.MediaProcessingService;
 import services.slack.Slack;
 import utils.DataUtils;
-import utils.rendering.MarkdownRenderer;
 import utils.auth.TokenResolverUtil;
+import utils.rendering.MarkdownRenderer;
 import utils.validators.FileTypeUtils;
 
 public class ChatbotController extends AbstractAsyncController {
@@ -95,9 +95,9 @@ public class ChatbotController extends AbstractAsyncController {
 
 	@Inject
 	public ChatbotController(FormFactory formFactory, DatasetConnector datasetConnector,
-	        CompleteDSController completeDSController, ManagedAIApiService managedAiAPIService,
-	        MediaProcessingService mediaProcessingService, SyncCacheApi cache, LocalModelMetadata lmmd,
-	        TokenResolverUtil tokenResolver) {
+			CompleteDSController completeDSController, ManagedAIApiService managedAiAPIService,
+			MediaProcessingService mediaProcessingService, SyncCacheApi cache, LocalModelMetadata lmmd,
+			TokenResolverUtil tokenResolver) {
 		this.formFactory = formFactory;
 		this.datasetConnector = datasetConnector;
 		this.completeDSController = completeDSController;
@@ -115,7 +115,7 @@ public class ChatbotController extends AbstractAsyncController {
 
 		if (user.projects().size() + user.collaborations().size() == 0) {
 			return redirect(controllers.routes.ProjectsController.index()).addingToSession(request, "message",
-			        "No project chatbots to show.");
+					"No project chatbots to show.");
 		}
 
 		return ok(views.html.tools.actor.index.render(user, csrfToken(request)));
@@ -153,7 +153,7 @@ public class ChatbotController extends AbstractAsyncController {
 
 		// create new dataset for the actor
 		Dataset ds = datasetConnector.create(nss(df.get("name")), DatasetType.COMPLETE, p, "Chatbot dataset",
-		        "Data Foundry chatbots", null, df.get("license"));
+				"Data Foundry chatbots", null, df.get("license"));
 		ds.setCollectorType(Dataset.CHATBOT);
 		ds.save();
 
@@ -163,11 +163,11 @@ public class ChatbotController extends AbstractAsyncController {
 		ds.getConfiguration().put(Dataset.CHATBOT_RAG_SCORE_THRESHOLD, "0.6");
 		ds.getConfiguration().put(Dataset.CHATBOT_MODEL, "hermes-2-pro-llama-3-8b");
 		ds.getConfiguration().put(Dataset.CHATBOT_SYSTEM_PROMPT,
-		        """
-		                You are DataFoundryGPT, a large language model. You are chatting with the user via a chatbot.
-		                This means most of the time your lines should be a sentence or two, unless the user's request requires reasoning or long-form outputs.
-		                Never use emojis, unless explicitly asked to.
-		                Current date: $DATE""");
+				"""
+						You are DataFoundryGPT, a large language model. You are chatting with the user via a chatbot.
+						This means most of the time your lines should be a sentence or two, unless the user's request requires reasoning or long-form outputs.
+						Never use emojis, unless explicitly asked to.
+						Current date: $DATE""");
 		ds.update();
 
 		// ensure that the project has an activated API key for local AI
@@ -179,7 +179,7 @@ public class ChatbotController extends AbstractAsyncController {
 		}
 
 		return redirect(routes.ChatbotController.view(ds.getId())).addingToSession(request, "message",
-		        "Chatbot " + ds.getName() + " created in project " + p.getName());
+				"Chatbot " + ds.getName() + " created in project " + p.getName());
 	}
 
 	/**
@@ -203,11 +203,11 @@ public class ChatbotController extends AbstractAsyncController {
 		List<TimedMedia> files = cpds.getFiles();
 
 		List<FileWithIndexStatus> filesWithStatus = files.stream()
-		        .map(file -> new FileWithIndexStatus(file, hasIndexFile(cpds, file))).collect(Collectors.toList());
+				.map(file -> new FileWithIndexStatus(file, hasIndexFile(cpds, file))).collect(Collectors.toList());
 
 		// show chatbot configuration interface
 		return ok(views.html.tools.chatbots.view.render(user, ds, filesWithStatus, localModelMetadata,
-		        csrfToken(request)));
+				csrfToken(request)));
 	}
 
 	/**
@@ -229,15 +229,15 @@ public class ChatbotController extends AbstractAsyncController {
 
 		DynamicForm df = formFactory.form().bindFromRequest(request);
 		boolean updateDS = Arrays.stream(new String[] { Dataset.CHATBOT_INTRODUCTION, Dataset.CHATBOT_SYSTEM_PROMPT,
-		        Dataset.CHATBOT_ASSISTANT_PROMPT, Dataset.CHATBOT_USER_PROMPT, Dataset.CHATBOT_MODEL,
-		        Dataset.CHATBOT_RAG_MAX_HITS, Dataset.CHATBOT_RAG_SCORE_THRESHOLD, Dataset.CHATBOT_TEMPERATURE })
-		        .map(key -> {
-			        Optional<Object> result = df.value(key);
-			        if (result.isPresent()) {
-				        ds.getConfiguration().put(key, result.get().toString());
-			        }
-			        return result;
-		        }).filter(r -> r.isPresent()).collect(Collectors.counting()) > 0;
+				Dataset.CHATBOT_ASSISTANT_PROMPT, Dataset.CHATBOT_USER_PROMPT, Dataset.CHATBOT_MODEL,
+				Dataset.CHATBOT_RAG_MAX_HITS, Dataset.CHATBOT_RAG_SCORE_THRESHOLD, Dataset.CHATBOT_TEMPERATURE })
+				.map(key -> {
+					Optional<Object> result = df.value(key);
+					if (result.isPresent()) {
+						ds.getConfiguration().put(key, result.get().toString());
+					}
+					return result;
+				}).filter(r -> r.isPresent()).collect(Collectors.counting()) > 0;
 
 		{
 			Optional<Object> result = df.value(Dataset.CHATBOT_PUBLIC);
@@ -257,6 +257,17 @@ public class ChatbotController extends AbstractAsyncController {
 				updateDS = true;
 			} else if (!result.isPresent() && ds.getConfiguration().containsKey(Dataset.CHATBOT_STORE_CHATS)) {
 				ds.getConfiguration().remove(Dataset.CHATBOT_STORE_CHATS);
+				updateDS = true;
+			}
+		}
+
+		{
+			Optional<Object> result = df.value(Dataset.CHATBOT_SHOW_SOURCES);
+			if (result.isPresent() && !ds.getConfiguration().containsKey(Dataset.CHATBOT_SHOW_SOURCES)) {
+				ds.getConfiguration().put(Dataset.CHATBOT_SHOW_SOURCES, "true");
+				updateDS = true;
+			} else if (!result.isPresent() && ds.getConfiguration().containsKey(Dataset.CHATBOT_SHOW_SOURCES)) {
+				ds.getConfiguration().remove(Dataset.CHATBOT_SHOW_SOURCES);
 				updateDS = true;
 			}
 		}
@@ -301,7 +312,7 @@ public class ChatbotController extends AbstractAsyncController {
 		// check dataset and allow access if
 		Dataset ds = Dataset.find.byId(dsId);
 		if (ds == null || !(ds.editableBy(user)
-		        || !ds.getConfiguration().getOrDefault(Dataset.WEB_ACCESS_TOKEN, "").trim().isEmpty())) {
+				|| !ds.getConfiguration().getOrDefault(Dataset.WEB_ACCESS_TOKEN, "").trim().isEmpty())) {
 			return redirect(routes.ChatbotController.index());
 		}
 
@@ -329,17 +340,17 @@ public class ChatbotController extends AbstractAsyncController {
 
 			DynamicForm df = formFactory.form().bindFromRequest(request);
 			String originalUserPrompt = (String) df.value(Dataset.CHATBOT_USER_PROMPT)
-			        .orElseGet(() -> ds.configuration(Dataset.CHATBOT_USER_PROMPT, ""));
+					.orElseGet(() -> ds.configuration(Dataset.CHATBOT_USER_PROMPT, ""));
 
 			// process the chat history and context to obtain the next chat item
 			ConversationFragment resultFragment = internalChatProcess(conversationId, user, ds, originalUserPrompt);
 
 			if (resultFragment.response() == null) {
 				return ok("""
-				        <div class="msg-left">
-				        <p class="role">system</p>
-				        <article>%s</article>
-				        </div>""".formatted("We have encountered a problem. Perhaps try again later."));
+						<div class="msg-left">
+						<p class="role">system</p>
+						<article>%s</article>
+						</div>""".formatted("We have encountered a problem. Perhaps try again later."));
 			}
 
 			// generate richer output for the testing
@@ -348,54 +359,54 @@ public class ChatbotController extends AbstractAsyncController {
 			if (prompt != null) {
 
 				String context = prompt.context().isEmpty() ? "-" : prompt.context().stream().map(cc -> """
-				        <details>
-				        	<summary>%s</summary>
-				        	<pre>%s</pre>
-				        </details>
-				        """.formatted(cc.toString(), cc.content())).collect(Collectors.joining());
+						<details>
+							<summary>%s</summary>
+							<pre>%s</pre>
+						</details>
+						""".formatted(cc.toString(), cc.content())).collect(Collectors.joining());
 
 				input = """
-				        <hr>
-				        <div role="prompt">
-				        <div class="user">
-				        <span class="role">user prompt</span>
-				        <article>%s</article>
-				        </div>
-				        <div>
-				        <span class="internal">processed prompt</span>
-				        <article>%s</article>
-				        </div>
-				        <div>
-				        <span class="internal">prompt context</span>
-				        <article>%s</article>
-				        </div>
-				        </div>
-				        """.formatted(prompt.renderedContent(), prompt.content(), context);
+						<hr>
+						<div role="prompt">
+						<div class="user">
+						<span class="role">user prompt</span>
+						<article>%s</article>
+						</div>
+						<div>
+						<span class="internal">processed prompt</span>
+						<article>%s</article>
+						</div>
+						<div>
+						<span class="internal">prompt context</span>
+						<article>%s</article>
+						</div>
+						</div>
+						""".formatted(prompt.renderedContent(), prompt.content(), context);
 			} else {
 				input = "";
 			}
 
 			ConversationItem response = resultFragment.response();
 			String context = response.context().isEmpty() ? "-" : response.context().stream().map(cc -> """
-			        <details>
-			        	<summary>messages to LLM</summary>
-			        	<pre>%s</pre>
-			        </details>
-			        """.formatted(cc.content())).collect(Collectors.joining());
+					<details>
+						<summary>messages to LLM</summary>
+						<pre>%s</pre>
+					</details>
+					""".formatted(cc.content())).collect(Collectors.joining());
 
 			return ok(input + """
-			        <hr>
-			        <div role="response">
-			        <div>
-			        <span class="internal">internal messages</span>
-			        <article>%s</article>
-			        </div>
-			        <div class="assistant">
-			        <span class="role">assistant</span>
-			        <article>%s</article>
-			        </div>
-			        </div>
-			        """.formatted(context, response.renderedContent()));
+					<hr>
+					<div role="response">
+					<div>
+					<span class="internal">internal messages</span>
+					<article>%s</article>
+					</div>
+					<div class="assistant">
+					<span class="role">assistant</span>
+					<article>%s</article>
+					</div>
+					</div>
+					""".formatted(context, response.renderedContent()));
 		});
 	}
 
@@ -419,7 +430,7 @@ public class ChatbotController extends AbstractAsyncController {
 		// check dataset and allow access if
 		Dataset ds = Dataset.find.byId(dsId);
 		if (ds == null || !(ds.editableBy(user)
-		        || !ds.getConfiguration().getOrDefault(Dataset.CHATBOT_PUBLIC, "").trim().isEmpty())) {
+				|| !ds.getConfiguration().getOrDefault(Dataset.CHATBOT_PUBLIC, "").trim().isEmpty())) {
 			return redirect(routes.ChatbotController.index());
 		}
 
@@ -430,10 +441,10 @@ public class ChatbotController extends AbstractAsyncController {
 			ch = new ConversationHistory(conversationId, new LinkedList<ConversationItem>());
 			// add start prompt
 			String assistantStartPrompt = ds.getConfiguration().getOrDefault(Dataset.CHATBOT_ASSISTANT_PROMPT, "")
-			        .trim();
+					.trim();
 			if (!assistantStartPrompt.isEmpty()) {
 				ch.items().add(new ConversationItem(ConversationItem.ASSISTANT, assistantStartPrompt, "",
-				        assistantStartPrompt));
+						assistantStartPrompt));
 			}
 		} else {
 			ch = chOpt.get();
@@ -461,24 +472,52 @@ public class ChatbotController extends AbstractAsyncController {
 			// access dataset, check permissions
 			Dataset ds = Dataset.find.byId(id);
 			if (ds == null || !(ds.editableBy(user)
-			        || !ds.getConfiguration().getOrDefault(Dataset.CHATBOT_PUBLIC, "").trim().isEmpty())) {
+					|| !ds.getConfiguration().getOrDefault(Dataset.CHATBOT_PUBLIC, "").trim().isEmpty())) {
 				return noContent();
 			}
 
 			// retrieve user prompt
 			DynamicForm df = formFactory.form().bindFromRequest(request);
 			String originalUserPrompt = (String) df.value(Dataset.CHATBOT_USER_PROMPT)
-			        .orElseGet(() -> ds.configuration(Dataset.CHATBOT_USER_PROMPT, ""));
+					.orElseGet(() -> ds.configuration(Dataset.CHATBOT_USER_PROMPT, ""));
 
 			// process the chat history and context to obtain the next chat item
 			ConversationFragment resultFragment = internalChatProcess(conversationId, user, ds, originalUserPrompt);
 
+			String responseHtml = resultFragment.response() != null ? resultFragment.response().renderedContent()
+					: "We have encountered a problem. Perhaps try again later.";
+
+			if ("true".equals(ds.configuration(Dataset.CHATBOT_SHOW_SOURCES, "false")) && resultFragment.prompt() != null) {
+				List<ConversationContext> contexts = resultFragment.prompt().context();
+				if (!contexts.isEmpty() && contexts.get(0).ranking() > 0) { // ranking > 0 to avoid empty/dummy contexts
+					StringBuilder refs = new StringBuilder(
+							"<div class=\"sources-refs\" style=\"margin-top: 10px; border-top: 1px solid #ccc; padding-top: 5px; font-size: 0.8rem;\">Sources: ");
+					for (int i = 0; i < contexts.size(); i++) {
+						ConversationContext ctx = contexts.get(i);
+						if (ctx.document() == null || ctx.document().isEmpty())
+							continue;
+
+						// Render markdown for the modal
+						String renderedSource = new MarkdownRenderer().render(ctx.content());
+						// Manual escaping for JS
+						String escapedSource = renderedSource.replace("\\", "\\\\").replace("\"", "\\\"")
+								.replace("\n", "\\n").replace("\r", "\\r").replace("'", "\\'");
+						String title = ctx.document().replace("\\", "\\\\").replace("\"", "\\\"").replace("'", "\\'");
+
+						refs.append(String.format(
+								"<a href=\"#\" onclick=\"showSource('%s', '%s'); return false;\">[%d]</a> ",
+								escapedSource, title, i + 1));
+					}
+					refs.append("</div>");
+					responseHtml += refs.toString();
+				}
+			}
+
 			return ok("""
-			        <div class="msg-left">
-			        <p class="role">assistant</p>
-			        <article>%s</article>
-			        </div>""".formatted(resultFragment.response() != null ? resultFragment.response().renderedContent()
-			        : "We have encountered a problem. Perhaps try again later."));
+					<div class="msg-left">
+					<p class="role">assistant</p>
+					<article>%s</article>
+					</div>""".formatted(responseHtml));
 		});
 	}
 
@@ -520,7 +559,7 @@ public class ChatbotController extends AbstractAsyncController {
 			}
 			String message = json.get("message").asText();
 			String conversationId = json.has("conversationId") ? json.get("conversationId").asText()
-			        : UUID.randomUUID().toString();
+					: UUID.randomUUID().toString();
 
 			// 5. Process chat
 			// Use project owner as the "user" for processing
@@ -555,15 +594,15 @@ public class ChatbotController extends AbstractAsyncController {
 	}
 
 	private ConversationFragment internalChatProcess(String conversationId, Person user, Dataset ds,
-	        String originalUserPrompt) {
+			String originalUserPrompt) {
 
 		// check whether the chatbot owner has enough tokens, if not quick abort
 		ProjectAPIInfo pai = managedAIAPIService.getProjectAPIAccess(ds.getProject().getOwner(), ds.getProject());
 		if (pai.apiKey.isEmpty()) {
 			return new ConversationFragment(new ConversationItem("user", "", "", ""),
-			        new ConversationItem("assistant", "", "",
-			                "You need an API key or more tokens for your <a href=\"%s#api-access\">API key</a>"
-			                        .formatted(controllers.routes.ProjectsController.edit(ds.getProject().getId()))));
+					new ConversationItem("assistant", "", "",
+							"You need an API key or more tokens for your <a href=\"%s#api-access\">API key</a>"
+									.formatted(controllers.routes.ProjectsController.edit(ds.getProject().getId()))));
 		}
 
 		// retrieve conversation history from cache or create new
@@ -578,25 +617,25 @@ public class ChatbotController extends AbstractAsyncController {
 		// if there is a conversation history, run a quick request to reformulate the user prompt in context of the
 		// history
 		String userPrompt = ch.items
-		        .isEmpty()
-		                ? originalUserPrompt
-		                : reformulateUserPromptWithHistory(user.getEmail(), ds.getProject().getId(), pai.apiKey,
-		                        ds.configuration(Dataset.CHATBOT_MODEL, ""), originalUserPrompt, ch)
-		                                .orElse(originalUserPrompt);
+				.isEmpty()
+						? originalUserPrompt
+						: reformulateUserPromptWithHistory(user.getEmail(), ds.getProject().getId(), pai.apiKey,
+								ds.configuration(Dataset.CHATBOT_MODEL, ""), originalUserPrompt, ch)
+								.orElse(originalUserPrompt);
 
 		// search index for relevant information chunks for the user request
 		final CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
 		if (cpds == null) {
 			logger.error("CompleteDS object is null for dataset ID: {}", ds.getId());
 			return new ConversationFragment(new ConversationItem("user", originalUserPrompt, "", ""),
-			        new ConversationItem("assistant", "", "",
-			                "An internal error occurred: Could not retrieve dataset information."));
+					new ConversationItem("assistant", "", "",
+							"An internal error occurred: Could not retrieve dataset information."));
 		}
 		Collection<SearchResult> searchResults;
 		if (!cpds.getFiles().isEmpty()) {
 			int max_hits = DataUtils.parseInt(ds.configuration(Dataset.CHATBOT_RAG_MAX_HITS, "10"), 10);
 			float score_threshold = DataUtils.parseFloat(ds.configuration(Dataset.CHATBOT_RAG_SCORE_THRESHOLD, "0.7"),
-			        0.7f);
+					0.7f);
 			// search knowledge base for interesting hits
 			searchResults = searchIndex(cpds, userPrompt, max_hits, score_threshold);
 		} else {
@@ -606,10 +645,10 @@ public class ChatbotController extends AbstractAsyncController {
 
 		// append search results to prompt
 		List<ConversationContext> contexts = searchResults.stream()
-		        .map(sr -> new ConversationContext(sr.content(), sr.file(), sr.score())).collect(Collectors.toList());
+				.map(sr -> new ConversationContext(sr.content(), sr.file(), sr.score())).collect(Collectors.toList());
 
 		final ConversationItem promptItem = new ConversationItem(ConversationItem.USER, userPrompt, contexts,
-		        originalUserPrompt);
+				originalUserPrompt);
 
 		// prepare the request to generate the conversation item
 		ObjectNode requestJson = Json.newObject();
@@ -624,7 +663,7 @@ public class ChatbotController extends AbstractAsyncController {
 		// add system prompt
 		String systemPrompt = ds.configuration(Dataset.CHATBOT_SYSTEM_PROMPT, "");
 		systemPrompt = systemPrompt.replace("$DATE",
-		        SimpleDateFormat.getDateInstance(SimpleDateFormat.SHORT).format(new Date()));
+				SimpleDateFormat.getDateInstance(SimpleDateFormat.SHORT).format(new Date()));
 		messages.add(Json.newObject().put("role", ConversationItem.SYSTEM).put("content", systemPrompt));
 		// add conversation history
 		for (ConversationItem item : ch.items()) {
@@ -640,8 +679,8 @@ public class ChatbotController extends AbstractAsyncController {
 		ConversationItem responseItem = null;
 		try {
 			final RemoteApiRequest apiRequest = new RemoteApiRequest("",
-			        ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, user.getEmail(), pai.apiKey,
-			        ds.getProject().getId(), requestJson);
+					ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, user.getEmail(), pai.apiKey,
+					ds.getProject().getId(), requestJson);
 			String llmResult = managedAIAPIService.submitApiRequest(apiRequest);
 			ObjectNode on = (ObjectNode) Json.parse(llmResult);
 			JsonNode contentNode = on.get("content");
@@ -649,7 +688,7 @@ public class ChatbotController extends AbstractAsyncController {
 
 			// generate response item, including the messages
 			responseItem = new ConversationItem(ConversationItem.ASSISTANT, resultAsText, messages.toPrettyString(),
-			        new MarkdownRenderer().render(resultAsText));
+					new MarkdownRenderer().render(resultAsText));
 
 			ch.items().add(responseItem);
 			cache.set(CHAT_CONTROLLER_CACHE_PREFIX + conversationId, ch, 3600);
@@ -673,7 +712,7 @@ public class ChatbotController extends AbstractAsyncController {
 		} catch (RuntimeException e) { // Catch other runtime exceptions (e.g., from MarkdownRenderer)
 			logger.error("Runtime error during LLM response processing for conversation {}", conversationId, e);
 			responseItem = new ConversationItem("assistant", "", "",
-			        "An unexpected error occurred while processing the AI response.");
+					"An unexpected error occurred while processing the AI response.");
 		} catch (Exception e) { // General fallback for any other unexpected exception
 			logger.error("An unexpected error occurred in internalChatProcess for conversation {}", conversationId, e);
 			responseItem = new ConversationItem("assistant", "", "", "An unknown error occurred.");
@@ -682,7 +721,7 @@ public class ChatbotController extends AbstractAsyncController {
 	}
 
 	private Optional<String> reformulateUserPromptWithHistory(String user, long projectId, String apiKey, String model,
-	        String userPrompt, ConversationHistory ch) {
+			String userPrompt, ConversationHistory ch) {
 		ObjectNode requestJson = Json.newObject();
 		requestJson.put(ApiServiceConstants.REQUEST_TASK, ApiServiceConstants.REQUEST_TASK_COMPLETION);
 		requestJson.put(ApiServiceConstants.REQUEST_API_TOKEN, apiKey);
@@ -692,22 +731,25 @@ public class ChatbotController extends AbstractAsyncController {
 		// contextualize the user prompt given the chat history
 		StringBuilder sb = new StringBuilder();
 		for (ConversationItem item : ch.items()) {
-			sb.append(item.actor() + ": " + item.content() + "\n");
+			sb.append(item.actor());
+			sb.append(": ");
+			sb.append(item.content());
+			sb.append("\n");
 		}
 		requestJson.put(ApiServiceConstants.REQUEST_PROMPT,
-		        """
-		                Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language. Keep as much details as possible from previous messages. Keep entity names and all.
+				"""
+						Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language. Keep as much details as possible from previous messages. Keep entity names and all.
 
-		                Chat History:
-		                %s
-		                Follow Up Input: %s
-		                Standalone question:
-		                      		"""
-		                .formatted(sb.toString(), userPrompt));
+						Chat History:
+						%s
+						Follow Up Input: %s
+						Standalone question:
+						      		"""
+						.formatted(sb.toString(), userPrompt));
 
 		try {
 			final RemoteApiRequest apiRequest = new RemoteApiRequest("",
-			        ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, user, apiKey, projectId, requestJson);
+					ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, user, apiKey, projectId, requestJson);
 			String result = managedAIAPIService.submitApiRequest(apiRequest);
 			ObjectNode on = (ObjectNode) Json.parse(result);
 			String resultAsText = on.get("text").asText();
@@ -715,7 +757,7 @@ public class ChatbotController extends AbstractAsyncController {
 			// check whether we have thinking tokens in the result, if so just take what's behind
 			if (resultAsText.contains("final<|message|>")) {
 				resultAsText = resultAsText
-				        .substring(resultAsText.indexOf("final<|message|>") + "final<|message|>".length());
+						.substring(resultAsText.indexOf("final<|message|>") + "final<|message|>".length());
 			}
 
 			return Optional.of(resultAsText);
@@ -731,7 +773,7 @@ public class ChatbotController extends AbstractAsyncController {
 	}
 
 	static public record ConversationItem(String actor, String content, List<ConversationContext> context,
-	        String renderedContent) {
+			String renderedContent) {
 
 		public static final String SYSTEM = "system";
 
@@ -741,7 +783,7 @@ public class ChatbotController extends AbstractAsyncController {
 
 		public ConversationItem(String actor, String content, String context, String renderedContent) {
 			this(actor, content, Collections.singletonList(new ConversationContext(context, "", 1.0f)),
-			        renderedContent);
+					renderedContent);
 		}
 
 		public boolean isAssistant() {
@@ -764,15 +806,15 @@ public class ChatbotController extends AbstractAsyncController {
 		public String fullPrompt() {
 			return (content() + (!context().isEmpty() ? """
 
-			        Respond with the following context:
-			        """ + contextStr() : "")).trim();
+					Respond with the following context:
+					""" + contextStr() : "")).trim();
 		}
 	}
 
 	static public record ConversationContext(String content, String document, float ranking) {
 		public String toString() {
 			return content.substring(0, Math.min(content.length() - 1, 45)) + "... (" + document + "): "
-			        + Math.round(ranking * 100) + "% match";
+					+ Math.round(ranking * 100) + "% match";
 		}
 
 	}
@@ -825,14 +867,14 @@ public class ChatbotController extends AbstractAsyncController {
 						// check filename length and shorten if needed
 						if (tempFileName.length() > 60) {
 							tempFileName = tempFileName.substring(0, 60)
-							        + tempFileName.substring(tempFileName.lastIndexOf("."));
+									+ tempFileName.substring(tempFileName.lastIndexOf("."));
 							logger.info("   Uploaded file name shortened: " + tempFileName);
 						}
 
 						// filename-based quick check
 						if (FileTypeUtils.looksLikeExecutableFile(tempFileName)) {
 							logger.error(
-							        "   Document upload rejected due to executable-like filename: " + tempFileName);
+									"   Document upload rejected due to executable-like filename: " + tempFileName);
 							continue;
 						}
 
@@ -850,7 +892,7 @@ public class ChatbotController extends AbstractAsyncController {
 							}
 							cpds.deleteRecord(fileName);
 							File indexFile = new File(
-							        cpds.getFolder().getAbsolutePath() + File.separator + fileName + ".idx");
+									cpds.getFolder().getAbsolutePath() + File.separator + fileName + ".idx");
 							if (indexFile.exists()) {
 								indexFile.delete();
 							}
@@ -867,20 +909,20 @@ public class ChatbotController extends AbstractAsyncController {
 						try {
 							String finalFileName = storeFile.get();
 							String contents = mediaProcessingService
-							        .scheduleMediaToTextProcess(tempFile.path().toFile(), "en", "application/pdf",
-							                "SYSTEM", UUID.randomUUID().toString())
-							        .toCompletableFuture().get();
+									.scheduleMediaToTextProcess(tempFile.path().toFile(), "en", "application/pdf",
+											"SYSTEM", UUID.randomUUID().toString())
+									.toCompletableFuture().get();
 
 							ArrayNode documentIndex = Json.newArray();
 
 							// chunk the document in paragraphs and reproduce them as a list with related headers
 							List<String> chunks = produceChunks(contents);
 							logger.info("   " + chunks.size() + " chunks for '" + finalFileName + "' in "
-							        + cpds.getFolder().getAbsolutePath());
+									+ cpds.getFolder().getAbsolutePath());
 
 							// process chunks to embeddings and store them in file
 							List<List<Double>> embeddings = managedAIAPIService.dispatchEmbeddingRequest("SYSTEM",
-							        chunks);
+									chunks);
 							int counter = 0;
 							for (String str : chunks) {
 								ArrayNode ar = Json.newArray();
@@ -888,19 +930,19 @@ public class ChatbotController extends AbstractAsyncController {
 									ar.add(d.floatValue());
 								});
 								documentIndex.add(Json.newObject().put("file", storeFile.get()).put("content", str)
-								        .set("embedding", ar));
+										.set("embedding", ar));
 							}
 
 							// write the index to disk
 							File indexFile = new File(
-							        cpds.getFolder().getAbsolutePath() + File.separator + finalFileName + ".idx");
+									cpds.getFolder().getAbsolutePath() + File.separator + finalFileName + ".idx");
 							if (indexFile.exists()) {
 								indexFile.delete();
 							}
 							Files.writeString(indexFile.toPath(), documentIndex.toString());
 
 							logger.info("   Chunks complete for '" + finalFileName + "' in "
-							        + cpds.getFolder().getAbsolutePath());
+									+ cpds.getFolder().getAbsolutePath());
 						} catch (InterruptedException | ExecutionException e) {
 							e.printStackTrace();
 						} catch (IOException e) {
@@ -909,7 +951,7 @@ public class ChatbotController extends AbstractAsyncController {
 					}
 
 					LabNotesEntry.log(CompleteDSController.class, LabNotesEntryType.DATA,
-					        "Files uploaded to dataset: " + ds.getName(), ds.getProject());
+							"Files uploaded to dataset: " + ds.getName(), ds.getProject());
 				}
 			} catch (NullPointerException e) {
 				logger.error("Error uploading file to dataset.", e);
@@ -1024,7 +1066,7 @@ public class ChatbotController extends AbstractAsyncController {
 		logger.info("Indexing all document chunks...");
 
 		try (FSDirectory indexDirectory = FSDirectory.open(getSearchIndexDir(cpds));
-		        StandardAnalyzer analyzer = new StandardAnalyzer();) {
+				StandardAnalyzer analyzer = new StandardAnalyzer();) {
 			IndexWriterConfig config = new IndexWriterConfig(analyzer);
 			try (IndexWriter indexWriter = new IndexWriter(indexDirectory, config)) {
 				// find all relevant context
@@ -1060,7 +1102,7 @@ public class ChatbotController extends AbstractAsyncController {
 									}
 
 									document.add(new KnnVectorField("contents-vector", floatArray,
-									        VectorSimilarityFunction.DOT_PRODUCT));
+											VectorSimilarityFunction.DOT_PRODUCT));
 									try {
 										indexWriter.addDocument(document);
 									} catch (IOException e) {
@@ -1101,12 +1143,12 @@ public class ChatbotController extends AbstractAsyncController {
 		}
 
 		try (FSDirectory indexDirectory = FSDirectory.open(getSearchIndexDir(cpds));
-		        DirectoryReader indexReader = DirectoryReader.open(indexDirectory);) {
+				DirectoryReader indexReader = DirectoryReader.open(indexDirectory);) {
 			IndexSearcher searcher = new IndexSearcher(indexReader);
 
 			// embed query
 			List<List<Double>> embeddings = managedAIAPIService.dispatchEmbeddingRequest("SYSTEM",
-			        Arrays.asList(queryStr));
+					Arrays.asList(queryStr));
 			int dims = embeddings.get(0).size();
 			float[] floatArray = new float[dims];
 			for (int i = 0; i < floatArray.length; i++) {
@@ -1130,7 +1172,7 @@ public class ChatbotController extends AbstractAsyncController {
 
 		// return a list of max three items from the sorted set -> stream (sorted by score DESC)
 		return results.stream().sorted((a, b) -> -Float.compare(a.score, b.score)).limit(3)
-		        .collect(Collectors.toList());
+				.collect(Collectors.toList());
 	}
 
 	private Path getSearchIndexDir(CompleteDS cpds) {

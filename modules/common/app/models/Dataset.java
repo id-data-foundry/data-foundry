@@ -79,6 +79,7 @@ public class Dataset extends Model {
 	public static final String CHATBOT_RAG_MAX_HITS = "chatbot_rag_max_hits";
 	public static final String CHATBOT_RAG_SCORE_THRESHOLD = "chatbot_rag_score_threshold";
 	public static final String CHATBOT_STORE_CHATS = "chatbot_store_chats";
+	public static final String CHATBOT_SHOW_SOURCES = "chatbot_show_sources";
 
 	// Activity Logger
 	public static final String DIRECT_EVENT_ACTIVITIES = "direct_event_activities";

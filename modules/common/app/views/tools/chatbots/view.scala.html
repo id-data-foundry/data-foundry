@@ -156,6 +156,16 @@
               Relevance Threshold (0.0 - 1.0)
             </label>
           </div>
+          <div class="input-field">
+            <div class="switch">
+              <label>
+                Hide Sources
+                <input type="checkbox" name="@Dataset.CHATBOT_SHOW_SOURCES" @if(!dataset.configuration(Dataset.CHATBOT_SHOW_SOURCES, "").isEmpty()){checked}>
+                <span class="lever"></span>
+                Show Sources
+              </label>
+            </div>
+          </div>
         </details>
         <details>
           <summary><b>Behavior options</b></summary>
