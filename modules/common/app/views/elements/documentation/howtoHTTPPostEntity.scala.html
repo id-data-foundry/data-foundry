@@ -1,100 +1,98 @@
-@(id: Long, token: String, request: Http.Request)
+@(dataset : Dataset)(implicit request: Http.Request)
 <p>
   Warning: Do NOT use email passwords or school account data in this kind of database. Do make this clear to all users of this Entity dataset.
 </p>
 <ul class="collapsible">
   <li class="">
-    <div class="collapsible-header">Javascript (with jQuery)</div>
+    <div class="collapsible-header">Javascript</div>
     <div class="collapsible-body">
-      <b>Add a data item to the dataset</b>
-      <pre class="language-javascript">
-          <code class="language-javascript">
-$.ajax(
-  {
-    url: '@api.routes.EntityDSController.addItemApi(id).absoluteURL(request, true)',
+<b>Add a data item to the dataset</b>
+       <pre class="language-javascript">
+           <code class="language-javascript">
+var data = { ... your data goes here ... }
+var jsonBody = {
+    'resource_id': 'some_identifier',
+    'token': 'token_for_identifier',
+    data: JSON.stringify(data)
+}
+request = fetch('@api.routes.EntityDSController.addItemApi(dataset.getId(), dataset.configuration(Dataset.API_TOKEN, "TOKEN")).absoluteURL(true, request.host())', {
+    method: 'POST',
+    mode: 'cors',
+    cache: 'no-cache',
     headers: {
-      'api_token': '@token',
-      'resource_id': 'some_identifier',
-      'token': 'token_for_identifier'
+            'Content-Type': 'application/json'
     },
-    type: 'POST',
-    contentType: 'application/json',
-    data: JSON.stringify({parameter1: 'hello world!', parameter2: 1.2}),
-    success: function(data) {
-      console.log(data)
-    },
-    error: function(e) {
-      console.log(e)
-    }
-  }
-);</code>
+    redirect: 'follow',
+    referrerPolicy: 'no-referrer',
+    body: JSON.stringify(jsonBody)
+});
+print(request)
+</code>
       </pre>
-      <b>Get a data item from the dataset</b>
-      <pre class="language-javascript">
-          <code class="language-javascript">
-$.ajax(
-  {
-    url: '@api.routes.EntityDSController.getItemApi(id).absoluteURL(request, true)',
+<b>Get a data item from the dataset</b>
+       <pre class="language-javascript">
+           <code class="language-javascript">
+var jsonBody = {
+    'resource_id': 'some_identifier',
+    'token': 'token_for_identifier'
+}
+request = fetch('@api.routes.EntityDSController.getItemApi(dataset.getId(), dataset.configuration(Dataset.API_TOKEN, "TOKEN")).absoluteURL(true, request.host())', {
+    method: 'POST',
+    mode: 'cors',
+    cache: 'no-cache',
     headers: {
-      'api_token': '@token',
-      'resource_id': 'some_identifier',
-      'token': 'token_for_identifier'
+            'Content-Type': 'application/json'
     },
-    type: 'GET',
-    contentType: 'application/json',
-    success: function(data) {
-      console.log(data)
-    },
-    error: function(e) {
-      console.log(e)
-    }
-  }
-);</code>
+    redirect: 'follow',
+    referrerPolicy: 'no-referrer',
+    body: JSON.stringify(jsonBody)
+});
+print(request)
+</code>
       </pre>
-      <b>Update a data item in the dataset</b>
-      <pre class="language-javascript">
-          <code class="language-javascript">
-$.ajax(
-  {
-    url: '@api.routes.EntityDSController.updateItemApi(id).absoluteURL(request, true)',
+<b>Update a data item in the dataset</b>
+       <pre class="language-javascript">
+           <code class="language-javascript">
+var data = { ... your data goes here ... }
+var jsonBody = {
+    'resource_id': 'some_identifier',
+    'token': 'token_for_identifier',
+    data: JSON.stringify(data)
+}
+request = fetch('@api.routes.EntityDSController.updateItemApi(dataset.getId(), dataset.configuration(Dataset.API_TOKEN, "TOKEN")).absoluteURL(true, request.host())', {
+    method: 'POST',
+    mode: 'cors',
+    cache: 'no-cache',
     headers: {
-      'api_token': '@token',
-      'resource_id': 'some_identifier',
-      'token': 'token_for_identifier'
+            'Content-Type': 'application/json'
     },
-    type: 'PUT',
-    contentType: 'application/json',
-    data: JSON.stringify({parameter1: 'helloworld!', parameter2: 1.2}),
-    success: function(data) {
-      console.log(data)
-    },
-    error: function(e) {
-      console.log(e)
-    }
-  }
-);</code>
+    redirect: 'follow',
+    referrerPolicy: 'no-referrer',
+    body: JSON.stringify(jsonBody)
+});
+print(request)
+</code>
       </pre>
-      <b>Delete a data item from the dataset</b>
-      <pre class="language-javascript">
-          <code class="language-javascript">
-$.ajax(
-  {
-    url: '@api.routes.EntityDSController.deleteItemApi(id).absoluteURL(request, true)',
+<b>Delete a data item from the dataset</b>
+       <pre class="language-javascript">
+           <code class="language-javascript">
+var jsonBody = {
+    'resource_id': 'some_identifier',
+    'token': 'token_for_identifier'
+}
+request = fetch('@api.routes.EntityDSController.deleteItemApi(dataset.getId(), dataset.configuration(Dataset.API_TOKEN, "TOKEN")).absoluteURL(true, request.host())', {
+    method: 'POST',
+    mode: 'cors',
+    cache: 'no-cache',
     headers: {
-      'api_token': '@token',
-      'resource_id': 'some_identifier',
-      'token': 'token_for_identifier'
+            'Content-Type': 'application/json'
     },
-    type: 'DELETE',
-    contentType: 'application/json',
-    success: function(data) {
-      console.log(data)
-    },
-    error: function(e) {
-      console.log(e)
-    }
-  }
-);</code>
+    redirect: 'follow',
+    referrerPolicy: 'no-referrer',
+    body: JSON.stringify(jsonBody)
+});
+print(request)
+</code>
       </pre>
       With the exception of the DELETE request, all requests return the current state of the object as JSON or a String.
     </div>
@@ -102,94 +100,94 @@ $.ajax(
   <li class="">
     <div class="collapsible-header">cURL</div>
     <div class="collapsible-body">
-      <b>Add a data item to the dataset</b>
-      <pre class="language-bash">
-          <code class="language-bash">
-curl -X POST -H 'Content-Type: application/json' -H 'api_token: @token' -H 'resource_id: some_identifier' -H 'token: token_for_identifier' -d '{"parameter1": 2, "parameter2": 5}' @api.routes.EntityDSController.addItemApi(id).absoluteURL(request, true)</code>
-      </pre>
-      <b>Get a data item from the dataset</b>
-      <pre class="language-bash">
-          <code class="language-bash">
-curl -X GET -H 'api_token: @token' -H 'resource_id: some_identifier' -H 'token: token_for_identifier' @api.routes.EntityDSController.getItemApi(id).absoluteURL(request, true)</code>
-      </pre>
-      <b>Update a data item in the dataset</b>
-      <pre class="language-bash">
-          <code class="language-bash">
-curl -X PUT -H 'Content-Type: application/json' -H 'api_token: @token' -H 'resource_id: some_identifier' -H 'token: token_for_identifier' -d '{"parameter1": 2, "parameter2": 5}' @api.routes.EntityDSController.updateItemApi(id).absoluteURL(request, true)</code>
-      </pre>
-      <b>Delete a data item from the dataset</b>
-      <pre class="language-bash">
-          <code class="language-bash">
-curl -X DELETE -H 'api_token: @token' -H 'resource_id: some_identifier' -H 'token: token_for_identifier' @api.routes.EntityDSController.deleteItemApi(id).absoluteURL(request, true)</code>
-      </pre>
-    </div>
-  </li>
-  <li class="">
-    <div class="collapsible-header">Arduino/ESP</div>
+<b>Add a data item to the dataset</b>
+       <pre class="language-bash">
+           <code class="language-bash">
+curl -X POST -H 'Content-Type: application/json' -H 'api_token: @dataset.configuration(Dataset.API_TOKEN, "TOKEN")' -H 'resource_id: some_identifier' -H 'token: token_for_identifier' -d '{"parameter1": 2, "parameter2": 5}' @api.routes.EntityDSController.addItemApi(dataset.getId(), dataset.configuration(Dataset.API_TOKEN, "TOKEN")).absoluteURL(true, request.host())</code>
+       </pre>
+<b>Get a data item from the dataset</b>
+       <pre class="language-bash">
+           <code class="language-bash">
+curl -X GET -H 'api_token: @dataset.configuration(Dataset.API_TOKEN, "TOKEN")' -H 'resource_id: some_identifier' -H 'token: token_for_identifier' @api.routes.EntityDSController.getItemApi(dataset.getId(), dataset.configuration(Dataset.API_TOKEN, "TOKEN")).absoluteURL(true, request.host())</code>
+       </pre>
+<b>Update a data item in the dataset</b>
+       <pre class="language-bash">
+           <code class="language-bash">
+curl -X PUT -H 'Content-Type: application/json' -H 'api_token: @dataset.configuration(Dataset.API_TOKEN, "TOKEN")' -H 'resource_id: some_identifier' -H 'token: token_for_identifier' -d '{"parameter1": 2, "parameter2": 5}' @api.routes.EntityDSController.updateItemApi(dataset.getId(), dataset.configuration(Dataset.API_TOKEN, "TOKEN")).absoluteURL(true, request.host())</code>
+       </pre>
+<b>Delete a data item from the dataset</b>
+       <pre class="language-bash">
+           <code class="language-bash">
+curl -X DELETE -H 'api_token: @dataset.configuration(Dataset.API_TOKEN, "TOKEN")' -H 'resource_id: some_identifier' -H 'token: token_for_identifier' @api.routes.EntityDSController.deleteItemApi(dataset.getId(), dataset.configuration(Dataset.API_TOKEN, "TOKEN")).absoluteURL(true, request.host())</code>
+       </pre>
+     </div>
+   </li>
+   <li class="">
+     <div class="collapsible-header">Arduino/ESP</div>
     <div class="collapsible-body">
       These examples use the built-in ESP HTTPClient library. To avoid authentication problems with the library, ensure that the "token" parameter is set before the "api_token" parameter in the HTTP request.
       <br><br>
-      <b>Add a data item to the dataset</b>
-      <pre class="language-Arduino">
-          <code class="language-Arduino">
+<b>Add a data item to the dataset</b>
+       <pre class="language-Arduino">
+           <code class="language-Arduino">
 String postMessage = "{\"param1\": 1, \"param2\": 3.4}";
-http.begin("@api.routes.EntityDSController.addItemApi(id).absoluteURL(request, true)");
+http.begin("@api.routes.EntityDSController.addItemApi(dataset.getId(), dataset.configuration(Dataset.API_TOKEN, "TOKEN")).absoluteURL(true, request.host())");
 http.addHeader("Content-Type", "application/json");
 http.addHeader("resource_id", "some_identifier");
 http.addHeader("token", "token_for_identifier");
-http.addHeader("api_token", "@token");
+http.addHeader("api_token", "@dataset.configuration(Dataset.API_TOKEN, "TOKEN")");
 int httpCode = http.POST(postMessage);
 if(httpCode == HTTP_CODE_OK) {
   String jsonResponse = http.getString();
   // ...
 }</code>
       </pre>
-      <b>Get a data item from the dataset</b>
-      <pre class="language-Arduino">
-          <code class="language-Arduino">
-http.begin("@api.routes.EntityDSController.getItemApi(id).absoluteURL(request, true)");
+<b>Get a data item from the dataset</b>
+       <pre class="language-Arduino">
+           <code class="language-Arduino">
+http.begin("@api.routes.EntityDSController.getItemApi(dataset.getId(), dataset.configuration(Dataset.API_TOKEN, "TOKEN")).absoluteURL(true, request.host())");
 http.addHeader("Content-Type", "application/json");
 http.addHeader("resource_id", "some_identifier");
 http.addHeader("token", "token_for_identifier");
-http.addHeader("api_token", "@token");
+http.addHeader("api_token", "@dataset.configuration(Dataset.API_TOKEN, "TOKEN")");
 int httpCode = http.GET();
 if(httpCode == HTTP_CODE_OK) {
   String jsonResponse = http.getString();
   // ...
 }</code>
-      </pre>
-      <b>Update a data item in the dataset</b>
-      <pre class="language-Arduino">
-          <code class="language-Arduino">
+       </pre>
+<b>Update a data item in the dataset</b>
+       <pre class="language-Arduino">
+           <code class="language-Arduino">
 String postMessage = "{\"param1\": 2, \"param2\": 3.5, \"param3\": \"hello!\"}";
-http.begin("@api.routes.EntityDSController.updateItemApi(id).absoluteURL(request, true)");
+http.begin("@api.routes.EntityDSController.updateItemApi(dataset.getId(), dataset.configuration(Dataset.API_TOKEN, "TOKEN")).absoluteURL(true, request.host())");
 http.addHeader("Content-Type", "application/json");
 http.addHeader("resource_id", "some_identifier");
 http.addHeader("token", "token_for_identifier");
-http.addHeader("api_token", "@token");
+http.addHeader("api_token", "@dataset.configuration(Dataset.API_TOKEN, "TOKEN")");
 int httpCode = http.PUT(postMessage);
 if(httpCode == HTTP_CODE_OK) {
   String jsonResponse = http.getString();
   // ...
 }</code>
-      </pre>
-      <b>Delete a data item from the dataset</b>
-      <pre class="language-Arduino">
-          <code class="language-Arduino">
-http.begin("@api.routes.EntityDSController.deleteItemApi(id).absoluteURL(request, true)");
+       </pre>
+<b>Delete a data item from the dataset</b>
+       <pre class="language-Arduino">
+           <code class="language-Arduino">
+http.begin("@api.routes.EntityDSController.deleteItemApi(dataset.getId(), dataset.configuration(Dataset.API_TOKEN, "TOKEN")).absoluteURL(true, request.host())");
 http.addHeader("Content-Type", "application/json");
 http.addHeader("resource_id", "some_identifier");
 http.addHeader("token", "token_for_identifier");
-http.addHeader("api_token", "@token");
+http.addHeader("api_token", "@dataset.configuration(Dataset.API_TOKEN, "TOKEN")");
 int httpCode = http.DELETE();
 if(httpCode == HTTP_CODE_OK) {
   // delete successful
 }</code>
-      </pre>
-    </div>
-  </li>
-  <li>
-    <div class="collapsible-header">Python</div>
+       </pre>
+     </div>
+   </li>
+   <li>
+     <div class="collapsible-header">Python</div>
     <div class="collapsible-body">
       <b>Import libraries</b>
       <p>
@@ -199,74 +197,70 @@ if(httpCode == HTTP_CODE_OK) {
           <code class="language-bash">
 pip install requests</code>
       </pre>
-      <b>Add a data item to the dataset</b>
-      <pre class="language-python">
-          <code class="language-python">
+<b>Add a data item to the dataset</b>
+       <pre class="language-python">
+           <code class="language-python">
 # import requests library
 import requests
 # API endpoint
-URL = "@api.routes.EntityDSController.addItemApi(id).absoluteURL(request, true)"
+URL = "@api.routes.EntityDSController.addItemApi(dataset.getId(), dataset.configuration(Dataset.API_TOKEN, "TOKEN")).absoluteURL(true, request.host())"
 # use dict for headers to be sent to the API
 HEADERS = {
-  'api_token': '@token',
   'resource_id':'some_identifier',
   'token': 'token_for_identifier'
 }
-# use dict for data items to be stored by the API 
-PARAMS = {'data_item1': 'DATA 1', 'data_item2': 12.5} 
-# post request 
+# use dict for data items to be stored by the API
+PARAMS = {'data_item1': 'DATA 1', 'data_item2': 12.5}
+# post request
 r = requests.post(url = URL, headers= HEADERS, json = PARAMS)</code>
-      </pre>
-      <b>Get a data item from the dataset</b>
-      <pre class="language-python">
-          <code class="language-python">
+       </pre>
+<b>Get a data item from the dataset</b>
+       <pre class="language-python">
+           <code class="language-python">
 # import requests library
 import requests
 # API endpoint
-URL = "@api.routes.EntityDSController.getItemApi(id).absoluteURL(request, true)"
+URL = "@api.routes.EntityDSController.getItemApi(dataset.getId(), dataset.configuration(Dataset.API_TOKEN, "TOKEN")).absoluteURL(true, request.host())"
 # use dict for headers to be sent to the API
 HEADERS = {
-  'api_token': '@token',
   'resource_id':'some_identifier',
   'token': 'token_for_identifier'
 }
-# post request 
+# post request
 r = requests.get(url = URL, headers= HEADERS, json = {})</code>
-      </pre>
-      <b>Update a data item in the dataset</b>
-      <pre class="language-python">
-          <code class="language-python">
+       </pre>
+<b>Update a data item in the dataset</b>
+       <pre class="language-python">
+           <code class="language-python">
 # import requests library
 import requests
 # API endpoint
-URL = "@api.routes.EntityDSController.updateItemApi(id).absoluteURL(request, true)"
+URL = "@api.routes.EntityDSController.updateItemApi(dataset.getId(), dataset.configuration(Dataset.API_TOKEN, "TOKEN")).absoluteURL(true, request.host())"
 # use dict for headers to be sent to the API
 HEADERS = {
-  'api_token': '@token',
   'resource_id':'some_identifier',
   'token': 'token_for_identifier'
 }
-# use dict for data items to be stored by the API 
-PARAMS = {'data_item1': 'DATA 1 v2', 'data_item3': true} 
-# post request 
+# use dict for data items to be stored by the API
+PARAMS = {'data_item1': 'DATA 1 v2', 'data_item3': true}
+# post request
 r = requests.put(url = URL, headers= HEADERS, json = PARAMS)</code>
-      </pre>
-      <b>Delete a data item from the dataset</b>
-      <pre class="language-python">
-          <code class="language-python">
+       </pre>
+<b>Delete a data item from the dataset</b>
+       <pre class="language-python">
+           <code class="language-python">
 # import requests library
 import requests
 # API endpoint
-URL = "@api.routes.EntityDSController.deleteItemApi(id).absoluteURL(request, true)"
+URL = "@api.routes.EntityDSController.deleteItemApi(dataset.getId(), dataset.configuration(Dataset.API_TOKEN, "TOKEN")).absoluteURL(true, request.host())"
 # use dict for headers to be sent to the API
 HEADERS = {
-  'api_token': '@token',
   'resource_id':'some_identifier',
   'token': 'token_for_identifier'
 }
-# post request 
+# post request
 r = requests.delete(url = URL, headers= HEADERS, json = {})</code>
-      </pre>
+       </pre>
       With the exception of the DELETE request, all requests return the current state of the object as JSON or a String.
     </div>
   </li>
@@ -279,17 +273,17 @@ r = requests.delete(url = URL, headers= HEADERS, json = {})</code>
       <p>
         Depending on your Java programming environment, for instance, Processing or an IDE like Eclipse or IntelliJ, you need to import the library first before you can use it. In Processing, you need to download the jar file linked above and then put it into a "code" folder next to the Processing pde file that you want to use the library with. After that restart Processing (for safe measure) and use the library in your code.
       </p>
-      <pre class="language-Java">
-          <code class="language-Java">
+<pre class="language-Java">
+           <code class="language-Java">
 // import the library
 import nl.tue.id.datafoundry.*;
 import java.util.Map;
 // fill in the Data Foundry server URL, just the domain (add port if needed)
 DataFoundry df = new DataFoundry("@routes.HomeController.index().absoluteURL(request)");
 // create dataset access
-DFDataset entity = df.dataset(@id, "@token");
+DFDataset entity = df.dataset(@dataset.getId(), "@dataset.configuration(Dataset.API_TOKEN, "TOKEN")");
 // or: create access directly for a specific item in the dataset
-DFDataset item = df.dataset(@id, "@token").id("userX").token("nosecrets");
+DFDataset item = df.dataset(@dataset.getId(), "@dataset.configuration(Dataset.API_TOKEN, "TOKEN")").id("userX").token("nosecrets");
 // add an item
 item.data("temperature", 34).data("door", "open").add();
 // get an item
@@ -300,7 +294,7 @@ String doorState = (String) itemData.get("door");
 item.data("temperature", 32).update();
 // delete an item
 item.delete();</code>
-      </pre>
-    </div>
-  </li>
+       </pre>
+     </div>
+   </li>
 </ul>

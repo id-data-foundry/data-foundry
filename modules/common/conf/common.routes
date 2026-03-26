@@ -322,10 +322,10 @@ GET			/datasets/entity/record/:id							controllers.api.EntityDSController.recor
 GET			/datasets/entity/:id/items							controllers.api.EntityDSController.getItems(id: Long)
 GET			/datasets/entity/:id/itemsNested					controllers.api.EntityDSController.getItemsNested(request: Request, id: Long)
 POST		/datasets/entity/:id/items							controllers.api.EntityDSController.getItemsMatching(request: Request, id: Long)
-POST		/datasets/entity/:id/item/							controllers.api.EntityDSController.addItem(request: Request, id: Long)
-GET			/datasets/entity/:id/item/							controllers.api.EntityDSController.getItem(request: Request, id: Long)
-PUT			/datasets/entity/:id/item/							controllers.api.EntityDSController.updateItem(request: Request, id: Long)
-DELETE		/datasets/entity/:id/item/							controllers.api.EntityDSController.deleteItem(request: Request, id: Long)
+POST		/datasets/entity/:id/item/							controllers.api.EntityDSController.addItem(request: Request, id: Long, dsApiToken: String ?= "")
+GET			/datasets/entity/:id/item/							controllers.api.EntityDSController.getItem(request: Request, id: Long, dsApiToken: String ?= "")
+PUT			/datasets/entity/:id/item/							controllers.api.EntityDSController.updateItem(request: Request, id: Long, dsApiToken: String ?= "")
+DELETE		/datasets/entity/:id/item/							controllers.api.EntityDSController.deleteItem(request: Request, id: Long, dsApiToken: String ?= "")
 GET			/datasets/entity/raw/:id.csv						controllers.api.EntityDSController.downloadRaw(request: Request, id: Long, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
 GET			/datasets/entity/rawPublic/*token					controllers.api.EntityDSController.downloadRawPublic(request: Request, token: String)
 
@@ -525,10 +525,17 @@ GET			/tools/models										controllers.api2.UnmanagedAIApiController.modelsPag
 POST		/api/v1/datasets/ts/:id								controllers.api.TimeseriesDSController.logApi(request: Request, id: Long, activity: String ?= "")
 POST		/api/v1/datasets/ts/:id/:dsApiToken					controllers.api.TimeseriesDSController.recordApi(request: Request, id: Long, dsApiToken: String)
 
-POST		/api/v1/datasets/entity/:id							controllers.api.EntityDSController.addItemApi(request: Request, id: Long)
-GET			/api/v1/datasets/entity/:id							controllers.api.EntityDSController.getItemApi(request: Request, id: Long)
-PUT			/api/v1/datasets/entity/:id							controllers.api.EntityDSController.updateItemApi(request: Request, id: Long)
-DELETE		/api/v1/datasets/entity/:id							controllers.api.EntityDSController.deleteItemApi(request: Request, id: Long)
+# New entity dataset URL format
+POST		/api/v1/datasets/entity/:id/:dsApiToken					controllers.api.EntityDSController.addItemApi(request: Request, id: Long, dsApiToken: String)
+GET			/api/v1/datasets/entity/:id/:dsApiToken					controllers.api.EntityDSController.getItemApi(request: Request, id: Long, dsApiToken: String)
+PUT			/api/v1/datasets/entity/:id/:dsApiToken					controllers.api.EntityDSController.updateItemApi(request: Request, id: Long, dsApiToken: String)
+DELETE		/api/v1/datasets/entity/:id/:dsApiToken					controllers.api.EntityDSController.deleteItemApi(request: Request, id: Long, dsApiToken: String)
+
+# Legacy entity dataset URL format
+POST		/api/v1/datasets/entity/:id				                controllers.api.EntityDSController.addItemApi(request: Request, id: Long, dsApiToken: String ?= "")
+GET			/api/v1/datasets/entity/:id				                controllers.api.EntityDSController.getItemApi(request: Request, id: Long, dsApiToken: String ?= "")
+PUT			/api/v1/datasets/entity/:id				                controllers.api.EntityDSController.updateItemApi(request: Request, id: Long, dsApiToken: String ?= "")
+DELETE		/api/v1/datasets/entity/:id				                controllers.api.EntityDSController.deleteItemApi(request: Request, id: Long, dsApiToken: String ?= "")
 
 POST		/api/v1/datasets/media/:id							controllers.api.MediaDSController.addItemApi(request: Request, id: Long)
 GET			/api/v1/datasets/media/:id/:filename					controllers.api.MediaDSController.getItemApi(request: Request, id: Long, filename: String)

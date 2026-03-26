@@ -43,6 +43,39 @@ public class EntityDSController extends AbstractDSController {
 		super(formFactory, cache, datasetConnector, onboardingSupport);
 	}
 
+    private Optional<String> validateApiToken(
+        Request request,
+        Dataset ds,
+        EntityDS eds,
+        String resource_id,
+        String dsApiToken
+    ) {
+        final String internalToken = ds.getConfiguration().get(Dataset.API_TOKEN);
+
+        // Try parameter token first
+        if (dsApiToken != null && internalToken.equals(dsApiToken)) {
+            return Optional.ofNullable(dsApiToken);
+        }
+
+        // Try header token
+        final String headerToken = request.header("api_token").orElse("");
+        if (!headerToken.isEmpty() && internalToken.equals(headerToken)) {
+            return Optional.ofNullable(headerToken);
+        }
+
+        // Invalid or missing token - check user permissions for item-level access
+        if (!headerToken.isEmpty()) {
+            String username = getAuthenticatedUserNameOrReturn(request, redirect(LANDING));
+            if (username != null && !username.isEmpty() && ds.editableBy(username)) {
+                return eds.internalGetItemToken(resource_id);
+            } else {
+                throw new RuntimeException("No token given, no user logged in with edit permissions for this dataset.");
+            }
+        }
+
+        throw new RuntimeException("Api token is not correct");
+    }
+	
 	@Authenticated(UserAuth.class)
 	public Result view(Request request, Long id) {
 		String username = getAuthenticatedUserNameOrReturn(request, redirect(LANDING));
@@ -252,13 +285,12 @@ public class EntityDSController extends AbstractDSController {
 		});
 	}
 
-	@Authenticated(DatasetApiAuth.class)
-	public CompletionStage<Result> addItemApi(Request request, Long id) {
-		return addItem(request, id);
+	public CompletionStage<Result> addItemApi(Request request, Long id, final String dsApiToken) {
+		return addItem(request, id, dsApiToken);
 	}
 
 	@Authenticated(DatasetApiAuth.class)
-	public CompletionStage<Result> addItem(Request request, Long id) {
+	public CompletionStage<Result> addItem(Request request, Long id, final String dsApiToken) {
 		return CompletableFuture.supplyAsync(() -> {
 			Dataset ds = Dataset.find.byId(id);
 			if (ds == null) {
@@ -278,17 +310,25 @@ public class EntityDSController extends AbstractDSController {
 				return badRequest(errorJSONResponseObject("No resource_id given."));
 			}
 
-			final EntityDS eds = datasetConnector.getTypedDatasetDS(ds);
-
-			// check authorized user in case of empty token
-			String token = request.header("token").orElse(request.header("api_token").orElse(""));
-			if (token.isEmpty()) {
-				String username = getAuthenticatedUserNameOrReturn(request, redirect(LANDING));
-				if (username == null || username.isEmpty() || !ds.editableBy(username)) {
-					return badRequest(errorJSONResponseObject(
-							"No token given, no user logged in with edit permissions for this dataset."));
-				}
-			}
+			// check API token (both internal and configuration)
+            final EntityDS eds = datasetConnector.getTypedDatasetDS(ds);
+            String token;
+            final String checkToken = dsApiToken;
+            final String internalToken = ds.getConfiguration().get(Dataset.API_TOKEN);
+            if (checkToken == null || (!checkToken.equals(internalToken))) {
+                // try to get token from request body if dsApiToken is empty or invalid
+                final String checkBodyToken = request.header("api_token").orElse("");
+                if (
+                    checkBodyToken.isEmpty() ||
+                    (!checkBodyToken.equals(internalToken))
+                ) {
+                    return forbidden("Api token is not correct");
+                } else {
+                    token = checkBodyToken;
+                }
+            } else {
+                token = checkToken;
+            }
 
 			// ADD operation
 			Optional<ObjectNode> data = eds.addItem(resource_id, Optional.of(token), jn);
@@ -308,13 +348,12 @@ public class EntityDSController extends AbstractDSController {
 		});
 	}
 
-	@Authenticated(DatasetApiAuth.class)
-	public CompletionStage<Result> getItemApi(Request request, Long id) {
-		return getItem(request, id);
+	public CompletionStage<Result> getItemApi(Request request, Long id, final String dsApiToken) {
+		return getItem(request, id, dsApiToken);
 	}
 
 	@Authenticated(DatasetApiAuth.class)
-	public CompletionStage<Result> getItem(Request request, Long id) {
+	public CompletionStage<Result> getItem(Request request, Long id, final String dsApiToken) {
 		return CompletableFuture.supplyAsync(() -> {
 			Dataset ds = Dataset.find.byId(id);
 			if (ds == null) {
@@ -328,19 +367,27 @@ public class EntityDSController extends AbstractDSController {
 			}
 
 			final EntityDS eds = datasetConnector.getTypedDatasetDS(ds);
-
-			// check authorized user in case of empty token
-			String token = request.header("token").orElse(request.header("api_token").orElse(""));
-			Optional<String> tokenOpt = Optional.of(token);
-			if (token.isEmpty()) {
-				String username = getAuthenticatedUserNameOrReturn(request, redirect(LANDING));
-				if (username != null && !username.isEmpty() && ds.editableBy(username)) {
-					tokenOpt = eds.internalGetItemToken(resource_id);
-				}
-			}
+            String tokenOpt;
+            // check API token (both internal and configuration)
+            final String checkToken = dsApiToken;
+            final String internalToken = ds.getConfiguration().get(Dataset.API_TOKEN);
+            if (checkToken == null || (!ds.getApiToken().equals(checkToken) && !checkToken.equals(internalToken))) {
+                // try to get token from request body if dsApiToken is empty or invalid
+                final String checkBodyToken = request.header("api_token").orElse("");
+                if (
+                    checkBodyToken.isEmpty() ||
+                    (!checkBodyToken.equals(internalToken))
+                ) {
+                    return forbidden("Api token is not correct");
+                } else {
+                    tokenOpt = checkBodyToken;
+                }
+            } else {
+                tokenOpt = checkToken;
+            }
 
 			// GET operation
-			Optional<ObjectNode> data = eds.getItem(resource_id, tokenOpt);
+			Optional<ObjectNode> data = eds.getItem(resource_id, Optional.of(tokenOpt));
 			if (data.isEmpty()) {
 				return notFound("Item not found or incorrect token given.");
 			} else {
@@ -357,13 +404,12 @@ public class EntityDSController extends AbstractDSController {
 		});
 	}
 
-	@Authenticated(DatasetApiAuth.class)
-	public CompletionStage<Result> updateItemApi(Request request, Long id) {
-		return updateItem(request, id);
+	public CompletionStage<Result> updateItemApi(Request request, Long id, final String dsApiToken) {
+		return updateItem(request, id, dsApiToken);
 	}
 
 	@Authenticated(DatasetApiAuth.class)
-	public CompletionStage<Result> updateItem(Request request, Long id) {
+	public CompletionStage<Result> updateItem(Request request, Long id, final String dsApiToken) {
 		return CompletableFuture.supplyAsync(() -> {
 			Dataset ds = Dataset.find.byId(id);
 			if (ds == null) {
@@ -385,15 +431,13 @@ public class EntityDSController extends AbstractDSController {
 
 			final EntityDS eds = datasetConnector.getTypedDatasetDS(ds);
 
-			// check authorized user in case of empty token
-			String token = request.header("token").orElse(request.header("api_token").orElse(""));
-			Optional<String> tokenOpt = Optional.of(token);
-			if (token.isEmpty()) {
-				String username = getAuthenticatedUserNameOrReturn(request, redirect(LANDING));
-				if (username != null && !username.isEmpty() && ds.editableBy(username)) {
-					tokenOpt = eds.internalGetItemToken(resource_id);
-				}
-			}
+            // Validate API token and get item-level token if needed
+            final Optional<String> tokenOpt;
+            try {
+                tokenOpt = validateApiToken(request, ds, eds, resource_id, dsApiToken);
+            } catch (RuntimeException e) {
+                return badRequest(errorJSONResponseObject(e.getMessage()));
+            }
 
 			// UPDATE operation
 			Optional<ObjectNode> data = eds.updateItem(resource_id, tokenOpt, jn);
@@ -413,13 +457,12 @@ public class EntityDSController extends AbstractDSController {
 		});
 	}
 
-	@Authenticated(DatasetApiAuth.class)
-	public CompletionStage<Result> deleteItemApi(Request request, Long id) {
-		return deleteItem(request, id);
+	public CompletionStage<Result> deleteItemApi(Request request, Long id, final String dsApiToken) {
+		return deleteItem(request, id, dsApiToken);
 	}
 
 	@Authenticated(DatasetApiAuth.class)
-	public CompletionStage<Result> deleteItem(Request request, Long id) {
+	public CompletionStage<Result> deleteItem(Request request, Long id, final String dsApiToken) {
 		return CompletableFuture.supplyAsync(() -> {
 			Dataset ds = Dataset.find.byId(id);
 			if (ds == null) {
@@ -433,16 +476,13 @@ public class EntityDSController extends AbstractDSController {
 			}
 
 			final EntityDS eds = datasetConnector.getTypedDatasetDS(ds);
-
-			// check authorized user in case of empty token
-			String token = request.header("token").orElse(request.header("api_token").orElse(""));
-			Optional<String> tokenOpt = Optional.of(token);
-			if (token.isEmpty()) {
-				String username = getAuthenticatedUserNameOrReturn(request, redirect(LANDING));
-				if (username != null && !username.isEmpty() && ds.editableBy(username)) {
-					tokenOpt = eds.internalGetItemToken(resource_id);
-				}
-			}
+            // Validate API token and get item-level token if needed
+            final Optional<String> tokenOpt;
+            try {
+                tokenOpt = validateApiToken(request, ds, eds, resource_id, dsApiToken);
+            } catch (RuntimeException e) {
+                return badRequest(errorJSONResponseObject(e.getMessage()));
+            }
 
 			// DELETE operation
 			Optional<ObjectNode> data = eds.deleteItem(resource_id, tokenOpt);
