@@ -53,7 +53,6 @@ import utils.components.TourManager.Tour;
 import utils.conf.ConfigurationUtils;
 import utils.rendering.FileUtil;
 import utils.rendering.MarkdownRenderer;
-import utils.tools.QRCodeUtil;
 import utils.validators.FileTypeUtils;
 
 public class HomeController extends AbstractAsyncController {
@@ -65,7 +64,6 @@ public class HomeController extends AbstractAsyncController {
 	private final TokenResolverUtil tokenResolverUtil;
 	private final MarkdownRenderer mdRenderer;
 	private final TourManager tourManager;
-	private final QRCodeUtil qrCodeUtil;
 	private final RealTimeNotificationService realtimeNotifications;
 	private final LocalModelMetadata localModelMetadata;
 
@@ -76,9 +74,8 @@ public class HomeController extends AbstractAsyncController {
 
 	@Inject
 	public HomeController(RefreshTask rt, Config configuration, Environment environment, SyncCacheApi sca,
-	        NotificationService ns, ProjectLifecycleService tbs, TokenResolverUtil tru, MarkdownRenderer mdRenderer,
-	        TourManager tourManager, QRCodeUtil qrCodeUtil, RealTimeNotificationService realtimeNotifications,
-	        LocalModelMetadata lmmd) {
+			NotificationService ns, ProjectLifecycleService tbs, TokenResolverUtil tru, MarkdownRenderer mdRenderer,
+			TourManager tourManager, RealTimeNotificationService realtimeNotifications, LocalModelMetadata lmmd) {
 		this.configuration = configuration;
 		this.environment = environment;
 		this.cache = sca;
@@ -86,7 +83,6 @@ public class HomeController extends AbstractAsyncController {
 		this.tokenResolverUtil = tru;
 		this.mdRenderer = mdRenderer;
 		this.tourManager = tourManager;
-		this.qrCodeUtil = qrCodeUtil;
 		this.realtimeNotifications = realtimeNotifications;
 		this.localModelMetadata = lmmd;
 
@@ -94,7 +90,7 @@ public class HomeController extends AbstractAsyncController {
 		ssoEnabled = ConfigurationUtils.isSSO(configuration);
 		// plain OIDC is enabled if tenant is not defined and SSO is enabled
 		ssoClientOIDC = !ConfigurationUtils.checkConfiguration(configuration, ConfigurationUtils.DF_SSO_TENANT)
-		        && ssoEnabled;
+				&& ssoEnabled;
 	}
 
 	public Result index(Request request) {
@@ -109,9 +105,9 @@ public class HomeController extends AbstractAsyncController {
 		if (getAuthenticatedUser(request).isPresent()) {
 			// redirect to projects and refresh the feedback link when landing plain
 			if (!request.session().get("feedback_link").isPresent()
-			        && configuration.hasPath(ConfigurationUtils.DF_FEEDBACK_LINK)) {
+					&& configuration.hasPath(ConfigurationUtils.DF_FEEDBACK_LINK)) {
 				return redirect(HOME).addingToSession(request, "feedback_link",
-				        configuration.getString(ConfigurationUtils.DF_FEEDBACK_LINK));
+						configuration.getString(ConfigurationUtils.DF_FEEDBACK_LINK));
 			} else {
 				return redirect(HOME);
 			}
@@ -122,17 +118,17 @@ public class HomeController extends AbstractAsyncController {
 		// retrieve simple project / dataset metrics that are cached for 120 seconds
 		long projects = cache.getOrElseUpdate("df_total_project_count", () -> Project.find.query().findCount(), 120);
 		long publicProjects = cache.getOrElseUpdate("df_total_public_project_count",
-		        () -> Project.find.query().where().eq("publicProject", true).findCount(), 120);
+				() -> Project.find.query().where().eq("publicProject", true).findCount(), 120);
 		long datasets = cache.getOrElseUpdate("df_total_dataset_count", () -> Dataset.find.query().findCount(), 120);
 
 		// inject announcement into the session
 		String announcement = getAnnouncement();
 		if (announcement != null && !announcement.isEmpty()) {
 			return ok(views.html.home.index.render(projects, publicProjects, datasets, request))
-			        .addingToSession(request, "announcement", announcement);
+					.addingToSession(request, "announcement", announcement);
 		} else {
 			return ok(views.html.home.index.render(projects, publicProjects, datasets, request))
-			        .removingFromSession(request, "announcement");
+					.removingFromSession(request, "announcement");
 		}
 	}
 
@@ -145,11 +141,11 @@ public class HomeController extends AbstractAsyncController {
 		// if the redirect URL is set, then put it into the session for later redirect after login
 		if (!redirectUrl.isEmpty()) {
 			return ok(views.html.home.login.render(ssoEnabled, ssoClientOIDC, environment.isDev(), username,
-			        csrfToken(request))).addingToSession(request, REDIRECT_URL, redirectUrl);
+					csrfToken(request))).addingToSession(request, REDIRECT_URL, redirectUrl);
 		}
 
 		return ok(views.html.home.login.render(ssoEnabled, ssoClientOIDC, environment.isDev(), username,
-		        csrfToken(request)));
+				csrfToken(request)));
 	}
 
 	@Secure(clients = "AzureAd2Client")
@@ -196,16 +192,16 @@ public class HomeController extends AbstractAsyncController {
 
 		// send email to user about password reset
 		Html htmlBody = views.html.emails.invite.render("Password reset",
-		        String.format("We send you an email because you requested a password reset for Data Foundry. "
-		                + "If that's the case, just click the button below to be forwarded to a form where you can reset your password. "
-		                + "Otherwise please ignore this message (trash it to self-destruct)."),
-		        actionLink);
+				String.format("We send you an email because you requested a password reset for Data Foundry. "
+						+ "If that's the case, just click the button below to be forwarded to a form where you can reset your password. "
+						+ "Otherwise please ignore this message (trash it to self-destruct)."),
+				actionLink);
 		String textBody = "Hello! \n\nWe send you an email because you requested a password reset for Data Foundry. "
-		        + "If that's the case, just click the link below to be forwarded to a form where you can reset your password. "
-		        + "Otherwise please ignore this message (trash it to self-destruct). \n\n" + actionLink + "\n\n";
+				+ "If that's the case, just click the link below to be forwarded to a form where you can reset your password. "
+				+ "Otherwise please ignore this message (trash it to self-destruct). \n\n" + actionLink + "\n\n";
 
 		notificationService.sendMail(user.getEmail(), textBody, htmlBody, actionLink,
-		        "[ID Data Foundry] Password reset", "Password reset request: " + actionLink);
+				"[ID Data Foundry] Password reset", "Password reset request: " + actionLink);
 		// note: we don't add a success message here to prevent that user accounts are discovered through this
 		// functionality
 		return redirect(routes.HomeController.login(userEmail, ""));
@@ -254,34 +250,15 @@ public class HomeController extends AbstractAsyncController {
 
 		// check whether we have a valid registration key
 		boolean registration = configuration.hasPath(ConfigurationUtils.DF_KEYS_REGISTRATION_ACCESS)
-		        && configuration.getStringList(ConfigurationUtils.DF_KEYS_REGISTRATION_ACCESS).stream()
-		                .anyMatch(s -> !s.trim().isEmpty());
+				&& configuration.getStringList(ConfigurationUtils.DF_KEYS_REGISTRATION_ACCESS).stream()
+						.anyMatch(s -> !s.trim().isEmpty());
 
 		// check whether link to teams community is defined
 		Optional<String> techCommunity = configuration.hasPath(ConfigurationUtils.DF_LINKS_TEAMS_COMMUNITY)
-		        ? Optional.of(configuration.getString(ConfigurationUtils.DF_LINKS_TEAMS_COMMUNITY))
-		        : Optional.empty();
+				? Optional.of(configuration.getString(ConfigurationUtils.DF_LINKS_TEAMS_COMMUNITY))
+				: Optional.empty();
 
 		return ok(views.html.home.support.render(user, ssoEnabled && registration, techCommunity));
-	}
-
-	/**
-	 * generate QR code; note: this is only visible for authenticated users to prevent misuse
-	 *
-	 * @param request
-	 * @param key
-	 * @param url
-	 * @return
-	 */
-	@Authenticated(UserAuth.class)
-	public Result qrCode(Request request, String key, String url) {
-
-		// generate caching key
-		String cachingKey = key.length() < 6 ? url : ("cached_qrcode_" + key);
-
-		// generate QR code and cache for 5 minutes
-		String pathStr = qrCodeUtil.generateCachedQRCode(url, cachingKey, 300);
-		return pathStr != null && !pathStr.isEmpty() ? ok(new File(pathStr)).as("image/png") : notFound();
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -320,12 +297,12 @@ public class HomeController extends AbstractAsyncController {
 			// replace documentation placeholder for configured Telegram bot name
 			if (ConfigurationUtils.hasKeyConfiguration(configuration, ConfigurationUtils.DF_TELEGRAM_BOTNAME)) {
 				docString = docString.replace("DATAFOUNDRYBOTNAME",
-				        configuration.getString(ConfigurationUtils.DF_TELEGRAM_BOTNAME));
+						configuration.getString(ConfigurationUtils.DF_TELEGRAM_BOTNAME));
 			}
 
 			// also replace DATAFOUNDRYBASEURL placeholder
 			docString = docString.replace("DATAFOUNDRYBASEURL",
-			        (environment.isProd() ? "https://" : "http://") + request.host());
+					(environment.isProd() ? "https://" : "http://") + request.host());
 
 			// finally replace configuration variables (using the direct configuration key as placeholders)
 			docString = ConfigurationUtils.replaceConfigurationVars(configuration, docString);
@@ -377,7 +354,7 @@ public class HomeController extends AbstractAsyncController {
 			try {
 				String contents = new String(java.nio.file.Files.readAllBytes(Paths.get(file.getAbsolutePath())));
 				return ok(views.html.home.documentationPage.render(mdRenderer.render(contents)))
-				        .as("text/html; charset=utf-8").withHeader("Cache-Control", "max-age=3600");
+						.as("text/html; charset=utf-8").withHeader("Cache-Control", "max-age=3600");
 			} catch (IOException e) {
 				// log and return the file
 				logger.error("Markdown transformation failed: " + file.getAbsolutePath());
@@ -474,26 +451,26 @@ public class HomeController extends AbstractAsyncController {
 		// internal pages ------------------
 		case "about":
 			return redirect(
-			        ConfigurationUtils.configure(configuration, ConfigurationUtils.DF_LINKS_ABOUT, "/documentation"));
+					ConfigurationUtils.configure(configuration, ConfigurationUtils.DF_LINKS_ABOUT, "/documentation"));
 		case "contact":
 			return redirect(ConfigurationUtils.configure(configuration, ConfigurationUtils.DF_LINKS_CONTACT,
-			        "/content/contact"));
+					"/content/contact"));
 		case "data-protection":
 			return redirect(ConfigurationUtils.configure(configuration, ConfigurationUtils.DF_LINKS_DATA_PROTECTION,
-			        "/documentation/Learning/DataFoundry/DataProtection.html"));
+					"/documentation/Learning/DataFoundry/DataProtection.html"));
 		// external pages ------------------
 		case "privacy":
 			return redirect(ConfigurationUtils.configure(configuration, ConfigurationUtils.DF_LINKS_PRIVACY,
-			        "https://www.tue.nl/en/storage/privacy/"));
+					"https://www.tue.nl/en/storage/privacy/"));
 		case "scientific-integrity":
 			return redirect(ConfigurationUtils.configure(configuration,
-			        ConfigurationUtils.DF_LINKS_SCIENTIFIC_INTEGRITY,
-			        "https://www.tue.nl/en/our-university/about-the-university/integrity/scientific-integrity/"));
+					ConfigurationUtils.DF_LINKS_SCIENTIFIC_INTEGRITY,
+					"https://www.tue.nl/en/our-university/about-the-university/integrity/scientific-integrity/"));
 		// images ------------------
 		case "organization-logo":
 			return ConfigurationUtils.hasKeyConfiguration(configuration, ConfigurationUtils.DF_LINKS_ORG_LOGO)
-			        ? redirect(ConfigurationUtils.configure(configuration, ConfigurationUtils.DF_LINKS_ORG_LOGO, ""))
-			        : redirect(routes.Assets.versioned(new Asset("images/tue-logo-stack-S.png")));
+					? redirect(ConfigurationUtils.configure(configuration, ConfigurationUtils.DF_LINKS_ORG_LOGO, ""))
+					: redirect(routes.Assets.versioned(new Asset("images/tue-logo-stack-S.png")));
 		// default -----------------
 		default:
 			return redirect(LANDING);
@@ -506,12 +483,12 @@ public class HomeController extends AbstractAsyncController {
 			canonical = configuration.getString("df.base_url") + "/.well-known/security.txt";
 		}
 		return ok(views.html.home.securitytxt.render(
-		        ConfigurationUtils.configure(configuration, ConfigurationUtils.DF_SECURITYTXT_CONTACT,
-		                "security@data-foundry.net"),
-		        ConfigurationUtils.configure(configuration, ConfigurationUtils.DF_SECURITYTXT_EXPIRES, "Jan 1, 2027"),
-		        canonical,
-		        ConfigurationUtils.configure(configuration, ConfigurationUtils.DF_SECURITYTXT_LANG, "English")))
-		                .as(MimeTypes.TEXT);
+				ConfigurationUtils.configure(configuration, ConfigurationUtils.DF_SECURITYTXT_CONTACT,
+						"security@data-foundry.net"),
+				ConfigurationUtils.configure(configuration, ConfigurationUtils.DF_SECURITYTXT_EXPIRES, "Jan 1, 2027"),
+				canonical,
+				ConfigurationUtils.configure(configuration, ConfigurationUtils.DF_SECURITYTXT_LANG, "English")))
+				.as(MimeTypes.TEXT);
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -519,19 +496,19 @@ public class HomeController extends AbstractAsyncController {
 	@Authenticated(UserAuth.class)
 	public Result getDFVibe() {
 		Source<EventSource.Event, Cancellable> eventSource = Source.tick(Duration.ZERO, Duration.ofSeconds(2), "")
-		        .map(tick -> {
-			        // compile the requests
-			        ObjectNode jo = Json.newObject();
-			        jo.put("incomingData", realtimeNotifications.getIncomingRequestRate());
-			        jo.set("activeUsers", realtimeNotifications.activeUsers().stream().collect(() -> Json.newArray(),
-			                ArrayNode::add, ArrayNode::addAll));
-			        jo.set("api_requests", realtimeNotifications.runningRequests().stream().map(r -> {
-				        return Json.newObject().put("task", r.getTask())
-				                .put("model", this.localModelMetadata.getModelName(r.getModel()))
-				                .put("state", r.getState()).put("valid", r.getValidUntil());
-			        }).collect(() -> Json.newArray(), ArrayNode::add, ArrayNode::addAll));
-			        return EventSource.Event.event(jo);
-		        });
+				.map(tick -> {
+					// compile the requests
+					ObjectNode jo = Json.newObject();
+					jo.put("incomingData", realtimeNotifications.getIncomingRequestRate());
+					jo.set("activeUsers", realtimeNotifications.activeUsers().stream().collect(() -> Json.newArray(),
+							ArrayNode::add, ArrayNode::addAll));
+					jo.set("api_requests", realtimeNotifications.runningRequests().stream().map(r -> {
+						return Json.newObject().put("task", r.getTask())
+								.put("model", this.localModelMetadata.getModelName(r.getModel()))
+								.put("state", r.getState()).put("valid", r.getValidUntil());
+					}).collect(() -> Json.newArray(), ArrayNode::add, ArrayNode::addAll));
+					return EventSource.Event.event(jo);
+				});
 
 		// return response with flow management
 		return ok().chunked(eventSource.via(EventSource.flow())).as(Http.MimeTypes.EVENT_STREAM);
@@ -550,7 +527,7 @@ public class HomeController extends AbstractAsyncController {
 
 		// careful with deleting stuff from a session!
 		Result result = ok(views.html.elements.flashSupport.render(request, message, error, tourOpt))
-		        .as(MimeTypes.JAVASCRIPT);
+				.as(MimeTypes.JAVASCRIPT);
 		if (message.isPresent()) {
 			result = result.removingFromSession(request, "message");
 		}
@@ -571,7 +548,7 @@ public class HomeController extends AbstractAsyncController {
 
 		// careful with deleting stuff from a session!
 		Result result = ok(views.html.elements.flashSupport.render(request, message, error, Optional.empty()))
-		        .as(MimeTypes.JAVASCRIPT);
+				.as(MimeTypes.JAVASCRIPT);
 		if (message.isPresent()) {
 			result = result.removingFromSession(request, "message");
 		}
@@ -586,7 +563,7 @@ public class HomeController extends AbstractAsyncController {
 	private String getAnnouncement() {
 		// find announcement folder
 		Optional<File> envFolder = environment.isDev() ? environment.getExistingFile("dist/announcements/")
-		        : environment.getExistingFile("announcements/");
+				: environment.getExistingFile("announcements/");
 		if (!envFolder.isPresent()) {
 			return "";
 		}
@@ -594,17 +571,17 @@ public class HomeController extends AbstractAsyncController {
 		final MarkdownRenderer mdr = new MarkdownRenderer();
 		final File folder = envFolder.get();
 		String result = Arrays
-		        .stream(folder.listFiles(
-		                f -> f.exists() && f.length() > 0 && f.getName().matches("([0-9]{8})-([0-9]{8})[.]md")))
-		        .map(f -> {
-			        try {
-				        List<String> lines = Files.readLines(f, Charset.defaultCharset());
-				        return mdr.render(lines.stream().collect(Collectors.joining("\n")));
-			        } catch (IOException e) {
-				        logger.error("", e);
-				        return null;
-			        }
-		        }).filter(s -> s != null && !s.isEmpty()).collect(Collectors.joining("</p><p>"));
+				.stream(folder.listFiles(
+						f -> f.exists() && f.length() > 0 && f.getName().matches("([0-9]{8})-([0-9]{8})[.]md")))
+				.map(f -> {
+					try {
+						List<String> lines = Files.readLines(f, Charset.defaultCharset());
+						return mdr.render(lines.stream().collect(Collectors.joining("\n")));
+					} catch (IOException e) {
+						logger.error("", e);
+						return null;
+					}
+				}).filter(s -> s != null && !s.isEmpty()).collect(Collectors.joining("</p><p>"));
 
 		return result.isEmpty() ? "" : ("<p>" + result + "</p>");
 	}
