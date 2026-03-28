@@ -47,6 +47,9 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 	@Inject
 	Environment environment;
 
+	@Inject
+	services.processing.MediaProcessingService mediaProcessingService;
+
 	public CompletionStage<Result> chatCompletion(Request request) {
 		return CompletableFuture.supplyAsync(() -> {
 
@@ -84,26 +87,26 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 				// streaming request
 				@SuppressWarnings("deprecation")
 				Source<ByteString, ?> source = Source.<ByteString>actorRef(16, OverflowStrategy.dropTail())
-				        .mapMaterializedValue(sourceActor -> {
-					        ChunkedWriter writer = new ChunkedWriter(sourceActor);
-					        StreamingRemoteApiRequest internalAPIRequest = new StreamingRemoteApiRequest(writer,
-					                ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, REQUEST_TASK_CHAT_COMPLETION,
-					                "", apiKey, -1L, (ObjectNode) json);
-					        internalAPIRequest.setPath("/v1/chat/completions");
-					        aiApiService.submitApiRequest(internalAPIRequest);
-					        return NotUsed.getInstance();
-				        });
+						.mapMaterializedValue(sourceActor -> {
+							ChunkedWriter writer = new ChunkedWriter(sourceActor);
+							StreamingRemoteApiRequest internalAPIRequest = new StreamingRemoteApiRequest(writer,
+									ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, REQUEST_TASK_CHAT_COMPLETION,
+									"", apiKey, -1L, (ObjectNode) json);
+							internalAPIRequest.setPath("/v1/chat/completions");
+							aiApiService.submitApiRequest(internalAPIRequest);
+							return NotUsed.getInstance();
+						});
 				return ok().chunked(source).as("application/json");
 			} else {
 				// buffered request
 				RemoteApiRequest internalAPIRequest = new RemoteApiRequest(REQUEST_TASK_CHAT_COMPLETION,
-				        ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, "", apiKey, -1L, (ObjectNode) json);
+						ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, "", apiKey, -1L, (ObjectNode) json);
 				internalAPIRequest.setPath("/v1/chat/completions");
 
 				try {
 					// submit and wait for timeout
 					aiApiService.submitApiRequest(internalAPIRequest)
-					        .get(ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+							.get(ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, TimeUnit.MILLISECONDS);
 				} catch (InterruptedException | ExecutionException | TimeoutException e) {
 					// do nothing
 				}
@@ -137,7 +140,7 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 
 			// create request
 			RemoteApiRequest internalAPIRequest = new RemoteApiRequest(REQUEST_TASK_MODELS,
-			        ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, "", apiKey, -1L, Json.newObject());
+					ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, "", apiKey, -1L, Json.newObject());
 			internalAPIRequest.setPath("/v1/audio/transcriptions");
 
 			// set file in request
@@ -146,7 +149,7 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 			try {
 				// submit and wait for timeout
 				aiApiService.submitApiRequest(internalAPIRequest)
-				        .get(ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+						.get(ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, TimeUnit.MILLISECONDS);
 			} catch (InterruptedException | ExecutionException | TimeoutException e) {
 				// do nothing
 			}
@@ -174,22 +177,22 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 			// create request
 			ObjectNode requestParams = (ObjectNode) request.body().asJson();
 			RemoteApiRequest internalAPIRequest = new RemoteApiRequest(REQUEST_TASK_IMAGE_GENERATION,
-			        ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS * 5, "", apiKey, -1L, requestParams);
+					ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS * 5, "", apiKey, -1L, requestParams);
 			internalAPIRequest.setPath("/v1/images/generations");
 
 			try {
 				// submit and wait for timeout
 				aiApiService.submitApiRequest(internalAPIRequest)
-				        .get(ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS * 5, TimeUnit.MILLISECONDS);
+						.get(ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS * 5, TimeUnit.MILLISECONDS);
 			} catch (InterruptedException | ExecutionException | TimeoutException e) {
 				// do nothing
 			}
 
 			JsonNode result = Json.parse(internalAPIRequest.getResult());
 			return ok(Json.newObject()
-			        .put("image_url", routes.UnmanagedAIApiController.image(result.get("image_id").asText())
-			                .absoluteURL(request, environment.isProd()))
-			        .set("prompt", requestParams.get("prompt")).toString());
+					.put("image_url", routes.UnmanagedAIApiController.image(result.get("image_id").asText())
+							.absoluteURL(request, environment.isProd()))
+					.set("prompt", requestParams.get("prompt")).toString());
 		});
 	}
 
@@ -225,13 +228,13 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 			// create request
 			ObjectNode requestParams = (ObjectNode) request.body().asJson();
 			RemoteApiRequest internalAPIRequest = new RemoteApiRequest(REQUEST_TASK_SPEECH_GENERATION,
-			        ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS / 2, "", apiKey, -1L, requestParams);
+					ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS / 2, "", apiKey, -1L, requestParams);
 			internalAPIRequest.setPath("/v1/audio/speech");
 
 			try {
 				// submit and wait for timeout
 				aiApiService.submitApiRequest(internalAPIRequest)
-				        .get(ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS / 3, TimeUnit.MILLISECONDS);
+						.get(ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS / 3, TimeUnit.MILLISECONDS);
 			} catch (InterruptedException | ExecutionException | TimeoutException e) {
 				// do nothing
 			}
@@ -239,11 +242,56 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 			// check generated file
 			File generatedSpeech = new File(internalAPIRequest.getResult());
 			if (!generatedSpeech.exists() || !generatedSpeech.isFile() || !generatedSpeech.canRead()
-			        || generatedSpeech.length() < 1000) {
+					|| generatedSpeech.length() < 1000) {
 				return internalServerError();
 			}
 
 			return ok(generatedSpeech).as("audio/mpeg");
+		});
+	}
+
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	public CompletionStage<Result> pdfToText(Request request) {
+		return CompletableFuture.supplyAsync(() -> {
+
+			// check request
+			String authHeader = request.header("Authorization").orElse("");
+			if (authHeader.isEmpty() || !authHeader.startsWith("Bearer ")) {
+				return badRequest(Json.newObject().put("error", "Authorization header missing or invalid"));
+			}
+
+			String authorization = authHeader.replace("Bearer ", "").trim();
+			if (authorization.isEmpty()) {
+				return badRequest(Json.newObject().put("error", "Authorization header missing or invalid"));
+			}
+
+			MultipartFormData<TemporaryFile> mpfd = request.body().asMultipartFormData();
+			if (mpfd == null || mpfd.getFile("file") == null) {
+				return badRequest(Json.newObject().put("error", "PDF file missing (use multipart field name 'file')"));
+			}
+
+			// check whether we have a documentation API key
+			final String apiKey = checkDocumentationAPIKey(request, authorization);
+
+			// extract file
+			MultipartFormData.FilePart<TemporaryFile> pdfPart = mpfd.getFile("file");
+			File pdfFile = pdfPart.getRef().path().toFile();
+			String internalToken = "api2_pdf_" + java.util.UUID.randomUUID().toString();
+
+			try {
+				// submit and wait for timeout (30 seconds)
+				String result = mediaProcessingService
+						.scheduleMediaToTextProcess(pdfFile, "", "application/pdf", "api2_user", internalToken)
+						.toCompletableFuture().get(300, TimeUnit.SECONDS);
+
+				// clean up result
+				result = result.replace(" [END]", "");
+
+				return ok(Json.newObject().put("text", result)).as("application/json");
+			} catch (InterruptedException | ExecutionException | TimeoutException e) {
+				return internalServerError(Json.newObject().put("error", "PDF processing timed out or failed."));
+			}
 		});
 	}
 
@@ -265,14 +313,14 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 
 			// create request
 			RemoteApiRequest internalAPIRequest = new RemoteApiRequest(REQUEST_TASK_MODELS,
-			        ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, "", authorization, -1L);
+					ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, "", authorization, -1L);
 //			internalAPIRequest.setPath("/v1/models");
 			internalAPIRequest.setPath("/models");
 
 			try {
 				// submit and wait for timeout
 				aiApiService.submitApiRequest(internalAPIRequest)
-				        .get(ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+						.get(ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, TimeUnit.MILLISECONDS);
 			} catch (InterruptedException | ExecutionException | TimeoutException e) {
 				// do nothing
 			}
