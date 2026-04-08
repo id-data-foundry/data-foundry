@@ -713,7 +713,9 @@ public class CompleteDSController extends AbstractDSController {
 			if (fileType.equalsIgnoreCase("gg")) {
 				// render notebook editor
 				return ok(views.html.tools.starboard.editNotebook.render(csrfToken(request), ds, fileId, fileName,
-						fileType, fileContents, request));
+						fileType, fileContents, request)) //
+						.withHeader("Cross-Origin-Embedder-Policy", "require-corp") //
+						.withHeader("Cross-Origin-Opener-Policy", "same-origin");
 			} else if (fileType.equalsIgnoreCase("twee") || fileType.equalsIgnoreCase("tw")) {
 				// redirect to Twine editor
 				return redirect(controllers.tools.routes.NarrativeSurveysController.loadTwee(id, fileId));
