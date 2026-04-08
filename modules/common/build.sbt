@@ -103,7 +103,7 @@ libraryDependencies ++= Seq(
   "com.theokanning.openai-gpt3-java" % "service" % "0.11.0" excludeAll(ExclusionRule(organization = "com.fasterxml.jackson.core"), ExclusionRule(organization = "com.fasterxml.jackson.module"), ExclusionRule(organization = "com.fasterxml.jackson.datatype")),
 
   // OpenDataLoader for PDF text extraction
-  "org.opendataloader" % "opendataloader-pdf-core" % "1.1.2" excludeAll(ExclusionRule(organization = "com.fasterxml.jackson.core")),
+  "org.opendataloader" % "opendataloader-pdf-core" % "2.2.0" excludeAll(ExclusionRule(organization = "com.fasterxml.jackson.core")),
 
   // Apache Tika to check file uploads
   "org.apache.tika" % "tika-core" % "3.2.3"

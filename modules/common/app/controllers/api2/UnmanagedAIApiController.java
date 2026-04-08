@@ -271,9 +271,6 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 				return badRequest(Json.newObject().put("error", "PDF file missing (use multipart field name 'file')"));
 			}
 
-			// check whether we have a documentation API key
-			final String apiKey = checkDocumentationAPIKey(request, authorization);
-
 			// extract file
 			MultipartFormData.FilePart<TemporaryFile> pdfPart = mpfd.getFile("file");
 			File pdfFile = pdfPart.getRef().path().toFile();

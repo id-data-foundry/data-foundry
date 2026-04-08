@@ -76,8 +76,7 @@
 			<br><br>
 			Select the language for audio transcription: 
 			<select id="lang" name="lang">
-				<option value="en_sm">English (faster, lower quality)</option>
-				<option value="en">English (slower, better quality)</option>
+				<option value="en">English</option>
 				<option value="nl">Dutch</option>
 			</select>
 		</div>
@@ -123,126 +122,163 @@
 		<div class="col s12" style="margin-top: 5em; font-size: 0.9em;">
 			<b>Disclaimer</b>
 			<p>
-				The Media-to-text processing here is provided as is with no warranty for correctness. Please check the output carefully and do consider giving us feedback about the transcription quality.
+				The media-to-text processing is performed using machine learning models and without correctness guarantees.
+				Please check the output carefully and do consider giving us feedback about the transcription quality.
 			</p>
 			<p>
-				Image, video and audio files that are uploaded to this service will only be processed on this server (in the Netherlands) and no data will be transmitted outside of the EU (this is important for GDPR compliance). The files will be deleted immediately after processing in the following steps for audio/video: (1) audio stream extraction from uploaded file and transcoding to temporary file, (2) speech-to-text processing, (3) output transcribed text and deletion of all files. Text extraction from images works in a single extraction step.
+				Image, video and audio files that are uploaded to this service will only be processed on this server (in the Netherlands),
+				and no data will be transmitted outside of the EU (this is important for GDPR compliance). 
+				The files will be deleted immediately after processing in the following steps for audio/video: 
+				(1) audio stream extraction from uploaded file and transcoding to temporary file, 
+				(2) speech-to-text processing, 
+				(3) output transcribed text and deletion of all files. 
 			</p>
 			<p>
-				We are using open-source technology to provide this service. For speech-to-text functionality, the following libraries and language models are currently being used: the <a href="https://github.com/alphacep/vosk-api">Vosk</a> offline open source speech recognition toolkit, and <a href="https://alphacephei.com/vosk/models">language models</a> for English and Dutch. For the text extraction from images, we use the open-source <a href="https://tesseract-ocr.github.io">Tesseract OCR component</a> with <a href="https://github.com/madmaze/pytesseract">Python bindings</a>, and Python image processing libraries.
+				We are using open-source technology to provide this service. 
+				For speech-to-text functionality, we use the <a href="https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3" target="_blank">Parakeet v3</a> model.
+				For the text extraction from images, we use the open-source <a href="https://tesseract-ocr.github.io">Tesseract OCR component</a> 
+				with <a href="https://github.com/madmaze/pytesseract" target="_blank">Python bindings</a>, and Python image processing libraries.
+				For PDF processing, we use <a href="https://opendataloader.org" target="_blank">OpenDataLoader</a>.
 			</p>
 		</div>
 	</div>
 
 	<script type="text/javascript">
-		$(function() {
+		document.addEventListener('DOMContentLoaded', () => {
+			const outputContainer = document.getElementById('output-container');
+			const reloadBtn = document.getElementById('reload');
+			const uploadContainer = document.getElementById('upload-container');
+			const uploadArea = document.querySelector('.upload-area');
+			const fileInput = document.getElementById('file');
+			const langSelect = document.getElementById('lang');
+			const outputTextarea = document.getElementById('output');
+			const progressDiv = document.querySelector('.progress');
+			const determinateBar = document.querySelector('.determinate');
+			const retrievalLink = document.getElementById('retrievalLink');
+			const titleH1 = document.querySelector('h1');
 
-	        $('#output-container,#reload').hide();
+			outputContainer.style.display = 'none';
+			reloadBtn.style.display = 'none';
 
-		    // preventing page from redirecting
-		    $("html").on("dragover", function(e) {
-		        e.preventDefault();
-		        e.stopPropagation();
-		        $("h1").text("Drag here");
-		    });
+			// preventing page from redirecting
+			document.documentElement.addEventListener("dragover", (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+				if (titleH1) titleH1.textContent = "Drag here";
+			});
 
-		    $("html").on("drop", function(e) { e.preventDefault(); e.stopPropagation(); });
+			document.documentElement.addEventListener("drop", (e) => {
+				e.preventDefault();
+				e.stopPropagation();
+			});
 
-		    // Drag enter
-		    $('.upload-area').on('dragenter', function (e) {
-		        e.stopPropagation();
-		        e.preventDefault();
-		        $("h1").text("Drop");
-		    });
+			// Drag enter
+			uploadArea.addEventListener('dragenter', (e) => {
+				e.stopPropagation();
+				e.preventDefault();
+				if (titleH1) titleH1.textContent = "Drop";
+			});
 
-		    // Drag over
-		    $('.upload-area').on('dragover', function (e) {
-		        e.stopPropagation();
-		        e.preventDefault();
-		        $("h1").text("Drop");
-		    });
+			// Drag over
+			uploadArea.addEventListener('dragover', (e) => {
+				e.stopPropagation();
+				e.preventDefault();
+				if (titleH1) titleH1.textContent = "Drop";
+			});
 
-		    // Drop
-		    $('.upload-area').on('drop', function (e) {
-		        e.stopPropagation();
-		        e.preventDefault();
+			// Drop
+			uploadArea.addEventListener('drop', (e) => {
+				e.stopPropagation();
+				e.preventDefault();
 
-		        var file = e.originalEvent.dataTransfer.files[0];
-		        uploadData(file);
-		    });
+				const file = e.dataTransfer.files[0];
+				uploadData(file);
+			});
 
-		    // Open file selector on div click
-		    $("#uploadfile").click(function(){
-		        $("#file").click();
-		    });
+			// Open file selector on div click
+			uploadArea.addEventListener('click', () => {
+				fileInput.click();
+			});
 
-		    // file selected
-		    $("#file").change(function(){
-		        var file = $('#file')[0].files[0];
-		        uploadData(file);
-		    });
-		});
+			// file selected
+			fileInput.addEventListener('change', () => {
+				const file = fileInput.files[0];
+				if (file) {
+					uploadData(file);
+				}
+			});
 
-		$('#reload').click(function() {
-			window.location.reload();
-		})
+			reloadBtn.addEventListener('click', () => {
+				window.location.reload();
+			});
 
-		// Sending AJAX request and upload file
-		function uploadData(formdata) {
-	        $('#upload-container').hide();
-	        $('#output-container').show();
-			$('.determinate').css({width: '0%'});
-			$('#output').text("Processing media data, results might take a while...");
-			$('#reload').show().addClass('disabled');
-			
-			let languageURL = '@controllers.tools.routes.MediaToTextController.submit()?lang='+ $('#lang').val() + '&type=' + formdata.type;
-		    var token = '';
-		    $.ajax({
-		        url: languageURL,
-		        type: 'post',
-		        data: formdata,
-		        contentType: false,
-		        processData: false,
-		        dataType: 'text',
-		        success: function(response) {
-					token = response;
+			let token = '';
+			let responseLength = 0;
+
+			async function getResults() {
+				try {
+					const response = await fetch('@controllers.tools.routes.MediaToTextController.result("")' + token);
+					const text = await response.text();
+					
+					if (responseLength < text.length) {
+						responseLength = text.length;
+						outputTextarea.value = text;
+						progressDiv.style.display = 'none';
+						reloadBtn.classList.remove('disabled');
+					} else {
+						setTimeout(getResults, 8000);
+					}
+				} catch (error) {
+					console.error("Error fetching results:", error);
+				}
+			}
+
+			// Sending request and upload file
+			async function uploadData(file) {
+				uploadContainer.style.display = 'none';
+				outputContainer.style.display = 'block';
+				determinateBar.style.width = '0%';
+				outputTextarea.value = "Processing media data, results might take a while...";
+				reloadBtn.style.display = 'block';
+				reloadBtn.classList.add('disabled');
+				
+				const languageURL = '@controllers.tools.routes.MediaToTextController.submit()?lang=' + langSelect.value + '&type=' + encodeURIComponent(file.type);
+				
+				try {
+					// Note: fetch doesn't support upload progress. 
+					// We'll set it to indeterminate once it starts.
+					determinateBar.style.width = '100%';
+					determinateBar.classList.add('indeterminate');
+					determinateBar.classList.remove('determinate');
+					determinateBar.style.backgroundColor = 'cornflowerblue';
+
+					const formData = new FormData();
+					formData.append("model", "parakeet_v3"),
+					formData.append("timestamps", "true"),
+					formData.append("diarization", "false"),
+					formData.append('file', file);
+
+					const response = await fetch(languageURL, {
+						method: 'POST',
+						body: formData
+					});
+
+					if (!response.ok) {
+						throw new Error(await response.text());
+					}
+
+					token = await response.text();
 					setTimeout(getResults, 5000);
-					$('#retrievalLink').text(location.origin + '@controllers.tools.routes.MediaToTextController.result("")' + token);
-					$('.determinate').addClass('indeterminate').removeClass('determinate').css({backgroundColor: 'cornflowerblue'});
-		        }, error: function(error) {
-		        	$('.progress').hide();
-					$('#output').text(error.responseText).css({'color': 'red'});
-					$('#reload').removeClass('disabled');
-		        },
-				xhr: function() {
-			        var xhr = new window.XMLHttpRequest();
-			        xhr.upload.addEventListener("progress", function(evt) {
-			            if (evt.lengthComputable) {
-			                var percentComplete = (evt.loaded / evt.total) * 100;
-			                $('.determinate').css({width: percentComplete + '%'});
-			            }
-			       }, false);
-			       return xhr;
-			    }
-		    });
-
-		    var responseLength = 0;
-		    function getResults() {
-		    	$.get('@controllers.tools.routes.MediaToTextController.result("")' + token, function(e) {
-	    			if(responseLength < e.length) {
-			    		responseLength = e.length;
-			    		$('#output').text(e);
-	    			}
-	    			
-		    		if(!e.endsWith("[END]")) {
-	    				setTimeout(getResults, 8000);
-	    			} else {
-						$('.progress').hide();
-						$('#reload').removeClass('disabled');
-	    			}
-		    	});
-		    }
-		}
+					retrievalLink.textContent = location.origin + '@controllers.tools.routes.MediaToTextController.result("")' + token;
+					
+				} catch (error) {
+					progressDiv.style.display = 'none';
+					outputTextarea.value = error.message || "An error occurred during upload.";
+					outputTextarea.style.color = 'red';
+					reloadBtn.classList.remove('disabled');
+				}
+			}
+		});
 	</script>
 
 }

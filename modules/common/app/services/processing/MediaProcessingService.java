@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
+import java.util.Arrays;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
@@ -56,14 +57,24 @@ public class MediaProcessingService {
 	}
 
 	public CompletionStage<String> scheduleMediaToTextProcess(File inputFile, String language, String type, String user,
-	        String token) {
-		return CompletableFuture.supplyAsync(() -> run(inputFile, language, type, user, token), executor);
+			String internalToken) {
+		return CompletableFuture.supplyAsync(() -> run(inputFile, language, type, user, internalToken), executor);
 	}
 
-	private String run(File inputFile, String language, String type, String user, String token) {
+	/**
+	 * run the processing request
+	 * 
+	 * @param inputFile
+	 * @param language
+	 * @param type
+	 * @param user
+	 * @param internalToken
+	 * @return
+	 */
+	private String run(File inputFile, String language, String type, String user, String internalToken) {
 
 		// set the cache with a waiting message
-		cache.set(token, "waiting for data...", EXPIRATION_TIMEOUT_SECS);
+		cache.set(internalToken, "waiting for data...", EXPIRATION_TIMEOUT_SECS);
 
 		// wait for an empty processing slot
 		try {
@@ -79,13 +90,13 @@ public class MediaProcessingService {
 		String result = "";
 		if (type.startsWith("image/")) {
 			// process image
-			result = processImage(inputFile, language, user, token);
+			result = processImage(inputFile, language, user, internalToken);
 		} else if (type.startsWith("application/pdf")) {
 			// process PDF file
-			result = processPDF(inputFile, user, token);
+			result = processPDF(inputFile, user, internalToken);
 		} else {
 			// now we know that the engine can work with the files
-			result = processAudio(inputFile, language, user, token);
+			result = processAudio(inputFile, language, user, internalToken);
 		}
 
 		jobTickets.release();
@@ -101,9 +112,10 @@ public class MediaProcessingService {
 	 * @param inputFile
 	 * @param language
 	 * @param user
+	 * @param internalToken
 	 * @return
 	 */
-	private String processImage(File inputFile, String language, String user, String token) {
+	private String processImage(File inputFile, String language, String user, String internalToken) {
 
 		// check if script is available
 		String script = language.equals("nl") ? "process_img_nl.py" : "process_img.py";
@@ -122,7 +134,7 @@ public class MediaProcessingService {
 		StringBuilder sb = new StringBuilder();
 		ProcessBuilder pb = new ProcessBuilder(command);
 		logger.info("OCR calling: " + pb.command().stream().collect(Collectors.joining(" ")) + " in directory "
-		        + (pb.directory() != null ? pb.directory().getAbsolutePath() : "?") + "...");
+				+ (pb.directory() != null ? pb.directory().getAbsolutePath() : "?") + "...");
 		try {
 			Process p = pb.start();
 			BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
@@ -131,7 +143,7 @@ public class MediaProcessingService {
 				sb.append(line + "\n");
 
 				// update cache for independent retrieval
-				cache.set(token, sb.toString(), EXPIRATION_TIMEOUT_SECS);
+				cache.set(internalToken, sb.toString(), EXPIRATION_TIMEOUT_SECS);
 			}
 			p.waitFor();
 		} catch (IOException | InterruptedException e) {
@@ -154,7 +166,7 @@ public class MediaProcessingService {
 			output = "No text was detected in the uploaded image file.";
 		}
 
-		cache.set(token, output + " [END]", EXPIRATION_TIMEOUT_SECS);
+		cache.set(internalToken, output + " [END]", EXPIRATION_TIMEOUT_SECS);
 		return output;
 	}
 
@@ -163,9 +175,10 @@ public class MediaProcessingService {
 	 * 
 	 * @param inputFile
 	 * @param user
+	 * @param internalToken
 	 * @return
 	 */
-	private String processPDF(File inputFile, String user, String token) {
+	private String processPDF(File inputFile, String user, String internalToken) {
 
 		File removeFolder = null;
 
@@ -186,14 +199,14 @@ public class MediaProcessingService {
 			// configuration of PDF worker
 			org.opendataloader.pdf.api.Config config = new org.opendataloader.pdf.api.Config();
 			config.setOutputFolder(workingFolder.getAbsolutePath());
-			config.setGenerateMarkdown(true);
 			config.setAddImageToMarkdown(false);
-			config.setKeepLineBreaks(true);
 			config.setUseHTMLInMarkdown(false);
+			config.setGenerateMarkdown(true);
 			config.setGeneratePDF(false);
 			config.setGenerateText(false);
 			config.setGenerateJSON(false);
 			config.setGenerateHtml(false);
+			config.setKeepLineBreaks(true);
 			config.setReplaceInvalidChars("?");
 
 			// run PDF processing
@@ -201,9 +214,14 @@ public class MediaProcessingService {
 
 			// read from output markdown file and delete it afterwards
 			File[] outputFiles = workingFolder.listFiles();
-			if (outputFiles.length > 0) {
-				output = Files.readString(outputFiles[0].toPath());
-				outputFiles[0].delete();
+			for (File file : outputFiles) {
+				if (file.isFile()) {
+					output = Files.readString(file.toPath());
+					file.delete();
+				} else {
+					Arrays.stream(file.listFiles()).forEach(f -> f.delete());
+				}
+				file.delete();
 			}
 
 			// delete dir
@@ -222,8 +240,14 @@ public class MediaProcessingService {
 			}
 		}
 
+		// remove markdown image links
+		output = output.replaceAll("!\\[[^\\]]*\\]\\([^)]*\\)", "");
+
+		// remove excessive blank lines
+		output = output.replaceAll("(?m)(^[ \t]*\\r?\\n){3,}", "\n\n");
+
 		// update cache for independent retrieval
-		cache.set(token, output + " [END]", EXPIRATION_TIMEOUT_SECS);
+		cache.set(internalToken, output, EXPIRATION_TIMEOUT_SECS);
 
 		return output;
 	}
@@ -235,9 +259,10 @@ public class MediaProcessingService {
 	 * @param inputFile
 	 * @param language
 	 * @param user
+	 * @param internalToken
 	 * @return
 	 */
-	private String processAudio(File inputFile, String language, String user, String token) {
+	private String processAudio(File inputFile, String language, String user, String internalToken) {
 
 		// output string
 		StringBuilder sb = new StringBuilder();
@@ -247,7 +272,7 @@ public class MediaProcessingService {
 		if (!canonicalWavFile.exists() || !canonicalWavFile.canRead() || canonicalWavFile.length() < 100) {
 			// abort if no suitable media
 			sb.append(
-			        "[ERROR] Media stream processing error. Please check that the uploaded file contains an audio stream.");
+					"[ERROR] Media stream processing error. Please check that the uploaded file contains an audio stream.");
 		} else {
 			// language / model selection
 			String script;
@@ -273,8 +298,8 @@ public class MediaProcessingService {
 
 			ProcessBuilder pb = new ProcessBuilder(command);
 			logger.info("SpeechToText calling (" + language + "): "
-			        + pb.command().stream().collect(Collectors.joining(" ")) + " in directory "
-			        + (pb.directory() != null ? pb.directory().getAbsolutePath() : "?") + "...");
+					+ pb.command().stream().collect(Collectors.joining(" ")) + " in directory "
+					+ (pb.directory() != null ? pb.directory().getAbsolutePath() : "?") + "...");
 			try {
 				Process p = pb.start();
 				BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
@@ -283,7 +308,7 @@ public class MediaProcessingService {
 					sb.append(line + "\n");
 
 					// update cache for independent retrieval
-					cache.set(token, sb.toString(), EXPIRATION_TIMEOUT_SECS);
+					cache.set(internalToken, sb.toString(), EXPIRATION_TIMEOUT_SECS);
 				}
 				p.waitFor();
 			} catch (IOException | InterruptedException e) {
@@ -312,7 +337,7 @@ public class MediaProcessingService {
 			output = "No speech was detected in the uploaded media file. Please check that the speech is clear and that there is only little background noise.";
 		}
 
-		cache.set(token, output + " [END]", EXPIRATION_TIMEOUT_SECS);
+		cache.set(internalToken, output + " [END]", EXPIRATION_TIMEOUT_SECS);
 
 		return output;
 	}
@@ -330,11 +355,11 @@ public class MediaProcessingService {
 	public synchronized void processText(String input, File outputFile, String language, String user) throws Exception {
 		// check if script is available
 		final String[] command = new String[] { "espeak", "\"" + input + "\"", "-v" + language, "-s160", "-w",
-		        outputFile.getAbsolutePath() };
+				outputFile.getAbsolutePath() };
 
 		ProcessBuilder pb = new ProcessBuilder(command);
 		logger.info("Speech generation calling: " + pb.command().stream().collect(Collectors.joining(" "))
-		        + " in directory " + (pb.directory() != null ? pb.directory().getAbsolutePath() : "?") + "...");
+				+ " in directory " + (pb.directory() != null ? pb.directory().getAbsolutePath() : "?") + "...");
 		try {
 			Process p = pb.start();
 			p.waitFor();
@@ -358,15 +383,15 @@ public class MediaProcessingService {
 	private File preProcessFile(File inputFile) {
 
 		File resultFileName = new File(
-		        inputFile.getParentFile().getAbsolutePath() + File.separator + System.currentTimeMillis() + ".wav");
+				inputFile.getParentFile().getAbsolutePath() + File.separator + System.currentTimeMillis() + ".wav");
 
 		String[] command = new String[] { "ffmpeg", "-i", inputFile.getAbsolutePath(), "-ar", "16000", "-ac", "1",
-		        resultFileName.getAbsolutePath() };
+				resultFileName.getAbsolutePath() };
 
 		ProcessBuilder pb = new ProcessBuilder(command);
 
 		logger.info("SpeechToText calling: " + pb.command().stream().collect(Collectors.joining(" ")) + " in directory "
-		        + (pb.directory() != null ? pb.directory().getAbsolutePath() : "?") + "...");
+				+ (pb.directory() != null ? pb.directory().getAbsolutePath() : "?") + "...");
 
 		try {
 			Process p = pb.start();

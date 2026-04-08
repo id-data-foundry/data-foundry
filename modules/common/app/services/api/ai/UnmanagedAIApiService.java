@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
-import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
@@ -286,15 +285,21 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 					request.setResult(Optional.of(Json.newObject()
 							.put(RESPONSE_ERROR, "Audio file property missing from request.").toString()));
 					return;
-				} else if (dataParts.size() < 1 || !dataParts.get(0).getKey().equals("model")) {
+				} else if (dataParts.size() < 1 || dataParts.stream().noneMatch(dp -> dp.getKey().equals("model"))) {
 					request.setResult(Optional.of(
 							Json.newObject().put(RESPONSE_ERROR, "Model property missing from request.").toString()));
 					return;
 				}
 
-				requestCompletionStage = prepareWSRemoteAPIRequest(request)
-						.post(Source.from(Arrays.asList(fileParts.get(0), dataParts.get(0))));
+				// ensure that the model is set on outgoing requests
+				request.setModel(dataParts.stream().filter(dp -> dp.getKey().equals("model")).map(dp -> dp.getValue())
+						.findAny().orElse(""));
 
+				// prepare all items for the request
+				List<Object> ll = new LinkedList<>();
+				ll.addAll(fileParts);
+				ll.addAll(dataParts);
+				requestCompletionStage = prepareWSRemoteAPIRequest(request).post(Source.from(ll));
 			}
 			// otherwise we post the request params
 			else {

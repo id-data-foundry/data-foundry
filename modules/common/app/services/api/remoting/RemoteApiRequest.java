@@ -67,7 +67,7 @@ public class RemoteApiRequest extends ApiRequest<String> implements ApiServiceCo
 	}
 
 	public RemoteApiRequest(String type, int msTimeout, String username, String userAuthorization, long projectId,
-	        String params) {
+			String params) {
 		super(type, username, projectId, params);
 		this.msTimeout = msTimeout;
 		setUserApiKey(userAuthorization);
@@ -76,7 +76,7 @@ public class RemoteApiRequest extends ApiRequest<String> implements ApiServiceCo
 	}
 
 	public RemoteApiRequest(String type, int msTimeout, String username, String userAuthorization, long projectId,
-	        ObjectNode params) {
+			ObjectNode params) {
 		super(type, username, projectId, params);
 		this.msTimeout = msTimeout;
 		setUserApiKey(userAuthorization);
@@ -153,10 +153,10 @@ public class RemoteApiRequest extends ApiRequest<String> implements ApiServiceCo
 	public ObjectNode errorMessage(String message) {
 		ObjectNode result = Json.newObject();
 		result.putObject(RESPONSE_ERROR) //
-		        .put(RESPONSE_MESSAGE, message) //
-		        .put("type", "invalid_request_error") //
-		        .putNull("params") //
-		        .put("code", "");
+				.put(RESPONSE_MESSAGE, message) //
+				.put("type", "invalid_request_error") //
+				.putNull("params") //
+				.put("code", "");
 		return result;
 	}
 
@@ -174,7 +174,7 @@ public class RemoteApiRequest extends ApiRequest<String> implements ApiServiceCo
 		// from header as set in constructor, or as a JSON property) and the selected model, and the task in case
 		// of a credit request
 		final String apiToken = !getUserApiKey().isEmpty() ? getUserApiKey()
-		        : requestParams.path(REQUEST_API_TOKEN).asText("");
+				: requestParams.path(REQUEST_API_TOKEN).asText("");
 		final String modelName = requestParams.path(REQUEST_MODEL).asText("");
 		final String task = requestParams.path(REQUEST_TASK).asText("");
 
@@ -285,6 +285,10 @@ public class RemoteApiRequest extends ApiRequest<String> implements ApiServiceCo
 
 	public String getModel() {
 		return model;
+	}
+
+	public void setModel(String model) {
+		this.model = model;
 	}
 
 	public String getPath() {
