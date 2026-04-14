@@ -61,8 +61,8 @@ public class UsersController extends AbstractAsyncController {
 
 	@Inject
 	public UsersController(Config configuration, NotificationService notificationService, SearchService searchService,
-	        FormFactory formFactory, SyncCacheApi cache, TokenResolverUtil tokenResolverUtil,
-	        OnboardingSupport onboardingSupport) {
+			FormFactory formFactory, SyncCacheApi cache, TokenResolverUtil tokenResolverUtil,
+			OnboardingSupport onboardingSupport) {
 		this.notificationService = notificationService;
 		this.searchService = searchService;
 		this.formFactory = formFactory;
@@ -83,7 +83,7 @@ public class UsersController extends AbstractAsyncController {
 	public Result view(Request request, Long id) {
 		// check session first
 		Person visitor = getAuthenticatedUserOrReturn(request, redirect(controllers.routes.HomeController.login("", ""))
-		        .addingToSession(request, AbstractAsyncController.REDIRECT_URL, request.path()));
+				.addingToSession(request, AbstractAsyncController.REDIRECT_URL, request.path()));
 
 		// find user in question
 		Person user = Person.find.byId(id);
@@ -93,7 +93,7 @@ public class UsersController extends AbstractAsyncController {
 
 		// list project that are public or at least visible for the user
 		List<Project> projects = user.projects().stream().filter(p -> p.visibleFor(visitor))
-		        .collect(Collectors.toList());
+				.collect(Collectors.toList());
 
 		return ok(views.html.users.index.render(user, projects));
 	}
@@ -108,9 +108,9 @@ public class UsersController extends AbstractAsyncController {
 		}
 
 		List<Person> users = Person.find.query().where().or() //
-		        .icontains("firstname", query) //
-		        .icontains("lastname", query) //
-		        .endOr().findList();
+				.icontains("firstname", query) //
+				.icontains("lastname", query) //
+				.endOr().findList();
 		if (users.isEmpty()) {
 			return ok("no users found");
 		}
@@ -124,7 +124,7 @@ public class UsersController extends AbstractAsyncController {
 		// disable the registration if SSO is configured
 		if (ssoEnabled) {
 			return redirect(LANDING).addingToSession(request, "error",
-			        "No registration possible, use SSO to sign in directly.");
+					"No registration possible, use SSO to sign in directly.");
 		}
 
 		// check user session and that the search query has some content
@@ -132,9 +132,9 @@ public class UsersController extends AbstractAsyncController {
 
 		// generate qr code link with token for the register action
 		String token = tokenResolverUtil
-		        .createUserRegistrationToken(DateUtils.endOfDay(DateUtils.moveDays(new Date(), 7)).getTime());
+				.createUserRegistrationToken(DateUtils.endOfDay(DateUtils.moveDays(new Date(), 7)).getTime());
 		String url = routes.UsersController.register(token).absoluteURL(request, true);
-		String qrCode = routes.HomeController.qrCode("invite_url_", url).absoluteURL(request);
+		String qrCode = controllers.tools.routes.QRCode.qrCode("invite_url_", url).absoluteURL(request);
 		return ok(views.html.users.invite.render(url, qrCode));
 	}
 
@@ -143,7 +143,7 @@ public class UsersController extends AbstractAsyncController {
 		// disable the registration if SSO is configured
 		if (ssoEnabled) {
 			return redirect(LANDING).addingToSession(request, "error",
-			        "No registration possible, use SSO to sign in directly.");
+					"No registration possible, use SSO to sign in directly.");
 		}
 
 		return ok(views.html.users.register.render(token, csrfToken(request)));
@@ -154,7 +154,7 @@ public class UsersController extends AbstractAsyncController {
 		// disable the registration if SSO is configured
 		if (ssoEnabled) {
 			return redirect(LANDING).addingToSession(request, "error",
-			        "No registration possible, use SSO to sign in directly.");
+					"No registration possible, use SSO to sign in directly.");
 		}
 
 		DynamicForm df = formFactory.form().bindFromRequest(request);
@@ -166,54 +166,54 @@ public class UsersController extends AbstractAsyncController {
 		String emailAddress = nss(df.get("email"));
 		if (Person.findByEmailCount(emailAddress) > 0) {
 			return redirect(routes.HomeController.login("", "")).addingToSession(request, "message",
-			        "We have found you already in the system. Contact support for a password reset.");
+					"We have found you already in the system. Contact support for a password reset.");
 		}
 
 		// check access code
 		String access_code = df.get("access_inline");
 		if (access_code == null || (!tokenResolverUtil.checkRegistrationAccessKey(access_code)
-		        && !tokenResolverUtil.checkTimeoutFromUserRegistrationToken(access_code))) {
+				&& !tokenResolverUtil.checkTimeoutFromUserRegistrationToken(access_code))) {
 			return redirect(routes.UsersController.register("")).addingToSession(request, "error", "Wrong access code");
 		}
 
 		// check if email address is valid
 		if (!new EmailValidator().isValid(emailAddress)) {
 			return redirect(routes.UsersController.register(access_code)).addingToSession(request, "message",
-			        "The email address you entered seems to be wrong.");
+					"The email address you entered seems to be wrong.");
 		}
 
 		// check password
 		String password = nss(df.get("password"));
 		if (password.length() < 8) {
 			return redirect(routes.UsersController.register(access_code)).addingToSession(request, "error",
-			        "Password is too short. We need at least 8 characters.");
+					"Password is too short. We need at least 8 characters.");
 		}
 		if (!password.equals(df.get("re_password"))) {
 			return redirect(routes.UsersController.register(access_code)).addingToSession(request, "error",
-			        "Password does not match");
+					"Password does not match");
 		}
 
 		String firstName = nss(df.get("first_name"));
 		String lastName = nss(df.get("last_name"));
 		if (firstName.length() < 2 || lastName.length() < 2) {
 			return redirect(routes.UsersController.register(access_code)).addingToSession(request, "error",
-			        "First or last name is too short. We need at least 2 characters.");
+					"First or last name is too short. We need at least 2 characters.");
 		}
 
 		// register user
 		Person user = Person.register(nss(df.get("user_id")), firstName, lastName, emailAddress, nss(df.get("website")),
-		        password, access_code);
+				password, access_code);
 		user.save();
 
 		// set accesscode
 		user.setAccesscode(tokenResolverUtil.createUserAccessToken(user.getId(),
-		        System.currentTimeMillis() + V2UserApiAuth.API_TOKEN_VALIDITY));
+				System.currentTimeMillis() + V2UserApiAuth.API_TOKEN_VALIDITY));
 		user.update();
 
 		// create default project
 		Project p = Project.create(firstName + "'s 1st project", user,
-		        "This is your first project, it's private and not shareable, please edit information with proper content.",
-		        false, false);
+				"This is your first project, it's private and not shareable, please edit information with proper content.",
+				false, false);
 		p.save();
 
 		return redirect(routes.HomeController.login("", ""));
@@ -226,7 +226,7 @@ public class UsersController extends AbstractAsyncController {
 
 		// set Telegram PIN in cache (valid for one hour)
 		final Optional<TelegramSession> session = TelegramSession.find.query().setMaxRows(1).where()
-		        .eq("email", user.getEmail()).eq("state", "RESEARCHER").findOneOrEmpty();
+				.eq("email", user.getEmail()).eq("state", "RESEARCHER").findOneOrEmpty();
 		final String telegramToken;
 		if (!session.isPresent()) {
 			telegramToken = TelegramBotUtils.generateTelegramPersonalPIN();
@@ -240,7 +240,7 @@ public class UsersController extends AbstractAsyncController {
 		int updates = LabNotesEntry.countWeekUpdates(user, lastUpdateDate);
 
 		return ok(views.html.users.edit.render(csrfToken(request), telegramToken, user,
-		        onboardingSupport.isActive(user), updates, new SimpleDateFormat("MMM d, yyyy").format(lastUpdateDate)));
+				onboardingSupport.isActive(user), updates, new SimpleDateFormat("MMM d, yyyy").format(lastUpdateDate)));
 	}
 
 	@Authenticated(UserAuth.class)
@@ -263,11 +263,11 @@ public class UsersController extends AbstractAsyncController {
 
 		// if there is no access code yet, install the auth token for API access with a two-month timeout
 		user.setAccesscode(tokenResolverUtil.createUserAccessToken(user.getId(),
-		        System.currentTimeMillis() + V2UserApiAuth.API_TOKEN_VALIDITY));
+				System.currentTimeMillis() + V2UserApiAuth.API_TOKEN_VALIDITY));
 		user.update();
 
 		return redirect(routes.UsersController.edit()).addingToSession(request, "message",
-		        "New API token generated and ready.");
+				"New API token generated and ready.");
 	}
 
 	@AddCSRFToken
@@ -336,12 +336,12 @@ public class UsersController extends AbstractAsyncController {
 		if (passwd1.length() < 8) {
 			// redirect to reset form
 			return redirect(routes.UsersController.resetPW(token)).addingToSession(request, "error",
-			        "New password is either too short, at least 8 characters are needed.");
+					"New password is either too short, at least 8 characters are needed.");
 		}
 		if (!passwd1.equals(passwd2)) {
 			// redirect to reset form
 			return redirect(routes.UsersController.resetPW(token)).addingToSession(request, "error",
-			        "The first password is not matching the second copy.");
+					"The first password is not matching the second copy.");
 		}
 
 		// store new password
@@ -357,7 +357,7 @@ public class UsersController extends AbstractAsyncController {
 
 		// redirect to any project
 		return redirect(routes.HomeController.login(username, "")).addingToSession(request, "message",
-		        "Password reset successful.");
+				"Password reset successful.");
 	}
 
 	/**
@@ -445,46 +445,46 @@ public class UsersController extends AbstractAsyncController {
 					if (matcher.matches()) {
 						sb.append("<p>✅ " + prefix + " " + lineCount++ + ": ");
 						Arrays.stream(line.split(";")).filter(s -> s != null && !s.isEmpty()).map(String::trim)
-						        .forEach(email -> {
-							        if (Person.findByEmail(email).isPresent()) {
-								        sb.append("<span class='email-ok'>" + email + " 🙂</span>");
-							        } else {
-								        sb.append("<span class='email-missing'>" + email + "</span>");
-							        }
-						        });
+								.forEach(email -> {
+									if (Person.findByEmail(email).isPresent()) {
+										sb.append("<span class='email-ok'>" + email + " 🙂</span>");
+									} else {
+										sb.append("<span class='email-missing'>" + email + "</span>");
+									}
+								});
 						sb.append("</p>");
 					} else {
 						hasProblem |= true;
 						sb.append("""
-						        <p style="color: red;">❌ Team %d: %s </p>
-						        """.formatted(lineCount++, line));
+								<p style="color: red;">❌ Team %d: %s </p>
+								""".formatted(lineCount++, line));
 					}
 				}
 
 				if (!hasProblem) {
 					sb.append("""
-					         <form
-					         hx-post="%s"
-					         hx-target="#result"
-					         hx-swap="innerHTML"
-					         hx-disabled-elt="button,#result">
-					         <input type="hidden" name="prefix" value="%s">
-					         <input type="hidden" name="description" value="%s">
-					         <input type="hidden" name="teams" value="%s">
-					         	<input type="hidden" name="csrfToken" value="%s">
-					         <input type="hidden" name="validated" value="validated">
-					         <p>
-					         Please check the teams carefully above.
-					         If you click on "Create projects", we create the teams with you as the team owner,
-					         then send collaboration invites to the respective emails per team.
-					         </p>
-					        	<div class="progress htmx-indicator">
-					          <div class="indeterminate"></div>
-					        </div>
-					         <button class="btn">Create projects</button>
-					         </form>
-					         """.formatted(routes.UsersController.bulkTeamsMe(), prefix, description,
-					        teams.replaceAll("\\R", "|"), csrfToken(request)));
+							 <form
+							 hx-post="%s"
+							 hx-target="#result"
+							 hx-swap="innerHTML"
+							 hx-disabled-elt="button,#result">
+							 <input type="hidden" name="prefix" value="%s">
+							 <input type="hidden" name="description" value="%s">
+							 <input type="hidden" name="teams" value="%s">
+							 	<input type="hidden" name="csrfToken" value="%s">
+							 <input type="hidden" name="validated" value="validated">
+							 <p>
+							 Please check the teams carefully above.
+							 If you click on "Create projects", we create the teams with you as the team owner,
+							 then send collaboration invites to the respective emails per team.
+							 </p>
+								<div class="progress htmx-indicator">
+							  <div class="indeterminate"></div>
+							</div>
+							 <button class="btn">Create projects</button>
+							 </form>
+							 """.formatted(routes.UsersController.bulkTeamsMe(), prefix, description,
+							teams.replaceAll("\\R", "|"), csrfToken(request)));
 				}
 
 				return ok(sb.toString()).as(Http.MimeTypes.HTML);
@@ -508,51 +508,52 @@ public class UsersController extends AbstractAsyncController {
 
 					// invite email as a collaborator to the project
 					Arrays.stream(line.split(";")).filter(s -> s != null && !s.isEmpty()).map(String::trim)
-					        .forEach(email -> {
-						        // prepare email components
-						        String actionLink = routes.ProjectsController
-						                .addCollaboration(project.getId(),
-						                        tokenResolverUtil.getCollaborationToken(project.getId(), email))
-						                .absoluteURL(request, true);
-						        Html htmlBody = views.html.emails.invite.render("Invitation to collaborate",
-						                String.format("%s would like to invite you to collaborate on the project %s. "
-						                        + "If you are interested, just click the button below. "
-						                        + "If not, please ignore this message (trash it to self-destruct).",
-						                        user.getName(), project.getName()),
-						                actionLink);
-						        String textBody = String.format(
-						                "Hello! \n\n%s would like to invite you to collaborate on the project %s. "
-						                        + "If you are interested, just click the link below. "
-						                        + "If not, please ignore this message (trash it to self-destruct). \n\n(%s) \n\n",
-						                user.getName(), project.getName(), actionLink);
+							.forEach(email -> {
+								// prepare email components
+								String actionLink = routes.ProjectsController
+										.addCollaboration(project.getId(),
+												tokenResolverUtil.getCollaborationToken(project.getId(), email))
+										.absoluteURL(request, true);
+								Html htmlBody = views.html.emails.invite.render("Invitation to collaborate",
+										String.format("%s would like to invite you to collaborate on the project %s. "
+												+ "If you are interested, just click the button below. "
+												+ "If not, please ignore this message (trash it to self-destruct).",
+												user.getName(), project.getName()),
+										actionLink);
+								String textBody = String.format(
+										"Hello! \n\n%s would like to invite you to collaborate on the project %s. "
+												+ "If you are interested, just click the link below. "
+												+ "If not, please ignore this message (trash it to self-destruct). \n\n(%s) \n\n",
+										user.getName(), project.getName(), actionLink);
 
-						        // send email
-						        notificationService.sendMail(email, textBody, htmlBody, actionLink,
-						                "[ID Data Foundry] Invitation to collaborate", user.getEmail(), user.getName(),
-						                "Invitation to collaborate: " + actionLink);
+								// send email
+								notificationService.sendMail(email, textBody, htmlBody, actionLink,
+										"[ID Data Foundry] Invitation to collaborate", user.getEmail(), user.getName(),
+										"Invitation to collaborate: " + actionLink);
 
-						        // delay in sending out emails
-						        try {
-							        Thread.sleep(500);
-						        } catch (InterruptedException e) {
-						        }
+								// delay in sending out emails
+								try {
+									Thread.sleep(500);
+								} catch (InterruptedException e) {
+								}
 
-						        // ping search service
-						        searchService.ping();
-						        invitesSent.incrementAndGet();
-					        });
+								// ping search service
+								searchService.ping();
+								invitesSent.incrementAndGet();
+							});
 					sb.append("</p>");
 				}
 			}
 
 			// here we do the real thing!
 			return ok(
-			        """
-			                <p>
-			                	🎉 We have created %d projects and sent %d collaboration invites to the respective email addresses.
-			                </p>
-			                """
-			                .formatted(lineCount - 1, invitesSent.get())).as(Http.MimeTypes.HTML);
+					"""
+							<p>
+								🎉 We have created %d projects and sent %d collaboration invites to the respective email addresses.
+							</p>
+							"""
+							.formatted(lineCount - 1, invitesSent.get()))
+					.as(Http.MimeTypes.HTML);
 		});
 	}
 

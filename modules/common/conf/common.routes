@@ -44,8 +44,6 @@ GET			/users/bulkTeams										controllers.UsersController.bulkTeams(request: R
 POST		/users/bulkTeams										controllers.UsersController.bulkTeamsMe(request: Request)
 GET	 		/users/:id											controllers.UsersController.view(request: Request, id: Long)
 
-GET			/qr/:key/*url										controllers.HomeController.qrCode(request: Request, key: String, url: String)
-
 # admin ----------------------------------------------------------------------------------------------------------
 
 GET			/admin												controllers.AdminController.index(request: Request)
@@ -508,7 +506,7 @@ POST		/tools/actilogger/:id/*token/:participantId						controllers.tools.Activit
 
 # tools: QR code generator
 GET			/tools/qrcode										controllers.tools.QRCode.index()
-
+GET			/qr/:key/*url										controllers.tools.QRCode.qrCode(request: Request, key: String, url: String)
 
 # list of AI models
 GET			/tools/models										controllers.api2.UnmanagedAIApiController.modelsPage(request: Request)			
@@ -578,6 +576,10 @@ POST		/v1/images/generations								controllers.api2.UnmanagedAIApiController.im
 GET			/v1/images/*token									controllers.api2.UnmanagedAIApiController.image(request: Request, token: String)
 +no-csrf
 POST		/v1/audio/speech										controllers.api2.UnmanagedAIApiController.speechGeneration(request: Request)
+
+# -------------------------------------------------------------------------------------------------------------------------
+
+POST        /v1/pdf/text                                        controllers.api2.UnmanagedAIApiController.pdfToText(request: Request)
 
 # -------------------------------------------------------------------------------------------------------------------------
 

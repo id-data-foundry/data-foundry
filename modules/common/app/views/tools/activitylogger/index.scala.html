@@ -292,7 +292,7 @@
         activityLoggerStartLink.href = loggerUrl;
 
         // set QR code
-        document.querySelector('#qrCode').src = `@routes.HomeController.qrCode("--", "")${loggerUrl}`;
+        document.querySelector('#qrCode').src = `@controllers.tools.routes.QRCode.qrCode("--", "")${loggerUrl}`;
     }
 
     function processRawActivityData(rawData) {

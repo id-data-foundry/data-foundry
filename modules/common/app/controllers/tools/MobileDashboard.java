@@ -70,7 +70,7 @@ public class MobileDashboard extends AbstractAsyncController {
 		}
 
 		String pathStr = qrCodeUtil.generateCachedQRCode(routes.MobileDashboard.view(token).absoluteURL(request, true),
-		        token, 300);
-		return ok(new File(pathStr));
+				token, 300);
+		return ok(new File(pathStr)).as("image/png");
 	}
 }
