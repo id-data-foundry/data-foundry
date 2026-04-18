@@ -39,10 +39,10 @@
     <div class="col s12">
       <h4>1. MicroPython Web Installer</h4>
       <p>
-        This page allows you quickly and easily install <a href="https://micropython.org/" target="_blank">MicroPython</a> on ESP32 boards directly from the browser. 
-        Simply connect the board to an USB port, click on the button "Connect", select the device and have MicroPython running on your board! *If you are using the Making Sense of Sensors board, hold the boot button while inserting your usb cable*
+        This page allows you quickly and easily install <a href="https://micropython.org/" target="_blank">MicroPython</a> on ESP32 boards directly from the browser.
+        Simply connect the board to an USB port, click on the button "Connect", select the device and have MicroPython running on your board! *If you are using the Making Sense of Sensors 2025 board, hold the boot button while inserting your usb cable*
       </p>
-      <esp-web-install-button manifest="@routes.Assets.versioned("vendor/esp-web-tools/micropython-1.24.1/manifest.json")">
+      <esp-web-install-button manifest="@routes.Assets.versioned("vendor/esp-web-tools/micropython/V1.27.0/manifest.json")">
         <i slot="unsupported" style="color: red; font-size: 1.5rem;">
           This functionality is not available because your browser does not support Web
           Serial. Open this page in Google Chrome or Microsoft Edge instead<span
@@ -151,7 +151,7 @@ print('MAC: ' + ubinascii.hexlify(wlan_mac).decode())\r\n`;
       </p>
 
       <br><br>
-      
+
       <h4 id="drivers">USB Serial Drivers</h4>
       <p>
         If the serial port is not showing up, your computer might be missing the
@@ -174,16 +174,16 @@ print('MAC: ' + ubinascii.hexlify(wlan_mac).decode())\r\n`;
           >
         </li>
       </ul>
-      
+
       <br>
       <hr>
       <br>
-      
+
       <div class="">
-          Based on 
-          <a href="https://github.com/esphome/esp-web-tools">ESP Web Tools</a>, 
+          Based on
+          <a href="https://github.com/esphome/esp-web-tools">ESP Web Tools</a>,
           a project by
-          <a href="https://esphome.io">ESPHome</a>. 
+          <a href="https://esphome.io">ESPHome</a>.
           Development is funded by
           <a href="https://www.nabucasa.com">Nabu Casa</a>.
       </div>
