@@ -10,7 +10,7 @@ import com.google.common.html.HtmlEscapers;
 
 public class StringUtils {
 
-	public static final String VERSION = "0.9.17";
+	public static final String VERSION = "0.9.18";
 
 	/**
 	 * null safe string
@@ -90,15 +90,15 @@ public class StringUtils {
 	 */
 	static public final String scrambleTransport(String contentVariable) {
 		return """
-		        {
-		        	const src = %s;
-		            const key = 3;
-		            let scrambled = "";
-		            for (let i = 0; i < src.length; i++) {
-		            	scrambled += String.fromCharCode(src.charCodeAt(i) ^ key);
-		        	}
-		        	%s = "TRANSPORT_SCRAMBLE__" + btoa(unescape(encodeURIComponent(scrambled)))
-		        }""".formatted(contentVariable, contentVariable);
+				{
+					const src = %s;
+				    const key = 3;
+				    let scrambled = "";
+				    for (let i = 0; i < src.length; i++) {
+				    	scrambled += String.fromCharCode(src.charCodeAt(i) ^ key);
+					}
+					%s = "TRANSPORT_SCRAMBLE__" + btoa(unescape(encodeURIComponent(scrambled)))
+				}""".formatted(contentVariable, contentVariable);
 	}
 
 	/**
@@ -111,9 +111,9 @@ public class StringUtils {
 		final int key = 3;
 		final String prefix = "TRANSPORT_SCRAMBLE__";
 		return scrambled.startsWith(prefix)
-		        ? new String(Base64.getDecoder().decode(scrambled.substring(prefix.length()))).chars().map(c -> c ^ key)
-		                .mapToObj(c -> String.valueOf((char) c)).collect(Collectors.joining())
-		        : scrambled;
+				? new String(Base64.getDecoder().decode(scrambled.substring(prefix.length()))).chars().map(c -> c ^ key)
+						.mapToObj(c -> String.valueOf((char) c)).collect(Collectors.joining())
+				: scrambled;
 	}
 
 }
