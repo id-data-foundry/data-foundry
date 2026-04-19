@@ -1,10 +1,19 @@
 @()
 # %% [markdown]
+# High Level Overview
+
+You’ll be able to download this notebook. No need to take vigorous notes.
+
+For now, don’t worry too much about the code details. You’ll have time to dig into that later.
+
+For now, just listen and try to get a sense of the **big picture**.
+
+# %% [markdown]
 # What Are Notebook Cells?…
 
-Containers for text, or code, or visualizations all in one place.
+**Containers** for text, or code, or visualizations all in one place.
 
-Building block in an interactive document:
+**Building blocks** in an interactive document:
 
 * Run code to analyze data
 * Add explanations
@@ -12,16 +21,57 @@ Building block in an interactive document:
 * Rearrange and edit as you work
 
 
+**Document your thinking!** 
 
+Use cells strategically to show us your ideas, hypotheses, your code experiments, and your results, both good and bad. 
+
+If you have a good result, tell us *why* it is significant. 
+
+If you hit a roadblock, explain what happened, how you diagnosed the problem, and how you got un-stuck!
+
+We want to see how you work your way through all of the aspects of the assignment. 
+
+
+
+# %% [markdown]
+# With Code Cells… Order Matters
+
+Code variables are added to the Python Kernel.
+
+If you experience errors:
+
+* Run previous cells
+* Expected values
+
+
+
+# %% [python]
+x = 200
+locals() # see the local variables as a list
+#locals()['x'] # see a particular local variable
+# %% [python]
+x = x * 3
+locals()['x']
 # %% [markdown]
 # Some Basic Markdown Syntax
 
 A [Named Link](http://example.com)
 
 Text attributes:
+
 *italic*
+
 **bold**
+
 `monospace`
+
+```
+Formatted text
+    Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor 
+    incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis 
+    nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. 
+    Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore ...
+```
 
 Nested lists:
 
@@ -36,57 +86,99 @@ Nested lists:
 
 
 # %% [markdown]
-# 1. Import Additional Python Libraries
+#  1. Import Additional Python Libraries
 
 First, let's import some Python libraries that will augment the standard Python language with additional functionality.
 # %%--- [python]
 # properties:
 #   run_on_load: true
 # ---%%
-# -------------------------
-# 🧱 Standard Library Imports
-# -------------------------
-import ast  # For safely parsing strings containing Python literals into objects
-from datetime import datetime, timedelta  # For working with dates and times
-
-# -------------------------
-# 📦 Third-Party Libraries (External Dependencies)
-# -------------------------
-import numpy as np  # For efficient numerical operations on arrays and matrices
-import pandas as pd  # For data manipulation, analysis, and time series handling
-import matplotlib.pyplot as plt  # For creating plots, charts, and other visualizations
-
-# -------------------------
-# 🌐 Pyodide-Specific (Browser-based Python)
-# -------------------------
-import pyodide  # For running Python in the browser and interoperating with JavaScript
-
-# -------------------------
-# Seaborn (Visualizations)
-# -------------------------
 import micropip
+
+await micropip.install('numpy')
+await micropip.install('pandas')
+await micropip.install('matplotlib')
 await micropip.install('seaborn==0.13.2')
+# %% [python]
+# # -------------------------
+# # 🌐 Pyodide-Specific (Browser-based Python)
+# # -------------------------
+# For running Python in the browser and interoperating with JavaScript
+ 
+# # -------------------------
+# # Standard Library Imports
+# # -------------------------
+# import ast  # For safely parsing strings containing Python literals into objects
+# from datetime import datetime, timedelta  # For working with dates and times
+
+# # -------------------------
+# # Third-Party Libraries (External Dependencies)
+# # -------------------------
+# import numpy as np  # For efficient numerical operations on arrays and matrices
+# import pandas as pd  # For data manipulation, analysis, and time series handling
+# import matplotlib.pyplot as plt  # For creating plots, charts, and other visualizations
+
+# # -------------------------
+# # Seaborn (Visualizations)
+# # -------------------------
+# import micropip
+# await micropip.install('seaborn==0.13.2')
+# import seaborn as sns
+# plt.rcParams['lines.markeredgewidth'] = 1  # to fix issue with seaborn box plots; needed after import seaborn
+# # next command ensures that plots appear inside the notebook
+# plt.rcParams['figure.figsize'] = 12, 5  # default hor./vert. size of plots, in inches
+
+
+import pyodide
+
+import ast
+from datetime import datetime, timedelta
+import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from matplotlib.lines import Line2D
 import seaborn as sns
-plt.rcParams['lines.markeredgewidth'] = 1  # to fix issue with seaborn box plots; needed after import seaborn
-# next command ensures that plots appear inside the notebook
-plt.rcParams['figure.figsize'] = 12, 5  # default hor./vert. size of plots, in inches
+
+#import io, base64
+from js import document
+
+import io
+import base64
+import matplotlib.pyplot as plt
+
+class HTMLPlot:
+    """Bypasses broken plt.show() by converting the plot to an HTML image."""
+    def _repr_html_(self):
+        buf = io.BytesIO()
+        # Save the active figure to memory
+        plt.savefig(buf, format='png', bbox_inches='tight')
+        plt.close() # Flush Matplotlib's memory to prevent overlaps
+        buf.seek(0)
+        # Encode the image
+        img_str = base64.b64encode(buf.read()).decode('utf-8')
+        return f'<img src="data:image/png;base64,{img_str}" style="max-width: 100%; height: auto;" />'
 
 print("Done")
+# %% [python]
+plt.rcParams['lines.markeredgewidth'] = 1
+plt.rcParams['figure.figsize'] = 12, 5
+print("Done")
 # %% [markdown]
-# 2. Download A Test Data File
+#  2. Download A Test Data File
 
 In a real scenario, you would load data from your MiBand exports. For this demo, we'll create some realistic sample data.
 
-
 In your assignments, you'll replace this section with code to load your actual MiBand data. The tutors can help you with this.
 # %% [python]
+
 # Download Data
-url = "https://data.id.tue.nl/datasets/downloadPublic/Z3VPdEtNenFmS1lUM0lzSUhWcnhwRGliWW5XNUd2V0NHNjYrbk0yUGZxST0="
+url = "https://datafoundry.id.tue.nl/web/RzRlSXo3WHJvRWhOZTNjMmNOT3NYWkpGN25nUjV0WFBvTXEyenlia1lNaz0=/"
 df = pd.read_csv(pyodide.open_url(url)) # Pandas reads the CSV file, and turns its contents into a Pandas DataFrame
 
 print("Done")
 # %% [markdown]
-# 3. Inspect The DataFrame…
+#  3. Inspect The DataFrame…
 
 ### Which Columns Are Available? How Is The Data Formatted?
 
@@ -95,13 +187,17 @@ Use a JSON viewer to help you visualize and understand the syntax and structure.
 # Let's look at the column names in our DataFrame
 #print(list(df.columns))
 #print(df.head(4))
+
 print(df.iloc[2])
 steps_list = ast.literal_eval(df.iloc[2].steps)  # Convert from string to Python list
 print("Steps: =====================================================================")
 print(str(steps_list[:2]))          # Show only first 2 elements
 print("Heart Rate Values: =========================================================")
 heart_rate_list = ast.literal_eval(df.iloc[2]['heart_rate.heartRateValues'])
-print(str(heart_rate_list[:2]))
+print(str(heart_rate_list[:2]))     # Show only first 2 elements
+print("Stress Values: =========================================================")
+stress_list = ast.literal_eval(df.iloc[2]['stress.stressValuesArray'])
+print(str(stress_list[:2]))         # Show only first 2 elements
 
 print("Done")
 # %% [markdown]
@@ -115,12 +211,13 @@ print("Done")
 # %% [markdown]
 # 4. Extract The Particular Data We Need... & Organize It
 
-Specifically, we need to know: 
+Specifically, we need to know:
+
 * Steps: when the sample was taken (`"startGMT"`), and the recorded value of the sample (`"steps"`)
 * Heart Rate: when the sample was taken (`<UnixEpochTimestamp>`), and the recorded value of the sample (`"heart_rate.heartRateValues"`)
 * Stress: when the sample was taken (`<UnixEpochTimestamp>`), and the recorded value of the sample (`stress.stressValuesArray`)
 
-### 🟩 Steps Time Series (from nested list of dictionaries)
+### Steps Time Series (from nested list of dictionaries)
 # %% [python]
 valid_steps_data = None
 for val in df['steps']:
@@ -151,10 +248,10 @@ else:
 
 
 print("steps_data: =======================================================")
-print(steps_data[35:40])
+print(steps_data[0:5])
 print("Done")
 # %% [markdown]
-### ❤️ Heart Rate Time Series
+### Heart Rate Time Series
 # %% [python]
 valid_hr_data = None
 for val in df['heart_rate.heartRateValues']:
@@ -188,7 +285,7 @@ print("heart_data: =======================================================")
 print(heart_data[:5])
 print("Done")
 # %% [markdown]
-### 😰 Stress Level Time Series
+### Stress Level Time Series
 # %% [python]
 valid_stress_data = None
 for val in df['stress.stressValuesArray']:
@@ -220,13 +317,13 @@ print("Done")
 # %% [markdown]
 # 5. Data Exploration and Cleaning
 
-([See the "Data Cleaning and Aggregation" Notebook for more ideas...](https://data.id.tue.nl/datasets/existing/edit/14790/7))
+See the "Data Cleaning and Aggregation" Notebook for more ideas...
 Now that we have our data, let's explore and clean it:
 
 * Set the timestamp as the index
 * Check for missing values
 * Examine the data structure
-* Ensure timestamps are properly formatted
+* Unify time intervals across our data
 
 These steps are essential for any sensor data analysis.
 # %% [markdown]
@@ -268,7 +365,7 @@ print("Done")
 
 Our samples are arranged temporally, from first to last. ffill() and bfill() traverse the list forwards and backwards, filling in missing entries.
 
- ![ffill().bfill() demo](https://data.id.tue.nl/datasets/existing/download/14790/8)
+ ![ffill().bfill() demo](https://data.id.tue.nl/web/R1ZzRGx2UVBoVlpnNlhJR1dBeEtFM1pMM2FKb3pQTnc3RWI3a2hQbmFOcz0=/ffill_bfill_final.gif)
 # %% [markdown]
 ### Check basic statistics for our datasets
 # %% [python]
@@ -279,11 +376,11 @@ print(heart_data.describe())
 print("\nStress data statistics:")
 print(stress_data.describe())
 # %% [markdown]
-## How Should We Validate Our Datasets...?
+## How Should We Validate Our Data Sets...?
 
-Since you can't inspect all the data points by hand, it's helpful to have some tactics for *validating* that your dataset looks reasonable.
+Since you can't inspect all the data points by hand, it's helpful to have some tactics for *validating* that your data set looks reasonable.
 
-For example, you can take a quick look at the statistical attributes of your dataset and ask yourself **"Do these number make sense? So they seem right?"**
+For example, you can take a quick look at the statistical attributes of your data set and ask yourself **"Do these number make sense? So they seem right?"**
 
 ### Definitions
 
@@ -381,7 +478,6 @@ print(hourly_combined.tail())
 fig, ax1 = plt.subplots(figsize=(9, 4))
 
 # Convert datetime index to matplotlib dates for proper bar width
-import matplotlib.dates as mdates
 dates = mdates.date2num(hourly_combined.index)
 width = 0.04  # Adjust for right bar width (approximately 1 hour)
 
@@ -429,10 +525,9 @@ plt.xticks(rotation=45)
 
 # Add a title and legend
 plt.title('Steps, Heart Rate, and Stress Level by Hour', fontsize=16)
-fig.tight_layout()
+# fig.tight_layout() # disabled: crashes html4 backend
 
 # Add a legend manually
-from matplotlib.lines import Line2D
 legend_elements = [
     plt.Rectangle((0,0), 1, 1, color=color1, alpha=0.7),
     Line2D([0], [0], color=color2, linewidth=2),
@@ -442,7 +537,9 @@ ax1.legend(legend_elements, ['Steps', 'Heart Rate', 'Stress Level'],
            loc='upper right', bbox_to_anchor=(0.98, 0.98))
 
 plt.grid(False)
-plt.show()
+#plt.show()
+
+HTMLPlot()
 # %% [markdown]
 ## Data Transformation helps us…
 
@@ -460,7 +557,9 @@ plt.figure(figsize=(6, 4))
 correlation = hourly_combined.corr()
 sns.heatmap(correlation, annot=True, cmap='coolwarm', vmin=-1, vmax=1)
 plt.title('Correlation Between Metrics')
-plt.show()
+#plt.show()
+
+HTMLPlot()
 # %% [markdown]
 ## Let's try to impose some semantic interpretations on the data
 
@@ -530,7 +629,7 @@ Now for the interesting part - visualizing our sensor data to identify patterns 
 We'll create several different visualizations to understand the data from multiple perspectives
 
 
-(Note: See Data Visualization and Statistics for more info and examples - <https://data.id.tue.nl/datasets/existing/edit/14790/5#2>)
+Note: See Data Visualization and Statistics for more info and examples
 
 ### Steps Throughout the Day by Activity Level
 # %% [python]
@@ -551,10 +650,12 @@ plt.ylabel('Steps per Hour')
 plt.grid(True, alpha=0.3)
 plt.legend(title='Activity Level')
 plt.xticks(rotation=45)
-plt.tight_layout()
-plt.show()
+#plt.tight_layout()
+#plt.show()
+
+HTMLPlot()
 # %% [markdown]
-### Scatter plot to examine relationship between Steps and Stress Level
+### Scatter plot to examine relationship between Heart Rate and Stress Level
 # %% [python]
 plt.figure(figsize=(8, 4))
 plt.scatter(hourly_combined['heart_rate'], hourly_combined['stress_level'], alpha=0.7, s=80)
@@ -568,8 +669,10 @@ plt.title('Relationship Between Heart Rate and Stress Level', fontsize=16)
 plt.xlabel('Heart Rate', fontsize=12)
 plt.ylabel('Stress Level', fontsize=12)
 plt.grid(True, alpha=0.3)
-plt.tight_layout()
-plt.show()
+#plt.tight_layout()
+# plt.show()
+
+HTMLPlot()
 # %% [python]
 
 # Create a simple metric: stress-to-activity ratio
@@ -577,14 +680,26 @@ plt.show()
 # Add an offset of 10 to "steps" to prevent dividing my zero...
 hourly_combined['stress_activity_ratio'] = hourly_combined['stress_level'] / (hourly_combined['steps'] + 10)
 
+# In order to demonstrate this analysis exercise, I'm adding in an example "stress" value that will be visualized.
+data_date = pd.Timestamp('2025-04-13')
+
+stress_moment = pd.DataFrame({
+    'heart_rate': [88],
+    'stress_level': [hourly_combined['stress_level'].max()],
+    'steps': [2],
+    'stress_activity_ratio': [hourly_combined['stress_level'].max() / 12]
+}, index=[data_date + pd.Timedelta(hours=14)])
+
+hourly_combined_demo = pd.concat([hourly_combined, stress_moment])
+
 # Create figure
 plt.figure(figsize=(8, 4))
 
 # Main scatter plot with viridis colormap
-scatter = plt.scatter(hourly_combined['heart_rate'], 
-                     hourly_combined['stress_level'],
-                     c=hourly_combined['steps'], 
-                     s=hourly_combined['stress_activity_ratio'] * 50,
+scatter = plt.scatter(hourly_combined_demo['heart_rate'], 
+                     hourly_combined_demo['stress_level'],
+                     c=hourly_combined_demo['steps'], 
+                     s=hourly_combined_demo['stress_activity_ratio'] * 50,
                      cmap='viridis', alpha=0.8)
 
 # Add a colorbar
@@ -593,11 +708,11 @@ cbar.set_label('Activity Level (Steps)', fontsize=12)
 
 # Identify potential emotional stress points (high stress, low activity)
 # Create a boolean series (True/False values) where each value is True if the stress level at that time is greater than the median stress level across all hours
-high_stress = hourly_combined['stress_level'] > hourly_combined['stress_level'].median()
+high_stress = hourly_combined_demo['stress_level'] > hourly_combined_demo['stress_level'].median()
 # Create a boolean series step count is less than half of the median step count
-low_activity = hourly_combined['steps'] < hourly_combined['steps'].median() / 2
+low_activity = hourly_combined_demo['steps'] < hourly_combined_demo['steps'].median() / 2
 # Use boolean indexing to filter the DataFrame. It selects rows where BOTH conditions are true: high stress AND low activity
-potential_emotional_stress = hourly_combined[high_stress & low_activity]
+potential_emotional_stress = hourly_combined_demo[high_stress & low_activity]
 
 # Highlight these points with a distinct color
 plt.scatter(potential_emotional_stress['heart_rate'], 
@@ -613,10 +728,10 @@ for idx, row in potential_emotional_stress.iterrows():
                 fontsize=10, color='black', backgroundcolor='white', alpha=0.7)
 
 # Add explanatory text
-plt.text(0.025, 0.85, 
-         "Larger circles = Higher stress-to-activity ratio\n(stress not explained by physical activity)",
-         transform=plt.gca().transAxes, fontsize=11,
-         verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.7))
+# plt.text(0.025, 0.85, 
+#          "Larger circles = Higher stress-to-activity ratio\n(stress not explained by physical activity)",
+#          transform=plt.gca().transAxes, fontsize=11,
+#          verticalalignment='top', bbox=dict(boxstyle='round', facecolor='white', alpha=0.7))
 
 # Add labels and title
 plt.xlabel('Heart Rate (BPM)', fontsize=12)
@@ -624,8 +739,10 @@ plt.ylabel('Stress Level', fontsize=12)
 plt.title('Identifying Potential Emotional Stress Patterns', fontsize=14)
 plt.legend(fontsize=10)
 plt.grid(alpha=0.3)
-plt.tight_layout()
-plt.show()
+#plt.tight_layout()
+# plt.show()
+
+HTMLPlot()
 # %% [markdown]
 # 9. Drawing Insights
 
@@ -654,9 +771,6 @@ Sensor data can **directly inform design decisions** for health and wellness app
 4. Developed insightful visualizations
 5. Connected findings to specific design ideas
 
-\\
-
 * Remember to follow the FAIR principles for your dataset (see the course guide)
 * Don't forget to document everything in your notebook: your brainstorms, ideas, processes, failures & course-corrections, findings, and most of all -- how you arrived at your design decisions and how the data support and justify those decisions.
 
-\\

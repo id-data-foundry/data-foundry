@@ -18,7 +18,7 @@ import utils.rendering.FileUtil;
 public class ModelTemplates {
 
 	public static void addProjectElements(Project project, DatasetConnector datasetConnector,
-	        TokenResolverUtil tokenResolverUtil, String template, File templatesDir) {
+			TokenResolverUtil tokenResolverUtil, String template, File templatesDir) {
 
 		// check the free form template option first, execute it if existing
 		if (FileUtil.isFolderInFolderSafe(templatesDir, template)) {
@@ -29,7 +29,7 @@ public class ModelTemplates {
 			for (File datasetFolder : templateFolder.listFiles(File::isDirectory)) {
 				// Create dataset
 				Dataset ds = datasetConnector.create(datasetFolder.getName(), DatasetType.COMPLETE, project,
-				        "Template dataset: " + datasetFolder.getName(), "", null, null);
+						"Template dataset: " + datasetFolder.getName(), "", null, null);
 				ds.save();
 				project.getDatasets().add(ds);
 
@@ -47,12 +47,12 @@ public class ModelTemplates {
 		switch (template) {
 		case "wearable": {
 			Dataset ds1 = datasetConnector.create("Fitbit wearables", DatasetType.FITBIT, project,
-			        "TEMPLATE: Participants' Fitbit wearables will record their data into this dataset (please replace with your dataset description)",
-			        "steps settings", null, null);
+					"TEMPLATE: Participants' Fitbit wearables will record their data into this dataset (please replace with your dataset description)",
+					"steps settings", null, null);
 			ds1.save();
 			Dataset ds2 = datasetConnector.create("GoogleFit wearables", DatasetType.GOOGLEFIT, project,
-			        "TEMPLATE: Participants' GoogleFit wearables will record their data into this dataset (please replace with your dataset description)",
-			        "step_count openid", null, null);
+					"TEMPLATE: Participants' GoogleFit wearables will record their data into this dataset (please replace with your dataset description)",
+					"step_count openid", null, null);
 			ds2.save();
 			project.getDatasets().add(ds1);
 			project.getDatasets().add(ds2);
@@ -91,18 +91,18 @@ public class ModelTemplates {
 				project.getClusters().add(c);
 			}
 			project.setDescription(
-			        "TEMPLATE: Wearable project with one Fitbit dataset, one GoogleFit dataset, and 10 participants and their wearables. Both datasets are for steps data, if you need other scopes, please create a new one. (please replace with your project description)");
+					"TEMPLATE: Wearable project with one Fitbit dataset, one GoogleFit dataset, and 10 participants and their wearables. Both datasets are for steps data, if you need other scopes, please create a new one. (please replace with your project description)");
 			project.update();
 			break;
 		}
 		case "remote_study": {
 			Dataset ds1 = datasetConnector.create("Web prototype", DatasetType.COMPLETE, project,
-			        "TEMPLATE: Web prototype files will be hosted in this dataset (please replace with your dataset description)",
-			        "", null, null);
+					"TEMPLATE: Web prototype files will be hosted in this dataset (please replace with your dataset description)",
+					"", null, null);
 			ds1.save();
 			Dataset ds2 = datasetConnector.create("Diary dataset", DatasetType.DIARY, project,
-			        "TEMPLATE: Participants experiences with the web prototype will be recorded into this dataset (please replace with your dataset description)",
-			        "", null, null);
+					"TEMPLATE: Participants experiences with the web prototype will be recorded into this dataset (please replace with your dataset description)",
+					"", null, null);
 			ds2.save();
 			project.getDatasets().add(ds1);
 			project.getDatasets().add(ds2);
@@ -129,14 +129,14 @@ public class ModelTemplates {
 			}
 
 			project.setDescription(
-			        "TEMPLATE: Remote study with digital prototype amd 10 participants. (please replace with your project description)");
+					"TEMPLATE: Remote study with digital prototype amd 10 participants. (please replace with your project description)");
 			project.update();
 			break;
 		}
 		case "iot_devices": {
 			Dataset ds1 = datasetConnector.create("IoT device data", DatasetType.IOT, project,
-			        "TEMPLATE: Data from IoT devices in this project will be stored in this dataset (please replace with your dataset description)",
-			        "", null, null);
+					"TEMPLATE: Data from IoT devices in this project will be stored in this dataset (please replace with your dataset description)",
+					"", null, null);
 			ds1.save();
 			project.getDatasets().add(ds1);
 
@@ -151,13 +151,14 @@ public class ModelTemplates {
 			}
 
 			project.setDescription(
-			        "TEMPLATE: IoT project with 10 devices. (please replace with your project description)");
+					"TEMPLATE: IoT project with 10 devices. (please replace with your project description)");
 			project.update();
 			break;
 		}
 		case "mss_datalogger": {
 			Dataset ds1 = datasetConnector.create("Data logger", DatasetType.IOT, project,
-			        "TEMPLATE: This dataset is meant to collect data from the data logger.", "", null, null);
+					"TEMPLATE: This dataset is meant to collect data from the data logger.", "", null, null);
+			ds1.setOpenParticipation(true);
 			ds1.save();
 			// auto-generate the API token for sending data to the dataset
 			ds1.getConfiguration().put(Dataset.API_TOKEN, tokenResolverUtil.getDatasetToken(ds1.getId()));
@@ -165,8 +166,8 @@ public class ModelTemplates {
 			project.getDatasets().add(ds1);
 
 			Dataset ds2 = datasetConnector.create("Notebooks", DatasetType.COMPLETE, project,
-			        "TEMPLATE: This dataset contains Starboard notebooks to work with the collected data", "", null,
-			        null);
+					"TEMPLATE: This dataset contains Starboard notebooks to work with the collected data", "", null,
+					null);
 			ds2.save();
 			project.getDatasets().add(ds2);
 
@@ -181,17 +182,17 @@ public class ModelTemplates {
 			Date now = new Date();
 			CompleteDS cds = datasetConnector.getTypedDatasetDS(ds2);
 			Optional<String> nbNameOpt1 = cds.createNotebookFile("DAB100-DVS.gg", now,
-			        views.html.elements.project.templates.mss.DAB100_DVS.render().toString().split("\n"));
+					views.html.elements.project.templates.mss.DAB100_DVS.render().toString().split("\n"));
 			if (nbNameOpt1.isPresent()) {
 				cds.addRecord(nbNameOpt1.get(), "DAB100 Starboard notebook: Data Visualisation", now);
 			}
 			Optional<String> nbNameOpt2 = cds.createNotebookFile("DAB100-DCA.gg", now,
-			        views.html.elements.project.templates.mss.DAB100_DCA.render().toString().split("\n"));
+					views.html.elements.project.templates.mss.DAB100_DCA.render().toString().split("\n"));
 			if (nbNameOpt2.isPresent()) {
 				cds.addRecord(nbNameOpt2.get(), "DAB100 Starboard notebook: Data Cleaning and Aggregation", now);
 			}
 			Optional<String> nbNameOpt3 = cds.createNotebookFile("DAB100-LECTURE.gg", now,
-			        views.html.elements.project.templates.mss.DAB100_LECTURE.render().toString().split("\n"));
+					views.html.elements.project.templates.mss.DAB100_LECTURE.render().toString().split("\n"));
 			if (nbNameOpt3.isPresent()) {
 				cds.addRecord(nbNameOpt3.get(), "DAB100 Starboard notebook: Lecture Example", now);
 			}
@@ -202,12 +203,12 @@ public class ModelTemplates {
 		}
 		case "diary_study": {
 			Dataset ds1 = datasetConnector.create("Diary data", DatasetType.DIARY, project,
-			        "TEMPLATE: Diary entries from participants in this project will be stored in this dataset (please replace with your dataset description)",
-			        "", null, null);
+					"TEMPLATE: Diary entries from participants in this project will be stored in this dataset (please replace with your dataset description)",
+					"", null, null);
 			ds1.save();
 			Dataset ds2 = datasetConnector.create("Media data", DatasetType.MEDIA, project,
-			        "TEMPLATE: Media data like photo will be stored in this dataset (please replace with your dataset description)",
-			        "", null, null);
+					"TEMPLATE: Media data like photo will be stored in this dataset (please replace with your dataset description)",
+					"", null, null);
 			ds2.save();
 			project.getDatasets().add(ds1);
 			project.getDatasets().add(ds2);
@@ -220,22 +221,22 @@ public class ModelTemplates {
 			}
 
 			project.setDescription(
-			        "TEMPLATE: Qualitative research project with 10 participants. (please replace with your project description)");
+					"TEMPLATE: Qualitative research project with 10 participants. (please replace with your project description)");
 			project.update();
 			break;
 		}
 		case "ded_contextual": {
 			Dataset ds0 = datasetConnector.create("IoT device data", DatasetType.IOT, project,
-			        "TEMPLATE: Data from IoT devices in this project will be stored in this dataset (please replace with your dataset description)",
-			        "", null, null);
+					"TEMPLATE: Data from IoT devices in this project will be stored in this dataset (please replace with your dataset description)",
+					"", null, null);
 			ds0.save();
 			Dataset ds1 = datasetConnector.create("Diary data", DatasetType.DIARY, project,
-			        "TEMPLATE: Diary entries from participants in this project will be stored in this dataset (please replace with your dataset description)",
-			        "", null, null);
+					"TEMPLATE: Diary entries from participants in this project will be stored in this dataset (please replace with your dataset description)",
+					"", null, null);
 			ds1.save();
 			Dataset ds2 = datasetConnector.create("Media data", DatasetType.MEDIA, project,
-			        "TEMPLATE: Media data like photo will be stored in this dataset (please replace with your dataset description)",
-			        "", null, null);
+					"TEMPLATE: Media data like photo will be stored in this dataset (please replace with your dataset description)",
+					"", null, null);
 			ds2.save();
 			project.getDatasets().add(ds0);
 			project.getDatasets().add(ds1);
@@ -271,26 +272,26 @@ public class ModelTemplates {
 			}
 
 			project.setDescription(
-			        "TEMPLATE: Data-enabled Design project (contextual step) with 10 participants and 20 devices. (please replace with your project description)");
+					"TEMPLATE: Data-enabled Design project (contextual step) with 10 participants and 20 devices. (please replace with your project description)");
 			project.update();
 			break;
 		}
 		case "ded_informed": {
 			Dataset ds0 = datasetConnector.create("IoT device data", DatasetType.IOT, project,
-			        "TEMPLATE: Data from IoT devices in this project will be stored in this dataset (please replace with your dataset description)",
-			        "", null, null);
+					"TEMPLATE: Data from IoT devices in this project will be stored in this dataset (please replace with your dataset description)",
+					"", null, null);
 			ds0.save();
 			Dataset ds1 = datasetConnector.create("Diary data", DatasetType.DIARY, project,
-			        "TEMPLATE: Diary entries from participants in this project will be stored in this dataset (please replace with your dataset description)",
-			        "", null, null);
+					"TEMPLATE: Diary entries from participants in this project will be stored in this dataset (please replace with your dataset description)",
+					"", null, null);
 			ds1.save();
 			Dataset ds2 = datasetConnector.create("Media data", DatasetType.MEDIA, project,
-			        "TEMPLATE: Media data like photo will be stored in this dataset (please replace with your dataset description)",
-			        "", null, null);
+					"TEMPLATE: Media data like photo will be stored in this dataset (please replace with your dataset description)",
+					"", null, null);
 			ds2.save();
 			Dataset ds3 = datasetConnector.create("Scripting", DatasetType.COMPLETE, project,
-			        "TEMPLATE: Script reacting to events in this project will be stored in this dataset (please replace with your dataset description)",
-			        "", null, null);
+					"TEMPLATE: Script reacting to events in this project will be stored in this dataset (please replace with your dataset description)",
+					"", null, null);
 			ds3.setCollectorType(Dataset.ACTOR);
 			ds3.save();
 			project.getDatasets().add(ds0);
@@ -328,7 +329,7 @@ public class ModelTemplates {
 			}
 
 			project.setDescription(
-			        "TEMPLATE: Data-enabled Design project (informed step) with 10 participants, 20 devices and scripting. (please replace with your project description)");
+					"TEMPLATE: Data-enabled Design project (informed step) with 10 participants, 20 devices and scripting. (please replace with your project description)");
 			project.update();
 			break;
 		}
