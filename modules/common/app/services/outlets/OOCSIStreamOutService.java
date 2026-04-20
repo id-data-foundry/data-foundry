@@ -30,7 +30,7 @@ public class OOCSIStreamOutService implements ScheduledService {
 
 	@Inject
 	public OOCSIStreamOutService(OOCSIClientUtil oocsiClientUtil) {
-		oocsi = oocsiClientUtil.createOOCSIClient("DF/OOCSI/outlet_####");
+		oocsi = oocsiClientUtil.createOOCSIClient("DF/OOCSI/outlet");
 		logger.info("OOCSI output service starting");
 	}
 

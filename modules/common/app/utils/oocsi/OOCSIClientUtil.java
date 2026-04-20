@@ -1,12 +1,10 @@
 package utils.oocsi;
 
-import java.time.Duration;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
@@ -29,9 +27,6 @@ import play.Environment;
 import play.Logger;
 import play.core.NamedThreadFactory;
 import play.libs.Json;
-import play.libs.ws.WSClient;
-import play.libs.ws.WSResponse;
-import play.test.WSTestClient;
 import utils.conf.ConfigurationUtils;
 
 @Singleton
@@ -40,7 +35,6 @@ public class OOCSIClientUtil {
 	private static final Logger.ALogger logger = Logger.of(OOCSIClientUtil.class);
 
 	private String oocsiServerAddress = null;
-	private boolean offlineOperation = false;
 
 	private final ExecutorService executor;
 
@@ -54,40 +48,27 @@ public class OOCSIClientUtil {
 
 		// check address in configuration
 		if (config.hasPath(ConfigurationUtils.DF_OOCSI_SERVER)
-		        && config.getString(ConfigurationUtils.DF_OOCSI_SERVER).length() > 0) {
+				&& config.getString(ConfigurationUtils.DF_OOCSI_SERVER).length() > 0) {
 			oocsiServerAddress = config.getString(ConfigurationUtils.DF_OOCSI_SERVER);
 		} else {
 			oocsiServerAddress = "";
 			logger.error("'" + ConfigurationUtils.DF_OOCSI_SERVER + "' is not defined in configuration.");
-			offlineOperation = true;
 		}
+	}
 
-		// second check on reachability of server, but only in production
-		if (environment.isProd()) {
-			if (!offlineOperation) {
-				actorSystem.getDispatcher().execute(() -> {
-					try (WSClient ws = WSTestClient.newClient(3333)) {
-						CompletionStage<WSResponse> request = ws.url("http://" + oocsiServerAddress)
-						        .setRequestTimeout(Duration.ofSeconds(2)).get();
-						request.toCompletableFuture().get();
-					} catch (Exception e) {
-						logger.warn("OOCSI not responding at configured URL");
-						offlineOperation = true;
-					}
-				});
-			}
-		}
+	public boolean isOfflineOperation() {
+		return oocsiServerAddress.isEmpty();
 	}
 
 	public OOCSICommunicator createOOCSIClient(String clientHandle) {
 
 		// create dummy clients if there is no connection to server
-		if (offlineOperation) {
+		if (isOfflineOperation()) {
 			return createOOCSIDummyClient(clientHandle);
 		}
 
 		// establish OOCSI communications
-		OOCSICommunicator oocsi = createOOCSICommunicator(clientHandle);
+		OOCSICommunicator oocsi = createOOCSICommunicator(clientHandle + "__####");
 		oocsi.setReconnect(true);
 		logger.info("  Connecting to '" + oocsiServerAddress + "'...");
 		oocsi.connect(oocsiServerAddress, 4444);
@@ -112,7 +93,7 @@ public class OOCSIClientUtil {
 			@Override
 			public void log(String message) {
 				logger.warn("[%s] %s (%s) -- not connected, not delivered".formatted(clientHandle, message,
-				        this.getName()));
+						this.getName()));
 			}
 
 			@Override
@@ -184,7 +165,7 @@ public class OOCSIClientUtil {
 					response.data(key, value.asBoolean());
 				} else if (value.isArray()) {
 					response.data(key, StreamSupport.stream(((ArrayNode) value).spliterator(), false)
-					        .collect(Collectors.toList()));
+							.collect(Collectors.toList()));
 				} else if (value.isObject()) {
 					final Map<String, Object> map = new HashMap<>();
 					((ObjectNode) value).fields().forEachRemaining(f -> {
@@ -228,7 +209,7 @@ public class OOCSIClientUtil {
 					result.put(key, value.asBoolean());
 				} else if (value.isArray()) {
 					result.put(key, StreamSupport.stream(((ArrayNode) value).spliterator(), false)
-					        .collect(Collectors.toList()));
+							.collect(Collectors.toList()));
 				} else if (value.isObject()) {
 					final Map<String, Object> map = new HashMap<>();
 					((ObjectNode) value).fields().forEachRemaining(f -> {
