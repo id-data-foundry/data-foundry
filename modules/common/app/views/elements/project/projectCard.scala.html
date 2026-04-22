@@ -17,18 +17,24 @@
             </div>
             <div class="card-content" style="height: 12em;">
                 <span class="card-title truncate">
-                        @p.getName() @if(p.isFrozen()){🧊}
+                    @p.getName() @if(p.isFrozen()){🧊}
                 </span>
                 <p class="">
                     @p.getOwnerAndTeamNames()
                 </p>
                 <p style="margin-top: 1em;">
-                     @for((name, background) <- p.getAllDatasetUIStringSet()) {
+                    @if(!p.isFrozen() && !p.isArchivedProject()) {
+                    @for((name, background) <- p.getAllDatasetUIStringSet()) {
                         <span class="typetag @background">@name</span>
                     }
                     @if(p.getDatasets().isEmpty()) {
-                        <span class="typetag grey lighten-3">
+                        <span class="typetag grey lighten-2">
                             NO DATASETS
+                        </span>
+                    }
+                    } else {
+                        <span class="typetag grey">
+                            ARCHIVED
                         </span>
                     }
                 </p>

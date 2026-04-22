@@ -1820,6 +1820,7 @@ public class ProjectsController extends AbstractAsyncController {
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////
 
+	@Authenticated(UserAuth.class)
 	public Result search(Request request, String query, String filterStr) {
 		List<Project> projects = searchService.search(nss(query));
 
@@ -1846,21 +1847,12 @@ public class ProjectsController extends AbstractAsyncController {
 		}
 
 		// check if user exists
-		Optional<String> username = getAuthenticatedUserName(request);
-		if (username.isEmpty()) {
 			List<Project> filteredProjects = projects.stream()
 					.filter(p -> p.isPublicProject() && p.isActiveOrHasRecentlyEnded() && p.isDFNativeProject()
 							&& (filter == null || p.getAllDatasetTypeSet().contains(filter)))
 					.collect(Collectors.toList());
-			return ok(views.html.projects.searchPublic.render(query, filterStr, filteredProjects));
-		} else {
-			List<Project> filteredProjects = projects.stream()
-					.filter(p -> (p.isPublicProject() || p.visibleFor(username)) && p.isActiveOrHasRecentlyEnded()
-							&& p.isDFNativeProject() && (filter == null || p.getAllDatasetTypeSet().contains(filter)))
-					.collect(Collectors.toList());
 			return ok(views.html.projects.search.render(query, filterStr, filteredProjects));
 		}
-	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////
 
