@@ -321,6 +321,116 @@ public class MediaDS extends CompleteDS {
 	}
 
 	/**
+	 * get specified file from the dataset as TimedMedia object
+	 * 
+	 * @param itemId
+	 * @return
+	 */
+	public Optional<TimedMedia> getItem(long itemId) {
+		Optional<TimedMedia> result = Optional.empty();
+		try (Transaction transaction = DB.beginTransaction();
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("SELECT id, ts, file_name, description, status, participant_id FROM "
+								+ dataTableNameRawFiles + " WHERE id = ?;")) {
+			stmt.setLong(1, itemId);
+			ResultSet rs = stmt.executeQuery();
+
+			if (rs.next()) {
+				String filename = rs.getString("file_name");
+				Timestamp timestamp = rs.getTimestamp("ts");
+
+				String participantId = rs.getString("participant_id");
+				long pid = DataUtils.parseLong(participantId);
+				Participant participant = Participant.find.byId(pid);
+				TimedMedia tm = new TimedMedia(rs.getLong("id"), timestamp, filename, rs.getString("status"),
+						rs.getString("description"), participant);
+				result = Optional.of(tm);
+			}
+			transaction.commit();
+		} catch (SQLException e) {
+			logger.error("Error in retrieving file by id.", e);
+			Slack.call("Exception", e.getLocalizedMessage());
+		} catch (Exception e) {
+			logger.error("Error in retrieving file by id.", e);
+			Slack.call("Exception", e.getLocalizedMessage());
+		}
+
+		return result;
+	}
+
+	/**
+	 * update record in dataset
+	 * 
+	 * @param itemId
+	 * @param description
+	 */
+	public void updateItemRecord(long itemId, String description) {
+		Optional<TimedMedia> item = getItem(itemId);
+		if (item.isPresent()) {
+			updateItemRecord(itemId, item.get().participant, item.get().link, item.get().link, description);
+		}
+	}
+
+	/**
+	 * update record in dataset
+	 * 
+	 * @param itemId
+	 * @param participant
+	 * @param fileName
+	 * @param link
+	 * @param description
+	 */
+	public void updateItemRecord(long itemId, Participant participant, String fileName, String link,
+			String description) {
+
+		// get the file name first
+		Optional<TimedMedia> item = getItem(itemId);
+		if (item.isEmpty()) {
+			return;
+		}
+
+		String oldFileName = item.get().link;
+
+		// update record
+		try (Transaction transaction = DB.beginTransaction();
+				Connection connection = transaction.connection();
+				PreparedStatement stmtRaw = connection.prepareStatement("UPDATE " + dataTableNameRawFiles
+						+ " SET participant_id = ?, file_name = ?, description = ? WHERE id = ?;");
+				PreparedStatement stmtFull = connection.prepareStatement("UPDATE " + dataTableName
+						+ " SET participant_id = ?, link = ?, description = ?, pp1 = ?, pp2 = ?, pp3 = ? WHERE link LIKE ?;");) {
+
+			// update raw files table
+			stmtRaw.setLong(1, participant != null ? participant.getId() : -1);
+			stmtRaw.setString(2, nss(fileName, 255));
+			stmtRaw.setString(3, nss(description, 255));
+			stmtRaw.setLong(4, itemId);
+			stmtRaw.executeUpdate();
+
+			// update structured data table (match by filename in link)
+			stmtFull.setLong(1, participant != null ? participant.getId() : -1);
+			stmtFull.setString(2, nss(link, 255));
+			stmtFull.setString(3, nss(description, 255));
+			stmtFull.setString(4, nss(participant != null ? participant.getPublicParameter1() : "", 255));
+			stmtFull.setString(5, nss(participant != null ? participant.getPublicParameter2() : "", 255));
+			stmtFull.setString(6, nss(participant != null ? participant.getPublicParameter3() : "", 255));
+			stmtFull.setString(7, "%" + oldFileName);
+			stmtFull.executeUpdate();
+
+			transaction.commit();
+
+			// post update on OOCSI
+			oocsiStreaming.datasetUpdate(dataset,
+					OOCSIStreamOutService.map().put("operation", "update").put("filename", nss(fileName, 255))
+							.put("description", nss(description, 255))
+							.put("participant_id", nss(participant != null ? participant.getRefId() : "", 32)).build());
+		} catch (Exception e) {
+			logger.error("Error in updating record in dataset.", e);
+			Slack.call("Exception", e.getLocalizedMessage());
+		}
+	}
+
+	/**
 	 * return all files in this media dataset as list of TimedMedia objects (soft limit to 1000)
 	 * 
 	 */
@@ -353,7 +463,8 @@ public class MediaDS extends CompleteDS {
 				Timestamp timestamp = rs.getTimestamp("ts");
 				Optional<File> fileOpt = getFile(filename);
 				if (fileOpt.isEmpty()) {
-					fileOpt = getFile(timestamp.getTime() + "_" + filename);
+					filename = timestamp.getTime() + "_" + filename;
+					fileOpt = getFile(filename);
 				}
 
 				if (fileOpt.isPresent()) {

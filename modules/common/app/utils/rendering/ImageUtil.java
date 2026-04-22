@@ -28,6 +28,25 @@ public class ImageUtil {
 	}
 
 	/**
+	 * remove all cached thumbnails for the given input file
+	 * 
+	 * @param originalImageFile
+	 */
+	public void clearThumbnails(File originalImageFile) {
+		File parentDir = originalImageFile.getParentFile();
+		if (parentDir != null && parentDir.exists()) {
+			String baseName = FileTypeUtils.getNameWithoutExtension(originalImageFile.getName()) + "-";
+			File[] files = parentDir.listFiles((dir, name) -> name.startsWith(baseName)
+					&& (name.endsWith(".png") || name.endsWith(".avif")));
+			if (files != null) {
+				for (File f : files) {
+					f.delete();
+				}
+			}
+		}
+	}
+
+	/**
 	 * generate two thumbnails of the given inputFile with the given width in png and avif formats
 	 * 
 	 * @param originalImageFile

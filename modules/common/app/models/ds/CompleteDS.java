@@ -2,6 +2,8 @@ package models.ds;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -73,9 +75,9 @@ public class CompleteDS extends LinkedDS {
 		// create the actual database for the data
 		try (Transaction transaction = DB.beginTransaction(); Connection connection = transaction.connection();) {
 			connection.createStatement()
-			        .execute("CREATE TABLE IF NOT EXISTS " + dataTableName + " ( id bigint auto_increment not null,"
-			                + "file_name varchar(255)," + "description varchar(255)," + "dataset_id bigint,"
-			                + "ts timestamp," + "PRIMARY KEY (id) );");
+					.execute("CREATE TABLE IF NOT EXISTS " + dataTableName + " ( id bigint auto_increment not null,"
+							+ "file_name varchar(255)," + "description varchar(255)," + "dataset_id bigint,"
+							+ "ts timestamp," + "PRIMARY KEY (id) );");
 
 			transaction.commit();
 		} catch (SQLException e) {
@@ -93,9 +95,9 @@ public class CompleteDS extends LinkedDS {
 
 		// insert record
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("INSERT INTO " + dataTableName
-		                + " ( file_name, description, dataset_id, ts )" + " VALUES (?, ?, ?, ?);");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("INSERT INTO " + dataTableName
+						+ " ( file_name, description, dataset_id, ts )" + " VALUES (?, ?, ?, ?);");) {
 
 			stmt.setString(1, nss(fileName, 255));
 			stmt.setString(2, nss(description, 255));
@@ -109,7 +111,7 @@ public class CompleteDS extends LinkedDS {
 
 			// post update on OOCSI
 			oocsiStreaming.datasetUpdate(dataset, OOCSIStreamOutService.map().put("operation", "add")
-			        .put("filename", nss(fileName, 255)).put("description", nss(description, 255)).build());
+					.put("filename", nss(fileName, 255)).put("description", nss(description, 255)).build());
 		}
 	}
 
@@ -117,9 +119,9 @@ public class CompleteDS extends LinkedDS {
 
 		// update record
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection
-		                .prepareStatement("UPDATE " + dataTableName + " SET description = ? WHERE id = ?;");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("UPDATE " + dataTableName + " SET description = ? WHERE id = ?;");) {
 
 			stmt.setString(1, description);
 			stmt.setLong(2, fileId);
@@ -136,9 +138,9 @@ public class CompleteDS extends LinkedDS {
 
 		// delete record
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection
-		                .prepareStatement("DELETE FROM " + dataTableName + " WHERE file_name LIKE ?;");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("DELETE FROM " + dataTableName + " WHERE file_name LIKE ?;");) {
 
 			stmt.setString(1, fileName);
 			stmt.executeUpdate();
@@ -154,9 +156,9 @@ public class CompleteDS extends LinkedDS {
 
 		// delete record
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection
-		                .prepareStatement("DELETE FROM " + dataTableName + " WHERE id = ?;");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("DELETE FROM " + dataTableName + " WHERE id = ?;");) {
 
 			stmt.setLong(1, fileId);
 			stmt.executeUpdate();
@@ -237,7 +239,7 @@ public class CompleteDS extends LinkedDS {
 
 			if (notebookLines == null || notebookLines.length == 0) {
 				String[] defaultLines = { "# %% [javascript]", "let what = {", "	test: true", "}", "",
-				        "console.log(what)", "# %% [python]", "globalWhat = {}", "", "print(globalWhat)" };
+						"console.log(what)", "# %% [python]", "globalWhat = {}", "", "print(globalWhat)" };
 				Files.write(target, Arrays.asList(defaultLines));
 			} else {
 				Files.write(target, Arrays.asList(notebookLines));
@@ -272,7 +274,7 @@ public class CompleteDS extends LinkedDS {
 	 */
 	public File getFolder() {
 		File theFolder = new File(
-		        UPLOAD_DIR_PARENT + UPLOADS_DATASETS + dataset.getProject().getRefId() + "__" + dataset.getRefId());
+				UPLOAD_DIR_PARENT + UPLOADS_DATASETS + dataset.getProject().getRefId() + "__" + dataset.getRefId());
 
 		// ensure the folder is available
 		if (!theFolder.exists()) {
@@ -290,10 +292,26 @@ public class CompleteDS extends LinkedDS {
 	 */
 	public Optional<File> getFile(String fileName) {
 
-		// sanitize beforehand
-		fileName = FileTypeUtils.sanitizeFilename(fileName);
+		// first just decode from URL
+		String decodedFilename = URLDecoder.decode(fileName, StandardCharsets.UTF_8);
+		File f = new File(getFolder(), decodedFilename);
 
-		File f = new File(getFolder(), fileName);
+		if (!f.exists()) {
+			// MODERATE: sanitize filename then find
+			String sanitizedFileName = FileTypeUtils.sanitizeFilename(decodedFilename);
+			f = new File(getFolder(), sanitizedFileName);
+
+			if (!f.exists()) {
+				// EXPENSIVE: try potential matches on disk in old formats
+				Optional<String> possibleMatch = Arrays.stream(getFolder().list())
+						.filter(sf -> FileTypeUtils.sanitizeFilename(sf).equals(sanitizedFileName)).findAny();
+				if (possibleMatch.isPresent()) {
+					f = new File(getFolder(), possibleMatch.get());
+				}
+			}
+		}
+
+		// final check
 		return f.exists() ? Optional.of(f) : Optional.empty();
 	}
 
@@ -334,9 +352,9 @@ public class CompleteDS extends LinkedDS {
 		// delete record
 		Optional<File> result = Optional.empty();
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection
-		                .prepareStatement("SELECT ts, file_name FROM " + dataTableName + " WHERE id = ?;");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("SELECT ts, file_name FROM " + dataTableName + " WHERE id = ?;");) {
 
 			stmt.setLong(1, fileId);
 			ResultSet rs = stmt.executeQuery();
@@ -371,9 +389,9 @@ public class CompleteDS extends LinkedDS {
 	public Optional<Long> getLatestFileVersionId(String filename) {
 		Optional<Long> id = Optional.empty();
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection
-		                .prepareStatement("SELECT MAX(id) FROM " + dataTableName + " WHERE file_name LIKE ?;")) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("SELECT MAX(id) FROM " + dataTableName + " WHERE file_name LIKE ?;")) {
 
 			stmt.setString(1, filename);
 			ResultSet rs = stmt.executeQuery();
@@ -405,14 +423,14 @@ public class CompleteDS extends LinkedDS {
 	 */
 	public List<TimedMedia> getFiles(Optional<String> pattern) {
 		final String fullpath = UPLOAD_DIR_PARENT + UPLOADS_DATASETS + dataset.getProject().getRefId() + "__"
-		        + dataset.getRefId() + "/";
+				+ dataset.getRefId() + "/";
 
 		List<TimedMedia> result = new LinkedList<TimedMedia>();
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("SELECT id, file_name, ts, description FROM "
-		                + maxIdJoinExpression(dataTableName) + " ORDER BY file_name ASC");
-		        ResultSet rs = stmt.executeQuery()) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("SELECT id, file_name, ts, description FROM "
+						+ maxIdJoinExpression(dataTableName) + " ORDER BY file_name ASC");
+				ResultSet rs = stmt.executeQuery()) {
 
 			while (rs.next()) {
 				Long id = rs.getLong("id");
@@ -433,7 +451,7 @@ public class CompleteDS extends LinkedDS {
 
 						// retrieve on-disk timestamp for file
 						File timestampedFile = new File(
-						        fullpath + timestamp.getTime() + "_" + filename.replace("..", ""));
+								fullpath + timestamp.getTime() + "_" + filename.replace("..", ""));
 						if (timestampedFile.exists()) {
 							tm.timestamp = new Date(timestampedFile.lastModified());
 						}
@@ -468,15 +486,15 @@ public class CompleteDS extends LinkedDS {
 	 * @param end
 	 */
 	public void export(SourceQueueWithComplete<ByteString> queue, Function<String, String> linkMapper, long limit,
-	        long start, long end) {
+			long start, long end) {
 		// create the actual database for the data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection
-		                .prepareStatement("SELECT id, dataset_id, ts, file_name, description FROM "
-		                        + maxIdJoinExpression(dataTableName) + timeFilterWhereClause(start, end)
-		                        + " ORDER BY id ASC " + limitExpression(limit) + ";");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("SELECT id, dataset_id, ts, file_name, description FROM "
+								+ maxIdJoinExpression(dataTableName) + timeFilterWhereClause(start, end)
+								+ " ORDER BY id ASC " + limitExpression(limit) + ";");
+				ResultSet rs = stmt.executeQuery();) {
 
 			// header
 			queue.offer(ByteString.fromString("id,dataset_id,ts,link,description\n")).toCompletableFuture().get();
@@ -509,11 +527,11 @@ public class CompleteDS extends LinkedDS {
 		List<ObjectNode> objects = new LinkedList<ObjectNode>();
 		// export the data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement(
-		                "SELECT id, ts, file_name, description FROM " + maxIdJoinExpression(dataTableName)
-		                        + timeFilterWhereClause(start, end) + " ORDER BY id DESC LIMIT " + limit + ";");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement(
+						"SELECT id, ts, file_name, description FROM " + maxIdJoinExpression(dataTableName)
+								+ timeFilterWhereClause(start, end) + " ORDER BY id DESC LIMIT " + limit + ";");
+				ResultSet rs = stmt.executeQuery();) {
 
 			while (rs.next()) {
 
@@ -544,21 +562,21 @@ public class CompleteDS extends LinkedDS {
 
 	public Function<Long, String> getLinks(Request request, Dataset ds) {
 		return fileId -> controllers.api.routes.CompleteDSController.downloadFile(ds.getId(), fileId)
-		        .absoluteURL(request, true);
+				.absoluteURL(request, true);
 	}
 
 	protected String maxIdJoinExpression(String tableName) {
 		return """
-		           (
-		               SELECT
-		               	   MAX(id) AS mid,
-		                   file_name as gfn
-		               FROM %s
-		               GROUP BY gfn
-		           ) AS d1
-		           JOIN %s as d2
-		           ON d1.mid = d2.id
-		        """.formatted(tableName, tableName);
+				   (
+				       SELECT
+				       	   MAX(id) AS mid,
+				           file_name as gfn
+				       FROM %s
+				       GROUP BY gfn
+				   ) AS d1
+				   JOIN %s as d2
+				   ON d1.mid = d2.id
+				""".formatted(tableName, tableName);
 	}
 
 	@Override
