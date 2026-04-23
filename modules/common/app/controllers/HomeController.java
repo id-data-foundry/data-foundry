@@ -303,6 +303,7 @@ public class HomeController extends AbstractAsyncController {
 			// also replace DATAFOUNDRYBASEURL placeholder
 			docString = docString.replace("DATAFOUNDRYBASEURL",
 					(environment.isProd() ? "https://" : "http://") + request.host());
+			docString = docString.replace("DATAFOUNDRYDOMAIN", request.host());
 
 			// finally replace configuration variables (using the direct configuration key as placeholders)
 			docString = ConfigurationUtils.replaceConfigurationVars(configuration, docString);
