@@ -81,6 +81,11 @@
                 @elements.icon("art_track")
               </a>
             }
+            @if(dataset.editableBy(user)){
+              <a href="@api.routes.MediaDSController.editItem(dataset.getId(), fileList.getId())">
+                @elements.icon("edit")
+              </a>
+            }
             </td>
           </tr>
           }
@@ -104,6 +109,12 @@
               }
             </div>
             <small>@fileList.link</small>
+            @if(dataset.editableBy(user)){
+              <br>
+              <a href="@api.routes.MediaDSController.editItem(dataset.getId(), fileList.getId())" class="btn-floating btn-small waves-effect waves-light grey">
+                @elements.icon("edit")
+              </a>
+            }
           } else {
             @if(fileList.link.endsWith("mp4")) {
             <div style="height: 200px; overflow: hidden; border-bottom: 1px solid #e0e0e0;">
@@ -112,6 +123,12 @@
               </video>
             </div>
             <small>@fileList.link</small>
+            @if(dataset.editableBy(user)){
+              <br>
+              <a href="@api.routes.MediaDSController.editItem(dataset.getId(), fileList.getId())" class="btn-floating btn-small waves-effect waves-light grey">
+                @elements.icon("edit")
+              </a>
+            }
             } else {
               @if(fileList.link.endsWith("mp3") || fileList.link.endsWith("ogg")) {
             <div style="height: 200px; overflow: hidden; border-bottom: 1px solid #e0e0e0;">
@@ -120,8 +137,20 @@
               </audio>
             </div>
             <small>@fileList.link</small>
+            @if(dataset.editableBy(user)){
+              <br>
+              <a href="@api.routes.MediaDSController.editItem(dataset.getId(), fileList.getId())" class="btn-floating btn-small waves-effect waves-light grey">
+                @elements.icon("edit")
+              </a>
+            }
               } else {
             <a href="@api.routes.MediaDSController.downloadFile(dataset.getId(),fileList.link)">@fileList.link</a>
+            @if(dataset.editableBy(user)){
+              <br>
+              <a href="@api.routes.MediaDSController.editItem(dataset.getId(), fileList.getId())" class="btn-floating btn-small waves-effect waves-light grey">
+                @elements.icon("edit")
+              </a>
+            }
               }
             }
           }

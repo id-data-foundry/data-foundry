@@ -125,6 +125,37 @@ public class MediaDSController extends AbstractDSController {
 
 	@Authenticated(UserAuth.class)
 	@AddCSRFToken
+	public Result editItem(Request request, Long id, Long itemId) {
+		String username = getAuthenticatedUserNameOrReturn(request, redirect(LANDING));
+
+		Dataset ds = Dataset.find.byId(id);
+		if (ds == null) {
+			return redirect(HOME).addingToSession(request, "error", "We could not find this dataset.");
+		}
+
+		if (!ds.editableBy(username)) {
+			return redirect(HOME).addingToSession(request, "error",
+					"You don't have permissions for this action. Need to be the owner or a collaborator of the project.");
+		}
+
+		final MediaDS mds = (MediaDS) datasetConnector.getDatasetDS(ds);
+		Optional<TimedMedia> item = mds.getItem(itemId);
+		if (item.isEmpty()) {
+			return notFound("Item not found.");
+		}
+
+		// refresh project to get the participants; enumerate participants before render, beanlist needs it.
+		Project project = ds.getProject();
+		project.refresh();
+		List<Participant> participants = project.getParticipants();
+		participants.size();
+
+		return ok(views.html.datasets.media.editItem.render(csrfToken(request), ds, item.get(), participants, username,
+				request));
+	}
+
+	@Authenticated(UserAuth.class)
+	@AddCSRFToken
 	public Result edit(Request request, Long id) {
 		String username = getAuthenticatedUserNameOrReturn(request, redirect(LANDING));
 
@@ -338,6 +369,134 @@ public class MediaDSController extends AbstractDSController {
 			return ok("").as("application/json");
 		}).exceptionally(e -> {
 			logger.error("Media dataset index problem", e);
+			return badRequest();
+		});
+	}
+
+	@Authenticated(DatasetApiAuth.class)
+	public CompletionStage<Result> updateItemApi(Request request, Long id, Long itemId) {
+		return internalUpdateItem(request, id, itemId, null);
+	}
+
+	/**
+	 * Dataset API file update ("update item")
+	 * 
+	 * @param request
+	 * @param id
+	 * @param itemId
+	 * @return
+	 */
+	@Authenticated(UserAuth.class)
+	@RequireCSRFCheck
+	public CompletionStage<Result> updateItem(Request request, Long id, Long itemId) {
+		String username = getAuthenticatedUserNameOrReturn(request, redirect(LANDING));
+		return internalUpdateItem(request, id, itemId, username);
+	}
+
+	/**
+	 * Internal file update ("update item")
+	 * 
+	 * @param request
+	 * @param id
+	 * @param itemId
+	 * @param username
+	 * @return
+	 */
+	private CompletionStage<Result> internalUpdateItem(Request request, Long id, Long itemId, String username) {
+		return CompletableFuture.supplyAsync(() -> {
+			Dataset ds = Dataset.find.byId(id);
+			if (ds == null) {
+				return notFound("Dataset not found.");
+			}
+
+			// check access
+			if (username != null) {
+				if (!ds.editableBy(username)) {
+					return forbidden("You don't have permissions for this action.");
+				}
+			} else {
+				if (!ds.canAppend()) {
+					return forbidden("Dataset is not accessible.");
+				}
+			}
+
+			final MediaDS mds = datasetConnector.getTypedDatasetDS(ds);
+			Optional<TimedMedia> item = mds.getItem(itemId);
+			if (item.isEmpty()) {
+				return notFound("Item not found.");
+			}
+
+			Project p = ds.getProject();
+			p.refresh();
+
+			try {
+				Http.MultipartFormData<TemporaryFile> body = request.body().asMultipartFormData();
+				DynamicForm df = formFactory.form().bindFromRequest(request);
+
+				String description = item.get().caption;
+				if (df != null && df.get("description") != null) {
+					description = nss(df.get("description"));
+				}
+
+				// Get participant from form
+				Participant participant = item.get().participant;
+				if (df != null && df.get("participant_id") != null) {
+					long pid = DataUtils.parseLong(df.get("participant_id"));
+					Participant newParticipant = Participant.find.byId(pid);
+					if (newParticipant != null && p.hasParticipant(newParticipant)) {
+						participant = newParticipant;
+					} else if (pid == -1) {
+						participant = Participant.EMPTY_PARTICIPANT;
+					}
+				}
+
+				String fileName = item.get().link;
+				String link = routes.MediaDSController.image(id, fileName).absoluteURL(request, environment.isProd());
+
+				if (body != null) {
+					List<Http.MultipartFormData.FilePart<TemporaryFile>> fileParts = body.getFiles();
+					if (!fileParts.isEmpty()) {
+						// we only take the first file part for update
+						FilePart<TemporaryFile> filePart = fileParts.get(0);
+						TemporaryFile tempfile = filePart.getRef();
+						String oldFileName = item.get().link;
+
+						// restrict file type
+						if (FileTypeUtils.looksLikeImageFile(filePart.getFilename())
+								&& FileTypeUtils.validateAndLog(filePart, FileTypeUtils.FileCategory.IMAGE)) {
+
+							// New filename logic: timestamp + original filename
+							fileName = System.currentTimeMillis() + "_" + filePart.getFilename();
+							link = routes.MediaDSController.image(id, fileName).absoluteURL(request,
+									environment.isProd());
+
+							// store file with NEW name
+							mds.storeFile(tempfile.path().toFile(), fileName);
+
+							// clear thumbnails and delete OLD file
+							Optional<File> originalFile = mds.getFile(oldFileName);
+							if (originalFile.isPresent()) {
+								imageUtil.clearThumbnails(originalFile.get());
+								originalFile.get().delete();
+							}
+						}
+					}
+				}
+
+				// update record in DB
+				mds.updateItemRecord(itemId, participant, fileName, link, description);
+
+				LabNotesEntry.log(MediaDSController.class, LabNotesEntryType.DATA,
+						"File updated in dataset: " + ds.getName(), ds.getProject());
+
+			} catch (Exception e) {
+				logger.error("Media dataset update problem", e);
+				return badRequest();
+			}
+
+			return ok("").as("application/json");
+		}).exceptionally(e -> {
+			logger.error("Media dataset update problem", e);
 			return badRequest();
 		});
 	}
