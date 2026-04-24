@@ -1847,12 +1847,12 @@ public class ProjectsController extends AbstractAsyncController {
 		}
 
 		// check if user exists
-			List<Project> filteredProjects = projects.stream()
-					.filter(p -> p.isPublicProject() && p.isActiveOrHasRecentlyEnded() && p.isDFNativeProject()
-							&& (filter == null || p.getAllDatasetTypeSet().contains(filter)))
-					.collect(Collectors.toList());
-			return ok(views.html.projects.search.render(query, filterStr, filteredProjects));
-		}
+		List<Project> filteredProjects = projects.stream()
+				.filter(p -> p.isPublicProject() && p.isActiveOrHasRecentlyEnded() && p.isDFNativeProject()
+						&& (filter == null || p.getAllDatasetTypeSet().contains(filter)))
+				.collect(Collectors.toList());
+		return ok(views.html.projects.search.render(query, filterStr, filteredProjects));
+	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////
 
