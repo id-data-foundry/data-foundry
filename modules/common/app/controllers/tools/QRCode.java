@@ -43,8 +43,8 @@ public class QRCode extends Controller {
 	public Result qrCode(Request request, String key, String url) {
 
 		// check attributes and append them if available
-		String queryString = request.queryString().entrySet().stream()
-				.map(e -> e.getKey() + "=" + e.getValue().toString()).collect(Collectors.joining("&"));
+		String queryString = request.queryString().entrySet().stream().filter(e -> e.getValue().length == 1)
+				.map(e -> e.getKey() + "=" + e.getValue()[0]).collect(Collectors.joining("&"));
 		url += queryString.isEmpty() ? "" : ("?" + queryString);
 
 		// ensure URLs have the right protocol
