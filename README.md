@@ -142,18 +142,18 @@ This is a checklist for the development team to prepare the repository for its p
 - [x] Add a `SECURITY.md` file with a vulnerability disclosure policy.
 
 ### CI/CD & Automation
-- [ ] Set up GitHub Actions to replace `.gitlab-ci.yml`.
-- [ ] Create a workflow to run `sbt test`.
-- [ ] Create a workflow to build Docker images for development and production.
-- [ ] (Optional) Create a release workflow to publish Docker images.
+- [x] Set up GitHub Actions to replace `.gitlab-ci.yml`.
+- [x] Create a workflow to run `sbt test`.
+- [x] Create a workflow to build Docker images for development and production.
+- [x] (Optional) Create a release workflow to publish Docker images.
 
 ### Codebase & Configuration
-- [ ] Audit all `*.conf` files for secrets and internal URLs. Replace with placeholders or environment variable references.
-- [ ] Verify that test configurations (`tests.conf`) use mock keys and are safe for public view.
-- [ ] Remove any dead code or internal-only modules not intended for release.
+- [x] Audit all `*.conf` files for secrets and internal URLs. Replace with placeholders or environment variable references.
+- [x] Verify that test configurations (`tests.conf`) use mock keys and are safe for public view.
+- [x] Remove any dead code or internal-only modules not intended for release.
 
 ### Documentation
-- [ ] Perform a full audit of the `documentation/` folder.
-- [ ] Replace internal links with relative links or links to the future public documentation site.
-- [ ] Remove any internal-only guides or references.
-- [ ] Update `documentation/_config.yml` to remove any internal build configurations.
+- [x] Perform a full audit of the documentation/ folder.
+- [x] Replace internal links with relative links or links to the future public documentation site.
+- [x] Remove any internal-only guides or references.
+- [x] Update documentation/_config.yml to remove any internal build configurations.
