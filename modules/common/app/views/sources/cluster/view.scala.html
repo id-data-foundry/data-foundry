@@ -1,6 +1,6 @@
 @(p: Project, c : sr.Cluster)(implicit request: Http.Request)
 
-@main("Cluster") {
+@main("Cluster", "profile", "collapsed-layout") {
 	<script src='@routes.Assets.versioned("javascripts/vega.min.js")' type="text/javascript"></script>
 	<script src="@routes.DatasetsController.jsRoutes()" type="text/javascript"></script>
 	
@@ -92,6 +92,7 @@
 			<hr>
 			
 			<a href="@routes.ClustersController.exportMetadata(c.getId())" class="btn">Export all</a>
+			<a href="@routes.ClustersController.visualize(c.getId())" class="btn">Visualize Detailed Data</a>
 			@if(p.canAnnotate()) {
 				<a href="@api.routes.AnnotationDSController.recordForm(p.getAnnotationDataset().getId(), c.getRefId())" class="btn">
 					Annotate

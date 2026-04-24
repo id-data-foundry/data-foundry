@@ -12,6 +12,7 @@
 			<li class="tab col" id="sourcesTab"><a href="@routes.ProjectsController.viewResources(p.getId())" target="_self">🐝 Sources</a></li>
 			<li class="tab col" id="studySetupTab"><a href="@routes.ProjectsController.viewStudyManagement(p.getId())" target="_self">🧑‍🔬 Study Setup</a></li>
 			<li class="tab col" id="timeLineTab"><a href="@routes.ProjectsController.viewTimeline(p.getId())" target="_self">📈 Timeline</a></li>
+			<li class="tab col" id="visualizeTab"><a href="@routes.ProjectsController.visualize(p.getId())" target="_self">📊 Visualization</a></li>
 			@if(p.getNarrativeSurveyDataset().isPresent()) {
 			<li class="tab col"><a href="@routes.ProjectsController.viewNarrativeSurvey(p.getId())" target="_self">🔖 Narrative Surveys</a></li>
 			}

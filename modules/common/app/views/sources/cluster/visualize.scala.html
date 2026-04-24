@@ -1,0 +1,298 @@
+@(p: Project, c: sr.Cluster)(implicit request: Http.Request)
+
+@main(p.getName() + " - Cluster: " + c.getName() + " Visualization", "profile") {
+
+<!-- navigation -->
+<nav class="">
+    <div class="row">
+        <div class="col s12">
+            <a href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+            <a href="@routes.ProjectsController.view(p.getId())" class="breadcrumb">@p.getName()</a>
+            <a href="@routes.ProjectsController.viewResources(p.getId())" class="breadcrumb">Sources</a>
+            <a href="@routes.ClustersController.view(c.getId())" class="breadcrumb">@c.getName()</a>
+            <a href="#!" class="breadcrumb">Visualization</a>
+        </div>
+    </div>
+</nav>
+
+<div class="row">
+    <div class="col s12">
+        <h3>Cluster @c.getName() Visualization</h3>
+    </div>
+</div>
+
+<div class="row">
+    <div id="sidebar-column" class="col s12 m2">
+        <h5>Dimensions</h5>
+        <div id="dimension-selector" style="max-height: 600px; overflow-y: auto; margin-bottom: 20px;">
+            <p class="grey-text">Loading data to extract dimensions...</p>
+        </div>
+        <div class="divider"></div>
+        <div style="margin-top: 20px;">
+            <button id="refresh-btn" class="btn waves-effect waves-light green">
+                <i class="material-icons left">refresh</i> Refresh Data
+            </button>
+        </div>
+    </div>
+    
+    <div id="vis-column" class="col s12 m10">
+        <div style="margin-bottom: 10px;">
+            <a id="toggle-sidebar" class="btn-flat waves-effect" title="Toggle Dimensions Sidebar">
+                <i class="material-icons left">format_indent_decrease</i> Dimensions
+            </a>
+        </div>
+        <div id="loading-progress" class="progress green lighten-4" style="display:none;">
+            <div class="indeterminate green"></div>
+        </div>
+        <div id="vis-container" style="width: 100%; min-height: 500px; background-color: #f9f9f9; border-radius: 4px; padding: 10px; overflow-x: auto;">
+            <div class="center-align" style="padding-top: 100px;">
+                <i class="material-icons large grey-text">insights</i>
+                <p class="grey-text">Select dimensions on the left to start visualizing cluster data.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Libraries -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega@@5"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega-lite@@5"></script>
+<script src="https://cdn.jsdelivr.net/npm/vega-embed@@6"></script>
+
+<script type="text/javascript">
+    const clusterId = @c.getId();
+    const datasets = [
+        @for(ds <- p.getOperationalDatasets().stream().filter(ds => ds.getDsType() == models.DatasetType.IOT || ds.getDsType() == models.DatasetType.MOVEMENT || ds.getDsType() == models.DatasetType.FITBIT || ds.getDsType() == models.DatasetType.GOOGLEFIT).collect(java.util.stream.Collectors.toList())) {
+            { id: @ds.getId(), name: "@ds.getName()", type: "@ds.getDsType()" },
+        }
+    ];
+
+    let fullData = [];
+    let selectedUids = new Set();
+    let sidebarHidden = false;
+
+    async function loadAllData() {
+        $('#loading-progress').show();
+        $('#dimension-selector').html('<p class="grey-text">Fetching data...</p>');
+        
+        const fetchPromises = datasets.map(ds => {
+            const url = `/datasets/download/${ds.id}/${clusterId}`;
+            return fetch(url)
+                .then(r => r.ok ? r.text() : "")
+                .then(csv => {
+                    if (!csv) return [];
+                    const results = Papa.parse(csv, { header: true, dynamicTyping: true, skipEmptyLines: true });
+                    return results.data
+                        .filter(row => row.ts)
+                        .map(row => ({ ...row, dataset: ds.name }));
+                })
+                .catch(err => {
+                    console.error(`Error loading dataset ${ds.name}:`, err);
+                    return [];
+                });
+        });
+
+        const results = await Promise.all(fetchPromises);
+        fullData = results.flat();
+        
+        $('#loading-progress').hide();
+        
+        if (fullData.length === 0) {
+            $('#dimension-selector').html('<p class="red-text">No data found in active datasets for this cluster.</p>');
+            return;
+        }
+
+        renderDimensionSelector();
+    }
+
+    function transformToTidy(rawRows, uids) {
+        const metadata = ['ts', 'dataset', 'pp1', 'pp2', 'pp3'];
+        const tidy = [];
+        rawRows.forEach(row => {
+            Object.keys(row).forEach(key => {
+                if (metadata.includes(key) || row[key] === null || row[key] === undefined) return;
+                const uid = `${row.dataset}: ${key}`;
+                if (uids.has(uid)) {
+                    tidy.push({
+                        ts: new Date(row.ts),
+                        dataset: row.dataset,
+                        variable: key,
+                        value: row[key],
+                        uid: uid,
+                        isActivity: key.toLowerCase() === 'activity'
+                    });
+                }
+            });
+        });
+        return tidy;
+    }
+
+    function renderDimensionSelector() {
+        const dimensions = new Set();
+        const metadata = ['ts', 'dataset', 'pp1', 'pp2', 'pp3'];
+        
+        fullData.forEach(row => {
+            Object.keys(row).forEach(key => {
+                if (!metadata.includes(key) && row[key] !== null && row[key] !== undefined) {
+                    dimensions.add(`${row.dataset}: ${key}`);
+                }
+            });
+        });
+
+        const sortedDimensions = Array.from(dimensions).sort();
+        let html = '<form id="dim-form">';
+        sortedDimensions.forEach(dim => {
+            html += `
+                <p>
+                    <label>
+                        <input type="checkbox" class="filled-in dim-checkbox" value="${dim}" ${selectedUids.has(dim) ? 'checked' : ''} />
+                        <span>${dim}</span>
+                    </label>
+                </p>
+            `;
+        });
+        html += '</form>';
+        $('#dimension-selector').html(html);
+
+        $('.dim-checkbox').change(function() {
+            if (this.checked) {
+                selectedUids.add(this.value);
+            } else {
+                selectedUids.delete(this.value);
+            }
+            updateVisualization();
+        });
+    }
+
+    function updateVisualization() {
+        if (selectedUids.size === 0) {
+            $('#vis-container').html(`
+                <div class="center-align" style="padding-top: 100px;">
+                    <i class="material-icons large grey-text">insights</i>
+                    <p class="grey-text">Select dimensions on the left to start visualizing cluster data.</p>
+                </div>
+            `);
+            return;
+        }
+
+        const tidyData = transformToTidy(fullData, selectedUids);
+        
+        const spec = {
+            "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+            "description": "Multi-level Cluster Visualization",
+            "data": { "values": tidyData },
+            "vconcat": [
+                {
+                    "title": "Cluster Activity Overview (Carpet Plot)",
+                    "width": "container",
+                    "height": 60,
+                    "mark": {"type": "rect", "width": 2},
+                    "params": [{
+                        "name": "brush",
+                        "select": {"type": "interval", "encodings": ["x"]}
+                    }],
+                    "encoding": {
+                        "x": {"field": "ts", "type": "temporal", "timeUnit": "yearmonthdatehours", "title": "Overall Time"},
+                        "y": {"field": "dataset", "type": "nominal", "title": null},
+                        "color": {"field": "dataset", "type": "nominal", "legend": null},
+                        "opacity": {"aggregate": "count", "type": "quantitative", "title": "Density", "legend": null}
+                    }
+                },
+                {
+                    "facet": {
+                        "row": {
+                            "field": "uid", 
+                            "type": "nominal", 
+                            "header": {
+                                "title": "Dimensions", 
+                                "labelAngle": 0, 
+                                "labelAlign": "left", 
+                                "labelPadding": 10,
+                                "labelLimit": 180
+                            },
+                            "sort": {"field": "dataset"}
+                        }
+                    },
+                    "spec": {
+                        "width": "container",
+                        "height": 80,
+                        "layer": [
+                            {
+                                "transform": [{"filter": "datum.isActivity === false"}],
+                                "mark": {"type": "area", "line": true, "interpolate": "monotone", "tooltip": true},
+                                "encoding": {
+                                    "y": {
+                                        "field": "value", 
+                                        "type": "quantitative", 
+                                        "title": null, 
+                                        "stack": "zero",
+                                        "scale": {"zero": false}
+                                    },
+                                    "color": {"field": "uid", "type": "nominal", "legend": null}
+                                }
+                            },
+                            {
+                                "transform": [{"filter": "datum.isActivity === true"}],
+                                "mark": {"type": "circle", "size": 60, "tooltip": true},
+                                "encoding": {
+                                    "y": {
+                                        "field": "value", 
+                                        "type": "nominal", 
+                                        "title": null
+                                    },
+                                    "color": {"field": "value", "type": "nominal", "legend": null}
+                                }
+                            }
+                        ],
+                        "encoding": {
+                            "x": {
+                                "field": "ts",
+                                "type": "temporal",
+                                "scale": {"domain": {"param": "brush"}},
+                                "axis": {"title": "Zoomed Time"}
+                            }
+                        }
+                    },
+                    "resolve": {"scale": {"y": "independent"}}
+                }
+            ],
+            "config": {
+                "facet": {"spacing": 0},
+                "view": {"stroke": null}
+            }
+        };
+
+        vegaEmbed('#vis-container', spec, { actions: true });
+    }
+
+    $(document).ready(function() {
+        loadAllData();
+        $('#refresh-btn').click(loadAllData);
+
+        $('#toggle-sidebar').click(function() {
+            sidebarHidden = !sidebarHidden;
+            if (sidebarHidden) {
+                $('#sidebar-column').hide();
+                $('#vis-column').removeClass('m10').addClass('m12');
+                $(this).find('i').text('format_indent_increase');
+            } else {
+                $('#sidebar-column').show();
+                $('#vis-column').removeClass('m12').addClass('m10');
+                $(this).find('i').text('format_indent_decrease');
+            }
+            // Trigger re-render to pick up new container width
+            updateVisualization();
+        });
+    });
+</script>
+
+<style>
+    #dimension-selector p {
+        margin: 5px 0;
+    }
+    .vega-embed summary {
+        display: none;
+    }
+</style>
+
+}

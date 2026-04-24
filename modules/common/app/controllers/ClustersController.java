@@ -33,6 +33,7 @@ import models.sr.Device;
 import models.sr.Participant;
 import models.sr.Wearable;
 import play.Logger;
+import play.filters.csrf.AddCSRFToken;
 import play.libs.Files;
 import play.libs.Files.TemporaryFile;
 import play.libs.Json;
@@ -340,6 +341,25 @@ public class ClustersController extends AbstractAsyncController {
 
 		// back to cluster page
 		return redirect(routes.ClustersController.view(id));
+	}
+
+	@Authenticated(UserAuth.class)
+	@AddCSRFToken
+	public Result visualize(Request request, Long id) {
+		// load cluster
+		Cluster cluster = Cluster.find.byId(id);
+		if (cluster == null)
+			return redirect(HOME);
+
+		Project project = cluster.getProject();
+		project.refresh();
+
+		// check user permissions
+		String username = getAuthenticatedUserNameOrReturn(request, redirect(HOME));
+		if (!project.visibleFor(username))
+			return redirect(HOME);
+
+		return ok(views.html.sources.cluster.visualize.render(project, cluster, request));
 	}
 
 	@Authenticated(UserAuth.class)
