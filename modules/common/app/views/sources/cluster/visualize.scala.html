@@ -1,6 +1,6 @@
 @(p: Project, c: sr.Cluster)(implicit request: Http.Request)
 
-@main(p.getName() + " - Cluster: " + c.getName() + " Visualization", "profile") {
+@main(p.getName() + " - Cluster: " + c.getName() + " Visualization", "profile", "collapsed-layout") {
 
 <!-- navigation -->
 <nav class="">
@@ -27,18 +27,12 @@
         <div id="dimension-selector" style="max-height: 600px; overflow-y: auto; margin-bottom: 20px;">
             <p class="grey-text">Loading data to extract dimensions...</p>
         </div>
-        <div class="divider"></div>
-        <div style="margin-top: 20px;">
-            <button id="refresh-btn" class="btn waves-effect waves-light green">
-                <i class="material-icons left">refresh</i> Refresh Data
-            </button>
-        </div>
     </div>
     
     <div id="vis-column" class="col s12 m10">
         <div style="margin-bottom: 10px;">
-            <a id="toggle-sidebar" class="btn-flat waves-effect" title="Toggle Dimensions Sidebar">
-                <i class="material-icons left">format_indent_decrease</i> Dimensions
+            <a id="toggle-sidebar" class="btn-flat" title="Toggle Dimensions Sidebar">
+                &lt; Hide dimensions
             </a>
         </div>
         <div id="loading-progress" class="progress green lighten-4" style="display:none;">
@@ -183,7 +177,7 @@
             "data": { "values": tidyData },
             "vconcat": [
                 {
-                    "title": "Cluster Activity Overview (Carpet Plot)",
+                    "title": "Cluster Activity Overview",
                     "width": "container",
                     "height": 60,
                     "mark": {"type": "rect", "width": 2},
@@ -267,18 +261,16 @@
 
     $(document).ready(function() {
         loadAllData();
-        $('#refresh-btn').click(loadAllData);
-
         $('#toggle-sidebar').click(function() {
             sidebarHidden = !sidebarHidden;
             if (sidebarHidden) {
                 $('#sidebar-column').hide();
                 $('#vis-column').removeClass('m10').addClass('m12');
-                $(this).find('i').text('format_indent_increase');
+                $(this).text('Show dimensions >');
             } else {
                 $('#sidebar-column').show();
                 $('#vis-column').removeClass('m12').addClass('m10');
-                $(this).find('i').text('format_indent_decrease');
+                $(this).text('< Hide dimensions');
             }
             // Trigger re-render to pick up new container width
             updateVisualization();
