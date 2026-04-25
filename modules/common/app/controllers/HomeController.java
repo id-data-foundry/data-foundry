@@ -394,7 +394,7 @@ public class HomeController extends AbstractAsyncController {
 
 		// check for URL encoded spaces etc.
 		if (fileName.contains("%")) {
-			fileName = URLDecoder.decode(fileName, StandardCharsets.UTF_8);
+			fileName = utils.StringUtils.url2s(fileName);
 		}
 
 		// first check folder

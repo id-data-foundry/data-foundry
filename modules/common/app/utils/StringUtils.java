@@ -75,11 +75,15 @@ public class StringUtils {
 	/**
 	 * decode a string from a URL
 	 * 
-	 * @param s
+	 * @param url
 	 * @return
 	 */
 	static public final String url2s(String url) {
-		return URLDecoder.decode(url, StandardCharsets.UTF_8);
+		try {
+			return URLDecoder.decode(url, StandardCharsets.UTF_8);
+		} catch (IllegalArgumentException e) {
+			return url;
+		}
 	}
 
 	/**

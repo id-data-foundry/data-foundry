@@ -591,7 +591,7 @@ public class DatasetsController extends AbstractAsyncController {
 			// call with transformation function for embedded links
 			return mediaDSController.downloadExternal(ds, filePath -> {
 				String fileName = DataUtils.extractFileNameFromPath(filePath);
-				fileName = URLDecoder.decode(fileName, StandardCharsets.UTF_8);
+				fileName = utils.StringUtils.url2s(fileName);
 				// remove all non-printable, non-ASCII characters
 				fileName = fileName.replaceAll("\\P{Print}", "%");
 				fileName = fileName.replaceAll("\\s", "%");
@@ -647,7 +647,7 @@ public class DatasetsController extends AbstractAsyncController {
 			// call with transformation function for embedded links
 			return mediaDSController.downloadExternal(ds, filePath -> {
 				String fileName = DataUtils.extractFileNameFromPath(filePath);
-				fileName = URLDecoder.decode(fileName, StandardCharsets.UTF_8);
+				fileName = utils.StringUtils.url2s(fileName);
 				// remove all non-printable, non-ASCII characters
 				fileName = fileName.replaceAll("\\P{Print}", "%");
 				fileName = fileName.replaceAll("\\s", "%");
@@ -1096,7 +1096,7 @@ public class DatasetsController extends AbstractAsyncController {
 			}
 
 			// ensure we have a decoded file path
-			final String decodedFilePath = URLDecoder.decode(filePath, StandardCharsets.UTF_8).trim();
+			final String decodedFilePath = utils.StringUtils.url2s(filePath).trim();
 
 			// remove path from filename
 			final String filename = Paths.get(decodedFilePath).getFileName().toString();

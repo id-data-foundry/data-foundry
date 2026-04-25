@@ -293,7 +293,7 @@ public class CompleteDS extends LinkedDS {
 	public Optional<File> getFile(String fileName) {
 
 		// first just decode from URL
-		String decodedFilename = URLDecoder.decode(fileName, StandardCharsets.UTF_8);
+		String decodedFilename = utils.StringUtils.url2s(fileName);
 		File f = new File(getFolder(), decodedFilename);
 
 		if (!f.exists()) {
