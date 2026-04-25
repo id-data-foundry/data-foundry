@@ -123,7 +123,7 @@
 
     function renderDimensionSelector() {
         const dimensions = new Set();
-        const metadata = ['ts', 'dataset', 'pp1', 'pp2', 'pp3'];
+        const metadata = ['ts', 'dataset', 'pp1', 'pp2', 'pp3', 'id', 'device_id', 'deviceid', 'participant_id'];
         
         fullData.forEach(row => {
             Object.keys(row).forEach(key => {
