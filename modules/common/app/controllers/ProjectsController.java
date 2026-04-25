@@ -169,10 +169,12 @@ public class ProjectsController extends AbstractAsyncController {
 		String announcement = getAnnouncement();
 		if (announcement != null && !announcement.isEmpty()) {
 			return ok(views.html.projects.index.render(user, openProjects, subscriptions, archivedProjects,
-					onboardStateForPage, request)).addingToSession(request, "announcement", announcement);
+					onboardStateForPage, request)).addingToSession(request, "announcement", announcement)
+					.removingFromSession(request, "error");
 		} else {
 			return ok(views.html.projects.index.render(user, openProjects, subscriptions, archivedProjects,
-					onboardStateForPage, request)).removingFromSession(request, "announcement");
+					onboardStateForPage, request)).removingFromSession(request, "announcement")
+					.removingFromSession(request, "error");
 		}
 	}
 
