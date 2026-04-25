@@ -39,7 +39,7 @@
         </div>
         <div id="vis-container" style="width: 100%; min-height: 500px; background-color: #f9f9f9; border-radius: 4px; padding: 10px; overflow-x: auto;">
             <div class="center-align" style="padding-top: 100px;">
-                <i class="material-icons large grey-text">insights</i>
+                @elements.icon("select")
                 <p class="grey-text">Select dimensions on the left to start visualizing project data.</p>
             </div>
         </div>
@@ -64,8 +64,8 @@
     let sidebarHidden = false;
 
     async function loadAllData() {
-        $('#loading-progress').show();
-        $('#dimension-selector').html('<p class="grey-text">Fetching data...</p>');
+        document.getElementById('loading-progress').style.display = 'block';
+        document.getElementById('dimension-selector').innerHTML = '<p class="grey-text">Fetching data...</p>';
         
         const fetchPromises = datasets.map(ds => {
             const url = `/datasets/download/${ds.id}`;
@@ -87,10 +87,10 @@
         const results = await Promise.all(fetchPromises);
         fullData = results.flat();
         
-        $('#loading-progress').hide();
+        document.getElementById('loading-progress').style.display = 'none';
         
         if (fullData.length === 0) {
-            $('#dimension-selector').html('<p class="red-text">No data found in active datasets.</p>');
+            document.getElementById('dimension-selector').innerHTML = '<p class="red-text">No data found in active datasets.</p>';
             return;
         }
 
@@ -144,30 +144,35 @@
             `;
         });
         html += '</form>';
-        $('#dimension-selector').html(html);
+        document.getElementById('dimension-selector').innerHTML = html;
 
-        $('.dim-checkbox').change(function() {
-            if (this.checked) {
-                selectedUids.add(this.value);
-            } else {
-                selectedUids.delete(this.value);
-            }
-            updateVisualization();
+        document.querySelectorAll('.dim-checkbox').forEach(cb => {
+            cb.addEventListener('change', function() {
+                if (this.checked) {
+                    selectedUids.add(this.value);
+                } else {
+                    selectedUids.delete(this.value);
+                }
+                updateVisualization();
+            });
         });
     }
 
     function updateVisualization() {
         if (selectedUids.size === 0) {
-            $('#vis-container').html(`
+            document.getElementById('vis-container').innerHTML = `
                 <div class="center-align" style="padding-top: 100px;">
-                    <i class="material-icons large grey-text">insights</i>
+                	@elements.icon("select")
                     <p class="grey-text">Select dimensions on the left to start visualizing project data.</p>
                 </div>
-            `);
+            `;
             return;
         }
 
         const tidyData = transformToTidy(fullData, selectedUids);
+        const container = document.getElementById('vis-container');
+        const containerWidth = container ? container.clientWidth : 800;
+        const chartWidth = Math.max(200, containerWidth - 260); // reserve space for facet labels and padding
         
         const spec = {
             "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
@@ -176,7 +181,7 @@
             "vconcat": [
                 {
                     "title": "Project Activity Overview",
-                    "width": "container",
+                    "width": chartWidth,
                     "height": 60,
                     "mark": {"type": "rect", "width": 2},
                     "params": [{
@@ -200,13 +205,14 @@
                                 "labelAngle": 0, 
                                 "labelAlign": "left", 
                                 "labelPadding": 10,
-                                "labelLimit": 180
+                                "labelLimit": 180,
+                                "labelExpr": "split(datum.value, ': ')"
                             },
                             "sort": {"field": "dataset"}
                         }
                     },
                     "spec": {
-                        "width": "container",
+                        "width": chartWidth,
                         "height": 80,
                         "layer": [
                             {
@@ -257,18 +263,24 @@
         vegaEmbed('#vis-container', spec, { actions: true });
     }
 
-    $(document).ready(function() {
+    document.addEventListener('DOMContentLoaded', function() {
         loadAllData();
-        $('#toggle-sidebar').click(function() {
+        
+        document.getElementById('toggle-sidebar').addEventListener('click', function(event) {
             sidebarHidden = !sidebarHidden;
+            const sidebarColumn = document.getElementById('sidebar-column');
+            const visColumn = document.getElementById('vis-column');
+            
             if (sidebarHidden) {
-                $('#sidebar-column').hide();
-                $('#vis-column').removeClass('m10').addClass('m12');
-                $(this).text('Show dimensions >');
+                sidebarColumn.style.display = 'none';
+                visColumn.classList.remove('m10');
+                visColumn.classList.add('m12');
+                event.currentTarget.textContent = 'Show dimensions >';
             } else {
-                $('#sidebar-column').show();
-                $('#vis-column').removeClass('m12').addClass('m10');
-                $(this).text('< Hide dimensions');
+                sidebarColumn.style.display = 'block';
+                visColumn.classList.remove('m12');
+                visColumn.classList.add('m10');
+                event.currentTarget.textContent = '< Hide dimensions';
             }
             // Trigger re-render to pick up new container width
             updateVisualization();
