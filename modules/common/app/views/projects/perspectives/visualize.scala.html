@@ -46,6 +46,16 @@
     </div>
 </div>
 
+<div id="image-modal" class="modal">
+    <div class="modal-content center">
+        <img id="modal-image-display" src="" style="max-width: 100%; max-height: 80vh;">
+        <p id="modal-image-caption" class="grey-text"></p>
+    </div>
+    <div class="modal-footer">
+        <a href="#!" class="modal-close waves-effect btn-flat">Close</a>
+    </div>
+</div>
+
 <!-- Libraries -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/vega@@5"></script>
@@ -350,10 +360,10 @@
                                         "axis": null
                                     },
                                     "url": {"field": "value", "type": "nominal"},
-                                    "href": {"field": "value", "type": "nominal"},
                                     "tooltip": [
                                         {"field": "ts", "type": "temporal", "title": "Time"},
-                                        {"field": "eventDetail", "type": "nominal", "title": "Description"}
+                                        {"field": "eventDetail", "type": "nominal", "title": "Description"},
+                                        {"value": "Click to preview image"}
                                     ]
                                 }
                             }
@@ -376,10 +386,33 @@
             }
         };
 
-        vegaEmbed('#vis-container', spec, { actions: true, renderer: 'svg' });
+        vegaEmbed('#vis-container', spec, { actions: true, renderer: 'svg' }).then(result => {
+            result.view.addEventListener('click', (event, item) => {
+                if (item && item.datum && item.datum.dsType === 'MEDIA' && (item.datum.variable === 'link' || item.datum.variable === 'file_name')) {
+                    window.openImageModal(item.datum.value, item.datum.eventDetail);
+                }
+            });
+        });
     }
 
+    window.openImageModal = function(url, description) {
+        const modalImg = document.getElementById('modal-image-display');
+        const modalCaption = document.getElementById('modal-image-caption');
+        if (modalImg) modalImg.src = url;
+        if (modalCaption) modalCaption.textContent = description || '';
+        
+        // Open using the switchModal helper
+        if (typeof switchModal === 'function') {
+            switchModal('#image-modal', 'open');
+        } else {
+            $('#image-modal').modal('open');
+        }
+    };
+
     document.addEventListener('DOMContentLoaded', function() {
+        // Initialize Materialize components
+        M.Modal.init(document.querySelectorAll('.modal'));
+        
         loadAllData();
         
         document.getElementById('toggle-sidebar').addEventListener('click', function(event) {
