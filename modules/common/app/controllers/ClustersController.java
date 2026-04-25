@@ -359,7 +359,7 @@ public class ClustersController extends AbstractAsyncController {
 		if (!project.visibleFor(username))
 			return redirect(HOME);
 
-		return ok(views.html.sources.cluster.visualize.render(project, cluster, request));
+		return ok(views.html.sources.cluster.visualize.render(project, cluster, csrfToken(request)));
 	}
 
 	@Authenticated(UserAuth.class)

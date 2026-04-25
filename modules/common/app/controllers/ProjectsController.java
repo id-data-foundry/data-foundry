@@ -333,7 +333,6 @@ public class ProjectsController extends AbstractAsyncController {
 		return ok(views.html.projects.perspectives.timeline.render(project, user, csrfToken(request)));
 	}
 
-	@Authenticated(UserAuth.class)
 	@AddCSRFToken
 	public Result visualize(Request request, long id) {
 		Validator validator = validateProjectVisible(request, id);
