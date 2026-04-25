@@ -17,14 +17,21 @@
 		{ element: '#dataProtectionSection', intro: 'But before we go, please read and agree to the following terms on data anonimization.', page: '^/projects/add' },
 	    { element: '#submitBtn', intro: 'Cool, you\'ve made your first project, Let\'s go!', page: '^/projects/add' },
 		{ intro: 'There we are, this is the homepage of your new project, here you will find the notebooks and datasets.', page: '^/projects/\\d+$' },
+		
+		// Get device ID
+		{ element: '#sourcesTab', intro: 'In the sources section we can configure a new datalogger', page: '^/projects/\\d+$' },
+		{ intro: 'This leads you to the device information section where you can copy the data logger reference ID. For now we dont have to create a new device as we already have created one for you.', page: '^/projects/\\d+/views/resources' },
+		{ element: '#devices', intro: 'Please copy the device reference ID to your notepad, we will need this later!', page: '^/projects/\\d+/views/resources' },
+		{ element: '#mainPage', intro: 'Cool, now you have a Device ID, let\'s go back to the main page and take a look at your project datasets.', page: '^/projects/\\d+/views/resources' },
+		
 		{ element: '#datasetList', intro: 'These are your datasets, in the notebooks dataset you can find the notebooks you will need for your assignments, however we now need to get the dataset ID for your datalogger, please select the *Data Logger* dataset', page: '^/projects/\\d+$' },
 		{ intro: 'This is gonna be the place where your datalogger will upload its data.', page: '^/datasets/.*$' },
 		{ element: '#datasetID', intro: 'Please copy the dataset ID to your notepad, we will need this later!', page: '^/datasets/\\d+$' },
 		{ element: '#generateDatasetToken', intro: 'now generate a dataset API token by pressing the green button, and copy this code to your notepad', page: '^/datasets/\\d+$' },
 		{ element: '#dataTools', intro: 'Now let\'s go program your esp32!', page: '^/datasets/\\d+$' },
 		{ element: '#ESPWebToolsButton', intro: 'we can do this in the esp web tool section!', page: '^/tools$' },
-		{ intro: 'This is the ESP web tool section of Data Foundry. Here, you can easily program your microcontrollers with MicroPython. To get started, please plug in your ESP32 - you should connect to a device thats called either "Espressif Device"', page: '^/tools/esp-web-tools' },
-		{ element: 'esp-web-install-button', intro: 'Lets first install micropython onto your data logger by pressing the install button and following the prompts.', page: '^/tools/esp-web-tools' },
+		{ intro: 'This is the ESP web tool section of Data Foundry. Here, you can easily program your microcontrollers with MicroPython. To get started, please plug in your ESP32.', page: '^/tools/esp-web-tools' },
+		{ element: 'esp-web-install-button', intro: 'Lets first install micropython onto your data logger by pressing the install button and following the prompts. In the browser pop-up you should connect to a device thats called either "Espressif Device" or "CP2102N"', page: '^/tools/esp-web-tools' },
 		{ element: '#OpenViperIDE', intro: 'Now we have installed micropython onto the datalogger, its time for programming, we can do this on the following page!', page: '^/tools/esp-web-tools' },
 		{ intro: 'This is viper ide, here you can easily program your microcontrollers with micropython. It should contain all the tools you need to get your ESP projects to work.', page: '^/assets/vendor/viper-ide/index.html' },
 		{ element: '#btn-conn-usb', intro: 'Let program the datalogger, to get started we first have to connect to our ESP32', page: '^/assets/vendor/viper-ide/index.html'  },
@@ -40,102 +47,86 @@
 		{ intro: 'That is it, good luck getting your datalogger to work!', page: '^/assets/vendor/viper-ide/index.html' },
 	];
 
-	const currentPage = window.location.pathname;
 	let currentStep = parseInt(localStorage.getItem('mss_current') || 0);
-	const pageSteps = tourSteps.map((step, index) => {
-			step.index = index; return step;
-		}).filter(step => currentStep <= step.index && currentPage.match(step.page))
 
-	if(pageSteps.length == 0 && currentStep > 0) {
+const d = driver.js.driver();
+
+d.setConfig({
+	allowClose: false,
+	onDestroyed: () => fetch('@routes.HomeController.stopTour()'),
+	onHighlighted: (elem, step) => {
+		localStorage.setItem('mss_current', step.index)
+		document.querySelector(".driver-popover-close-btn").blur()
+	},
+	onCloseClick: () => {
+		localStorage.removeItem('mss_current')
+		d.destroy()
+	}
+})
+
+function getFilteredSteps(startStep, pagePath) {
+	return tourSteps.map((step, index) => ({ ...step, index }))
+		.filter(step => startStep <= step.index && pagePath.match(step.page))
+}
+
+function buildDriverSteps(steps) {
+	return steps.map((step, i) => ({
+		element: step.element,
+		index: step.index,
+		popover: {
+			title: tourTitle,
+			description: step.intro,
+			showButtons: ["close", ...(i > 0 ? ["previous"] : []), ...(i < steps.length - 1 || i === tourSteps.length - 1 ? ["next"] : [])]
+		}
+	}))
+}
+
+function initTour(pagePath) {
+	const pageSteps = getFilteredSteps(currentStep, pagePath);
+	
+	if (pageSteps.length === 0 && currentStep > 0) {
 		localStorage.removeItem('mss_current')
 		location.reload()
+		return false;
+	}
+	
+	d.setSteps(buildDriverSteps(pageSteps));
+	return true;
+}
+
+initTour(window.location.pathname);
+d.drive();
+
+const observeRefresh = new ResizeObserver(() => d.refresh());
+if (window.location.pathname === '/projects/add') {
+	observeRefresh.observe(document.querySelector('#advancedSettings'));
+}
+
+document.getElementById('tokenCodeField')?.addEventListener('input', () => d.refresh());
+
+// Single MutationObserver for HTMX navigation and install dialogs
+let dialogPresent = !!document.querySelector('ewt-install-dialog, ewt-no-port-picked-dialog');
+let dialogProgress;
+
+new MutationObserver(() => {
+	// Handle ESPWebToolsButton appearing after HTMX navigation
+	const button = document.getElementById('ESPWebToolsButton');
+	if (button && !button._observed) {
+		button._observed = true;
+		currentStep = parseInt(localStorage.getItem('mss_current') || 0);
+		initTour(window.location.pathname) && d.drive();
 	}
 
-	// Initialize Driver.js
-	const d = driver.js.driver();
-
-	d.setConfig({
-		allowClose: false,
-		onDestroyed: () => {
-			fetch('@routes.HomeController.stopTour()')
-		},
-		onHighlighted: (elem, step) => {
-			localStorage.setItem('mss_current', step.index)
-			document.querySelector(".driver-popover-close-btn").blur()
-		},
-		onCloseClick: () => {
-			localStorage.removeItem('mss_current')
-			d.destroy()
-		}
-	})
-	d.setSteps(pageSteps.map(step => {
-		let buttons = ["close"]
-		if(pageSteps.indexOf(step) > 0) {
-			// all steps except first in page steps get a previous
-			buttons.push("previous")
-		}
-		if(pageSteps.indexOf(step) < pageSteps.length - 1) {
-			// all steps except for last in page steps get a next
-			buttons.push("next")
-		} else if(tourSteps.indexOf(step) == tourSteps.length - 1) {
-			// final step in tour gets a done
-			buttons.push("next")
-		}
-
-		return {
-			element: step.element,
-			index: step.index,
-			popover: {
-	            title: tourTitle,
-	            description: step.intro,
-	            showButtons: buttons
-	        }
-		};
-	}));
-	// function to update driverjs overlays when elements change
-	const observeRefresh = new ResizeObserver(() => {
-		d.refresh(); // repositions and resizes highlight
-	});
-	// listen to when the advanced option section expands
-	if (window.location.pathname === '/projects/add') {
-		observeRefresh.observe(document.querySelector('#advancedSettings'));
+	// Handle install dialog appearing/disappearing
+	const currentlyPresent = !!document.querySelector('ewt-install-dialog, ewt-no-port-picked-dialog');
+	if (currentlyPresent && !dialogPresent) {
+		dialogProgress = d.getActiveIndex();
+		d.destroy();
+	} else if (!currentlyPresent && dialogPresent) {
+		d.drive(dialogProgress);
+		d.moveNext();
 	}
-
-	const generateButton = document.getElementById('tokenCodeField');
-
-	if (generateButton) {
-		generateButton.addEventListener('input', () => {
-			d.refresh(); // called when user changes input value
-		});
-	}
-
-	function observeInstallDialog() {
-	  let isPresent = document.querySelector('ewt-install-dialog') !== null ||
-	                  document.querySelector('ewt-no-port-picked-dialog') !== null;
-
-	  let progress;
-	  new MutationObserver(() => {
-	    const currentlyPresent = document.querySelector('ewt-install-dialog') !== null ||
-	                             document.querySelector('ewt-no-port-picked-dialog') !== null;
-
-	    if (currentlyPresent && !isPresent) {
-	      console.log('Install dialog appeared');
-	      progress = d.getActiveIndex();
-	      d.destroy();
-	    } else if (!currentlyPresent && isPresent) {
-	      console.log('Install dialog disappeared');
-	      d.drive(progress);
-	      d.moveNext();
-	    }
-
-	    isPresent = currentlyPresent;
-	  }).observe(document.body, { childList: true, subtree: true });
-	}
-
-	d.drive();
-
-	if (window.location.pathname === '/tools/esp-web-tools') {
-		observeInstallDialog()
-	}
+	dialogPresent = currentlyPresent;
+}).observe(document.body, { childList: true, subtree: true });
 
 })();

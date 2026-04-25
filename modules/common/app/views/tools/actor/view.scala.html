@@ -39,8 +39,11 @@
       <i class="btn-edit" style="color: black; font-size: 1em;">@elements.icon(dataset.toIcon())</i>
       @dataset.getName()
     </h3>
-    @if(dataset.editableBy(user.getEmail())) {
-    <a id="editBtn" class="btn white-text" style="float: right; font-size: 1rem; margin-top: 1.5rem;" href="@routes.DatasetsController.edit(dataset.getId())">Edit dataset</a>
+    @if(dataset.editableBy(user)) {
+    <a id="editBtn" class="btn white-text" style="float: right; font-size: 1rem; margin-top: 1.5rem;" href="@routes.DatasetsController.edit(dataset.getId())">
+    	@elements.icon("edit")
+		Edit
+	</a>
     }
   </div>
 </div>

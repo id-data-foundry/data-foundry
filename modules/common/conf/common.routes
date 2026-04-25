@@ -370,12 +370,14 @@ POST		/datasets/movement/uploadFile/:id					controllers.api.MovementDSController
 # media data
 GET			/datasets/media/add/:id								controllers.api.MediaDSController.add(request: Request, id: Long)
 POST		/datasets/media/addMe/:id							controllers.api.MediaDSController.addMe(request: Request, id: Long)
+GET			/datasets/media/editItem/:id/:itemId				controllers.api.MediaDSController.editItem(request: Request, id: Long, itemId: Long)
 POST		/datasets/media/editMe/:id							controllers.api.MediaDSController.editMe(request: Request, id: Long)
-GET			/datasets/media/downloadFile/:id/:filename			controllers.api.MediaDSController.downloadFile(request: Request, id: Long, filename: String)
-GET			/datasets/media/image/:id/:scale/:filename			controllers.api.MediaDSController.scaledImage(request: Request, id: Long, filename: String, scale: String)
-GET			/datasets/media/image/:id/:filename					controllers.api.MediaDSController.image(request: Request, id: Long, filename: String)
+GET			/datasets/media/downloadFile/:id/*filename			controllers.api.MediaDSController.downloadFile(request: Request, id: Long, filename: String)
+GET			/datasets/media/image/:id/:scale/*filename			controllers.api.MediaDSController.scaledImage(request: Request, id: Long, filename: String, scale: String)
+GET			/datasets/media/image/:id/*filename					controllers.api.MediaDSController.image(request: Request, id: Long, filename: String)
 POST		/datasets/media/uploadFile/:id						controllers.api.MediaDSController.uploadFile(request: Request, id: Long)
 POST		/datasets/media/:id/file								controllers.api.MediaDSController.addItem(request: Request, id: Long)
+PUT			/datasets/media/:id/file/:itemId					controllers.api.MediaDSController.updateItem(request: Request, id: Long, itemId: Long)
 GET			/datasets/media/:id/testUpload						controllers.api.MediaDSController.test(request: Request, id: Long)
 
 # expsampling data
@@ -531,6 +533,7 @@ PUT			/api/v1/datasets/entity/:id							controllers.api.EntityDSController.updat
 DELETE		/api/v1/datasets/entity/:id							controllers.api.EntityDSController.deleteItemApi(request: Request, id: Long)
 
 POST		/api/v1/datasets/media/:id							controllers.api.MediaDSController.addItemApi(request: Request, id: Long)
+PUT			/api/v1/datasets/media/:id/:itemId					controllers.api.MediaDSController.updateItemApi(request: Request, id: Long, itemId: Long)
 GET			/api/v1/datasets/media/:id/:filename					controllers.api.MediaDSController.getItemApi(request: Request, id: Long, filename: String)
 
 

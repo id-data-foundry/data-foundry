@@ -169,10 +169,12 @@ public class ProjectsController extends AbstractAsyncController {
 		String announcement = getAnnouncement();
 		if (announcement != null && !announcement.isEmpty()) {
 			return ok(views.html.projects.index.render(user, openProjects, subscriptions, archivedProjects,
-					onboardStateForPage, request)).addingToSession(request, "announcement", announcement);
+					onboardStateForPage, request)).addingToSession(request, "announcement", announcement)
+					.removingFromSession(request, "error");
 		} else {
 			return ok(views.html.projects.index.render(user, openProjects, subscriptions, archivedProjects,
-					onboardStateForPage, request)).removingFromSession(request, "announcement");
+					onboardStateForPage, request)).removingFromSession(request, "announcement")
+					.removingFromSession(request, "error");
 		}
 	}
 
@@ -586,6 +588,48 @@ public class ProjectsController extends AbstractAsyncController {
 	}
 
 	@Authenticated(UserAuth.class)
+	@RequireCSRFCheck
+	public Result editMe(Request request, Long id) {
+
+		// check authorization
+		String username = getAuthenticatedUserNameOrReturn(request,
+				redirect(LANDING).addingToSession(request, "error", "User not found."));
+
+		Project project = Project.find.byId(id);
+		if (project == null || !project.editableBy(username)) {
+			return redirect(HOME);
+		}
+
+		// don't allow editing when archived
+		if (project.isArchivedProject()) {
+			return redirect(PROJECT(id)).addingToSession(request, "error", "Project is archived, cannot edit that.");
+		}
+
+		// check the form data
+		DynamicForm df = formFactory.form().bindFromRequest(request);
+		if (df == null) {
+			return redirect(PROJECT(id)).addingToSession(request, "error", "Expecting some data.");
+		}
+
+		// escape wrong or malicious data in submitted fields where needed
+		project.setName(htmlTagEscape(nss(df.get("project_name"), 120)));
+		project.setIntro(htmlTagEscape(nss(df.get("intro"))));
+		project.setLicense(nss(df.get("license"), 64));
+		project.setKeywords(htmlTagEscape(nss(df.get("keywords"))));
+		project.setDoi(nss(df.get("doi")));
+		project.setRelation(nss(df.get("relation")));
+		project.setOrganization(htmlTagEscape(nss(df.get("organization"))));
+		project.setRemarks(htmlTagEscape(nss(df.get("remarks"))));
+		project.setPublicProject(df.get("isPublic") == null ? false : true);
+		project.update();
+
+		// ping search service
+		searchService.ping();
+
+		return redirect(PROJECT(id));
+	}
+
+	@Authenticated(UserAuth.class)
 	@AddCSRFToken
 	public Result addDataset(Request request, Long id) {
 
@@ -651,47 +695,6 @@ public class ProjectsController extends AbstractAsyncController {
 		}
 
 		return ok(views.html.projects.addScript.render(project, csrfToken(request)));
-	}
-
-	@Authenticated(UserAuth.class)
-	@RequireCSRFCheck
-	public Result editMe(Request request, Long id) {
-
-		// check authorization
-		String username = getAuthenticatedUserNameOrReturn(request,
-				redirect(LANDING).addingToSession(request, "error", "User not found."));
-
-		Project project = Project.find.byId(id);
-		if (project == null || !project.editableBy(username)) {
-			return redirect(HOME);
-		}
-
-		// don't allow editing when archived
-		if (project.isArchivedProject()) {
-			return redirect(PROJECT(id)).addingToSession(request, "error", "Project is archived, cannot edit that.");
-		}
-
-		// check the form data
-		DynamicForm df = formFactory.form().bindFromRequest(request);
-		if (df == null) {
-			return redirect(PROJECT(id)).addingToSession(request, "error", "Expecting some data.");
-		}
-
-		// escape wrong or malicious data in submitted fields where needed
-		project.setName(htmlTagEscape(nss(df.get("project_name"), 120)));
-		project.setIntro(htmlTagEscape(nss(df.get("intro"))));
-		project.setLicense(nss(df.get("license"), 64));
-		project.setKeywords(htmlTagEscape(nss(df.get("keywords"))));
-		project.setDoi(nss(df.get("doi")));
-		project.setRelation(nss(df.get("relation")));
-		project.setOrganization(htmlTagEscape(nss(df.get("organization"))));
-		project.setRemarks(htmlTagEscape(nss(df.get("remarks"))));
-		project.update();
-
-		// ping search service
-		searchService.ping();
-
-		return redirect(PROJECT(id));
 	}
 
 	@Authenticated(UserAuth.class)

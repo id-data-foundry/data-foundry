@@ -2,6 +2,7 @@ package controllers.tools;
 
 import java.io.File;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import controllers.auth.UserAuth;
 import jakarta.inject.Inject;
@@ -40,6 +41,11 @@ public class QRCode extends Controller {
 	 * @return
 	 */
 	public Result qrCode(Request request, String key, String url) {
+
+		// check attributes and append them if available
+		String queryString = request.queryString().entrySet().stream().filter(e -> e.getValue().length == 1)
+				.map(e -> e.getKey() + "=" + e.getValue()[0]).collect(Collectors.joining("&"));
+		url += queryString.isEmpty() ? "" : ("?" + queryString);
 
 		// ensure URLs have the right protocol
 		if (Pattern.compile("^https:/(?!/).*").matcher(url).matches()) {

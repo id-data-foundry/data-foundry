@@ -65,7 +65,7 @@ public class OOCSIService implements ScheduledService {
 		this.realtimeNotifications = realtimeNotifications;
 
 		logger.info("OOCSI input service starting");
-		oocsi = oocsiClientUtil.createOOCSIClient("DF/OOCSI/inlet_####");
+		oocsi = oocsiClientUtil.createOOCSIClient("DF/OOCSI/inlet");
 
 		// subscribe to OOCSI_metrics channel to receive a ping every second (this works with all OOCSI server variants)
 		oocsi.subscribe("OOCSI_metrics", new Handler() {

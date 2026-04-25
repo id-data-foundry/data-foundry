@@ -1,0 +1,118 @@
+@(token: String, dataset: Dataset, item: vm.TimedMedia, participants: List[sr.Participant], user: String)(implicit request: Http.Request)
+@main("Edit media item", "profile") {
+  
+  <nav>
+    <div class="row">
+      <div class="col s12">
+        @if(user != null && !user.isEmpty()){
+          <a href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+        } else {
+          <a href="@routes.HomeController.index()" class="breadcrumb">Home</a>
+        }
+        <a href="@routes.ProjectsController.view(dataset.getProject().getId())" class="breadcrumb">@dataset.getProject().getName()</a>
+        <a href="@routes.DatasetsController.view(dataset.getId())" class="breadcrumb">@dataset.getName()</a>
+        <a href="#!" class="breadcrumb">Edit item</a>
+      </div>
+    </div>
+  </nav>
+
+  <div class="row">
+    <div class="col s12">
+      <h4>Edit media item</h4>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col s12 m6">
+      <div class="card">
+        <div class="card-image">
+          <img src="@api.routes.MediaDSController.scaledImage(dataset.getId(), item.link, "default")">
+          <span class="card-title">Current media</span>
+        </div>
+        <div class="card-content">
+          <p><b>Filename:</b> @item.link</p>
+          <p><b>Uploaded:</b> @item.datetime()</p>
+        </div>
+      </div>
+    </div>
+    <div class="col s12 m6">
+      <div class="card white">
+        <div class="card-content">
+          <span class="card-title">Edit details</span>
+          <form id="editItemForm">
+            <div class="input-field file-field">
+              <div class="btn">
+                <span>New File</span>
+                <input id="file" type="file" name="files" accept=".png, .jpg, .jpeg, .gif">
+              </div>
+              <div class="file-path-wrapper">
+                <input class="file-path validate" type="text" placeholder="Upload a new image to replace">
+              </div>
+            </div>
+            <div class="input-field">
+              <select id="participant_id" name="participant_id">
+                <option value="-1" @if(item.participant == null || item.participant.getId() == -1) { selected }>No Participant</option>
+                @for(p <- participants) {
+                  <option value="@p.getId()" @if(item.participant != null && item.participant.getId() == p.getId()) { selected }>@p.getName() (@p.getRefId())</option>
+                }
+              </select>
+              <label for="participant_id">Participant</label>
+            </div>
+            <div class="input-field">
+              <textarea id="description" name="description" class="materialize-textarea">@item.caption</textarea>
+              <label for="description">Description</label>
+            </div>
+            <div class="input-field">
+              <button type="submit" class="btn green">Save Changes</button>
+              <a href="@routes.DatasetsController.view(dataset.getId())" class="btn-flat grey-text">Cancel</a>
+            </div>
+          </form>
+          <div id="progress" class="progress" style="display: none;">
+              <div class="indeterminate"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="text/javascript">
+    document.addEventListener('DOMContentLoaded', function() {
+      M.AutoInit();
+    });
+
+    document.getElementById("editItemForm").addEventListener("submit", function(e) {
+      e.preventDefault();
+      
+      var formData = new FormData();
+      var fileInput = document.getElementById("file");
+      if (fileInput.files.length > 0) {
+        formData.append("files", fileInput.files[0]);
+      }
+      formData.append("description", document.getElementById("description").value);
+      formData.append("participant_id", document.getElementById("participant_id").value);
+
+      document.getElementById("progress").style.display = "block";
+
+      fetch('@api.routes.MediaDSController.updateItem(dataset.getId(), item.getId())', {
+        method: 'PUT',
+        headers: {
+          'Csrf-Token': '@token'
+        },
+        body: formData
+      })
+      .then(response => {
+        if (response.ok) {
+          window.location.href = '@routes.DatasetsController.view(dataset.getId())';
+        } else {
+          alert('Error updating item.');
+          document.getElementById("progress").style.display = "none";
+        }
+      })
+      .catch(error => {
+        console.error('Error:', error);
+        alert('Error updating item.');
+        document.getElementById("progress").style.display = "none";
+      });
+    });
+  </script>
+}
