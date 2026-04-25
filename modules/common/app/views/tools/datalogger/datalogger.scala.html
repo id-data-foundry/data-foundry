@@ -202,7 +202,9 @@
   function touchEnded() {
     if(drag) {
       sendData({
-        slider: round(map(pmouseX, width/10, width-width/10, 0, 100))
+        slider: round(map(pmouseX, width/10, width-width/10, 0, 100)),
+        button1: 0,
+        button2: 0
       })
 
       slider1 = 60;
@@ -214,7 +216,8 @@
       if(button1 == 0 && mouseX > width/4-itemsize/2 && mouseX < width/4+itemsize/2 && mouseY > height/4 - itemsize/2 && mouseY < height/4 + itemsize/2) {
         button1 = 60;
         sendData({
-          button1: 1
+          button1: 1,
+          button2: 0
         })
       }
 
@@ -222,6 +225,7 @@
       if(button2 == 0 && mouseX > width/4-itemsize/2 && mouseX < width/4+itemsize/2 && mouseY > 3*height/4 - itemsize/2 && mouseY < 3*height/4 + itemsize/2) {
         button2 = 60;
         sendData({
+          button1: 0,
           button2: 1
         })
       }
@@ -366,7 +370,9 @@
   setInterval(() => {
     sendData({
       acceleration: acceleration,
-      sound: volume
+      sound: volume,
+      button1: 0,
+      button2: 0
     })
 
     // reset
