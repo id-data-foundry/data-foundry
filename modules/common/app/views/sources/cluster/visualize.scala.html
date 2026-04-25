@@ -56,7 +56,7 @@
 <script type="text/javascript">
     const clusterId = @c.getId();
     const datasets = [
-        @for(ds <- p.getOperationalDatasets().stream().filter(ds => ds.getDsType() == models.DatasetType.IOT || ds.getDsType() == models.DatasetType.MOVEMENT || ds.getDsType() == models.DatasetType.FITBIT || ds.getDsType() == models.DatasetType.GOOGLEFIT).collect(java.util.stream.Collectors.toList())) {
+        @for(ds <- p.getOperationalDatasets().stream().filter(ds => ds.getDsType() == models.DatasetType.IOT || ds.getDsType() == models.DatasetType.MOVEMENT || ds.getDsType() == models.DatasetType.FITBIT || ds.getDsType() == models.DatasetType.GOOGLEFIT || ds.getDsType() == models.DatasetType.DIARY || ds.getDsType() == models.DatasetType.ANNOTATION || ds.getDsType() == models.DatasetType.MEDIA).collect(java.util.stream.Collectors.toList())) {
             { id: @ds.getId(), name: "@ds.getName()", type: "@ds.getDsType()" },
         }
     ];
@@ -102,35 +102,86 @@
     function transformToTidy(rawRows, uids) {
         const metadata = ['ts', 'dataset', 'pp1', 'pp2', 'pp3'];
         const tidy = [];
+        
+        // Map dataset names to types for quick lookup
+        const typeMap = {};
+        datasets.forEach(ds => typeMap[ds.name] = ds.type);
+
         rawRows.forEach(row => {
-            Object.keys(row).forEach(key => {
-                if (metadata.includes(key) || row[key] === null || row[key] === undefined) return;
-                const uid = `${row.dataset}: ${key}`;
-                if (uids.has(uid)) {
+            const dsType = typeMap[row.dataset];
+            
+            if (dsType === 'DIARY' || dsType === 'ANNOTATION') {
+                const entryUid = `${row.dataset}: entry`;
+                if (uids.has(entryUid)) {
+                    const content = `${row.title || ''}: ${row.entry || row.text || ''}`;
                     tidy.push({
                         ts: new Date(row.ts),
                         dataset: row.dataset,
-                        variable: key,
-                        value: row[key],
-                        uid: uid,
-                        isActivity: key.toLowerCase() === 'activity'
+                        variable: 'entry',
+                        value: content,
+                        uid: entryUid,
+                        isActivity: false,
+                        dsType: dsType,
+                        eventDetail: content
                     });
                 }
-            });
+            } else if (dsType === 'MEDIA') {
+                const linkUid = `${row.dataset}: link`;
+                if (uids.has(linkUid)) {
+                    tidy.push({
+                        ts: new Date(row.ts),
+                        dataset: row.dataset,
+                        variable: 'link',
+                        value: row.link,
+                        uid: linkUid,
+                        isActivity: false,
+                        dsType: dsType,
+                        eventDetail: row.description || ''
+                    });
+                }
+            } else {
+                Object.keys(row).forEach(key => {
+                    if (metadata.includes(key) || row[key] === null || row[key] === undefined) return;
+                    const uid = `${row.dataset}: ${key}`;
+                    if (uids.has(uid)) {
+                        tidy.push({
+                            ts: new Date(row.ts),
+                            dataset: row.dataset,
+                            variable: key,
+                            value: row[key],
+                            uid: uid,
+                            isActivity: key.toLowerCase() === 'activity',
+                            dsType: dsType,
+                            eventDetail: row[key]
+                        });
+                    }
+                });
+            }
         });
         return tidy;
     }
 
     function renderDimensionSelector() {
         const dimensions = new Set();
-        const metadata = ['ts', 'dataset', 'pp1', 'pp2', 'pp3', 'id', 'device_id', 'deviceid', 'participant_id'];
+        const metadata = ['ts', 'dataset', 'pp1', 'pp2', 'pp3', 'id', 'device_id', 'deviceid', 'participant_id', 'mediatype', 'cluster_id'];
         
+        // Map dataset names to types for quick lookup
+        const typeMap = {};
+        datasets.forEach(ds => typeMap[ds.name] = ds.type);
+
         fullData.forEach(row => {
-            Object.keys(row).forEach(key => {
-                if (!metadata.includes(key) && row[key] !== null && row[key] !== undefined) {
-                    dimensions.add(`${row.dataset}: ${key}`);
-                }
-            });
+            const dsType = typeMap[row.dataset];
+            if (dsType === 'DIARY' || dsType === 'ANNOTATION') {
+                dimensions.add(`${row.dataset}: entry`);
+            } else if (dsType === 'MEDIA') {
+                dimensions.add(`${row.dataset}: link`);
+            } else {
+                Object.keys(row).forEach(key => {
+                    if (!metadata.includes(key) && row[key] !== null && row[key] !== undefined) {
+                        dimensions.add(`${row.dataset}: ${key}`);
+                    }
+                });
+            }
         });
 
         const sortedDimensions = Array.from(dimensions).sort();
@@ -218,7 +269,8 @@
                         "height": 80,
                         "layer": [
                             {
-                                "transform": [{"filter": "datum.isActivity === false"}],
+                                "name": "Numeric Area Chart",
+                                "transform": [{"filter": "datum.isActivity === false && datum.dsType !== 'DIARY' && datum.dsType !== 'ANNOTATION' && datum.dsType !== 'MEDIA'"}],
                                 "mark": {"type": "area", "line": true, "interpolate": "monotone", "tooltip": true},
                                 "encoding": {
                                     "y": {
@@ -232,6 +284,7 @@
                                 }
                             },
                             {
+                                "name": "Activity Dot Plot",
                                 "transform": [{"filter": "datum.isActivity === true"}],
                                 "mark": {"type": "circle", "size": 60, "tooltip": true},
                                 "encoding": {
@@ -241,6 +294,42 @@
                                         "title": null
                                     },
                                     "color": {"field": "value", "type": "nominal", "legend": null}
+                                }
+                            },
+                            {
+                                "name": "Diary and Annotation Events",
+                                "transform": [{"filter": "datum.dsType === 'DIARY' || datum.dsType === 'ANNOTATION'"}],
+                                "mark": {"type": "circle", "size": 100, "tooltip": true},
+                                "encoding": {
+                                    "y": {
+                                        "field": "uid", 
+                                        "type": "nominal", 
+                                        "title": null,
+                                        "axis": null
+                                    },
+                                    "color": {"field": "uid", "type": "nominal", "legend": null},
+                                    "tooltip": [
+                                        {"field": "ts", "type": "temporal", "title": "Time"},
+                                        {"field": "eventDetail", "type": "nominal", "title": "Detail"}
+                                    ]
+                                }
+                            },
+                            {
+                                "name": "Media Images",
+                                "transform": [{"filter": "datum.dsType === 'MEDIA' && (datum.variable === 'link' || datum.variable === 'file_name')"}],
+                                "mark": {"type": "image", "width": 40, "height": 40, "tooltip": true},
+                                "encoding": {
+                                    "y": {
+                                        "field": "uid", 
+                                        "type": "nominal", 
+                                        "title": null,
+                                        "axis": null
+                                    },
+                                    "url": {"field": "value", "type": "nominal"},
+                                    "tooltip": [
+                                        {"field": "ts", "type": "temporal", "title": "Time"},
+                                        {"field": "eventDetail", "type": "nominal", "title": "Description"}
+                                    ]
                                 }
                             }
                         ],
