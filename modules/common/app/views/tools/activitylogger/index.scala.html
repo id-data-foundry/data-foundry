@@ -159,7 +159,13 @@
       <h4>Activity Timeline Visualization</h4>
       <p>
         This section provides a dynamic timeline visualization of previously logged activities for the currently selected dataset. After selecting a dataset and saving its configuration, the chart will display both direct events and state activities, helping you to understand activity patterns over time. Data is typically fetched for the last 7 days.
-        <a id="downloadCsvLink" href="" download style="display: none;">Download timeline data as CSV</a>
+        <br>
+        <a id="downloadCsvLink" href="" download style="display: none;" class="btn white blue-text">
+          Download CSV
+        </a>
+        <a id="refreshTimelineBtn" href="#!" class="btn white green-text" style="display: none;" onclick="if(currentSelectedDataset) renderActivityTimeline(currentSelectedDataset.id);">
+          Refresh visualization
+        </a>
       </p>
       <div id="activity-timeline-chart" style="width: 100%; height: 400px;">
         <p>Select a dataset and save its configuration to view a timeline visualization of logged activities here.</p>
@@ -188,6 +194,8 @@
         // Reset visibility
         document.querySelectorAll('.selected-dataset').forEach(d => d.style.display = 'none');
         document.getElementById('dataset-error').style.display = 'none';
+        const refreshBtn = document.getElementById('refreshTimelineBtn');
+        if (refreshBtn) refreshBtn.style.display = 'none';
 
         if (selectedProjectId && projectsAndDatasets[selectedProjectId]) {
             const datasets = projectsAndDatasets[selectedProjectId].datasets;
@@ -385,7 +393,11 @@
             const downloadCsvLink = document.getElementById('downloadCsvLink');
             if (downloadCsvLink) {
                 downloadCsvLink.href = jsRoutes.controllers.DatasetsController.download(datasetId, -1, startTimestamp, endTimestamp).url;
-                downloadCsvLink.style.display = 'inline';
+                downloadCsvLink.style.display = '';
+            }
+            const refreshBtn = document.getElementById('refreshTimelineBtn');
+            if (refreshBtn) {
+                refreshBtn.style.display = '';
             }
 
             // Limit of -1 means no limit
