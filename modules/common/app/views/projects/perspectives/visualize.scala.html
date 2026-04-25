@@ -55,6 +55,11 @@
                 <p class="grey-text">Select dimensions on the left to start visualizing project data.</p>
             </div>
         </div>
+        <div style="margin-top: 15px;">
+            <button id="download-csv-btn" class="btn white green-text" style="display: none;">
+                Download CSV
+            </button>
+        </div>
     </div>
 </div>
 
@@ -285,7 +290,9 @@
     }
 
     function updateVisualization() {
+        const downloadBtn = document.getElementById('download-csv-btn');
         if (selectedUids.size === 0) {
+            if (downloadBtn) downloadBtn.style.display = 'none';
             document.getElementById('vis-container').innerHTML = `
                 <div class="center-align" style="padding-top: 100px;">
                 	@elements.icon("select")
@@ -294,6 +301,7 @@
             `;
             return;
         }
+        if (downloadBtn) downloadBtn.style.display = 'inline-block';
 
         const tidyData = transformToTidy(fullData, selectedUids);
         const container = document.getElementById('vis-container');
@@ -434,6 +442,45 @@
         });
     }
 
+    function downloadDataAsCSV() {
+        const tidyData = transformToTidy(fullData, selectedUids);
+        if (tidyData.length === 0) return;
+        
+        // Pivot data: Group by timestamp
+        const rowsByTs = {};
+        const columns = new Set();
+        
+        tidyData.forEach(d => {
+            const ts = d.ts instanceof Date ? d.ts.toISOString() : new Date(d.ts).toISOString();
+            if (!rowsByTs[ts]) {
+                rowsByTs[ts] = { timestamp: ts };
+            }
+            // Use the UID (Dataset: Variable) as the column name
+            rowsByTs[ts][d.uid] = d.value;
+            columns.add(d.uid);
+        });
+
+        // Convert grouped object to array of rows, sorted by timestamp
+        const exportData = Object.values(rowsByTs).sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+
+        // Generate CSV with explicit column ordering
+        const csv = Papa.unparse({
+            fields: ['timestamp', ...Array.from(columns).sort()],
+            data: exportData
+        });
+
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement("a");
+        const url = URL.createObjectURL(blob);
+        link.setAttribute("href", url);
+        const filename = `visualization_data_${new Date().toISOString().replace(/[:.]/g, '-')}.csv`;
+        link.setAttribute("download", filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
     window.openImageModal = function(url, description, timestamp) {
         const modalImg = document.getElementById('modal-image-display');
         const modalCaption = document.getElementById('modal-image-caption');
@@ -462,6 +509,12 @@
         M.Modal.init(document.querySelectorAll('.modal'));
         M.FormSelect.init(document.querySelectorAll('select'));
         
+        // Handle download button
+        const downloadBtn = document.getElementById('download-csv-btn');
+        if (downloadBtn) {
+            downloadBtn.addEventListener('click', downloadDataAsCSV);
+        }
+
         // Handle cluster selection
         const clusterSelector = document.getElementById('cluster-selector');
         if (clusterSelector) {
