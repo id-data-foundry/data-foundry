@@ -92,7 +92,7 @@
 			<hr>
 			
 			<a href="@routes.ClustersController.exportMetadata(c.getId())" class="btn">Export all</a>
-			<a href="@routes.ClustersController.visualize(c.getId())" class="btn">Visualize Detailed Data</a>
+			<a href="@routes.ProjectsController.visualize(p.getId(), c.getId())" class="btn">Visualize Detailed Data</a>
 			@if(p.canAnnotate()) {
 				<a href="@api.routes.AnnotationDSController.recordForm(p.getAnnotationDataset().getId(), c.getRefId())" class="btn">
 					Annotate

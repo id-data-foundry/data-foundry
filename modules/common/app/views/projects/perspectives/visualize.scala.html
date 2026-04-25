@@ -1,4 +1,4 @@
-@(p: Project, user: Person, token: String, configurator: utils.conf.Configurator)
+@(p: Project, user: Person, token: String, configurator: utils.conf.Configurator, clusterId: Long)
 @main(p.getName() + ": Visualization", "profile", "collapsed-layout") {
 @projects.perspectives.projectHeader(p, user)
 
@@ -29,10 +29,22 @@
     </div>
     
     <div id="vis-column" class="col s12 m10">
-        <div style="margin-bottom: 10px;">
-            <a id="toggle-sidebar" class="btn-flat" title="Toggle Dimensions Sidebar">
+        <div style="margin-bottom: 10px; display: flex; align-items: flex-start; flex-wrap: wrap; gap: 10px;">
+            <a id="toggle-sidebar" class="btn-flat" title="Toggle Dimensions Sidebar" style="padding: 0 10px;">
                 &lt; Hide dimensions
             </a>
+            
+            @if(!p.getClusters().isEmpty()) {
+            <div class="input-field" style="margin: 0; min-width: 250px; margin-left: auto;">
+                <select id="cluster-selector">
+                    <option value="-1" @if(clusterId == -1L){selected}>Full Project View</option>
+                    @for(c <- p.getClusters()) {
+                        <option value="@c.getId()" @if(clusterId == c.getId()){selected}>Cluster: @c.getName()</option>
+                    }
+                </select>
+                <label>View Level</label>
+            </div>
+            }
         </div>
         <div id="loading-progress" class="progress green lighten-4" style="display:none;">
             <div class="indeterminate green"></div>
@@ -95,13 +107,17 @@
     let fullData = [];
     let selectedUids = new Set();
     let sidebarHidden = false;
+    let currentClusterId = @clusterId;
 
     async function loadAllData() {
         document.getElementById('loading-progress').style.display = 'block';
         document.getElementById('dimension-selector').innerHTML = '<p class="grey-text">Fetching data...</p>';
         
         const fetchPromises = datasets.map(ds => {
-            const url = `/datasets/download/${ds.id}`;
+            const url = currentClusterId === -1 
+                ? `/datasets/download/${ds.id}` 
+                : `/datasets/download/${ds.id}/${currentClusterId}`;
+            
             return fetch(url)
                 .then(r => r.ok ? r.text() : "")
                 .then(csv => {
@@ -444,6 +460,16 @@
     document.addEventListener('DOMContentLoaded', function() {
         // Initialize Materialize components
         M.Modal.init(document.querySelectorAll('.modal'));
+        M.FormSelect.init(document.querySelectorAll('select'));
+        
+        // Handle cluster selection
+        const clusterSelector = document.getElementById('cluster-selector');
+        if (clusterSelector) {
+            clusterSelector.addEventListener('change', function() {
+                currentClusterId = parseInt(this.value);
+                loadAllData();
+            });
+        }
         
         // Handle annotation form submission
         const annForm = document.getElementById('annotation-form');
@@ -452,6 +478,11 @@
                 e.preventDefault();
                 const formData = new FormData(annForm);
                 const projectId = @p.getId();
+                
+                // If we are in cluster view, ensure cluster_id is included in submission
+                if (currentClusterId !== -1 && !formData.has('cluster_id')) {
+                    formData.append('cluster_id', currentClusterId);
+                }
                 
                 fetch(`/datasets/annotation/recordForProject/${projectId}`, {
                     method: 'POST',

@@ -125,7 +125,7 @@ POST 		/projects/:id/studyManagement/addFile				controllers.ProjectsController.s
 GET 		/projects/:id/studyManagement/removeFile				controllers.ProjectsController.studyManagementRemoveFile(request: Request, id: Long, fileId: Long, filename: String)
 
 GET 		/projects/:id/timeseries								controllers.ProjectsController.timeseries(request: Request, id: Long)
-GET 		/projects/visualize/:id									controllers.ProjectsController.visualize(request: Request, id: Long)
+GET 		/projects/visualize/:id									controllers.ProjectsController.visualize(request: Request, id: Long, clusterId: Long ?= -1L)
 GET			/projects/:id/wearables								controllers.ProjectsController.wearable(request: Request, id: Long)
 GET			/projects/:id/datasets/latest						controllers.ProjectsController.latestDataset(request: Request, id: Long)
 
@@ -212,7 +212,6 @@ GET			/clusters/removeWearable/:id/:wearable				controllers.ClustersController.r
 GET			/clusters/addParticipant/:id/:participant			controllers.ClustersController.addParticipant(request: Request, id: Long, participant: Long)
 GET			/clusters/removeParticipant/:id/:participant			controllers.ClustersController.removeParticipant(request: Request, id: Long, participant: Long)
 GET 		/clusters/timeseries/:id								controllers.ClustersController.timeseries(request: Request, id: Long)
-GET 		/clusters/visualize/:id									controllers.ClustersController.visualize(request: Request, id: Long)
 GET 		/clusters/export/:id 								controllers.ClustersController.exportMetadata(request: Request, id: Long)
 
 # participants

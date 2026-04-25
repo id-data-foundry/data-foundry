@@ -334,13 +334,13 @@ public class ProjectsController extends AbstractAsyncController {
 	}
 
 	@AddCSRFToken
-	public Result visualize(Request request, long id) {
+	public Result visualize(Request request, long id, Long clusterId) {
 		Validator validator = validateProjectVisible(request, id);
 		if (!validator.isValid())
 			return validator.result;
 
 		return ok(views.html.projects.perspectives.visualize.render(validator.project, validator.user,
-				csrfToken(request), configurator));
+				csrfToken(request), configurator, clusterId));
 	}
 
 	@AddCSRFToken

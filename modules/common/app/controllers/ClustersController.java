@@ -344,25 +344,6 @@ public class ClustersController extends AbstractAsyncController {
 	}
 
 	@Authenticated(UserAuth.class)
-	@AddCSRFToken
-	public Result visualize(Request request, Long id) {
-		// load cluster
-		Cluster cluster = Cluster.find.byId(id);
-		if (cluster == null)
-			return redirect(HOME);
-
-		Project project = cluster.getProject();
-		project.refresh();
-
-		// check user permissions
-		String username = getAuthenticatedUserNameOrReturn(request, redirect(HOME));
-		if (!project.visibleFor(username))
-			return redirect(HOME);
-
-		return ok(views.html.sources.cluster.visualize.render(project, cluster, csrfToken(request)));
-	}
-
-	@Authenticated(UserAuth.class)
 	public CompletionStage<Result> timeseries(Request request, Long id) {
 		// check id
 		Cluster cluster = Cluster.find.byId(id);
