@@ -879,7 +879,7 @@ public class ChatbotController extends AbstractAsyncController {
 						}
 
 						// content-based validation
-						if (!FileTypeUtils.validateAndLog(filePart, FileTypeUtils.FileCategory.PDF)) {
+						if (!FileTypeUtils.validateAndLog(filePart, FileTypeUtils.FileCategory.KNOWLEDGE_BASE)) {
 							continue;
 						}
 
@@ -908,8 +908,9 @@ public class ChatbotController extends AbstractAsyncController {
 						// retrieve document contents
 						try {
 							String finalFileName = storeFile.get();
+							String detectedMime = FileTypeUtils.detectMime(tempFile.path().toFile());
 							String contents = mediaProcessingService
-									.scheduleMediaToTextProcess(tempFile.path().toFile(), "en", "application/pdf",
+									.scheduleMediaToTextProcess(tempFile.path().toFile(), "en", detectedMime,
 											"SYSTEM", UUID.randomUUID().toString())
 									.toCompletableFuture().get();
 

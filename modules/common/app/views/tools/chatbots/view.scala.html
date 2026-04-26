@@ -243,11 +243,11 @@
         hx-target="#file-list" hx-select="#file-list" hx-swap="outerHTML" hx-trigger="submit" hx-indicator="#file-list-indicator">
         <p>
           <b>Upload Documents</b><br>
-          Add PDF files to the knowledge base.
+          Add PDF, Markdown, or Text files to the knowledge base.
         </p>
         <div class="file-uploader">
-          <input type="file" id="file-input" name="file" multiple accept="application/pdf">
-          <label for="file-input">Drag & drop PDF files here or click to upload</label>
+          <input type="file" id="file-input" name="file" multiple accept="application/pdf,.md,.txt">
+          <label for="file-input">Drag & drop PDF, Markdown, or Text files here or click to upload</label>
         </div>
       </form>
     </div>
@@ -299,8 +299,10 @@
       e.preventDefault();
       uploader.classList.remove('dragover');
       const files = Array.from(e.dataTransfer.files);
-      const pdfs = files.filter(file => file.type === 'application/pdf');
-      input.files = createFileList(pdfs);
+      const validTypes = ['application/pdf', 'text/plain', 'text/markdown'];
+      const validExts = ['.pdf', '.txt', '.md'];
+      const kbFiles = files.filter(file => validTypes.includes(file.type) || validExts.some(ext => file.name.toLowerCase().endsWith(ext)));
+      input.files = createFileList(kbFiles);
       htmx.trigger('#fileUploadForm', 'submit');
     });
 

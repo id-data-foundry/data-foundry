@@ -94,6 +94,9 @@ public class MediaProcessingService {
 		} else if (type.startsWith("application/pdf")) {
 			// process PDF file
 			result = processPDF(inputFile, user, internalToken);
+		} else if (type.startsWith("text/")) {
+			// process text or markdown file
+			result = processText(inputFile, user, internalToken);
 		} else {
 			// now we know that the engine can work with the files
 			result = processAudio(inputFile, language, user, internalToken);
@@ -171,7 +174,33 @@ public class MediaProcessingService {
 	}
 
 	/**
-	 * process the input file as an image and use OCR to extra the text
+	 * process the input file as a text or markdown file
+	 *
+	 * @param inputFile
+	 * @param user
+	 * @param internalToken
+	 * @return
+	 */
+	private String processText(File inputFile, String user, String internalToken) {
+
+		String output = "";
+		try {
+			output = java.nio.file.Files.readString(inputFile.toPath());
+		} catch (Exception e) {
+			logger.error("Text processing error", e);
+		} finally {
+			// delete input file
+			inputFile.delete();
+		}
+
+		// update cache for independent retrieval
+		cache.set(internalToken, output, EXPIRATION_TIMEOUT_SECS);
+
+		return output;
+	}
+
+	/**
+	 * process the input file as a PDF file
 	 * 
 	 * @param inputFile
 	 * @param user

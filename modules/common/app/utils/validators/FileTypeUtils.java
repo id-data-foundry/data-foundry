@@ -34,7 +34,7 @@ public final class FileTypeUtils {
 	private static final Tika tika = new Tika();
 
 	public enum FileCategory {
-		IMAGE, AUDIO, VIDEO, DOCUMENT, CSV, XML, PDF, ANY
+		IMAGE, AUDIO, VIDEO, DOCUMENT, CSV, XML, PDF, KNOWLEDGE_BASE, ANY
 	}
 
 	// Internal allowlists (can be adjusted centrally here)
@@ -45,6 +45,7 @@ public final class FileTypeUtils {
 	private static final Set<String> CSV_MIMES;
 	private static final Set<String> XML_MIMES;
 	private static final Set<String> PDF_MIMES;
+	private static final Set<String> KNOWLEDGE_BASE_MIMES;
 
 	// Map category -> set for quick lookup
 	private static final Map<FileCategory, Set<String>> CATEGORY_MAP;
@@ -105,6 +106,11 @@ public final class FileTypeUtils {
 		Set<String> pdfs = new HashSet<>();
 		pdfs.add("application/pdf");
 
+		Set<String> kb = new HashSet<>();
+		kb.add("application/pdf");
+		kb.add("text/plain");
+		kb.add("text/markdown");
+
 		IMAGE_MIMES = Collections.unmodifiableSet(images);
 		AUDIO_MIMES = Collections.unmodifiableSet(audio);
 		VIDEO_MIMES = Collections.unmodifiableSet(video);
@@ -112,6 +118,7 @@ public final class FileTypeUtils {
 		CSV_MIMES = Collections.unmodifiableSet(csvs);
 		XML_MIMES = Collections.unmodifiableSet(xmls);
 		PDF_MIMES = Collections.unmodifiableSet(pdfs);
+		KNOWLEDGE_BASE_MIMES = Collections.unmodifiableSet(kb);
 
 		Map<FileCategory, Set<String>> m = new HashMap<>();
 		m.put(FileCategory.IMAGE, IMAGE_MIMES);
@@ -121,6 +128,7 @@ public final class FileTypeUtils {
 		m.put(FileCategory.CSV, CSV_MIMES);
 		m.put(FileCategory.XML, XML_MIMES);
 		m.put(FileCategory.PDF, PDF_MIMES);
+		m.put(FileCategory.KNOWLEDGE_BASE, KNOWLEDGE_BASE_MIMES);
 		m.put(FileCategory.ANY, Collections.emptySet());
 		CATEGORY_MAP = Collections.unmodifiableMap(m);
 	}
