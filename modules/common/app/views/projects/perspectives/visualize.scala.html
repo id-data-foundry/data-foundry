@@ -353,6 +353,8 @@
 
         let html = '<form id="dim-form">';
         Object.keys(groupedDimensions).sort().forEach(dsName => {
+            const dsType = typeMap[dsName];
+            const isEventOrMedia = ['DIARY', 'ANNOTATION', 'MEDIA'].includes(dsType);
             const dims = Array.from(groupedDimensions[dsName]).sort();
             const allChecked = dims.every(d => selectedUids.has(`${dsName}: ${d}`));
             
@@ -364,7 +366,7 @@
                             <span style="font-weight: bold; color: #333;">${dsName}</span>
                         </label>
                     </p>
-                    <div class="dims-sub" style="margin-left: 25px;">
+                    <div class="dims-sub" style="margin-left: 25px; ${isEventOrMedia ? 'display: none;' : ''}">
             `;
             
             dims.forEach(dim => {
