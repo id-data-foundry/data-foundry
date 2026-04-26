@@ -159,7 +159,7 @@ public class ClustersController extends AbstractAsyncController {
 		// delete cluster in project (will also unlink cluster resources)
 		cluster.remove();
 
-		return redirect(routes.ProjectsController.manageResources(project.getId()));
+		return redirect(routes.ProjectsController.viewResources(project.getId()));
 	}
 
 	// ----------------------------------------------------------------------------------------------------

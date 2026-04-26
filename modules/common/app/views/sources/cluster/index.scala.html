@@ -1,0 +1,71 @@
+@(clusters: List[models.sr.Cluster], p: Project)
+<div class="row">
+    <br>
+    @for(c <- clusters) {
+    <cluster class="col s12 m6 xl4">
+        <div class="card white" style="height: 10rem;">
+            <div class="card-content grey-text">
+                <span class="card-title" class="black-text">
+                    @if(!c.hasDeclinedParticipant()){
+                    <a href="@routes.ClustersController.view(c.getId())" class="black-text">
+                        @c.getName()
+                    </a>
+                    } else {
+                    <strike>
+                        <a href="@routes.ClustersController.view(c.getId())" class="black-text">
+                            @c.getName()
+                        </a>
+                    </strike>
+                    }
+                    @if(p.canAnnotate()) {
+                    <a href="@api.routes.AnnotationDSController.recordForm(p.getAnnotationDataset().getId(), c.getRefId())" style="float: right">
+                        <i class="grey-text">@elements.icon("chat")</i>
+                    </a>
+                    }
+                </span>
+                
+                <div>
+                    @for(w <- c.getParticipants()){
+                    <a href="@routes.ParticipantsController.view(w.getId())">
+                        @if(w.accepted()){
+                        <div class="chip tooltipped white-text thing" data-tooltip="ID: @w.getRefId()">
+                        } else if(w.pending()){
+                        <div class="chip tooltipped white-text pending-thing" data-tooltip="ID: @w.getRefId()">
+                        }  else {
+                        <div class="chip tooltipped white-text declined-thing" data-tooltip="ID: @w.getRefId()">
+                        }
+                            @w.getName()
+                        </div>
+                    </a>
+                    }
+                    @if(!c.hasDeclinedParticipant()){
+                        @for(w <- c.getWearables()){
+                        <a href="@routes.ProjectsController.wearable(w.getId())">
+                        @if(w.isConnected()){
+                            <div class="chip tooltipped white-text thing" data-tooltip="ID: @w.getRefId()">
+                                <i class="icons">@elements.icon("watch")</i>
+                                @w.getName()
+                            </div>
+                        } else {
+                            <div class="chip tooltipped white-text pending-thing" data-tooltip="ID: @w.getRefId()">
+                                <i class="icons">@elements.icon("watch")</i>
+                                @w.getName()
+                            </div>
+                        }
+                        </a>
+                        }
+                        @for(w <- c.getDevices()){
+                        <a href="@routes.DevicesController.view(w.getId())">
+                            <div class="chip tooltipped white-text thing" data-tooltip="ID: @w.getRefId()">
+                                <i class="icons">@elements.icon("developer_board")</i>
+                                @w.getName()
+                            </div>
+                        </a>
+                        }
+                    }
+                </div>
+            </div>                              
+        </div>
+    </cluster>
+    }
+</div>

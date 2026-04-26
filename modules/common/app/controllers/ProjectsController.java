@@ -697,50 +697,6 @@ public class ProjectsController extends AbstractAsyncController {
 		return ok(views.html.projects.addScript.render(project, csrfToken(request)));
 	}
 
-	@Authenticated(UserAuth.class)
-	@AddCSRFToken
-	public Result manageResources(Request request, Long id) {
-
-		// check if project exists
-		Project project = Project.find.byId(id);
-		if (project == null) {
-			return redirect(LANDING).addingToSession(request, "error", "Project not found.");
-		}
-
-		// check for open project if user is empty
-		String username = getAuthenticatedUserNameOrReturn(request,
-				redirect(LANDING).addingToSession(request, "error", "User not found."));
-
-		if (username.isEmpty()) {
-			if (!project.isPublicProject()) {
-				return redirect(LANDING).addingToSession(request, "error", "Project not accessible.");
-			}
-
-			// render public project view
-			return redirect(routes.ProjectsController.view(id));
-		}
-
-		// check if user exists
-		Person user = Person.findByEmail(username).get();
-		if (user == null) {
-			return redirect(LANDING).addingToSession(request, "error", "User not found.");
-		}
-
-		// check ownership
-		if (!project.editableBy(username)) {
-			return redirect(LANDING).addingToSession(request, "error", "Project not accessible.");
-		}
-
-		// create sign-up link
-		String recruitmentToken = tokenResolverUtil.getParticipationToken(project.getId(), -1l);
-		String viewLink = routes.ParticipationController.recruit(recruitmentToken).absoluteURL(request, true);
-
-		// render project view for owner
-		return ok(
-				views.html.projects.manageResources.render(project, user, csrfToken(request), viewLink, configurator));
-
-	}
-
 	/**
 	 * add the collaboration from the owner's side ("invite")
 	 * 

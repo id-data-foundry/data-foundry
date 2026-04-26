@@ -97,7 +97,6 @@ GET			/projects/:id/edit									controllers.ProjectsController.edit(request: Re
 POST		/projects/:id/editMe									controllers.ProjectsController.editMe(request: Request, id: Long)
 GET         /projects/:id/addDataset                            controllers.ProjectsController.addDataset(request: Request, id: Long)
 GET         /projects/:id/addScript                             controllers.ProjectsController.addScript(request: Request, id: Long)
-GET			/projects/:id/manageResources						controllers.ProjectsController.manageResources(request: Request, id: Long)
 GET			/projects/:id/archive								controllers.ProjectsController.archive(request: Request, id: Long)
 GET			/projects/:id/reopen									controllers.ProjectsController.reopen(request: Request, id: Long)
 POST		/projects/:id/extend									controllers.ProjectsController.extendProjectDuration(request: Request, id: Long)
@@ -198,6 +197,7 @@ GET			/resources/:id/devices								controllers.ResourcesController.devices(requ
 GET			/resources/:id/deviceData							controllers.ResourcesController.deviceData(request: Request, id: Long, dsId: Long, deviceId: Long)
 GET			/resources/:id/participants							controllers.ResourcesController.participants(request: Request, id: Long)
 GET			/resources/:id/participantData						controllers.ResourcesController.participantData(request: Request, id: Long, dsId: Long, participantId: Long)
+GET			/resources/:id/clusters								controllers.ResourcesController.clusters(request: Request, id: Long)
 GET			/resources/:id/wearables								controllers.ResourcesController.wearables(request: Request, id: Long)
 
 

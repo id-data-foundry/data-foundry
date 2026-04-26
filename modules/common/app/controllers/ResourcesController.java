@@ -122,6 +122,19 @@ public class ResourcesController extends AbstractAsyncController {
 		}, 10);
 	}
 
+	public Result clusters(Request request, long id) {
+		Person user = getAuthenticatedUserOrReturn(request, noContent());
+		Project project = Project.find.byId(id);
+		if (project == null || !project.editableBy(user)) {
+			return noContent();
+		}
+
+		// cache response for 30 seconds to take load off the database
+		return cache.getOrElseUpdate("project_" + id + "_resource_table_clusters", () -> {
+			return ok(views.html.sources.cluster.index.render(project.getClusters(), project));
+		}, 10);
+	}
+
 	/**
 	 * download CSV data for given project, dataset and participant
 	 * 

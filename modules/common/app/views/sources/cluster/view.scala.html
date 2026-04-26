@@ -1,8 +1,14 @@
 @(p: Project, c : sr.Cluster)(implicit request: Http.Request)
 
-@main("Cluster", "profile", "collapsed-layout") {
+@main("Cluster", "profile") {
 	<script src='@routes.Assets.versioned("javascripts/vega.min.js")' type="text/javascript"></script>
 	<script src="@routes.DatasetsController.jsRoutes()" type="text/javascript"></script>
+
+	<style>
+		.btn_remove_source {
+			margin-left: 0.5rem;
+		}
+	</style>
 	
 	<!-- navigation -->
 	<nav class="">
@@ -23,329 +29,266 @@
 	</div>
 	
 	<div class="row">
-		<div class="col s12 m4">
-			The cluster filters all applicable datasets by the resources that are in the cluster. Download filtered versions of the following datasets:
-			@for(ds <- p.getIoTDatasets()) {
-			<p>
-				<a href="@routes.DatasetsController.downloadCluster(ds.getId(), c.getId())" class="">
-					<span class="typetag @ds.toColorBG()">@ds.toUIString()</span> @ds.getName()
-				</a>
-			</p>
-			}
-
-			@for(ds <- p.getDiaryDatasets()) {
-			<p>
-				<a href="@routes.DatasetsController.downloadCluster(ds.getId(), c.getId())" class="">
-					<span class="typetag @ds.toColorBG()">@ds.toUIString()</span> @ds.getName()
-				</a>
-			</p>
-			}
-
-			@for(ds <- p.getAnnotationDatasets()) {
-			<p>
-				<a href="@routes.DatasetsController.downloadCluster(ds.getId(), c.getId())" class="">
-					<span class="typetag @ds.toColorBG()">@ds.toUIString()</span> @ds.getName()
-				</a>
-			</p>
-			}
-
-			@for(ds <- p.getMediaDatasets()) {
-			<p>
-				<a href="@routes.DatasetsController.downloadCluster(ds.getId(), c.getId())" class="">
-					<span class="typetag @ds.toColorBG()">@ds.toUIString()</span> @ds.getName()
-				</a>
-			</p>
-			}
-
-			@for(ds <- p.getMovementDatasets()) {
-			<p>
-				<a href="@routes.DatasetsController.downloadCluster(ds.getId(), c.getId())" class="">
-					<span class="typetag @ds.toColorBG()">@ds.toUIString()</span> @ds.getName()
-				</a>
-			</p>
-			}
-
-			@for(ds <- p.getExpSamplingDatasets()) {
-			<p>
-				<a href="@routes.DatasetsController.downloadCluster(ds.getId(), c.getId())" class="">
-					<span class="typetag @ds.toColorBG()">@ds.toUIString()</span> @ds.getName()
-				</a>
-			</p>
-			}
-
-			@for(ds <- p.getFitbitDatasets()) {
-			<p>
-				<a href="@routes.DatasetsController.downloadCluster(ds.getId(), c.getId())" class="">
-					<span class="typetag @ds.toColorBG()">@ds.toUIString()</span> @ds.getName()
-				</a>
-			</p>
-			}
-
-			@for(ds <- p.getGoogleFitDatasets()) {
-			<p>
-				<a href="@routes.DatasetsController.downloadCluster(ds.getId(), c.getId())" class="">
-					<span class="typetag @ds.toColorBG()">@ds.toUIString()</span> @ds.getName()
-				</a>
-			</p>
-			}
-
-			<hr>
+		<div class="col s12 m7">
+			<h4>Cluster data</h4>
+			<p>Explore this cluster's data within the context of the entire project.</p>
+			<a href="@routes.ProjectsController.visualize(p.getId(), c.getId())" class="btn" style="margin-bottom: 1rem;">
+				Visualize cluster data
+			</a>
 			
-			<a href="@routes.ClustersController.exportMetadata(c.getId())" class="btn">Export all</a>
-			<a href="@routes.ProjectsController.visualize(p.getId(), c.getId())" class="btn">Visualize Detailed Data</a>
-			@if(p.canAnnotate()) {
-				<a href="@api.routes.AnnotationDSController.recordForm(p.getAnnotationDataset().getId(), c.getRefId())" class="btn">
-					Annotate
-				</a>
-			}
-			<a onclick="return confirm('Are you sure you want to delete this cluster? Click OK to delete, cancel to stop.')" href="@routes.ClustersController.delete(c.getId())" class="btn-flat red-text">Delete</a>
-		</div>
-
-		<div id="vis" class="col s12 m7"></div>
-
-		<script type="text/javascript">
-    
-		    var yourVlSpec = {
-		        $schema: 'https://vega.github.io/schema/vega-lite/v4.json',
-		        // description: 'Dataset activity visualisation',
-		        width: $('#vis').width() - 40,
-		        height: 160,
-		        data: {
-		          "url": "@routes.ClustersController.timeseries(c.getId())",
-		          "format": { "type": "csv"}
-		        },
-		        mark: { type:'line', point: true},
-		        encoding: {
-		          x: {field: 'day', type: 'temporal'},
-		          y: {field: 'events', type: 'quantitative'},
-		          color: {field: 'dataset', type: 'ordinal'},
-		          tooltip: {field: 'dataset'}
-		        }
-		      };
-		    
-		    var view;
-		    vegaEmbed('#vis', yourVlSpec).then(function(vega) {
-			    view = vega.view;
-			    setTimeout(function() {
-					if(vega.view.data("source_0").length == 0) {
-						$('#vis').html("");
-					}
-				}, 100);
-			});
-
-		</script>
-
-	</div>
-
-	<!-- participant / device / wearable lists -->
-	<div class="row white">
-		<div class="col s12">
-			<h5>Cluster details</h5>
-			<div class="row">
-				<div class="col s12">
-					<ul class="tabs">
-						<li class="tab col s3">
-							<a href="#participants">
-								<i class="icons">@elements.icon("person")</i>
-								Participants
-							</a>
-						</li>
-						<li class="tab col s3">
-							<a href="#wearables">
-								<i class="icons">@elements.icon("watch")</i>
-								Wearables
-							</a>
-						</li>
-						<li class="tab col s3">
-							<a href="#devices">
-								<i class="icons">@elements.icon("developer_board")</i>
-								Devices
-							</a>
-						</li>
-						<li class="tab col s3">
-							<a href="#data">
-								@elements.icon("cloud_download")
-								CSV cluster data
-							</a>
-						</li>
-					</ul>
-				</div>
-				<div id="participants" class="col s12">
-					<div>
-						@if(!p.getParticipants().isEmpty()) {
-						<a href="#modal_add_participant" class="btn-flat green-text modal-trigger">Add participant</a>
-						} else {
-						<div class="col s12">
-							no participants in project yet
-						</div>
-						}
-					</div>
-					<div>
-					@for(w <- c.getParticipants()){
-						@if(w.accepted()){
-						<div class="chip tooltipped white-text thing" data-tooltip="ID: @w.getRefId()">
-						} else if(w.pending()) {
-						<div class="chip tooltipped white-text pending-thing" data-tooltip="ID: @w.getRefId()">
-						} else {
-						<div class="chip tooltipped white-text declined-thing" data-tooltip="ID: @w.getRefId()">
-						}
-							<a href="@routes.ParticipantsController.view(w.getId())">
-								@w.getName() 
-							</a>
-							<a onclick="return confirm('Sure about removing this? Click OK to remove, cancel to stop.')" href="@routes.ClustersController.removeParticipant(c.getId(),w.getId())" class="btn_remove_source">
-								<i class="close material-icons">close</i>
-							</a>
-						</div>
-					}
-					</div>
-				</div>
-				
-				<div id="wearables" class="col s12">
-					<div>
-						@if(!p.getWearables().isEmpty()) {
-						<a href="#modal_add_wearable" class="btn-flat green-text modal-trigger">Add wearable</a>
-						} else {
-						<div class="col s12">
-							no wearables in project yet
-						</div>
-						}
-					</div>
-					<div>
-					@for(w <- c.getWearables()){
-						@if(w.isConnected()){
-						<div class="chip tooltipped white-text thing" data-tooltip="ID: @w.getRefId()">
-						} else {
-						<div class="chip tooltipped white-text pending-thing" data-tooltip="ID: @w.getRefId()">
-						}
-							<a href="@routes.ProjectsController.wearable(w.getId())">
-								<i class="icons">@elements.icon("watch")</i>
-								@w.getName()
-							</a>
-							<a onclick="return confirm('Sure about removing this? Click OK to remove, cancel to stop.')" href="@routes.ClustersController.removeWearable(c.getId(),w.getId())" class="btn_remove_source">
-								<i class="close material-icons">close</i>
-							</a>
-						</div>
-					}
-					</div>
-				</div>
-				
-				<div id="devices" class="col s12">
-					<div>
-						@if(!p.getDevices().isEmpty()) {
-						<a href="#modal_add_device" class="btn-flat green-text modal-trigger">Add device</a>
-						} else {
-						<div class="col s12">
-							no devices in project yet
-						</div>
-						}
-					</div>
-					<div>
-					@for(w <- c.getDevices()){
-						<div class="chip tooltipped white-text thing" data-tooltip="ID: @w.getRefId()">
-							<a href="@routes.DevicesController.view(w.getId())" class="text-white">
-								<i class="icons">@elements.icon("developer_board")</i>
-								@w.getName()
-							</a>
-							<a onclick="return confirm('Sure about removing this? Click OK to remove, cancel to stop.')" href="@routes.ClustersController.removeDevice(c.getId(),w.getId())" class="btn_remove_source">
-								<i class="close material-icons">close</i>
-							</a>
-						</div>
-					}
-					</div>
-				</div>
-
-				<div id="data" class="col s12">
-
+			<div style="margin-top: 1rem;">
+				<details>
+					<summary>Data downloads for cluster</summary>
+					<p>Download filtered versions of the following datasets:</p>
 					@for(ds <- p.getIoTDatasets()) {
-					@if(!ds.configuration(Dataset.PUBLIC_ACCESS_TOKEN, "").isEmpty()) {
-					<div class="row">
-			        	<div class="col s12">
-							Token link for downloading cluster data from <a href="@routes.DatasetsController.view(ds.getId())">@ds.getName()</a> <span class="typetag @ds.toColorBG()">@ds.toUIString()</span>:
-							<blockquote id="csvTokenLink">
-							  https://@(request.host()+routes.DatasetsController.downloadPublic(ds.getConfiguration().get(Dataset.PUBLIC_ACCESS_TOKEN), c.getId()))
-							</blockquote>
-						</div>
-					</div>
-					}
+					<p>
+						<b>@ds.getName()</b>: 
+						<a href="@routes.DatasetsController.downloadCluster(ds.getId(), c.getId())">CSV</a> | 
+						<a href="@routes.DatasetsController.downloadJsonCluster(ds.getId(), c.getId())">JSON</a>
+					</p>
 					}
 
 					@for(ds <- p.getDiaryDatasets()) {
-					@if(!ds.configuration(Dataset.PUBLIC_ACCESS_TOKEN, "").isEmpty()) {
-					<div class="row">
-			        	<div class="col s12">
-							Token link for downloading cluster data from <a href="@routes.DatasetsController.view(ds.getId())">@ds.getName()</a> <span class="typetag @ds.toColorBG()">@ds.toUIString()</span>:
-							<blockquote id="csvTokenLink">
-							  https://@(request.host()+routes.DatasetsController.downloadPublic(ds.getConfiguration().get(Dataset.PUBLIC_ACCESS_TOKEN), c.getId()))
-							</blockquote>
-						</div>
-					</div>
-					}
+					<p>
+						<b>@ds.getName()</b>: 
+						<a href="@routes.DatasetsController.downloadCluster(ds.getId(), c.getId())">CSV</a> | 
+						<a href="@routes.DatasetsController.downloadJsonCluster(ds.getId(), c.getId())">JSON</a>
+					</p>
 					}
 
 					@for(ds <- p.getAnnotationDatasets()) {
-					@if(!ds.configuration(Dataset.PUBLIC_ACCESS_TOKEN, "").isEmpty()) {
-					<div class="row">
-			        	<div class="col s12">
-							Token link for downloading cluster data from <a href="@routes.DatasetsController.view(ds.getId())">@ds.getName()</a> <span class="typetag @ds.toColorBG()">@ds.toUIString()</span>:
-							<blockquote id="csvTokenLink">
-							  https://@(request.host()+routes.DatasetsController.downloadPublic(ds.getConfiguration().get(Dataset.PUBLIC_ACCESS_TOKEN), c.getId()))
-							</blockquote>
-						</div>
-					</div>
+					<p>
+						<b>@ds.getName()</b>: 
+						<a href="@routes.DatasetsController.downloadCluster(ds.getId(), c.getId())">CSV</a> | 
+						<a href="@routes.DatasetsController.downloadJsonCluster(ds.getId(), c.getId())">JSON</a>
+					</p>
 					}
+
+					@for(ds <- p.getMediaDatasets()) {
+					<p>
+						<b>@ds.getName()</b>: 
+						<a href="@routes.DatasetsController.downloadCluster(ds.getId(), c.getId())">CSV</a> | 
+						<a href="@routes.DatasetsController.downloadJsonCluster(ds.getId(), c.getId())">JSON</a>
+					</p>
+					}
+
+					@for(ds <- p.getMovementDatasets()) {
+					<p>
+						<b>@ds.getName()</b>: 
+						<a href="@routes.DatasetsController.downloadCluster(ds.getId(), c.getId())">CSV</a> | 
+						<a href="@routes.DatasetsController.downloadJsonCluster(ds.getId(), c.getId())">JSON</a>
+					</p>
 					}
 
 					@for(ds <- p.getExpSamplingDatasets()) {
-					@if(!ds.configuration(Dataset.PUBLIC_ACCESS_TOKEN, "").isEmpty()) {
-					<div class="row">
-			        	<div class="col s12">
-							Token link for downloading cluster data from <a href="@routes.DatasetsController.view(ds.getId())">@ds.getName()</a> <span class="typetag @ds.toColorBG()">@ds.toUIString()</span>:
-
-							<blockquote id="csvTokenLink">
-							  https://@(request.host()+routes.DatasetsController.downloadPublic(ds.getConfiguration().get(Dataset.PUBLIC_ACCESS_TOKEN), c.getId()))
-							</blockquote>
-						</div>
-					</div>
-					}
+					<p>
+						<b>@ds.getName()</b>: 
+						<a href="@routes.DatasetsController.downloadCluster(ds.getId(), c.getId())">CSV</a> | 
+						<a href="@routes.DatasetsController.downloadJsonCluster(ds.getId(), c.getId())">JSON</a>
+					</p>
 					}
 
 					@for(ds <- p.getFitbitDatasets()) {
-					@if(!ds.configuration(Dataset.PUBLIC_ACCESS_TOKEN, "").isEmpty()) {
-					<div class="row">
-			        	<div class="col s12">
-							Token link for downloading cluster data from <a href="@routes.DatasetsController.view(ds.getId())">@ds.getName()</a> <span class="typetag @ds.toColorBG()">@ds.toUIString()</span>:
+					<p>
+						<b>@ds.getName()</b>: 
+						<a href="@routes.DatasetsController.downloadCluster(ds.getId(), c.getId())">CSV</a> | 
+						<a href="@routes.DatasetsController.downloadJsonCluster(ds.getId(), c.getId())">JSON</a>
+					</p>
+					}
 
-							<blockquote id="csvTokenLink">
-							  https://@(request.host()+routes.DatasetsController.downloadPublic(ds.getConfiguration().get(Dataset.PUBLIC_ACCESS_TOKEN), c.getId()))
-							</blockquote>
+					@for(ds <- p.getGoogleFitDatasets()) {
+					<p>
+						<b>@ds.getName()</b>: 
+						<a href="@routes.DatasetsController.downloadCluster(ds.getId(), c.getId())">CSV</a> | 
+						<a href="@routes.DatasetsController.downloadJsonCluster(ds.getId(), c.getId())">JSON</a>
+					</p>
+					}
+
+					<p>
+						<a href="@routes.ClustersController.exportMetadata(c.getId())" class="btn">Export all metadata</a>
+					</p>
+				</details>
+			</div>
+		</div>
+
+		<div class="col s12 m4 offset-m1 button-col">
+			<ul class="collection with-header">
+				<li class="collection-header">
+					<h6>
+						Cluster info
+						<a onclick="let newName = prompt('Enter new cluster name:', '@c.getName()'); if(newName) { window.location.href = '@routes.ClustersController.rename(c.getId(), "")' + newName; }" href="#!" style="float: right; position: relative; top: -4px;">
+							<i class="btn-edit">@elements.icon("edit")</i>
+						</a>
+					</h6>
+				</li>
+				<li class="collection-item"><div>
+					<p><b>Name:</b> @c.getName()</p>
+					<p><b>ID:</b> @c.getId()</p>
+					<p>
+						@if(p.canAnnotate()) {
+							<a href="@api.routes.AnnotationDSController.recordForm(p.getAnnotationDataset().getId(), c.getRefId())" class="btn green lighten-2 btn-small" style="margin-top: 10px; width: 100%;">
+								Add Annotation
+							</a>
+						}
+					</p>
+					<p style="margin-top: 20px; text-align: center;">
+						<a onclick="return confirm('Are you sure you want to delete this cluster? Click OK to delete, cancel to stop.')" href="@routes.ClustersController.delete(c.getId())" class="red-text">
+							Delete Cluster
+						</a>
+					</p>
+				</div></li>
+			</ul>
+		</div>
+	</div>
+
+	<!-- participant / device / wearable lists -->
+	<div class="row">
+		<div class="col s12 m4">
+			<h5>Participants</h5>
+			<div class="divider"></div>
+			<div>
+				@if(!p.getParticipants().isEmpty()) {
+				<a href="#modal_add_participant" class="btn-flat green-text modal-trigger">Add participant</a>
+				} else {
+				<div class="grey-text" style="padding-top: 10px;">no participants in project yet</div>
+				}
+			</div>
+			<div>
+			@for(w <- c.getParticipants()){
+				@if(w.accepted()){
+				<div class="chip tooltipped white-text thing" data-tooltip="ID: @w.getRefId()">
+				} else if(w.pending()) {
+				<div class="chip tooltipped white-text pending-thing" data-tooltip="ID: @w.getRefId()">
+				} else {
+				<div class="chip tooltipped white-text declined-thing" data-tooltip="ID: @w.getRefId()">
+				}
+					<a href="@routes.ParticipantsController.view(w.getId())">
+						@w.getName() 
+					</a>
+					<a onclick="return confirm('Sure about removing this? Click OK to remove, cancel to stop.')" href="@routes.ClustersController.removeParticipant(c.getId(),w.getId())" class="btn_remove_source">
+						&times;
+					</a>
+				</div>
+			}
+			</div>
+		</div>
+		
+		<div class="col s12 m4">
+			<h5>Devices</h5>
+			<div class="divider"></div>
+			<div>
+				@if(!p.getDevices().isEmpty()) {
+				<a href="#modal_add_device" class="btn-flat green-text modal-trigger">Add device</a>
+				} else {
+				<div class="grey-text" style="padding-top: 10px;">no devices in project yet</div>
+				}
+			</div>
+			<div>
+			@for(w <- c.getDevices()){
+				<div class="chip tooltipped white-text thing" data-tooltip="ID: @w.getRefId()">
+					<a href="@routes.DevicesController.view(w.getId())" class="text-white">
+						<i class="icons">@elements.icon("developer_board")</i>
+						@w.getName()
+					</a>
+					<a onclick="return confirm('Sure about removing this? Click OK to remove, cancel to stop.')" href="@routes.ClustersController.removeDevice(c.getId(),w.getId())" class="btn_remove_source">
+						&times;
+					</a>
+				</div>
+			}
+			</div>
+		</div>
+		
+		<div class="col s12 m4">
+			<h5>Wearables</h5>
+			<div class="divider"></div>
+			<div>
+				@if(!p.getWearables().isEmpty()) {
+				<a href="#modal_add_wearable" class="btn-flat green-text modal-trigger">Add wearable</a>
+				} else {
+				<div class="grey-text" style="padding-top: 10px;">no wearables in project yet</div>
+				}
+			</div>
+			<div>
+			@for(w <- c.getWearables()){
+				@if(w.isConnected()){
+				<div class="chip tooltipped white-text thing" data-tooltip="ID: @w.getRefId()">
+				} else {
+				<div class="chip tooltipped white-text pending-thing" data-tooltip="ID: @w.getRefId()">
+				}
+					<a href="@routes.ProjectsController.wearable(w.getId())">
+						<i class="icons">@elements.icon("watch")</i>
+						@w.getName()
+					</a>
+					<a onclick="return confirm('Sure about removing this? Click OK to remove, cancel to stop.')" href="@routes.ClustersController.removeWearable(c.getId(),w.getId())" class="btn_remove_source">
+						&times;
+					</a>
+				</div>
+			}
+			</div>
+		</div>
+	</div>
+
+	<!-- csv token links -->
+	<div class="row white" style="margin-top: 4rem; padding: 1rem;">
+		<div class="col s12">
+			<h5>CSV cluster data API links</h5>
+			<p class="grey-text">Use these links to programmatically access data for this specific cluster using your dataset tokens.</p>
+
+			<div class="row">
+				<div class="col s12" style="padding-top: 1rem;">
+					@if(p.getOperationalDatasets().stream().allMatch(ds => ds.configuration(Dataset.PUBLIC_ACCESS_TOKEN, "").isEmpty())) {
+					<div class="row">
+						<div class="col s12 grey-text">
+							<p>No active API token links found for this cluster's datasets.</p>
+							<p>To activate them, open a dataset's details and generate a <b>public access token</b> in the "CSV/JSON Download" section:</p>
+							<div class="collection" style="border: none;">
+								@for(ds <- p.getOperationalDatasets()) {
+									<a href="@routes.DatasetsController.view(ds.getId())" class="collection-item" style="padding: 5px 10px; color: #9e9e9e;">
+										@ds.getName()
+									</a>
+								}
+							</div>
 						</div>
 					</div>
-					}
-					}
+					} else {
+						<!-- Active Token Links -->
+						@for(ds <- p.getOperationalDatasets()) {
+							@if(!ds.configuration(Dataset.PUBLIC_ACCESS_TOKEN, "").isEmpty()) {
+								<div class="row" style="margin-bottom: 1rem;">
+									<div class="col s12">
+										Token link for <a href="@routes.DatasetsController.view(ds.getId())">@ds.getName()</a> <span class="typetag @ds.toColorBG()">@ds.toUIString()</span>:
+										<blockquote id="csvTokenLink" style="margin: 5px 0;">
+										  https://@(request.host()+routes.DatasetsController.downloadPublic(ds.getConfiguration().get(Dataset.PUBLIC_ACCESS_TOKEN), c.getId()))
+										</blockquote>
+									</div>
+								</div>
+							}
+						}
 
-<!-- code examples -->
+						<!-- Inactive Datasets (for activation) -->
+						@if(p.getOperationalDatasets().stream().anyMatch(ds => ds.configuration(Dataset.PUBLIC_ACCESS_TOKEN, "").isEmpty())) {
+						<details style="margin-top: 2rem;">
+							<summary class="grey-text" style="cursor: pointer;">Show more datasets to activate API links</summary>
+							<div class="collection" style="border: none; margin-top: 10px;">
+								@for(ds <- p.getOperationalDatasets()) {
+									@if(ds.configuration(Dataset.PUBLIC_ACCESS_TOKEN, "").isEmpty()) {
+										<a href="@routes.DatasetsController.view(ds.getId())" class="collection-item" style="padding: 5px 10px; color: #9e9e9e;">
+											Activate API link for: @ds.getName()
+										</a>
+									}
+								}
+							</div>
+						</details>
+						}
+					}
+				</div>
 
-        <div class="col s12" style="margin-top: 3em;">
+				<div id="code-examples" class="col s12" style="padding-top: 2rem;">
           <p>
             <b>How to use this?</b>
           </p>
 
           <ul class="collapsible">
-@*
-            <li>
-              <div class="collapsible-header">cURL</div>
-              <div class="collapsible-body">
-<pre class="language-bash">
-  <code class="language-bash">
-curl -X POST -H "Content-Type: application/x-www-form-urlencoded" -d "source_id=DEVICE_ID&activity=ACTIVITY&data=DATA" @api.routes.TimeseriesDSController.record(dataset.getId(), "TOKEN").absoluteURL(true, request.host())
-  </code>
-</pre>
-                <p>
-                  Replace TOKEN with the token that you generate above. Replace DEVICE_ID by the refId attribute of any device in the project. Use any ACTIVITY or leave empty. Provide DATA in JSON format, such as <code>{"parameter1": 2, "parameter2": 5}</code>
-                </p>
-              </div>
-            </li>
-*@
             <li class="">
               <div class="collapsible-header">Python</div>
               <div class="collapsible-body">
@@ -425,48 +368,8 @@ allocation_display.describe()
 </pre>
               </div>
             </li>
-@*
-            <li>
-              <div class="collapsible-header">Java</div>
-              <div class="collapsible-body">
-<pre class="language-Java">
-  <code class="language-Java">
-URL url = new URL("@api.routes.TimeseriesDSController.record(dataset.getId(), "TOKEN").absoluteURL(true, request.host())");
-HttpURLConnection http = (HttpURLConnection) url.openConnection();
-http.setRequestMethod("POST");
-http.setDoOutput(true);
-
-byte[] out = "{\"source_id\":\"DEVICE_ID\",\"activity\":\"ACTIVITY\",\"data\":\"DATA\"}".getBytes(StandardCharsets.UTF_8);
-
-http.setFixedLengthStreamingMode(out.length);
-http.setRequestProperty("Content-Type", "application/json; charset=UTF-8");
-http.connect();
-try(OutputStream os = http.getOutputStream()) {
-  os.write(out);
-}
-  </code>
-</pre>
-        <p>
-          Replace TOKEN with the token that you generate above. Replace DEVICE_ID by the refId attribute of any device in the project. Use any ACTIVITY or leave empty. Provide DATA in JSON format, such as <code>{"parameter1": 2, "parameter2": 5}</code>
-        </p>
-
-              </div>
-            </li>
-            <li>
-              <div class="collapsible-header">Arduino/ESP</div>
-              <div class="collapsible-body">
-                <blockquote>
-                  
-                </blockquote>
-              </div>
-            </li>
-*@          
           </ul>
         </div>
-
-<!-- /code examples -->
-
-				</div>
 			</div>
 		</div>
 	</div>
