@@ -21,6 +21,13 @@
       color: black;
       text-decoration: underline;
     }
+    pre {
+      background: #fff;
+      padding: 1rem;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-family: monospace;
+    }
   </style>
 
   <!-- navigation -->
@@ -283,9 +290,130 @@
     </div>
   </div>
 
+  <hr>
+
+  <div class="row">
+    <div class="col s12">
+      <p>
+	    <b>API Documentation</b><br>
+        Integrate this chatbot into your own applications or automate knowledge base updates using the Data Foundry API.
+      </p>
+
+      <p>
+        The API uses <b>Bearer Token</b> authentication. To obtain your API key:
+        <ol>
+          <li>Go to the <a href="@routes.ProjectsController.view(dataset.getProject().getId())">Project Dashboard</a>.</li>
+          <li>Find the <b>API Access</b> section.</li>
+          <li>Copy the <b>Participation Token</b> (e.g., <code>df-your-token-here</code>).</li>
+        </ol>
+        Include this token in the <code>Authorization</code> header of your requests: <code>Authorization: Bearer df-...</code>
+      </p>
+
+      <div class="row">
+        <div class="col s12">
+          <ul class="tabs">
+            <li class="tab col s4"><a class="active" href="#curl-doc">cURL</a></li>
+            <li class="tab col s4"><a href="#python-doc">Python</a></li>
+            <li class="tab col s4"><a href="#js-doc">JavaScript</a></li>
+          </ul>
+        </div>
+
+        <!-- cURL -->
+        <div id="curl-doc" class="col s12">
+          <p><b>Chat API (OpenAI Compatible)</b></p>
+          <pre><code class="api-snippet">curl -X POST "[HOST]/api/v1/chatbots/@dataset.getId()/chat" \
+     -H "Authorization: Bearer YOUR_API_KEY" \
+     -H "Content-Type: application/json" \
+     -d '{"message": "Hello!", "conversationId": "optional-id"}'</code></pre>
+
+          <p><b>Upload Knowledge Base File</b></p>
+          <pre><code class="api-snippet">curl -X POST "[HOST]/api/v1/chatbots/@dataset.getId()/file" \
+     -H "Authorization: Bearer YOUR_API_KEY" \
+     -F "file=@@/path/to/document.md" \
+     -F "description=My document"</code></pre>
+        </div>
+
+        <!-- Python -->
+        <div id="python-doc" class="col s12">
+          <p><b>Chat API (OpenAI Compatible)</b></p>
+          <pre><code class="api-snippet">import requests
+
+url = "[HOST]/api/v1/chatbots/@dataset.getId()/chat"
+headers = {
+    "Authorization": "Bearer YOUR_API_KEY",
+    "Content-Type": "application/json"
+}
+data = {
+    "message": "Hello!",
+    "conversationId": "optional-id"
+}
+
+response = requests.post(url, headers=headers, json=data)
+print(response.json())</code></pre>
+
+          <p><b>Upload Knowledge Base File</b></p>
+          <pre><code class="api-snippet">import requests
+
+url = "[HOST]/api/v1/chatbots/@dataset.getId()/file"
+headers = {"Authorization": "Bearer YOUR_API_KEY"}
+files = {"file": open("document.md", "rb")}
+data = {"description": "My document"}
+
+response = requests.post(url, headers=headers, files=files, data=data)
+print(response.json())</code></pre>
+        </div>
+
+        <!-- JavaScript -->
+        <div id="js-doc" class="col s12">
+          <p><b>Chat API (OpenAI Compatible)</b></p>
+          <pre><code class="api-snippet">fetch("[HOST]/api/v1/chatbots/@dataset.getId()/chat", {
+  method: "POST",
+  headers: {
+    "Authorization": "Bearer YOUR_API_KEY",
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    message: "Hello!",
+    conversationId: "optional-id"
+  })
+})
+.then(res => res.json())
+.then(console.log);</code></pre>
+
+          <p><b>Upload Knowledge Base File</b></p>
+          <pre><code class="api-snippet">const formData = new FormData();
+formData.append("file", fileInput.files[0]);
+formData.append("description", "My document");
+
+fetch("[HOST]/api/v1/chatbots/@dataset.getId()/file", {
+  method: "POST",
+  headers: {
+    "Authorization": "Bearer YOUR_API_KEY"
+  },
+  body: formData
+})
+.then(res => res.json())
+.then(console.log);</code></pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <script>
     const uploader = document.querySelector('.file-uploader');
     const input = document.getElementById('file-input');
+
+    // Initialize tabs and inject host
+    document.addEventListener('DOMContentLoaded', function() {
+      var el = document.querySelectorAll('.tabs');
+      M.Tabs.init(el);
+
+      // Inject current host into API snippets
+      const host = window.location.protocol + "//" + window.location.host;
+      document.querySelectorAll('.api-snippet').forEach(code => {
+        code.innerHTML = code.innerHTML.replace(/\[HOST\]/g, host);
+      });
+    });
 
     // Highlight on drag
     uploader.addEventListener('dragover', (e) => {

@@ -593,6 +593,77 @@ public class ChatbotController extends AbstractAsyncController {
 		});
 	}
 
+	/**
+	 * API endpoint to upload a file to a chatbot knowledge base
+	 * 
+	 * @param request
+	 * @param id
+	 * @return
+	 */
+	public CompletionStage<Result> uploadFileApi(Request request, long id) {
+		return CompletableFuture.supplyAsync(() -> {
+			// 1. Extract Bearer token
+			String authHeader = request.header("Authorization").orElse("");
+			if (authHeader.isEmpty() || !authHeader.startsWith("Bearer ")) {
+				return unauthorized(Json.newObject().put("error", "Missing or invalid Authorization header"));
+			}
+			String token = authHeader.substring(7);
+
+			// 2. Validate token and get project ID
+			Long tokenProjectId = tokenResolver.getProjectIdFromParticipationToken(token.replace("df-", ""));
+			if (tokenProjectId == -1L) {
+				return unauthorized(Json.newObject().put("error", "Invalid API key"));
+			}
+
+			// 3. Find dataset and check permissions
+			Dataset ds = Dataset.find.byId(id);
+			if (ds == null) {
+				return notFound(Json.newObject().put("error", "Chatbot not found"));
+			}
+			if (ds.getProject().getId() != tokenProjectId.longValue()) {
+				return forbidden(Json.newObject().put("error", "API key does not have access to this project"));
+			}
+
+			if (!ds.canAppend()) {
+				return forbidden(Json.newObject().put("error", "Dataset is not active"));
+			}
+
+			final CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
+
+			try {
+				Http.MultipartFormData<TemporaryFile> body = request.body().asMultipartFormData();
+				if (body == null) {
+					return badRequest(Json.newObject().put("error", "Expecting multipart form data"));
+				}
+
+				DynamicForm df = formFactory.form().bindFromRequest(request);
+				String description = df != null ? nss(df.get("description")) : "";
+
+				List<Http.MultipartFormData.FilePart<TemporaryFile>> fileParts = body.getFiles();
+				if (fileParts.isEmpty()) {
+					return badRequest(Json.newObject().put("error", "No files provided"));
+				}
+
+				int successCount = 0;
+				for (Http.MultipartFormData.FilePart<TemporaryFile> filePart : fileParts) {
+					if (internalUploadKnowledgeBaseFile(ds, cpds, filePart, description)) {
+						successCount++;
+					}
+				}
+
+				if (successCount > 0) {
+					indexAllDocuments(cpds);
+					return ok(Json.newObject().put("status", "success").put("files_uploaded", successCount));
+				} else {
+					return badRequest(Json.newObject().put("error", "Failed to process files"));
+				}
+			} catch (Exception e) {
+				logger.error("Error uploading API file", e);
+				return internalServerError(Json.newObject().put("error", "Internal server error"));
+			}
+		});
+	}
+
 	private ConversationFragment internalChatProcess(String conversationId, Person user, Dataset ds,
 			String originalUserPrompt) {
 
@@ -828,6 +899,99 @@ public class ChatbotController extends AbstractAsyncController {
 	 * @param dsId
 	 * @return
 	 */
+	/**
+	 * core logic for uploading a file to a chatbot knowledge base
+	 * 
+	 * @param ds
+	 * @param cpds
+	 * @param filePart
+	 * @param description
+	 * @return
+	 */
+	private boolean internalUploadKnowledgeBaseFile(Dataset ds, CompleteDS cpds,
+			Http.MultipartFormData.FilePart<TemporaryFile> filePart, String description) {
+		TemporaryFile tempFile = filePart.getRef();
+		String tempFileName = nss(filePart.getFilename());
+
+		// check filename length and shorten if needed
+		if (tempFileName.length() > 60) {
+			tempFileName = tempFileName.substring(0, 60) + tempFileName.substring(tempFileName.lastIndexOf("."));
+		}
+
+		// filename-based quick check
+		if (FileTypeUtils.looksLikeExecutableFile(tempFileName)) {
+			logger.error("   Document upload rejected due to executable-like filename: " + tempFileName);
+			return false;
+		}
+
+		// content-based validation
+		if (!FileTypeUtils.validateAndLog(filePart, FileTypeUtils.FileCategory.KNOWLEDGE_BASE)) {
+			return false;
+		}
+
+		final String fileName = tempFileName;
+		// check if file exists; if so, delete it
+		cpds.getFile(fileName).ifPresent((file) -> {
+			logger.info("   '" + fileName + "' file exists; file and index will be deleted first");
+			if (file.exists()) {
+				file.delete();
+			}
+			cpds.deleteRecord(fileName);
+			File indexFile = new File(cpds.getFolder().getAbsolutePath() + File.separator + fileName + ".idx");
+			if (indexFile.exists()) {
+				indexFile.delete();
+			}
+		});
+
+		// store file, add record
+		Optional<String> storeFile = cpds.storeFile(tempFile.path().toFile(), fileName);
+		if (storeFile.isPresent()) {
+			cpds.addRecord(storeFile.get(), description, new Date());
+
+			// process the file in a document extraction queue
+			// retrieve document contents
+			try {
+				String finalFileName = storeFile.get();
+				String detectedMime = FileTypeUtils.detectMime(tempFile.path().toFile());
+				String contents = mediaProcessingService
+						.scheduleMediaToTextProcess(tempFile.path().toFile(), "en", detectedMime, "SYSTEM",
+								UUID.randomUUID().toString())
+						.toCompletableFuture().get();
+
+				ArrayNode documentIndex = Json.newArray();
+
+				// chunk the document in paragraphs and reproduce them as a list with related headers
+				List<String> chunks = produceChunks(contents);
+				logger.info("   " + chunks.size() + " chunks for '" + finalFileName + "' in "
+						+ cpds.getFolder().getAbsolutePath());
+
+				// process chunks to embeddings and store them in file
+				List<List<Double>> embeddings = managedAIAPIService.dispatchEmbeddingRequest("SYSTEM", chunks);
+				int counter = 0;
+				for (String str : chunks) {
+					ArrayNode ar = Json.newArray();
+					embeddings.get(counter++).forEach(d -> {
+						ar.add(d.floatValue());
+					});
+					documentIndex.add(Json.newObject().put("file", finalFileName).put("content", str).set("embedding", ar));
+				}
+
+				// write the index to disk
+				File indexFile = new File(cpds.getFolder().getAbsolutePath() + File.separator + finalFileName + ".idx");
+				if (indexFile.exists()) {
+					indexFile.delete();
+				}
+				Files.writeString(indexFile.toPath(), documentIndex.toString());
+
+				logger.info("   Chunks complete for '" + finalFileName + "' in " + cpds.getFolder().getAbsolutePath());
+				return true;
+			} catch (InterruptedException | ExecutionException | IOException e) {
+				logger.error("Error processing knowledge base file", e);
+			}
+		}
+		return false;
+	}
+
 	@Authenticated(UserAuth.class)
 	@AddCSRFToken
 	public CompletionStage<Result> uploadFile(Request request, long dsId) {
@@ -859,96 +1023,7 @@ public class ChatbotController extends AbstractAsyncController {
 
 					for (int i = 0; i < fileParts.size(); i++) {
 						FilePart<TemporaryFile> filePart = fileParts.get(i);
-						TemporaryFile tempFile = filePart.getRef();
-						String tempFileName = nss(filePart.getFilename());
-
-						logger.info("Context upload '" + tempFileName + "', processing...");
-
-						// check filename length and shorten if needed
-						if (tempFileName.length() > 60) {
-							tempFileName = tempFileName.substring(0, 60)
-									+ tempFileName.substring(tempFileName.lastIndexOf("."));
-							logger.info("   Uploaded file name shortened: " + tempFileName);
-						}
-
-						// filename-based quick check
-						if (FileTypeUtils.looksLikeExecutableFile(tempFileName)) {
-							logger.error(
-									"   Document upload rejected due to executable-like filename: " + tempFileName);
-							continue;
-						}
-
-						// content-based validation
-						if (!FileTypeUtils.validateAndLog(filePart, FileTypeUtils.FileCategory.KNOWLEDGE_BASE)) {
-							continue;
-						}
-
-						final String fileName = tempFileName;
-						// check if file exists; if so, delete it
-						cpds.getFile(fileName).ifPresent((file) -> {
-							logger.info("   '" + fileName + "' file exists; file and index will be deleted first");
-							if (file.exists()) {
-								file.delete();
-							}
-							cpds.deleteRecord(fileName);
-							File indexFile = new File(
-									cpds.getFolder().getAbsolutePath() + File.separator + fileName + ".idx");
-							if (indexFile.exists()) {
-								indexFile.delete();
-							}
-						});
-
-						// store file, add record
-						Optional<String> storeFile = cpds.storeFile(tempFile.path().toFile(), fileName);
-						if (storeFile.isPresent()) {
-							cpds.addRecord(storeFile.get(), nss(df.get("description")), new Date());
-						}
-
-						// process the file in a document extraction queue
-						// retrieve document contents
-						try {
-							String finalFileName = storeFile.get();
-							String detectedMime = FileTypeUtils.detectMime(tempFile.path().toFile());
-							String contents = mediaProcessingService
-									.scheduleMediaToTextProcess(tempFile.path().toFile(), "en", detectedMime,
-											"SYSTEM", UUID.randomUUID().toString())
-									.toCompletableFuture().get();
-
-							ArrayNode documentIndex = Json.newArray();
-
-							// chunk the document in paragraphs and reproduce them as a list with related headers
-							List<String> chunks = produceChunks(contents);
-							logger.info("   " + chunks.size() + " chunks for '" + finalFileName + "' in "
-									+ cpds.getFolder().getAbsolutePath());
-
-							// process chunks to embeddings and store them in file
-							List<List<Double>> embeddings = managedAIAPIService.dispatchEmbeddingRequest("SYSTEM",
-									chunks);
-							int counter = 0;
-							for (String str : chunks) {
-								ArrayNode ar = Json.newArray();
-								embeddings.get(counter++).forEach(d -> {
-									ar.add(d.floatValue());
-								});
-								documentIndex.add(Json.newObject().put("file", storeFile.get()).put("content", str)
-										.set("embedding", ar));
-							}
-
-							// write the index to disk
-							File indexFile = new File(
-									cpds.getFolder().getAbsolutePath() + File.separator + finalFileName + ".idx");
-							if (indexFile.exists()) {
-								indexFile.delete();
-							}
-							Files.writeString(indexFile.toPath(), documentIndex.toString());
-
-							logger.info("   Chunks complete for '" + finalFileName + "' in "
-									+ cpds.getFolder().getAbsolutePath());
-						} catch (InterruptedException | ExecutionException e) {
-							e.printStackTrace();
-						} catch (IOException e) {
-							e.printStackTrace();
-						}
+						internalUploadKnowledgeBaseFile(ds, cpds, filePart, nss(df.get("description")));
 					}
 
 					LabNotesEntry.log(CompleteDSController.class, LabNotesEntryType.DATA,

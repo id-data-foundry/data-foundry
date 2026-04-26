@@ -458,6 +458,7 @@ GET			/tools/chatbots/:id/chat								controllers.tools.ChatbotController.chat(r
 POST		/tools/chatbots/:id/chat								controllers.tools.ChatbotController.chatProcess(request: Request, id: Long, conversationId: String ?= "")
 +no-csrf
 POST		/api/v1/chatbots/:id/chat								controllers.tools.ChatbotController.chatApi(request: Request, id: Long)
+POST		/api/v1/chatbots/:id/file								controllers.tools.ChatbotController.uploadFileApi(request: Request, id: Long)
 POST		/tools/chatbots/:id/save/:route						controllers.tools.ChatbotController.save(request: Request, id: Long, route: String)
 POST		/tools/chatbots/:id/file								controllers.tools.ChatbotController.uploadFile(request: Request, id: Long)
 DELETE		/tools/chatbots/:id/file								controllers.tools.ChatbotController.deleteFile(request: Request, id: Long, fileId: Long)
