@@ -125,7 +125,7 @@ POST 		/projects/:id/studyManagement/addFile				controllers.ProjectsController.s
 GET 		/projects/:id/studyManagement/removeFile				controllers.ProjectsController.studyManagementRemoveFile(request: Request, id: Long, fileId: Long, filename: String)
 
 GET 		/projects/:id/timeseries								controllers.ProjectsController.timeseries(request: Request, id: Long)
-GET 		/projects/visualize/:id									controllers.ProjectsController.visualize(request: Request, id: Long, clusterId: Long ?= -1L)
+GET 		/projects/visualize/:id									controllers.ProjectsController.visualize(request: Request, id: Long, clusterId: Long ?= -1L, participantId: Long ?= -1L, deviceId: Long ?= -1L, datasetId: Long ?= -1L)
 GET			/projects/:id/wearables								controllers.ProjectsController.wearable(request: Request, id: Long)
 GET			/projects/:id/datasets/latest						controllers.ProjectsController.latestDataset(request: Request, id: Long)
 
@@ -160,15 +160,18 @@ GET 		/web/*token/:filepath								controllers.DatasetsController.webToken(reque
 GET 		/web/*token/											controllers.DatasetsController.webToken(request: Request, token: String, filepath: String ?= "")
 GET 		/web/*token											controllers.DatasetsController.webToken(request: Request, token: String, filepath: String ?= "")
 
-GET 		/datasets/download/									controllers.DatasetsController.allDownloads(request: Request)
-GET 		/datasets/download/json/:id							controllers.DatasetsController.downloadJson(request: Request, id: Long, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
-GET 		/datasets/download/json/:id/:cluster_id				controllers.DatasetsController.downloadJsonCluster(request: Request, id: Long, cluster_id: Long, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
-GET 		/datasets/download/json/:id/device/:device_id		controllers.DatasetsController.downloadJsonDevice(request: Request, id: Long, device_id: Long, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
-GET 		/datasets/downloadPublic/json/*token					controllers.DatasetsController.downloadJsonPublic(request: Request, token: String, cluster_id: Long ?= -1L, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
-GET 		/datasets/download/:id								controllers.DatasetsController.download(request: Request, id: Long, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
-GET 		/datasets/download/:id/:cluster_id					controllers.DatasetsController.downloadCluster(request: Request, id: Long, cluster_id: Long, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
-GET 		/datasets/downloadPublic/*token						controllers.DatasetsController.downloadPublic(request: Request, token: String, cluster_id: Long ?= -1L, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
-GET         /download/*token										controllers.DatasetsController.downloadTemporaryFile(request: Request, token: String)
+GET 		/datasets/download/											controllers.DatasetsController.allDownloads(request: Request)
+GET 		/datasets/download/json/:id									controllers.DatasetsController.downloadJson(request: Request, id: Long, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
+GET 		/datasets/download/json/:id/cluster/:cluster_id				controllers.DatasetsController.downloadJsonCluster(request: Request, id: Long, cluster_id: Long, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
+GET 		/datasets/download/json/:id/device/:device_id				controllers.DatasetsController.downloadJsonDevice(request: Request, id: Long, device_id: Long, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
+GET 		/datasets/download/json/:id/participant/:participant_id		controllers.DatasetsController.downloadJsonParticipant(request: Request, id: Long, participant_id: Long, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
+GET 		/datasets/downloadPublic/json/*token						controllers.DatasetsController.downloadJsonPublic(request: Request, token: String, cluster_id: Long ?= -1L, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
+GET 		/datasets/download/:id										controllers.DatasetsController.download(request: Request, id: Long, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
+GET 		/datasets/download/:id/cluster/:cluster_id					controllers.DatasetsController.downloadCluster(request: Request, id: Long, cluster_id: Long, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
+GET 		/datasets/download/:id/device/:device_id					controllers.DatasetsController.downloadDevice(request: Request, id: Long, device_id: Long, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
+GET 		/datasets/download/:id/participant/:participant_id			controllers.DatasetsController.downloadParticipant(request: Request, id: Long, participant_id: Long, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
+GET 		/datasets/downloadPublic/*token								controllers.DatasetsController.downloadPublic(request: Request, token: String, cluster_id: Long ?= -1L, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
+GET         /download/*token											controllers.DatasetsController.downloadTemporaryFile(request: Request, token: String)
 
 # reviews -------------------------------------------------------------------------------------------------------------
 
@@ -192,10 +195,8 @@ GET			/components/jsroutes									controllers.DatasetsController.jsRoutes(reque
 
 # resource views
 GET			/resources/:id/devices								controllers.ResourcesController.devices(request: Request, id: Long)
-GET			/resources/:id/deviceDataVis							controllers.ResourcesController.deviceDataVis(request: Request, id: Long, dsId: Long, deviceId: Long)
 GET			/resources/:id/deviceData							controllers.ResourcesController.deviceData(request: Request, id: Long, dsId: Long, deviceId: Long)
 GET			/resources/:id/participants							controllers.ResourcesController.participants(request: Request, id: Long)
-GET			/resources/:id/participantDataVis					controllers.ResourcesController.participantDataVis(request: Request, id: Long, participantId: Long)
 GET			/resources/:id/participantData						controllers.ResourcesController.participantData(request: Request, id: Long, dsId: Long, participantId: Long)
 GET			/resources/:id/wearables								controllers.ResourcesController.wearables(request: Request, id: Long)
 
@@ -306,7 +307,6 @@ GET			/datasets/ts/tableTree/:id							controllers.api.TimeseriesDSController.ta
 GET			/datasets/ts/:id/itemsNested						controllers.api.TimeseriesDSController.getItemsNested(request: Request, id: Long)
 GET			/datasets/ts/raw/:id.csv							controllers.api.TimeseriesDSController.downloadRaw(request: Request, id: Long, cluster_id: Long ?= -1L, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
 GET			/datasets/ts/rawPublic/*token						controllers.api.TimeseriesDSController.downloadRawPublic(request: Request, token: String)
-GET			/datasets/ts/:id/vis									controllers.api.TimeseriesDSController.datavis(request: Request, id: Long)
 
 # entity data
 GET			/datasets/entity/add/:id							controllers.api.EntityDSController.add(request: Request, id: Long)

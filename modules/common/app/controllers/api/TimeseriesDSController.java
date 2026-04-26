@@ -581,24 +581,6 @@ public class TimeseriesDSController extends AbstractDSController {
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////// .
 
-	public Result datavis(Request request, long id) {
-		String username = getAuthenticatedUserNameOrReturn(request, redirect(LANDING));
-
-		Dataset ds = Dataset.find.byId(id);
-		if (ds == null) {
-			return redirect(HOME).addingToSession(request, "error", "We could not find this dataset.");
-		}
-
-		if (!ds.visibleFor(username)) {
-			return redirect(HOME).addingToSession(request, "error",
-			        "You don't have permissions for this action. Need to be the owner or a collaborator of the project.");
-		}
-
-		return ok(views.html.datasets.ts.datavis.render(ds, ds.getMetaDataProjection()));
-	}
-
-	////////////////////////////////////////////////////////////////////////////////////////////////////////////////// .
-
 	public CompletionStage<Result> downloadExternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
 		// get device ids (if cluster is given)
 		final List<Long> deviceIds = cluster.getDeviceList();

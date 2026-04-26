@@ -7,8 +7,6 @@ import java.util.concurrent.CompletionStage;
 
 import javax.inject.Inject;
 
-import com.fasterxml.jackson.databind.node.ArrayNode;
-
 import datasets.DatasetConnector;
 import models.Dataset;
 import models.Person;
@@ -24,7 +22,6 @@ import models.sr.Cluster;
 import models.sr.Device;
 import models.sr.Participant;
 import play.cache.SyncCacheApi;
-import play.libs.Json;
 import play.mvc.Http.Request;
 import play.mvc.Result;
 
@@ -58,37 +55,6 @@ public class ResourcesController extends AbstractAsyncController {
 			});
 			return ok(views.html.sources.device.index.render(project.getDevices(), deviceUpdates));
 		}, 10);
-	}
-
-	/**
-	 * render data visualization for given project, dataset and device
-	 * 
-	 * @param request
-	 * @param id
-	 * @param dsId
-	 * @param deviceId
-	 * @return
-	 */
-	public Result deviceDataVis(Request request, long id, long dsId, long deviceId) {
-		Person user = getAuthenticatedUserOrReturn(request, noContent());
-		Project project = Project.find.byId(id);
-		if (project == null || !project.editableBy(user)) {
-			return noContent();
-		}
-
-		Optional<Dataset> dsOpt = project.getDatasets().stream().filter(d -> d.getId().equals(dsId)).findFirst();
-		if (dsOpt.isEmpty()) {
-			return noContent();
-		}
-
-		Optional<Device> deviceOpt = project.getDevices().stream().filter(d -> d.getId().equals(deviceId)).findFirst();
-		if (deviceOpt.isEmpty()) {
-			return noContent();
-		}
-
-		Device device = deviceOpt.get();
-		return ok(views.html.sources.device.datavis.render(dsId, new Cluster(device),
-				dsOpt.get().getMetaDataProjection()));
 	}
 
 	/**
@@ -157,51 +123,7 @@ public class ResourcesController extends AbstractAsyncController {
 	}
 
 	/**
-	 * render data visualization for given project, dataset and participant
-	 * 
-	 * @param request
-	 * @param id
-	 * @param dsId
-	 * @param participantId
-	 * @return
-	 */
-	public Result participantDataVis(Request request, long id, long participantId) {
-		Person user = getAuthenticatedUserOrReturn(request, noContent());
-		Project project = Project.find.byId(id);
-		if (project == null || !project.editableBy(user)) {
-			return noContent();
-		}
-
-		Optional<Participant> participantOpt = project.getParticipants().stream()
-				.filter(p -> p.getId().equals(participantId)).findFirst();
-		if (participantOpt.isEmpty()) {
-			return noContent();
-		}
-
-		Participant participant = participantOpt.get();
-		Cluster cluster = new Cluster(participant);
-
-		// retrieve and combine the data in one array
-		ArrayNode data = Json.newArray();
-
-		project.getDiaryDatasets().stream().forEach(ds -> {
-			data.addAll(datasetsConnector.getDatasetDS(ds).retrieveProjected(cluster, -1, -1, -1));
-		});
-		project.getMediaDatasets().stream().forEach(ds -> {
-			data.addAll(datasetsConnector.getDatasetDS(ds).retrieveProjected(cluster, -1, -1, -1));
-		});
-		project.getExpSamplingDatasets().stream().forEach(ds -> {
-			data.addAll(datasetsConnector.getDatasetDS(ds).retrieveProjected(cluster, -1, -1, -1));
-		});
-		project.getMovementDatasets().stream().forEach(ds -> {
-			data.addAll(datasetsConnector.getDatasetDS(ds).retrieveProjected(cluster, -1, -1, -1));
-		});
-
-		return ok(views.html.sources.participant.datavis.render(participant.getId(), data.toString()));
-	}
-
-	/**
-	 * download data for given project, dataset and participant
+	 * download CSV data for given project, dataset and participant
 	 * 
 	 * @param request
 	 * @param id

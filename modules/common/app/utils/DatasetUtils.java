@@ -5,6 +5,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import models.Dataset;
+import models.sr.Cluster;
+import models.sr.Device;
+import models.sr.Participant;
 import models.sr.Wearable;
 import play.Logger;
 
@@ -79,7 +82,7 @@ public class DatasetUtils {
 
 	public static int isStatusChanged(Date dsStart, Date dsEnd, Date newStart, Date newEnd, long target) {
 		boolean currentStatus = isStillActive(target, dsStart.getTime(), dsEnd.getTime()),
-		        newStatus = isStillActive(target, newStart.getTime(), newEnd.getTime());
+				newStatus = isStillActive(target, newStart.getTime(), newEnd.getTime());
 
 		// if status of dataset is changed
 		if (currentStatus && !newStatus) {
@@ -128,7 +131,7 @@ public class DatasetUtils {
 		} else {
 			// List<Wearable> wList = Wearable.find.query().where().eq("scopes", Long.toString(ds.id)).findList();
 			List<Wearable> wList = ds.getProject().getWearables().stream()
-			        .filter(w -> w.getScopes().equals(Long.toString(ds.getId()))).collect(Collectors.toList());
+					.filter(w -> w.getScopes().equals(Long.toString(ds.getId()))).collect(Collectors.toList());
 
 			if (today < dates[0].getTime()) {
 				// new start date is in the future
@@ -173,7 +176,7 @@ public class DatasetUtils {
 			if (isStillActive(dates[0].getTime(), dsStart.getTime(), dsEnd.getTime())) {
 				// some dates are overlapping
 				wList = Wearable.find.query().where().eq("scopes", Long.toString(dsId)).and().or()
-				        .gt("expiry", dsEnd.getTime()).lt("expiry", dates[0].getTime()).endOr().findList();
+						.gt("expiry", dsEnd.getTime()).lt("expiry", dates[0].getTime()).endOr().findList();
 
 				for (Wearable w : wList) {
 					// new start date is between the original start date and end date
@@ -215,7 +218,7 @@ public class DatasetUtils {
 			// duplication, which could be solved by resetting the dataset or forbidding this operation;
 			// TODO: solve data duplication issue -- if new start date is before current start date.
 			wList = Wearable.find.query().where().eq("scopes", Long.toString(dsId)).and()
-			        .lt("expiry", dates[0].getTime()).findList();
+					.lt("expiry", dates[0].getTime()).findList();
 
 			for (Wearable w : wList) {
 				w.setExpiry(dates[0].getTime());
@@ -230,7 +233,7 @@ public class DatasetUtils {
 			// dataset would be set as the new start date
 
 			wList = Wearable.find.query().where().eq("scopes", Long.toString(dsId)).and()
-			        .lt("expiry", dates[0].getTime()).findList();
+					.lt("expiry", dates[0].getTime()).findList();
 
 			for (Wearable w : wList) {
 				w.setExpiry(dates[0].getTime());
@@ -274,6 +277,35 @@ public class DatasetUtils {
 		//// status is not changed, do nothing
 		default:
 		}
+	}
+
+	/**
+	 * this utility method fills the empty slots of a cluster (participants, devices, wearables) so that it can be used
+	 * to filter in a DB query
+	 * 
+	 * @param cluster
+	 */
+	public static Cluster fillClusterSlots(Cluster cluster) {
+
+		if (cluster.getParticipants().isEmpty()) {
+			Participant dummy = new Participant("dummy@example.org");
+			dummy.setId(Long.MAX_VALUE);
+			cluster.getParticipants().add(dummy);
+		}
+
+		if (cluster.getDevices().isEmpty()) {
+			Device dummy = new Device();
+			dummy.setId(Long.MAX_VALUE);
+			cluster.getDevices().add(dummy);
+		}
+
+		if (cluster.getWearables().isEmpty()) {
+			Wearable dummy = new Wearable();
+			dummy.setId(Long.MAX_VALUE);
+			cluster.getWearables().add(dummy);
+		}
+
+		return cluster;
 	}
 
 	/**

@@ -3,8 +3,6 @@ package controllers;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -66,6 +64,7 @@ import services.inlets.OOCSIService;
 import services.inlets.OOCSIService.OOCSIDiagnostics;
 import services.outlets.OOCSIStreamOutService;
 import utils.DataUtils;
+import utils.DatasetUtils;
 import utils.auth.TokenResolverUtil;
 import utils.rendering.FormMarkdown;
 import utils.validators.AbstractValidator;
@@ -404,6 +403,10 @@ public class DatasetsController extends AbstractAsyncController {
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	///
+	/// CSV DOWNLOAD
+	///
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	@Authenticated(UserAuth.class)
 	public Result downloadTemporaryFile(Request request, String token) {
@@ -414,7 +417,7 @@ public class DatasetsController extends AbstractAsyncController {
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	/**
-	 * download data for a cluster, potentially restricted by time start - end
+	 * download CSV data, potentially restricted by limit, time start and end
 	 * 
 	 * @param request
 	 * @param id
@@ -429,7 +432,7 @@ public class DatasetsController extends AbstractAsyncController {
 	}
 
 	/**
-	 * download data for a cluster, potentially restricted by time start - end
+	 * download CSV data for a cluster, potentially restricted by limit, time start and end
 	 * 
 	 * @param request
 	 * @param id
@@ -456,12 +459,13 @@ public class DatasetsController extends AbstractAsyncController {
 		// check existing cluster id
 		final Cluster cluster;
 		if (cluster_id > -1) {
-			Optional<Cluster> cl = project.getClusters().stream().filter(c -> c.getId().equals(cluster_id)).findFirst();
-			if (!cl.isPresent()) {
+			Optional<Cluster> clusterOpt = project.getClusters().stream().filter(c -> c.getId().equals(cluster_id))
+					.findFirst();
+			if (!clusterOpt.isPresent()) {
 				return cs(() -> redirect(controllers.routes.DatasetsController.view(id)).addingToSession(request,
 						"error", "Cluster is not part of this project."));
 			} else {
-				cluster = cl.get();
+				cluster = clusterOpt.get();
 			}
 		} else {
 			// create empty cluster just in memory
@@ -497,8 +501,146 @@ public class DatasetsController extends AbstractAsyncController {
 	}
 
 	/**
-	 * public token download; this does NOT need the license acceptance because that would not work with external
-	 * clients downloading the data
+	 * download CSV data for a device, potentially restricted by limit, time start and end
+	 * 
+	 * @param request
+	 * @param id
+	 * @param device_id
+	 * @param limit
+	 * @param start
+	 * @param end
+	 * @return
+	 */
+	@Authenticated(UserAuth.class)
+	public CompletionStage<Result> downloadDevice(Request request, long id, long device_id, long limit, long start,
+			long end) {
+
+		// check if project exists
+		Dataset ds = Dataset.find.byId(id);
+		if (ds == null) {
+			return cs(() -> redirect(HOME).addingToSession(request, "error", "We could not find this dataset."));
+		}
+
+		// check project
+		Project project = ds.getProject();
+		project.refresh();
+
+		// check existing cluster id
+		final Cluster cluster;
+		if (device_id > -1) {
+			Optional<Device> deviceOpt = project.getDevices().stream().filter(c -> c.getId().equals(device_id))
+					.findFirst();
+			if (!deviceOpt.isPresent()) {
+				return notFoundCS("Device is not part of this project.");
+			} else {
+				Device device = deviceOpt.get();
+
+				// try to find a cluster for the device
+				Optional<Cluster> clusterOpt = device.getClusters().stream().findAny();
+				if (clusterOpt.isPresent()) {
+					cluster = clusterOpt.get();
+				} else {
+					cluster = new Cluster(device.getSlug());
+					cluster.getDevices().add(device);
+				}
+			}
+		} else {
+			return CompletableFuture.completedFuture(noContent());
+		}
+
+		// only show if user is owner or guest within DF
+		Person user = getAuthenticatedUserOrReturn(request, notFound("Please log in to access the dataset."));
+
+		// check ownership
+		if (!project.visibleFor(user)) {
+			return forbiddenCS("Project is not accessible.");
+		}
+
+		if (acceptLicenseFirst(request, user.getEmail(), project)) {
+			// redirect to accept license first
+			return redirectCS(
+					controllers.routes.ProjectsController.license(project.getId(), controllers.routes.DatasetsController
+							.downloadJsonDevice(id, device_id, limit, start, end).relativeTo("/")));
+		}
+
+		// prepare the cluster for proper filtering
+		DatasetUtils.fillClusterSlots(cluster);
+		return downloadExternal(request, id, ds, cluster, limit, start, end);
+	}
+
+	/**
+	 * download JSON data for a participant, optionally filtered by limit, start and end timestamp
+	 * 
+	 * @param request
+	 * @param id
+	 * @param participant_id
+	 * @param limit
+	 * @param start
+	 * @param end
+	 * @return
+	 */
+	@Authenticated(UserAuth.class)
+	public CompletionStage<Result> downloadParticipant(Request request, long id, long participant_id, long limit,
+			long start, long end) {
+
+		// check if project exists
+		Dataset ds = Dataset.find.byId(id);
+		if (ds == null) {
+			return cs(() -> redirect(HOME).addingToSession(request, "error", "We could not find this dataset."));
+		}
+
+		// check project
+		Project project = ds.getProject();
+		project.refresh();
+
+		// check existing cluster id
+		final Cluster cluster;
+		if (participant_id > -1) {
+			Optional<Participant> participantOpt = project.getParticipants().stream()
+					.filter(c -> c.getId().equals(participant_id)).findFirst();
+			if (!participantOpt.isPresent()) {
+				return notFoundCS("Participant is not part of this project.");
+			} else {
+				Participant participant = participantOpt.get();
+
+				// try to find participant's cluster first
+				Optional<Cluster> clusterOpt = participant.getCluster();
+				if (clusterOpt.isPresent()) {
+					cluster = clusterOpt.get();
+				} else {
+					cluster = new Cluster(participant.getSlug());
+					cluster.getParticipants().add(participant);
+				}
+			}
+		} else {
+			return CompletableFuture.completedFuture(noContent());
+		}
+
+		// only show if user is owner or guest within DF
+		Person user = getAuthenticatedUserOrReturn(request, notFound("Please log in to access the dataset."));
+
+		// check ownership
+		if (!project.visibleFor(user)) {
+			return forbiddenCS("Project is not accessible.");
+		}
+
+		if (acceptLicenseFirst(request, user.getEmail(), project)) {
+			// redirect to accept license first
+			return redirectCS(
+					controllers.routes.ProjectsController.license(project.getId(), controllers.routes.DatasetsController
+							.downloadParticipant(id, participant_id, limit, start, end).relativeTo("/")));
+		}
+
+		// prepare the cluster for proper filtering
+		DatasetUtils.fillClusterSlots(cluster);
+		return downloadExternal(request, id, ds, cluster, limit, start, end);
+	}
+
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	/**
+	 * public token CSV data download; this does NOT need the license acceptance because that would not work with
+	 * external clients downloading the data
 	 * 
 	 * @param request
 	 * @param token
@@ -669,6 +811,18 @@ public class DatasetsController extends AbstractAsyncController {
 		}
 	}
 
+	/**
+	 * internal CSV data download, optionally filtered by cluster, limit, start and end timestamp
+	 * 
+	 * @param request
+	 * @param id
+	 * @param ds
+	 * @param cluster
+	 * @param limit
+	 * @param start
+	 * @param end
+	 * @return
+	 */
 	public CompletionStage<Result> downloadInternal(Request request, long id, Dataset ds, final Cluster cluster,
 			long limit, long start, long end) {
 		// redirect to the right data set
@@ -704,10 +858,15 @@ public class DatasetsController extends AbstractAsyncController {
 			return redirectCS(PROJECT(id));
 		}
 	}
+
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	///
+	/// JSON DOWNLOAD
+	///
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	/**
-	 * download Json data, potentially restricted by time start - end
+	 * download JSON data, potentially restricted by limit, time start and end
 	 * 
 	 * @param request
 	 * @param id
@@ -721,8 +880,10 @@ public class DatasetsController extends AbstractAsyncController {
 		return downloadJsonCluster(request, id, -1L, limit, start, end);
 	}
 
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 	/**
-	 * download Json data for a cluster, potentially restricted by time start - end
+	 * download JSON data for a cluster, potentially restricted by limit, time start and end
 	 * 
 	 * @param request
 	 * @param id
@@ -779,9 +940,6 @@ public class DatasetsController extends AbstractAsyncController {
 							.downloadCluster(id, cluster_id, limit, start, end).relativeTo("/")));
 		}
 
-		// retrieve limit from request
-//		request.attrs().get("limit").
-
 		return CompletableFuture.supplyAsync(() -> {
 			File tempFile = play.libs.Files.singletonTemporaryFileCreator().create("data", "json").path().toFile();
 			try (FileWriter fw = new FileWriter(tempFile)) {
@@ -796,7 +954,7 @@ public class DatasetsController extends AbstractAsyncController {
 	}
 
 	/**
-	 * PACKAGE INTERNAL download Json data for a cluster, potentially restricted by time start - end
+	 * PACKAGE INTERNAL download JSON data for a cluster, potentially restricted by time start - end
 	 * 
 	 * @param request
 	 * @param id
@@ -841,7 +999,7 @@ public class DatasetsController extends AbstractAsyncController {
 	}
 
 	/**
-	 * download Json data for a device, potentially restricted by time start - end
+	 * download JSON data for a device, potentially restricted by limit, time start and end
 	 * 
 	 * @param request
 	 * @param id
@@ -865,21 +1023,20 @@ public class DatasetsController extends AbstractAsyncController {
 		Project project = ds.getProject();
 		project.refresh();
 
-		// check existing cluster id
+		// check existing device id
 		final Cluster cluster;
 		if (device_id > -1) {
-			Optional<Device> cl = project.getDevices().stream().filter(c -> c.getId().equals(device_id)).findFirst();
-			if (!cl.isPresent()) {
+			Optional<Device> deviceOpt = project.getDevices().stream().filter(c -> c.getId().equals(device_id))
+					.findFirst();
+			if (!deviceOpt.isPresent()) {
 				return notFoundCS("Device is not part of this project.");
 			} else {
-				Device device = cl.get();
+				Device device = deviceOpt.get();
 				cluster = new Cluster(device.getSlug());
 				cluster.getDevices().add(device);
 			}
 		} else {
-			// create empty device just in memory
-			cluster = new Cluster("data");
-			cluster.setId(-1l);
+			return CompletableFuture.completedFuture(noContent());
 		}
 
 		// only show if user is owner or guest within DF
@@ -897,10 +1054,12 @@ public class DatasetsController extends AbstractAsyncController {
 							.downloadJsonDevice(id, device_id, limit, start, end).relativeTo("/")));
 		}
 
+		// prepare the cluster for proper filtering
+		DatasetUtils.fillClusterSlots(cluster);
 		return CompletableFuture.supplyAsync(() -> {
 			File tempFile = play.libs.Files.singletonTemporaryFileCreator().create("data", "json").path().toFile();
 			try (FileWriter fw = new FileWriter(tempFile)) {
-				datasetConnector.getDatasetDS(ds).exportProjectedToFile(fw, cluster, -1l, -1l, -1l);
+				datasetConnector.getDatasetDS(ds).exportProjectedToFile(fw, cluster, limit, start, end);
 			} catch (Exception e) {
 				return notFound();
 			}
@@ -909,6 +1068,71 @@ public class DatasetsController extends AbstractAsyncController {
 					.as(MimeTypes.JSON);
 		});
 	}
+
+	/**
+	 * download JSON data for a participant, potentially restricted by limit, time start and end
+	 * 
+	 * @param request
+	 * @param id
+	 * @param participant_id
+	 * @param limit
+	 * @param start
+	 * @param end
+	 * @return
+	 */
+	@Authenticated(UserAuth.class)
+	public CompletionStage<Result> downloadJsonParticipant(Request request, long id, long participant_id, long limit,
+			long start, long end) {
+
+		// check if project exists
+		Dataset ds = Dataset.find.byId(id);
+		if (ds == null) {
+			return cs(() -> redirect(HOME).addingToSession(request, "error", "We could not find this dataset."));
+		}
+
+		// check project
+		Project project = ds.getProject();
+		project.refresh();
+
+		// check existing cluster id
+		final Cluster cluster;
+		if (participant_id > -1) {
+			Optional<Participant> cl = project.getParticipants().stream().filter(c -> c.getId().equals(participant_id))
+					.findFirst();
+			if (!cl.isPresent()) {
+				return notFoundCS("Participant is not part of this project.");
+			} else {
+				Participant participant = cl.get();
+				cluster = new Cluster(participant.getSlug());
+				cluster.getParticipants().add(participant);
+			}
+		} else {
+			return CompletableFuture.completedFuture(noContent());
+		}
+
+		// only show if user is owner or guest within DF
+		Person user = getAuthenticatedUserOrReturn(request, notFound("Please log in to access the dataset."));
+
+		// check ownership
+		if (!project.visibleFor(user)) {
+			return forbiddenCS("Project is not accessible.");
+		}
+
+		if (acceptLicenseFirst(request, user.getEmail(), project)) {
+			// redirect to accept license first
+			return redirectCS(
+					controllers.routes.ProjectsController.license(project.getId(), controllers.routes.DatasetsController
+							.downloadJsonParticipant(id, participant_id, limit, start, end).relativeTo("/")));
+		}
+
+		// prepare the cluster for proper filtering
+		DatasetUtils.fillClusterSlots(cluster);
+		return CompletableFuture.supplyAsync(() -> {
+			return ok(datasetConnector.getDatasetDS(ds).retrieveProjected(cluster, limit, start, end));
+		});
+	}
+
+	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	/**
 	 * public token Json download; this does NOT need the license acceptance because that would not work with external

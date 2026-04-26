@@ -27,71 +27,34 @@
 			</div>
 			<h3 id="projectName">Participant @participant.getName()</h3>
 		</div>
-        <div class="col s12">
-            <h4>Participant data</h4>
-        </div>
 	</div>
 
     <!-- participant data -->
 
     <div class="row">
-        <div class="col s12">
-            <div hx-get="@routes.ResourcesController.participantDataVis(participant.getProject().getId(), participant.getId())"
-                 hx-trigger="load"></div>
-        </div>
-        <div class="col s12">
-            <details>
-                <summary>
-                    Data downloads for participant
-                </summary>
-                @for(ds <- datasets) {
-                <p>
-                    <b>@ds.getName()</b> <a href="@routes.ResourcesController.participantData(participant.getProject().getId(), ds.getId(), participant.getId())" download="@{ds.getName()}.csv">data</a> (click to download data)
-                </p>
-                }
-            </details>
-        </div>
-    </div>
-
-    <hr>
-
-	<!-- participant info -->
-    <div class="row">
         <div class="col s12 m7">
-            <div id="participant_profile">
-                <h5>Participant's wearables</h5>
-                <div class="divider"></div>
-                <a href="#modal_add_wearable" class="btn-flat green-text modal-trigger">add wearable</a>
-                <br>
-                @for(w <- wearables){
-                <a href="@routes.ProjectsController.wearable(w.getId())">
-                @if(w.isConnected()){
-                    <div class="chip tooltipped white-text thing" data-tooltip="ID: @w.getRefId()">
-                } else {
-                    <div class="chip tooltipped white-text pending-thing" data-tooltip="ID: @w.getRefId()">
-                }
-                        <i class="icons">@elements.icon("watch")</i>
-                        @w.getName()
-                    </div>
-                </a>
-                }
-                <br><br>
-
-                <h5>Participant's devices</h5>
-                <div class="divider"></div>
-                <a href="@routes.DevicesController.add(participant.getProject().getId(), participant.getId())" class="btn-flat green-text">add device</a>
-                <br>
-                @for(w <- devices){
-                <div class="chip tooltipped white-text thing" data-tooltip="ID: @w.getRefId()">
-                    <a href="@routes.DevicesController.view(w.getId())" class="text-white">
-                        <i class="icons">@elements.icon("developer_board")</i>
-                        @w.getName()
-                    </a>
-                </div>
-                }
+            <h4>Participant data</h4>
+            <p>Explore this participant's data within the context of the entire project.</p>
+            <a href="@routes.ProjectsController.visualize(participant.getProject().getId(), -1L, participant.getId(), -1L, -1L)" class="btn" style="margin-bottom: 1rem;">
+                Visualize participant data
+            </a>
+            
+            <div style="margin-top: 1rem;">
+                <details open>
+                    <summary>
+                        Data downloads for participant
+                    </summary>
+                    @for(ds <- datasets) {
+                    <p>
+                        <b>@ds.getName()</b>: 
+                        <a href="@routes.ResourcesController.participantData(participant.getProject().getId(), ds.getId(), participant.getId())" download="@{ds.getName()}.csv">CSV</a> | 
+                        <a href="@routes.DatasetsController.downloadJsonParticipant(ds.getId(), participant.getId())" download="@{ds.getName()}.json">JSON</a>
+                    </p>
+                    }
+                </details>
             </div>
         </div>
-
+        
         <div class="col s12 m4 offset-m1 button-col">
 
 			<ul class="collection with-header">
@@ -121,6 +84,46 @@
 
         </div>
     </div>
+
+	<!-- participant info -->
+    <div id="participant_profile" class="row">
+        <div class="col s12 m6">
+            <h5>Participant's devices</h5>
+            <div class="divider"></div>
+            <a href="@routes.DevicesController.add(participant.getProject().getId(), participant.getId())" class="btn-flat green-text">add device</a>
+            <br>
+            @for(w <- devices){
+            <div class="chip tooltipped white-text thing" data-tooltip="ID: @w.getRefId()">
+                <a href="@routes.DevicesController.view(w.getId())" class="text-white">
+                    <i class="icons">@elements.icon("developer_board")</i>
+                    @w.getName()
+                </a>
+            </div>
+            }
+            <br><br>
+        </div>
+
+        <div class="col s12 m6">
+            <h5>Participant's wearables</h5>
+            <div class="divider"></div>
+            <a href="#modal_add_wearable" class="btn-flat green-text modal-trigger">add wearable</a>
+            <br>
+            @for(w <- wearables){
+            <a href="@routes.ProjectsController.wearable(w.getId())">
+            @if(w.isConnected()){
+                <div class="chip tooltipped white-text thing" data-tooltip="ID: @w.getRefId()">
+            } else {
+                <div class="chip tooltipped white-text pending-thing" data-tooltip="ID: @w.getRefId()">
+            }
+                    <i class="icons">@elements.icon("watch")</i>
+                    @w.getName()
+                </div>
+            </a>
+            }
+        </div>
+    </div>
+    
+    <hr>
     
     <div class="row">
       <div class="col s12">

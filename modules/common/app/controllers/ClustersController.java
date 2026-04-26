@@ -33,7 +33,6 @@ import models.sr.Device;
 import models.sr.Participant;
 import models.sr.Wearable;
 import play.Logger;
-import play.filters.csrf.AddCSRFToken;
 import play.libs.Files;
 import play.libs.Files.TemporaryFile;
 import play.libs.Json;

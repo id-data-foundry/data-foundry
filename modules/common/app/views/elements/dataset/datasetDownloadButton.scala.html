@@ -8,7 +8,7 @@
 	Table
 </a>
 @if(dataset.getDsType() == DatasetType.IOT) {
-<a id="datavisBtn" href="@controllers.api.routes.TimeseriesDSController.datavis(dataset.getId())" class="btn">
+<a id="datavisBtn" href="@routes.ProjectsController.visualize(dataset.getProject().getId(), -1L, -1L, -1L, dataset.getId())" class="btn">
 	@elements.icon("insert_chart")
 	Datavis
 </a>

@@ -1,4 +1,4 @@
-@(p: Project, user: Person, token: String, configurator: utils.conf.Configurator, clusterId: Long)
+@(p: Project, user: Person, token: String, configurator: utils.conf.Configurator, clusterId: Long, participantId: Long, deviceId: Long, datasetId: Long)
 @main(p.getName() + ": Visualization", "profile", "collapsed-layout") {
 @projects.perspectives.projectHeader(p, user)
 
@@ -34,17 +34,36 @@
                 &lt; Hide dimensions
             </a>
             
-            @if(!p.getClusters().isEmpty()) {
             <div class="input-field" style="margin: 0; min-width: 250px; margin-left: auto;">
-                <select id="cluster-selector">
-                    <option value="-1" @if(clusterId == -1L){selected}>Full Project View</option>
-                    @for(c <- p.getClusters()) {
-                        <option value="@c.getId()" @if(clusterId == c.getId()){selected}>Cluster: @c.getName()</option>
+                <select id="view-level-selector">
+                    <option value="project:-1" @if(clusterId == -1L && participantId == -1L && deviceId == -1L){selected}>Full Project View</option>
+                    
+                    @if(!p.getClusters().isEmpty()) {
+                    <optgroup label="Clusters">
+                        @for(c <- p.getClusters()) {
+                            <option value="cluster:@c.getId()" @if(clusterId == c.getId()){selected}>@c.getName()</option>
+                        }
+                    </optgroup>
+                    }
+                    
+                    @if(!p.getParticipants().isEmpty()) {
+                    <optgroup label="Participants">
+                        @for(pa <- p.getParticipants()) {
+                            <option value="participant:@pa.getId()" @if(participantId == pa.getId()){selected}>@pa.getName()</option>
+                        }
+                    </optgroup>
+                    }
+                    
+                    @if(!p.getDevices().isEmpty()) {
+                    <optgroup label="Devices">
+                        @for(d <- p.getDevices()) {
+                            <option value="device:@d.getId()" @if(deviceId == d.getId()){selected}>@d.getName()</option>
+                        }
+                    </optgroup>
                     }
                 </select>
                 <label>View Level</label>
             </div>
-            }
         </div>
         <div id="loading-progress" class="progress green lighten-4" style="display:none;">
             <div class="indeterminate green"></div>
@@ -112,16 +131,34 @@
     let fullData = [];
     let selectedUids = new Set();
     let sidebarHidden = false;
-    let currentClusterId = @clusterId;
+    
+    // View level state
+    let currentType = '@if(clusterId != -1L){cluster}else{@if(participantId != -1L){participant}else{@if(deviceId != -1L){device}else{project}}}';
+    let currentId = @if(clusterId != -1L){@clusterId}else{@if(participantId != -1L){@participantId}else{@if(deviceId != -1L){@deviceId}else{-1}}};
+    
+    // Pre-selection state
+    let initialDatasetId = @datasetId;
+    let isInitialLoad = true;
 
     async function loadAllData() {
+        // Reset UI state
+        document.getElementById('vis-column').style.display = 'block';
+        document.getElementById('sidebar-column').classList.remove('m12');
+        document.getElementById('sidebar-column').classList.add('m2');
+        document.getElementById('toggle-sidebar').style.visibility = 'visible';
+
         document.getElementById('loading-progress').style.display = 'block';
         document.getElementById('dimension-selector').innerHTML = '<p class="grey-text">Fetching data...</p>';
         
         const fetchPromises = datasets.map(ds => {
-            const url = currentClusterId === -1 
-                ? `/datasets/download/${ds.id}` 
-                : `/datasets/download/${ds.id}/${currentClusterId}`;
+            let url = `/datasets/download/${ds.id}`;
+            if (currentType === 'cluster' && currentId !== -1) {
+                url = `/datasets/download/${ds.id}/cluster/${currentId}`;
+            } else if (currentType === 'participant' && currentId !== -1) {
+                url = `/datasets/download/${ds.id}/participant/${currentId}`;
+            } else if (currentType === 'device' && currentId !== -1) {
+                url = `/datasets/download/${ds.id}/device/${currentId}`;
+            }
             
             return fetch(url)
                 .then(r => r.ok ? r.text() : "")
@@ -145,6 +182,14 @@
         
         if (fullData.length === 0) {
             document.getElementById('dimension-selector').innerHTML = '<p class="red-text">No data found in active datasets.</p>';
+            document.getElementById('vis-container').innerHTML = `
+                <div class="center-align" style="padding-top: 100px;">
+                	@elements.icon("select")
+                    <p class="grey-text">No data available for the current selection. Try selecting a different view level above.</p>
+                </div>
+            `;
+            document.getElementById('toggle-sidebar').style.visibility = 'hidden';
+            if (document.getElementById('download-csv-btn')) document.getElementById('download-csv-btn').style.display = 'none';
             return;
         }
 
@@ -240,43 +285,109 @@
     }
 
     function renderDimensionSelector() {
-        const dimensions = new Set();
+        const groupedDimensions = {};
         const metadata = ['ts', 'dataset', 'pp1', 'pp2', 'pp3', 'id', 'device_id', 'deviceid', 'participant_id', 'mediatype', 'cluster_id'];
         
         // Map dataset names to types for quick lookup
         const typeMap = {};
         datasets.forEach(ds => typeMap[ds.name] = ds.type);
 
+        const addDim = (datasetName, key) => {
+            if (!groupedDimensions[datasetName]) {
+                groupedDimensions[datasetName] = new Set();
+            }
+            groupedDimensions[datasetName].add(key);
+        };
+
+        // Pre-selection on first load
+        if (isInitialLoad && initialDatasetId !== -1) {
+            const targetDataset = datasets.find(d => d.id === initialDatasetId);
+            if (targetDataset) {
+                fullData.forEach(row => {
+                    if (row.dataset === targetDataset.name) {
+                        const dsType = typeMap[row.dataset];
+                        if (dsType === 'DIARY' || dsType === 'ANNOTATION') {
+                            selectedUids.add(`${row.dataset}: entry`);
+                        } else if (dsType === 'MEDIA') {
+                            selectedUids.add(`${row.dataset}: link`);
+                        } else {
+                            Object.keys(row).forEach(key => {
+                                if (!metadata.includes(key) && row[key] !== null && row[key] !== undefined) {
+                                    selectedUids.add(`${row.dataset}: ${key}`);
+                                }
+                            });
+                        }
+                    }
+                });
+            }
+            isInitialLoad = false;
+        }
+
         fullData.forEach(row => {
             const dsType = typeMap[row.dataset];
             if (dsType === 'DIARY' || dsType === 'ANNOTATION') {
-                dimensions.add(`${row.dataset}: entry`);
+                addDim(row.dataset, 'entry');
             } else if (dsType === 'MEDIA') {
-                dimensions.add(`${row.dataset}: link`);
+                addDim(row.dataset, 'link');
             } else {
                 Object.keys(row).forEach(key => {
                     if (!metadata.includes(key) && row[key] !== null && row[key] !== undefined) {
-                        dimensions.add(`${row.dataset}: ${key}`);
+                        addDim(row.dataset, key);
                     }
                 });
             }
         });
 
-        const sortedDimensions = Array.from(dimensions).sort();
+        if (Object.keys(groupedDimensions).length === 0) {
+            document.getElementById('dimension-selector').innerHTML = '<p class="grey-text">No dimensions found in active datasets.</p>';
+            document.getElementById('vis-container').innerHTML = `
+                <div class="center-align" style="padding-top: 100px;">
+                	@elements.icon("select")
+                    <p class="grey-text">No chartable dimensions found for the current selection. Try a different view level above.</p>
+                </div>
+            `;
+            document.getElementById('toggle-sidebar').style.visibility = 'hidden';
+            if (document.getElementById('download-csv-btn')) document.getElementById('download-csv-btn').style.display = 'none';
+            return;
+        }
+
         let html = '<form id="dim-form">';
-        sortedDimensions.forEach(dim => {
+        Object.keys(groupedDimensions).sort().forEach(dsName => {
+            const dims = Array.from(groupedDimensions[dsName]).sort();
+            const allChecked = dims.every(d => selectedUids.has(`${dsName}: ${d}`));
+            
             html += `
-                <p>
-                    <label>
-                        <input type="checkbox" class="filled-in dim-checkbox" value="${dim}" ${selectedUids.has(dim) ? 'checked' : ''} />
-                        <span>${dim}</span>
-                    </label>
-                </p>
+                <div class="dataset-group" style="margin-bottom: 15px;">
+                    <p style="margin: 0;">
+                        <label>
+                            <input type="checkbox" class="filled-in dataset-toggle" value="${dsName}" ${allChecked ? 'checked' : ''} />
+                            <span style="font-weight: bold; color: #333;">${dsName}</span>
+                        </label>
+                    </p>
+                    <div class="dims-sub" style="margin-left: 25px;">
+            `;
+            
+            dims.forEach(dim => {
+                const uid = `${dsName}: ${dim}`;
+                html += `
+                    <p style="margin: 0;">
+                        <label>
+                            <input type="checkbox" class="filled-in dim-checkbox" value="${uid}" data-dataset="${dsName}" ${selectedUids.has(uid) ? 'checked' : ''} />
+                            <span>${dim}</span>
+                        </label>
+                    </p>
+                `;
+            });
+            
+            html += `
+                    </div>
+                </div>
             `;
         });
         html += '</form>';
         document.getElementById('dimension-selector').innerHTML = html;
 
+        // Individual dimension toggles
         document.querySelectorAll('.dim-checkbox').forEach(cb => {
             cb.addEventListener('change', function() {
                 if (this.checked) {
@@ -284,9 +395,43 @@
                 } else {
                     selectedUids.delete(this.value);
                 }
+                
+                // Update parent toggle state
+                const dsName = this.getAttribute('data-dataset');
+                const group = this.closest('.dataset-group');
+                const master = group.querySelector('.dataset-toggle');
+                const siblings = group.querySelectorAll('.dim-checkbox');
+                master.checked = Array.from(siblings).every(s => s.checked);
+                
                 updateVisualization();
             });
         });
+
+        // Master dataset toggles
+        document.querySelectorAll('.dataset-toggle').forEach(master => {
+            master.addEventListener('change', function() {
+                const isChecked = this.checked;
+                const group = this.closest('.dataset-group');
+                const children = group.querySelectorAll('.dim-checkbox');
+                
+                children.forEach(cb => {
+                    if (cb.checked !== isChecked) {
+                        cb.checked = isChecked;
+                        // Manually trigger the change logic
+                        if (isChecked) {
+                            selectedUids.add(cb.value);
+                        } else {
+                            selectedUids.delete(cb.value);
+                        }
+                    }
+                });
+                updateVisualization();
+            });
+        });
+
+        if (selectedUids.size > 0) {
+            updateVisualization();
+        }
     }
 
     function updateVisualization() {
@@ -515,11 +660,13 @@
             downloadBtn.addEventListener('click', downloadDataAsCSV);
         }
 
-        // Handle cluster selection
-        const clusterSelector = document.getElementById('cluster-selector');
-        if (clusterSelector) {
-            clusterSelector.addEventListener('change', function() {
-                currentClusterId = parseInt(this.value);
+        // Handle view level selection
+        const viewLevelSelector = document.getElementById('view-level-selector');
+        if (viewLevelSelector) {
+            viewLevelSelector.addEventListener('change', function() {
+                const [type, id] = this.value.split(':');
+                currentType = type;
+                currentId = parseInt(id);
                 loadAllData();
             });
         }
@@ -532,9 +679,11 @@
                 const formData = new FormData(annForm);
                 const projectId = @p.getId();
                 
-                // If we are in cluster view, ensure cluster_id is included in submission
-                if (currentClusterId !== -1 && !formData.has('cluster_id')) {
-                    formData.append('cluster_id', currentClusterId);
+                // If we are in cluster or participant view, ensure relevant ID is included in submission
+                if (currentType === 'cluster' && currentId !== -1 && !formData.has('cluster_id')) {
+                    formData.append('cluster_id', currentId);
+                } else if (currentType === 'participant' && currentId !== -1 && !formData.has('participant_id')) {
+                    formData.append('participant_id', currentId);
                 }
                 
                 fetch(`/datasets/annotation/recordForProject/${projectId}`, {
