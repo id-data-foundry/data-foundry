@@ -1,17 +1,18 @@
 package controllers.tools;
 
 import com.typesafe.config.Config;
+
 import controllers.AbstractAsyncController;
 import controllers.auth.UserAuth;
 import jakarta.inject.Inject;
-import models.Person;
+import play.filters.csrf.AddCSRFToken;
 import play.mvc.Http.Request;
 import play.mvc.Result;
 import play.mvc.Security.Authenticated;
 import services.api.ai.UnmanagedAIApiService;
 import utils.conf.ConfigurationUtils;
-import play.filters.csrf.AddCSRFToken;
 
+@Authenticated(UserAuth.class)
 public class TranslateController extends AbstractAsyncController {
 
 	private final UnmanagedAIApiService aiService;
@@ -29,12 +30,10 @@ public class TranslateController extends AbstractAsyncController {
 		}
 	}
 
-	@Authenticated(UserAuth.class)
 	@AddCSRFToken
 	public Result index(Request request) {
-		Person user = getAuthenticatedUserOrReturn(request, redirect(HOME));
-		
 		String documentationAPIKey = aiService.getInternalDocumentationAPIKey();
-		return ok(views.html.tools.translate.index.render(AI_SERVICE_BASE_URL, documentationAPIKey, csrfToken(request)));
+		return ok(
+				views.html.tools.translate.index.render(AI_SERVICE_BASE_URL, documentationAPIKey, csrfToken(request)));
 	}
 }

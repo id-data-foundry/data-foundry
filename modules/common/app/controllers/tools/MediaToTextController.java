@@ -55,7 +55,7 @@ public class MediaToTextController extends AbstractAsyncController implements Ap
 		} else {
 			busyness = "come back later, perhaps? 🥴";
 		}
-		return ok(views.html.tools.processing.stt.index.render(busyness));
+		return ok(views.html.tools.transcribe.index.render(busyness));
 	}
 
 	@Authenticated(UserAuth.class)
