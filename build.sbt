@@ -1,6 +1,6 @@
 name := """DataFoundry"""
 organization := "TUe-ID"
-version := "0.9.19-SNAPSHOT"
+version := "0.9.20-SNAPSHOT"
 maintainer := "m.funk@tue.nl"
 
 scalaVersion := "2.13.14"
