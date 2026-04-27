@@ -1,5 +1,4 @@
-@(busyness : String)
-
+@()
 @main("Media Transcription", "tools") {
 
 	<style type="text/css">
@@ -20,11 +19,13 @@
 		}
 
 		.upload-area > div {
-		    text-align: center;
 		    font-weight: normal;
 		    font-family: sans-serif;
-		    line-height: 50px;
-		    color: darkslategray;
+		    color: gray;
+			height: 100%;
+			display: flex;
+			align-items: center;
+			justify-content: center;
 		}
 
 		#file {
@@ -48,7 +49,8 @@
 		<div class="row">
 			<div class="col s12">
 				<a id="homeBtn" href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
-				<a href="#" class="breadcrumb">Media-to-Text Processing</a>
+                <a href="@routes.HomeController.tools()" class="breadcrumb">Data tools</a>
+				<a href="#" class="breadcrumb">Media Transcription</a>
 			</div>
 		</div>
 	</nav>
@@ -56,44 +58,46 @@
 	<div class="row">
 		<div class="col s12">
 			<h3>
-				Media-to-Text Processing
+				Media Transcription
 			</h3>
 		</div>
 	</div>
 
-	<div id="upload-container" class="row">
-		<div class="col s12">
-			<h5>Input</h5>
+	<div id="upload-container">
+		<div class="row">
+			<div class="col s12">
+				<h5>Input</h5>
+			</div>
+			<div class="col s12 m8">
+				To process audio data in a media file or to extract text from an image, drag and drop a media file (wav, mp3, m4a, mov, mp4, pdf) into the grey area below. The upload will start right away and after a while, the retrieved text will be shown below. By using this transcription service you acknowledge that you are aware and accept the conditions of the disclaimer below.
+				<br>
+				<b>DO NOT CLOSE OR RELOAD THE WINDOW, processing media files takes time.</b>
+				<br>
+			</div>
+			<div class="col 12 m4">
+				Select the language for audio transcription: 
+				<select id="lang" name="lang">
+					<option value="en">English</option>
+					<option value="nl">Dutch</option>
+				</select>
+				<br>
+				<label>
+					<input type="checkbox" id="timestamps" name="timestamps" class="filled-in" checked="checked" />
+					<span>Include timestamps</span>
+				</label>
+			</div>
 		</div>
-		<div class="col s12 m8">
-			To process audio data in a media file or to extract text from an image, drag and drop a media file (wav, mp3, m4a, mov, mp4, gif, png, jpg, pdf, etc.) into the grey area below. The upload will start right away and after a while, the retrieved text will be shown below. By using this transcription service you acknowledge that you are aware and accept the conditions of the disclaimer below.
-			<br>
-			<b>DO NOT CLOSE OR RELOAD THE WINDOW, processing media files takes time.</b>
-			<br><br>
-		</div>
-		<div class="col 12 m4">
-			Status: <code>@busyness</code>
-			<br><br>
-			Select the language for audio transcription: 
-			<select id="lang" name="lang">
-				<option value="en">English</option>
-				<option value="nl">Dutch</option>
-			</select>
-			<br><br>
-			<label>
-				<input type="checkbox" id="timestamps" name="timestamps" class="filled-in" checked="checked" />
-				<span>Include timestamps</span>
-			</label>
-		</div>
-		<div class="col s12">
-			<input type="file" name="file" id="file" accept=".png, .jpg, .jpeg, .gif, .mp4, .mov, .mp3, .wav, .pdf">
-			<div class="upload-area" id="uploadfile">
-				<div>
-					drag and drop file here
-					<br/>
-					or
-					<br/>
-					click to select file
+		<div class="row">
+			<div class="col s12">
+				<input type="file" name="file" id="file" accept=".png, .jpg, .jpeg, .gif, .mp4, .mov, .mp3, .wav, .pdf">
+				<div class="upload-area" id="uploadfile">
+					<div>
+						drag and drop file here
+						<br>
+						or
+						<br>
+						click to select file
+					</div>
 				</div>
 			</div>
 		</div>
@@ -140,9 +144,8 @@
 			</p>
 			<p>
 				We are using open-source technology to provide this service. 
-				For speech-to-text functionality, we use the <a href="https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3" target="_blank">Parakeet v3</a> model.
-				For the text extraction from images, we use the open-source <a href="https://tesseract-ocr.github.io">Tesseract OCR component</a> 
-				with <a href="https://github.com/madmaze/pytesseract" target="_blank">Python bindings</a>, and Python image processing libraries.
+				For speech-to-text functionality, we use either the <a href="https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3" target="_blank">Parakeet v3</a> 
+				or the <a href="https://huggingface.co/CohereLabs/cohere-transcribe-03-2026" target="_blank">Cohere Transcribe</a> automatic speech recognition (ASR) models.
 				For PDF processing, we use <a href="https://opendataloader.org" target="_blank">OpenDataLoader</a>.
 			</p>
 		</div>

@@ -28,8 +28,8 @@ import services.api.remoting.RemoteApiRequest;
 import services.processing.MediaProcessingService;
 import utils.auth.TokenResolverUtil;
 
+@Authenticated(UserAuth.class)
 public class MediaToTextController extends AbstractAsyncController implements ApiServiceConstants {
-
 	@Inject
 	ActorSystem actorSystem;
 	@Inject
@@ -38,27 +38,13 @@ public class MediaToTextController extends AbstractAsyncController implements Ap
 	SyncCacheApi cache;
 	@Inject
 	TokenResolverUtil tokenResolverUtil;
-
 	@Inject
 	UnmanagedAIApiService aiApiService;
 
-	@Authenticated(UserAuth.class)
 	public Result index() {
-		int jobs = mediaProcessingService.getEnqueuedJobs();
-		final String busyness;
-		if (jobs < 3) {
-			busyness = "ready for you 🏄‍♂️";
-		} else if (jobs < 8) {
-			busyness = "a little busy 💪";
-		} else if (jobs < 16) {
-			busyness = "pretty busy 🤨";
-		} else {
-			busyness = "come back later, perhaps? 🥴";
-		}
-		return ok(views.html.tools.transcribe.index.render(busyness));
+		return ok(views.html.tools.transcribe.index.render());
 	}
 
-	@Authenticated(UserAuth.class)
 	public CompletionStage<Result> submit(Request request, String lang, String type) {
 		Person user = getAuthenticatedUserOrReturn(request,
 				redirect(LANDING).addingToSession(request, "error", "Please log in first to use this tool."));
@@ -84,7 +70,6 @@ public class MediaToTextController extends AbstractAsyncController implements Ap
 	 * @param type
 	 * @return
 	 */
-	@Authenticated(UserAuth.class)
 	public CompletionStage<Result> submitAndProcess(Request request, String type) {
 		Person user = getAuthenticatedUserOrReturn(request,
 				redirect(LANDING).addingToSession(request, "error", "Please log in first to use this tool."));
@@ -113,7 +98,6 @@ public class MediaToTextController extends AbstractAsyncController implements Ap
 				});
 	}
 
-	@Authenticated(UserAuth.class)
 	public Result result(Request request, String publicToken) {
 		getAuthenticatedUserOrReturn(request,
 				redirect(LANDING).addingToSession(request, "error", "Please log in first to use this tool."));
