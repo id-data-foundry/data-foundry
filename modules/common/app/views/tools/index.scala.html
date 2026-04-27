@@ -1,4 +1,4 @@
-@()
+@(aiConfigured: Boolean, aiAvailable: Boolean)
 
 @main("Documentation", "tools") {
 
@@ -37,6 +37,7 @@
 			</div>
 		</div>
 
+@*
 		<div class="col s12 l4">
 			<div class="card">
 				<div class="card-content">
@@ -51,6 +52,7 @@
 				</div>
 			</div>
 		</div>
+*@
 
 		<div class="col s12 l4">
 			<div class="card">
@@ -98,14 +100,13 @@
 		<div class="col s12 l4">
 			<div class="card">
 				<div class="card-content">
-          			<span class="card-title">Media transcription</span>
+          			<span class="card-title">QR code generator</span>
           			<p>
-          				Transcribe audio and video files, and extract text from images. Upload the file and await results. 
-          				This is GDPR-safe as all data will only be processed on the Data Foundry server.
+          				Generate a QR code for a URL.
           			</p>
         		</div>
         		<div class="card-action">
-					<a href="@controllers.tools.routes.MediaToTextController.index">Open</a>
+					<a href="@controllers.tools.routes.QRCode.index()">Open</a>
 				</div>
 			</div>
 		</div>
@@ -137,39 +138,35 @@
 				</div>
 			</div>
 		</div>
+	</div>
 
-@*
-		<div class="col s12 l4">
-			<div class="card">
-				<div class="card-content">
-          			<span class="card-title">DF Boost</span>
-          			<p>
-          				Work with larger "swarms" of IoT devices; connect them to DF and control their behavior.
-          			</p>
-        		</div>
-        		<div class="card-action">
-					<a href="/documentation/boost">Open</a>
-				</div>
-			</div>
+	@if(aiConfigured) {
+	<div class="row">
+		<div class="col s12">
+			<h4>AI-supported tools</h4>
 		</div>
-*@
 
 		<div class="col s12 l4">
-			<div class="card">
+			<div class="card" @if(!aiAvailable) { style="opacity: 0.5;" }>
 				<div class="card-content">
-          			<span class="card-title">QR code generator</span>
+          			<span class="card-title">Media transcription</span>
           			<p>
-          				Generate a QR code for a URL.
+          				Transcribe audio and video files, and extract text from images. Upload the file and await results. 
+          				This is GDPR-safe as all data will only be processed on the Data Foundry server.
           			</p>
         		</div>
         		<div class="card-action">
-					<a href="@controllers.tools.routes.QRCode.index()">Open</a>
+					@if(aiAvailable) {
+						<a href="@controllers.tools.routes.MediaToTextController.index">Open</a>
+					} else {
+						<span class="grey-text">Currently unavailable</span>
+					}
 				</div>
 			</div>
 		</div>
 
 		<div class="col s12 l4">
-			<div class="card">
+			<div class="card" @if(!aiAvailable) { style="opacity: 0.5;" }>
 				<div class="card-content">
           			<span class="card-title">Translate</span>
           			<p>
@@ -177,10 +174,14 @@
           			</p>
         		</div>
         		<div class="card-action">
-					<a href="@controllers.tools.routes.TranslateController.index()">Open</a>
+					@if(aiAvailable) {
+						<a href="@controllers.tools.routes.TranslateController.index()">Open</a>
+					} else {
+						<span class="grey-text">Currently unavailable</span>
+					}
 				</div>
 			</div>
 		</div>
-
 	</div>
+	}
 }

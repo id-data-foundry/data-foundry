@@ -241,7 +241,9 @@ public class HomeController extends AbstractAsyncController {
 
 	@Authenticated(UserAuth.class)
 	public Result tools() {
-		return ok(views.html.tools.index.render());
+		boolean aiConfigured = ConfigurationUtils.checkConfiguration(configuration, ConfigurationUtils.DF_LOCALAI_HOST);
+		boolean aiAvailable = aiConfigured && !localModelMetadata.getModels().isEmpty();
+		return ok(views.html.tools.index.render(aiConfigured, aiAvailable));
 	}
 
 	@Authenticated(UserAuth.class)
