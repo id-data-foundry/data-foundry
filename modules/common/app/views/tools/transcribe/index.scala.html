@@ -79,6 +79,11 @@
 				<option value="en">English</option>
 				<option value="nl">Dutch</option>
 			</select>
+			<br><br>
+			<label>
+				<input type="checkbox" id="timestamps" name="timestamps" class="filled-in" checked="checked" />
+				<span>Include timestamps</span>
+			</label>
 		</div>
 		<div class="col s12">
 			<input type="file" name="file" id="file" accept=".png, .jpg, .jpeg, .gif, .mp4, .mov, .mp3, .wav, .pdf">
@@ -151,6 +156,7 @@
 			const uploadArea = document.querySelector('.upload-area');
 			const fileInput = document.getElementById('file');
 			const langSelect = document.getElementById('lang');
+			const timestampsCheckbox = document.getElementById('timestamps');
 			const outputTextarea = document.getElementById('output');
 			const progressDiv = document.querySelector('.progress');
 			const determinateBar = document.querySelector('.determinate');
@@ -250,11 +256,10 @@
 					determinateBar.style.width = '100%';
 					determinateBar.classList.add('indeterminate');
 					determinateBar.classList.remove('determinate');
-					determinateBar.style.backgroundColor = 'cornflowerblue';
 
 					const formData = new FormData();
 					formData.append("model", "parakeet_v3"),
-					formData.append("timestamps", "true"),
+					formData.append("timestamps", timestampsCheckbox.checked.toString()),
 					formData.append("diarization", "false"),
 					formData.append('file', file);
 

@@ -155,18 +155,18 @@ public class MediaToTextController extends AbstractAsyncController implements Ap
 
 	private CompletionStage<Result> processAV(Request request, String lang, String type, Person user,
 			String publicToken) {
-		// create request
+
+		// create request with empty parameters; they will be set differently later on
 		RemoteApiRequest internalAPIRequest = new RemoteApiRequest(REQUEST_TASK_MODELS,
 				ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, "", aiApiService.getInternalDocumentationAPIKey(),
 				-1L, Json.newObject());
 		internalAPIRequest.setPath("/v1/audio/transcriptions");
 
+		// set file and params in request via multi-part form data
 		MultipartFormData<TemporaryFile> mpfd = request.body().asMultipartFormData();
 		if (mpfd == null || mpfd.isEmpty()) {
 			return CompletableFuture.completedStage(badRequest("File to transcribe missing."));
 		}
-
-		// set file in request
 		internalAPIRequest.setMultipartFormData(mpfd);
 
 		// schedule the job and return data as String
