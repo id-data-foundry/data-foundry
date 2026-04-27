@@ -512,6 +512,9 @@ POST		/tools/actilogger/:id/*token/:participantId						controllers.tools.Activit
 GET			/tools/qrcode										controllers.tools.QRCode.index()
 GET			/qr/:key/*url										controllers.tools.QRCode.qrCode(request: Request, key: String, url: String)
 
+# tools: Translate
+GET			/tools/translate									controllers.tools.TranslateController.index(request: Request)
+
 # list of AI models
 GET			/tools/models										controllers.api2.UnmanagedAIApiController.modelsPage(request: Request)			
 

@@ -1,0 +1,201 @@
+@(baseUrl: String, apiKey: String, csrfToken: String)
+
+@main("Translate", "tools") {
+    <div class="row">
+        <div class="col s12">
+            <nav>
+                <div class="nav-wrapper">
+                    <div class="col s12">
+                        <a href="@routes.HomeController.index()" class="breadcrumb">Home</a>
+                        <a href="@routes.HomeController.tools()" class="breadcrumb">Data tools</a>
+                        <a href="#!" class="breadcrumb">Translate</a>
+                    </div>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col s12">
+            <h4>Translate</h4>
+            <p>
+                This tool provides AI translations with adjustable styles. Simply select your desired source and target languages and a style, and start typing in the left pane. The text is automatically sent to our locally hosted Large Language Model (LLM) which processes the translation and sends the result back.
+            </p>
+            <p>
+                <strong>Translated with Apertus-8b:</strong> We use the <a href="https://huggingface.co/swiss-ai/Apertus-8B-Instruct-2509" target="_blank">Apertus-8b model</a> for translations. This is a highly capable 8-billion parameter open-weights model fine-tuned for multilingual tasks and nuanced language understanding. Because it runs locally on Data Foundry servers, your data remains completely private and secure.
+            </p>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Left Pane -->
+        <div class="col s12 m6">
+            <div class="card-panel">
+                <div class="row" style="margin-bottom: 0;">
+                    <div class="input-field col s12">
+	                    <select id="sourceLanguage">
+	                        <option value="English" selected>English</option>
+	                        <option value="Dutch">Dutch</option>
+	                        <option value="French">French</option>
+	                        <option value="German">German</option>
+	                        <option value="Spanish">Spanish</option>
+	                        <option value="Italian">Italian</option>
+	                        <option value="Danish">Danish</option>
+	                        <option value="Swedish">Swedish</option>
+	                        <option value="Norwegian">Norwegian</option>
+	                    </select>
+	                    <label>Source Language</label>
+	                </div>
+                </div>
+                <div class="input-field s12">
+                    <textarea id="sourceText" class="materialize-textarea" style="min-height: 200px;" placeholder="Type text to translate..."></textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Pane -->
+        <div class="col s12 m6">
+            <div class="card-panel">
+                <div class="row" style="margin-bottom: 0;">
+                    <div class="input-field col s6">
+                        <select id="targetLanguage">
+                            <option value="English">English</option>
+                            <option value="Dutch" selected>Dutch</option>
+                            <option value="French">French</option>
+                            <option value="German">German</option>
+                            <option value="Spanish">Spanish</option>
+                            <option value="Italian">Italian</option>
+                            <option value="Danish">Danish</option>
+                            <option value="Swedish">Swedish</option>
+                            <option value="Norwegian">Norwegian</option>
+                        </select>
+                        <label>Target Language</label>
+                    </div>
+                    <div class="input-field col s6">
+                        <select id="style">
+                            <option value="Formal" selected>Formal</option>
+                            <option value="Casual">Casual</option>
+                            <option value="Simple">Simple</option>
+                            <option value="Academic">Academic</option>
+                            <option value="Creative">Creative</option>
+                            <option value="Professional">Professional</option>
+                        </select>
+                        <label>Style</label>
+                    </div>
+                </div>
+                <div class="input-field s12" style="position: relative;">
+                    <div id="loadingIndicator" style="display: none; position: absolute; right: 10px; top: 10px; z-index: 10;">
+                        <div class="preloader-wrapper small active">
+                            <div class="spinner-layer spinner-blue-only">
+                                <div class="circle-clipper left"><div class="circle"></div></div>
+                                <div class="gap-patch"><div class="circle"></div></div>
+                                <div class="circle-clipper right"><div class="circle"></div></div>
+                            </div>
+                        </div>
+                    </div>
+                    <textarea id="targetText" class="materialize-textarea" readonly style="min-height: 200px; background-color: #f9f9f9;" placeholder="Translation will appear here..."></textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="@routes.Assets.versioned("javascripts/local-ai/latest/local-ai.js")" type="text/javascript"></script>
+    <script type="text/javascript">
+        $(document).ready(function(){
+            // Initialize selects
+            $('select').formSelect();
+
+            const sourceLang = document.getElementById('sourceLanguage');
+            const targetLang = document.getElementById('targetLanguage');
+            const style = document.getElementById('style');
+            const sourceText = document.getElementById('sourceText');
+            const targetText = document.getElementById('targetText');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+
+            // Handle default languages based on browser language
+            const browserLang = navigator.language || navigator.userLanguage;
+            if (browserLang && browserLang.startsWith('nl')) {
+                sourceLang.value = 'Dutch';
+                targetLang.value = 'English';
+                $(sourceLang).formSelect();
+                $(targetLang).formSelect();
+            }
+
+            let debounceTimer;
+            sourceText.addEventListener('input', () => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(performTranslation, 500);
+            });
+
+            // Trigger translation when settings change
+            targetLang.addEventListener('change', performTranslation);
+            style.addEventListener('change', performTranslation);
+            sourceLang.addEventListener('change', performTranslation);
+
+            const stylePrompts = {
+                'Formal': 'Use formal, polite language suitable for official correspondence or speaking to respected individuals. Avoid slang, contractions, and colloquialisms.',
+                'Casual': 'Use relaxed, everyday language as if talking to a friend. Contractions, slang, and informal expressions are acceptable and encouraged to make it sound natural.',
+                'Simple': 'Use plain, easy-to-understand language suitable for a general audience. Avoid complex vocabulary, jargon, or convoluted sentence structures. Simplify idioms where necessary.',
+                'Academic': 'Use scholarly, objective, and precise language suitable for a research paper or academic publication. Ensure correct terminology, formal tone, and complex sentence structures where appropriate.',
+                'Creative': 'Use expressive, engaging, and imaginative language. Focus on the flow and rhythm of the text. Feel free to adapt idioms and metaphors so they sound natural and evocative in the target language rather than translating them literally.',
+                'Professional': 'Use clear, concise, and business-appropriate language suitable for the workplace. Maintain a polite, constructive, and objective tone.'
+            };
+
+            const systemPrompt = "You are a professional translation assistant. \n" +
+                                 "Strict Rules: \n" +
+                                 "1. Never translate names of people, organizations, products, or brands. \n" +
+                                 "2. Do not translate technical terms, identifiers, or code-like snippets. \n" +
+                                 "3. Preserve the original formatting and line breaks precisely. \n" +
+                                 "4. Provide ONLY the translated text. Do not include any explanations, introductory remarks, or conversational filler.";
+
+            async function performTranslation() {
+                const text = sourceText.value.trim();
+                if (!text) {
+                    targetText.value = '';
+                    M.textareaAutoResize(targetText);
+                    return;
+                }
+
+                loadingIndicator.style.display = 'block';
+                targetText.placeholder = 'Translating...';
+
+                const selectedStyleDescription = stylePrompts[style.value] || stylePrompts['Professional'];
+
+                const userPrompt = `Translate the following text from ${sourceLang.value} to ${targetLang.value}.\n\n` +
+                                   `Style instructions: ${selectedStyleDescription}\n\n` +
+                                   `Text to translate:\n${text}`;
+
+                try {
+                    const result = await foundry.textToText({
+                        api_token: '@apiKey',
+                        server: '@baseUrl',
+                        model: 'apertus-8b',
+                        messages: [
+                            { role: 'system', content: systemPrompt },
+                            { role: 'user', content: userPrompt }
+                        ],
+                        logging: false,
+                        maxTokens: 1000
+                    });
+
+                    if (result) {
+                        targetText.value = result.trim();
+                        M.textareaAutoResize(targetText);
+                    }
+                } catch (error) {
+                    console.error('Translation error:', error);
+                    M.toast({html: 'Translation failed. Please check your connection or try again.'});
+                } finally {
+                    loadingIndicator.style.display = 'none';
+                    targetText.placeholder = 'Translation will appear here...';
+                }
+            }
+        });
+    </script>
+    <style>
+        .card-panel {
+            padding: 20px;
+            min-height: 350px;
+        }
+    </style>
+}
