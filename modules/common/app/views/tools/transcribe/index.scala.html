@@ -151,6 +151,53 @@
 		</div>
 	</div>
 
+	<div class="row" style="margin-top: 3em;">
+		<div class="col s12">
+			<h5>API Access</h5>
+			<p>
+				You can also use this tool programmatically by sending a POST request with an AI API token. 
+				These tokens are project-specific. You can generate and retrieve AI API tokens in your project's "edit" page.
+			</p>
+			
+			<script type="text/javascript">
+				document.addEventListener('DOMContentLoaded', () => {
+					const host = window.location.origin;
+					document.getElementById('curl-av').textContent = 'curl -X POST "' + host + '/v1/audio/transcriptions" \\\n  -H "Authorization: Bearer YOUR_API_TOKEN" \\\n  -F "file=@@/path/to/your/audio.mp3"';
+					document.getElementById('curl-pdf').textContent = 'curl -X POST "' + host + '/v1/pdf/text" \\\n  -H "Authorization: Bearer YOUR_API_TOKEN" \\\n  -F "file=@@/path/to/your/document.pdf"';
+
+					document.getElementById('python-av').textContent = 'import requests\n\nurl = "' + host + '/v1/audio/transcriptions"\nheaders = {"Authorization": "Bearer YOUR_API_TOKEN"}\nfiles = {"file": open("/path/to/your/audio.mp3", "rb")}\n\nresponse = requests.post(url, headers=headers, files=files)\nprint(response.json())';
+					document.getElementById('python-pdf').textContent = 'import requests\n\nurl = "' + host + '/v1/pdf/text"\nheaders = {"Authorization": "Bearer YOUR_API_TOKEN"}\nfiles = {"file": open("/path/to/your/document.pdf", "rb")}\n\nresponse = requests.post(url, headers=headers, files=files)\nprint(response.json())';
+
+					document.getElementById('js-av').textContent = '<!-- HTML -->\n<input type="file" id="mediaFile">\n\n// JavaScript\nconst file = document.getElementById("mediaFile").files[0];\nconst url = "' + host + '/v1/audio/transcriptions";\n\nconst formData = new FormData();\nformData.append("file", file);\n\nfetch(url, {\n  method: "POST",\n  headers: { "Authorization": "Bearer YOUR_API_TOKEN" },\n  body: formData\n}).then(res => res.json()).then(console.log);';
+					document.getElementById('js-pdf').textContent = '<!-- HTML -->\n<input type="file" id="pdfFile">\n\n// JavaScript\nconst file = document.getElementById("pdfFile").files[0];\nconst url = "' + host + '/v1/pdf/text";\n\nconst formData = new FormData();\nformData.append("file", file);\n\nfetch(url, {\n  method: "POST",\n  headers: { "Authorization": "Bearer YOUR_API_TOKEN" },\n  body: formData\n}).then(res => res.json()).then(console.log);';
+				});
+			</script>
+
+			<p><b>Audio / Video Transcription API (POST /v1/audio/transcriptions)</b></p>
+			
+			<b>cURL</b>
+			<pre style="background: white; border: 1px solid #ccc; padding: 1em; overflow-x: auto;"><code class="language-bash" id="curl-av"></code></pre>
+
+			<b>Python</b>
+			<pre style="background: white; border: 1px solid #ccc; padding: 1em; overflow-x: auto;"><code class="language-python" id="python-av"></code></pre>
+
+			<b>JavaScript (Browser)</b>
+			<pre style="background: white; border: 1px solid #ccc; padding: 1em; overflow-x: auto;"><code class="language-javascript" id="js-av"></code></pre>
+
+
+			<p><b>PDF Text Extraction API (POST /v1/pdf/text)</b></p>
+
+			<b>cURL</b>
+			<pre style="background: white; border: 1px solid #ccc; padding: 1em; overflow-x: auto;"><code class="language-bash" id="curl-pdf"></code></pre>
+
+			<b>Python</b>
+			<pre style="background: white; border: 1px solid #ccc; padding: 1em; overflow-x: auto;"><code class="language-python" id="python-pdf"></code></pre>
+
+			<b>JavaScript (Browser)</b>
+			<pre style="background: white; border: 1px solid #ccc; padding: 1em; overflow-x: auto;"><code class="language-javascript" id="js-pdf"></code></pre>
+		</div>
+	</div>
+
 	<script type="text/javascript">
 		document.addEventListener('DOMContentLoaded', () => {
 			const outputContainer = document.getElementById('output-container');
