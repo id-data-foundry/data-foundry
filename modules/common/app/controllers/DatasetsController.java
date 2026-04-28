@@ -1600,6 +1600,65 @@ public class DatasetsController extends AbstractAsyncController {
 		return redirect(routes.DatasetsController.view(id)).addingToSession(request, "message", "Dataset was reset.");
 	}
 
+	@Authenticated(UserAuth.class)
+	public Result selectiveDeleteDataset(Request request, Long id) {
+		Dataset ds = Dataset.find.byId(id);
+		if (ds == null) {
+			return redirect(HOME).addingToSession(request, "error", "Dataset not found.");
+		}
+
+		String username = getAuthenticatedUserNameOrReturn(request,
+				redirect(HOME).addingToSession(request, "error", "This action is not permitted for you."));
+		Project p = Project.find.byId(ds.getProject().getId());
+		if (p == null || !p.editableBy(username)) {
+			return redirect(HOME).addingToSession(request, "error", "This action is not permitted for you.");
+		}
+
+		DynamicForm df = formFactory.form().bindFromRequest(request);
+		String columnName = df.get("columnName");
+		String value = df.get("value");
+
+		if (columnName == null || value == null || columnName.isEmpty() || value.isEmpty()) {
+			return redirect(routes.DatasetsController.view(id)).addingToSession(request, "error",
+					"Invalid input for selective delete.");
+		}
+
+		// check if the columnName is the ID column and if the value needs to be resolved from refId to ID
+		String idColumn = ds.getIdColumnType();
+		if (columnName.equals(idColumn)) {
+			// resolve refId to Long ID
+			if ("device_id".equals(idColumn)) {
+				Device d = Device.find.query().where().eq("refId", value).findOne();
+				if (d != null) {
+					value = d.getId().toString();
+				}
+			} else if ("wearable_id".equals(idColumn)) {
+				Wearable w = Wearable.find.query().where().eq("refId", value).findOne();
+				if (w != null) {
+					value = w.getId().toString();
+				}
+			} else if ("participant_id".equals(idColumn)) {
+				Participant part = Participant.find.query().where().eq("refId", value).findOne();
+				if (part != null) {
+					value = part.getId().toString();
+				}
+			}
+		}
+
+		LinkedDS lds = datasetConnector.getDatasetDS(ds);
+		int rows = lds.selectiveDelete(columnName, value);
+
+		if (rows >= 0) {
+			LabNotesEntry.log(Dataset.class, LabNotesEntryType.DELETE, "Dataset, " + ds.getName()
+					+ ", selective delete: " + columnName + " = " + value + " (" + rows + " rows).", p);
+			return redirect(routes.DatasetsController.view(id)).addingToSession(request, "message",
+					"Successfully deleted " + rows + " rows.");
+		} else {
+			return redirect(routes.DatasetsController.view(id)).addingToSession(request, "error",
+					"An error occurred while deleting data.");
+		}
+	}
+
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	@Authenticated(UserAuth.class)

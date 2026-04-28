@@ -1,15 +1,62 @@
-@(ds : Dataset)
+@(ds : Dataset, token: String = "")
 @if(!ds.getProject().hasOnceBeenApproved()) {
-<div class="row card" style="border: #f00 solid 2px; margin-top: 8em; margin-bottom: 4em;">
+<div class="row card" style="border: #f00 solid 2px; margin: 8rem 0 4rem; padding: 1rem;">
 	<div class="col s12">
 
         <h5 class="red-text">Danger zone</h5>
 
         <p class="red-text">
+            <b>Selective Delete</b>: Delete rows based on a specific ID or Key/Value pair.
+        </p>
+
+        <div class="row">
+            @if(ds.getIdColumnType() != null) {
+                <div class="col s12 m6">
+                    <form action="@routes.DatasetsController.selectiveDeleteDataset(ds.getId())" method="POST">
+                        <input type="hidden" name="csrfToken" value="@token"/>
+                        <input type="hidden" name="columnName" value="@ds.getIdColumnType()"/>
+                        <div class="input-field">
+                            <select name="value">
+                                <option value="" disabled selected>Select @ds.getIdColumnType().replace("_", " ")</option>
+                                @for((id, name) <- ds.getIdValues()) {
+                                    <option value="@id">@name (@id)</option>
+                                }
+                            </select>
+                            <label>Delete by @ds.getIdColumnType().replace("_", " ")</label>
+                        </div>
+                        <button type="submit" class="btn orange" onclick="return confirm('Are you sure you want to delete data for this @ds.getIdColumnType().replace("_", " ")?')">DELETE BY ID</button>
+                    </form>
+                </div>
+            }
+
+            <div class="col s12 m6">
+                <form action="@routes.DatasetsController.selectiveDeleteDataset(ds.getId())" method="POST">
+                    <input type="hidden" name="csrfToken" value="@token"/>
+                    <div class="input-field">
+                        <select name="columnName">
+                            <option value="" disabled selected>Select Key (Column)</option>
+                            @for(col <- ds.getSchema()) {
+                                <option value="@col">@col</option>
+                            }
+                        </select>
+                        <label>Delete by Key</label>
+                    </div>
+                    <div class="input-field">
+                        <input type="text" name="value" id="kv_value">
+                        <label for="kv_value">Value</label>
+                    </div>
+                    <button type="submit" class="btn orange" onclick="return confirm('Are you sure you want to delete data matching this Key/Value?')">DELETE BY KEY/VALUE</button>
+                </form>
+            </div>
+        </div>
+
+        <hr/>
+
+        <p class="red-text">
             Careful here: You can reset all data in this dataset. This will delete ALL data in this dataset, but not the rest of the project.
         </p>
         <p>
-            <a onclick="return confirm('Are you sure you want to reset all data in this dataset? This action is not reversible! Click OK to reset, cancel to stop.')" href="@routes.DatasetsController.resetDataset(ds.getId())" class="btn red white-text">RESET DATA</a>
+            <a onclick="return confirm('Are you sure you want to reset all data in this dataset? This action is not reversible! Click OK to reset, cancel to stop.')" href="@routes.DatasetsController.resetDataset(ds.getId())" class="btn red white-text">RESET ALL DATA</a>
         </p>
         
 	</div>

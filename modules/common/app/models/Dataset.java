@@ -800,6 +800,64 @@ public class Dataset extends Model {
 		oni.put("description", description);
 	}
 
+	/**
+	 * return the id column type for this dataset
+	 * 
+	 * @return
+	 */
+	public String getIdColumnType() {
+		if (getDsType() == null) {
+			return null;
+		}
+
+		switch (getDsType()) {
+		case IOT:
+		case TIMESERIES:
+			return "device_id";
+		case FITBIT:
+		case GOOGLEFIT:
+			return "wearable_id";
+		case MOVEMENT:
+		case SURVEY:
+		case ES:
+		case FORM:
+		case MEDIA:
+		case DIARY:
+		case ANNOTATION:
+			return "participant_id";
+		default:
+			return null;
+		}
+	}
+
+	/**
+	 * return the id values for this dataset
+	 * 
+	 * @return
+	 */
+	public Map<String, String> getIdValues() {
+		Map<String, String> values = new HashMap<>();
+		String idType = getIdColumnType();
+		if (getProject() == null || idType == null) {
+			return values;
+		}
+
+		if ("device_id".equals(idType)) {
+			for (models.sr.Device d : getProject().getDevices()) {
+				values.put(d.getRefId(), d.getName());
+			}
+		} else if ("wearable_id".equals(idType)) {
+			for (models.sr.Wearable w : getProject().getWearables()) {
+				values.put(w.getRefId(), w.getName());
+			}
+		} else if ("participant_id".equals(idType)) {
+			for (models.sr.Participant p : getProject().getParticipants()) {
+				values.put(p.getRefId(), p.getFirstname() + " " + p.getLastname());
+			}
+		}
+		return values;
+	}
+
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	/**

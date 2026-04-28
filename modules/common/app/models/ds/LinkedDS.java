@@ -350,6 +350,46 @@ public abstract class LinkedDS {
 		}
 	}
 
+	/**
+	 * selective delete from the dataset
+	 * 
+	 * @param columnName
+	 * @param value
+	 * @return
+	 */
+	public int selectiveDelete(String columnName, String value) {
+		if (columnName == null || !columnName.matches("^[a-zA-Z0-9_]+$")) {
+			return 0;
+		}
+
+		// check against schema (whitelist validation)
+		boolean found = false;
+		for (String col : getSchema()) {
+			if (col.equals(columnName)) {
+				found = true;
+				break;
+			}
+		}
+
+		if (!found) {
+			return 0;
+		}
+
+		try (Transaction transaction = DB.beginTransaction();
+		        Connection connection = transaction.connection();
+		        PreparedStatement stmt = connection
+		                .prepareStatement("DELETE FROM " + dataTableName + " WHERE " + columnName + " = ?;");) {
+			stmt.setString(1, value);
+			int rows = stmt.executeUpdate();
+			transaction.commit();
+			return rows;
+		} catch (SQLException e) {
+			logger.error("Error in selective delete from dataset table.", e);
+			Slack.call("Exception", e.getLocalizedMessage());
+			return -1;
+		}
+	}
+
 	protected final String timeFilterWhereClause(long start, long end) {
 		if (start > -1l && end > -1l) {
 			return " WHERE ts >= " + tlsf(start) + " AND ts < " + tlsf(end);

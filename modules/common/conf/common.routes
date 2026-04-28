@@ -144,6 +144,7 @@ GET 		/datasets/configureToken/:id/:key					controllers.DatasetsController.confi
 GET 		/datasets/table/:id									controllers.DatasetsController.table(request: Request, id: Long)
 GET 		/datasets/timeseries/:id.csv							controllers.DatasetsController.timeseries(request: Request, id: Long)
 GET 		/datasets/reset/:id									controllers.DatasetsController.resetDataset(request: Request, id: Long)
+POST 		/datasets/selectiveDelete/:id						controllers.DatasetsController.selectiveDeleteDataset(request: Request, id: Long)
 GET         /datasets/hasOOCSIChannel/:id/*targetChannel        controllers.DatasetsController.hasOOCSIChannel(id: Long, targetChannel: String, channelName: String ?= "")
 GET         /datasets/httpPostDiagnostics/:id			        controllers.DatasetsController.httpPostDiagnostics(request: Request, id: Long)
 GET         /datasets/OOCSIDiagnostics/:id				        controllers.DatasetsController.oocsiDiagnostics(request: Request, id: Long)
