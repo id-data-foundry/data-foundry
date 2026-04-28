@@ -237,6 +237,23 @@ public class FitbitDS extends LinkedDS {
 	 * @param ts
 	 */
 	public void updateRecord(Wearable wearable, String scope, JsonNode jn, long dataDate) {
+		if (scope == null || !scope.matches("^[a-zA-Z0-9_]+$")) {
+			return;
+		}
+
+		// check against schema (whitelist validation)
+		boolean found = false;
+		for (String col : getSchema()) {
+			if (col.equals(scope)) {
+				found = true;
+				break;
+			}
+		}
+
+		if (!found) {
+			return;
+		}
+
 		int rs = 0;
 		// insert record
 		try (Transaction transaction = DB.beginTransaction();
@@ -289,6 +306,23 @@ public class FitbitDS extends LinkedDS {
 	 * @param ts
 	 */
 	public void updateEmptyRecord(Wearable wearable, String scope, String emptyContent, long dataDate) {
+		if (scope == null || !scope.matches("^[a-zA-Z0-9_]+$")) {
+			return;
+		}
+
+		// check against schema (whitelist validation)
+		boolean found = false;
+		for (String col : getSchema()) {
+			if (col.equals(scope)) {
+				found = true;
+				break;
+			}
+		}
+
+		if (!found) {
+			return;
+		}
+
 		int rs = 0;
 		// insert record
 		try (Transaction transaction = DB.beginTransaction();

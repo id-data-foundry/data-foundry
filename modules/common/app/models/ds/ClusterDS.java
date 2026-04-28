@@ -50,7 +50,7 @@ public class ClusterDS {
 			String query = project.getDatasets().stream().filter(ds -> ds.getDsType() == DatasetType.IOT).map(ds -> {
 				if (ds.getDsType() == DatasetType.IOT) {
 					String id = datasetConnector.getDatasetDS(ds).getDataTableName();
-					String name = ds.getName();
+					String name = ds.getName().replace("'", "");
 					return "SELECT TRUNCATE(ts) AS day, count(*) as events, '" + name + "' FROM " + id
 					        + " WHERE device_id IN (" + deviceIds + ") GROUP BY day ";
 				}
@@ -88,7 +88,7 @@ public class ClusterDS {
 			String query = project.getDatasets().stream().filter(ds -> ds.getDsType() == DatasetType.IOT).map(ds -> {
 				if (ds.getDsType() == DatasetType.IOT) {
 					String id = datasetConnector.getDatasetDS(ds).getDataTableName();
-					String name = ds.getName();
+					String name = ds.getName().replace("'", "");
 					return "SELECT PARSEDATETIME(FORMATDATETIME(ts, 'yyyy-MM-dd HH'), 'yyyy-MM-dd HH') AS day, count(*) as events, '"
 					        + name + "' FROM " + id + " WHERE device_id IN (" + deviceIds + ") GROUP BY day ";
 				}
@@ -135,7 +135,7 @@ public class ClusterDS {
 		if (project.getCreation().toInstant().plus(30, ChronoUnit.DAYS).isBefore(Instant.now())) {
 			String query = project.getDatasets().stream().map(ds -> {
 				String id = datasetConnector.getDatasetDS(ds).getDataTableName();
-				String name = ds.getName();
+				String name = ds.getName().replace("'", "");
 				return "SELECT TRUNCATE(ts) AS day, count(*) as events, '" + name + "' FROM " + id + " GROUP BY day";
 			}).collect(Collectors.joining(" UNION "));
 
@@ -166,7 +166,7 @@ public class ClusterDS {
 		else {
 			String query = project.getDatasets().stream().map(ds -> {
 				String id = datasetConnector.getDatasetDS(ds).getDataTableName();
-				String name = ds.getName();
+				String name = ds.getName().replace("'", "");
 				return "SELECT PARSEDATETIME(FORMATDATETIME(ts, 'yyyy-MM-dd HH'), 'yyyy-MM-dd HH') AS day, count(*) as events, '"
 				        + name + "' FROM " + id + " GROUP BY day";
 			}).collect(Collectors.joining(" UNION "));
@@ -224,20 +224,20 @@ public class ClusterDS {
 
 				        if (ds.getDsType() == DatasetType.ANNOTATION) {
 					        String id = datasetConnector.getDatasetDS(ds).getDataTableName();
-					        String name = ds.getName();
-					        return "SELECT TRUNCATE(ts) AS day, count(*) as events, '" + name.replace("'", "")
+					        String name = ds.getName().replace("'", "");
+					        return "SELECT TRUNCATE(ts) AS day, count(*) as events, '" + name
 					                + "' FROM " + id + " GROUP BY day ";
 				        }
 				        if (ds.getDsType() == DatasetType.IOT) {
 					        String id = datasetConnector.getDatasetDS(ds).getDataTableName();
-					        String name = ds.getName();
-					        return "SELECT TRUNCATE(ts) AS day, count(*) as events, '" + name.replace("'", "")
+					        String name = ds.getName().replace("'", "");
+					        return "SELECT TRUNCATE(ts) AS day, count(*) as events, '" + name
 					                + "' FROM " + id + " WHERE device_id IN (" + deviceIds + ") GROUP BY day ";
 				        }
 				        if (ds.getDsType() == DatasetType.DIARY) {
 					        String id = datasetConnector.getDatasetDS(ds).getDataTableName();
-					        String name = ds.getName();
-					        return "SELECT TRUNCATE(ts) AS day, count(*) as events, '" + name.replace("'", "")
+					        String name = ds.getName().replace("'", "");
+					        return "SELECT TRUNCATE(ts) AS day, count(*) as events, '" + name
 					                + "' FROM " + id + " WHERE participant_id IN (" + participantIds
 					                + ") GROUP BY day ";
 				        }
@@ -290,19 +290,19 @@ public class ClusterDS {
 
 				        if (ds.getDsType() == DatasetType.ANNOTATION) {
 					        String id = datasetConnector.getDatasetDS(ds).getDataTableName();
-					        String name = ds.getName();
+					        String name = ds.getName().replace("'", "");
 					        return "SELECT PARSEDATETIME(FORMATDATETIME(ts, 'yyyy-MM-dd HH'), 'yyyy-MM-dd HH') AS day, count(*) as events, '"
 					                + name + "' FROM " + id + " GROUP BY day ";
 				        }
 				        if (ds.getDsType() == DatasetType.IOT) {
 					        String id = datasetConnector.getDatasetDS(ds).getDataTableName();
-					        String name = ds.getName();
+					        String name = ds.getName().replace("'", "");
 					        return "SELECT PARSEDATETIME(FORMATDATETIME(ts, 'yyyy-MM-dd HH'), 'yyyy-MM-dd HH') AS day, count(*) as events, '"
 					                + name + "' FROM " + id + " WHERE device_id IN (" + deviceIds + ") GROUP BY day ";
 				        }
 				        if (ds.getDsType() == DatasetType.DIARY) {
 					        String id = datasetConnector.getDatasetDS(ds).getDataTableName();
-					        String name = ds.getName();
+					        String name = ds.getName().replace("'", "");
 					        return "SELECT PARSEDATETIME(FORMATDATETIME(ts, 'yyyy-MM-dd HH'), 'yyyy-MM-dd HH') AS day, count(*) as events, '"
 					                + name + "' FROM " + id + " WHERE participant_id IN (" + participantIds
 					                + ") GROUP BY day ";

@@ -441,6 +441,23 @@ public abstract class LinkedDS {
 	abstract public void lastUpdatedSource(Map<Long, Long> sourceUpdates);
 
 	protected void lastUpdatedSource(Map<Long, Long> sourceUpdates, String resourceColumnName) {
+		if (resourceColumnName == null || !resourceColumnName.matches("^[a-zA-Z0-9_]+$")) {
+			return;
+		}
+
+		// check against schema (whitelist validation)
+		boolean found = false;
+		for (String col : getSchema()) {
+			if (col.equals(resourceColumnName)) {
+				found = true;
+				break;
+			}
+		}
+
+		if (!found) {
+			return;
+		}
+
 		try (Transaction transaction = DB.beginTransaction();
 		        Connection connection = transaction.connection();
 		        PreparedStatement stmt = connection.prepareStatement("SELECT " + resourceColumnName + ", MAX(ts) FROM "
