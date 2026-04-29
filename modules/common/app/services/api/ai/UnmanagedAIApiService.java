@@ -213,6 +213,23 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 		return localModelMetadata.getModels();
 	}
 
+	/**
+	 * Check if the given API key is valid (either internal documentation key or valid in the datastore)
+	 *
+	 * @param apiKey
+	 * @return true if valid, false otherwise
+	 */
+	public boolean isValidApiKey(String apiKey) {
+		if (apiKey == null) {
+			return false;
+		}
+		if (apiKey.equals(getInternalDocumentationAPIKey())) {
+			return true;
+		}
+		Optional<String> check = checkCredits(apiKey);
+		return check.isEmpty() || !check.get().contains(RESPONSE_ERROR);
+	}
+
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	private void processRequest(RemoteApiRequest request) {

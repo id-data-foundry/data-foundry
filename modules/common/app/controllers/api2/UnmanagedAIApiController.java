@@ -266,6 +266,14 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 				return badRequest(Json.newObject().put("error", "Authorization header missing or invalid"));
 			}
 
+			// check whether we have a documentation API key
+			final String apiKey = checkDocumentationAPIKey(request, authorization);
+
+			// check API key
+			if (!aiApiService.isValidApiKey(apiKey)) {
+				return unauthorized(Json.newObject().put("error", "Invalid API key or unauthorized."));
+			}
+
 			MultipartFormData<TemporaryFile> mpfd = request.body().asMultipartFormData();
 			if (mpfd == null || mpfd.getFile("file") == null) {
 				return badRequest(Json.newObject().put("error", "PDF file missing (use multipart field name 'file')"));
@@ -279,7 +287,7 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 			try {
 				// submit and wait for timeout (30 seconds)
 				String result = mediaProcessingService
-						.scheduleMediaToTextProcess(pdfFile, "", "application/pdf", "api2_user", internalToken)
+						.scheduleMediaToTextProcess(pdfFile, "", "application/pdf", apiKey, internalToken)
 						.toCompletableFuture().get(300, TimeUnit.SECONDS);
 
 				// clean up result
