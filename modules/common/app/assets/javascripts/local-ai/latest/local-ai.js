@@ -2,7 +2,7 @@
  * DF Local AI - a high-level library for Industrial Design education, 
  * using Data Foundry Local AI functionalities.
  * 
- * Copyright (c) 2024-2025 Jort Wiersma and Mathias Funk
+ * Copyright (c) 2024-2026 Jort Wiersma and Mathias Funk
  * 
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -17,7 +17,11 @@
  * limitations under the License.
  */
 const foundry = {
-  textToText: async function ({
+  textToText: async function (options) {
+    const result = await foundry.textToTextWithUsage(options);
+    return result ? result.text : undefined;
+  },
+  textToTextWithUsage: async function ({
     api_token,
     server = document.location.origin,
     model = "hermes-2-pro-llama-3-8b",
@@ -110,8 +114,8 @@ const foundry = {
         document.querySelector(resultElementSelector).innerHTML += chatResponse;
       }
 
-      // Return the AI response
-      return chatResponse;
+      // Return the AI response and usage
+      return { text: chatResponse, usage: json.usage };
     } catch (error) {
       console.error("Error:", error);
     }
@@ -307,7 +311,6 @@ const foundry = {
       console.log("Running text-to-sound function");
     }
 
-    // Start the loading indicator
     let loadingElement;
     if (loadingElementSelector) {
       loadingElement = document.querySelector(loadingElementSelector);
@@ -438,7 +441,11 @@ const foundry = {
       console.error(err);
     }
   },
-  imageToText: async function ({
+  imageToText: async function (options) {
+    const result = await foundry.imageToTextWithUsage(options);
+    return result ? result.text : undefined;
+  },
+  imageToTextWithUsage: async function ({
     api_token,
     server = document.location.origin,
     model = "llava-llama-3-8b-v1_1",
@@ -541,7 +548,7 @@ const foundry = {
         document.querySelector(resultElementSelector).innerHTML += chatResponse;
       }
 
-      return chatResponse;
+      return { text: chatResponse, usage: json.usage };
     } catch (error) {
       console.error("Error:", error);
     }
@@ -558,7 +565,6 @@ const foundry = {
     logging = true, // Set to false to remove console logging
     stopRec = false, // In order to stop the recording, pass isRecording = true
   }) {
-
     // Start the loading indicator
     let loadingElement;
     if (loadingElementSelector) {
