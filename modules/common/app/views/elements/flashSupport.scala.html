@@ -1,29 +1,9 @@
 @(request: Http.Request, message: Optional[String], error: Optional[String], tourContent: Optional[utils.components.TourManager.Tour])
-@if(!message.isEmpty() || !error.isEmpty()) {
-window.addEventListener('DOMContentLoaded', () => {
-@*
-@if(request.session().get("feedback_link").isPresent()) {
-  $('body').append(`
-<div class="fixed-action-btn">
-  <a class="btn-floating btn-large green darken-2">
-    <i class="large material-icons">mode_edit</i>
-  </a>
-  <ul>
-    <li><a href="@request.session().get("feedback_link").get()" class="btn-floating green">@elements.icon("format_quote")give us feedback</a></li>
-  </ul>
-</div>
-`);
+@if(message.isPresent()){
+  M.toast({html: '@Html(message.get())', classes: 'green darken-2'})
 }
-*@
-@if(message.isPresent() || error.isPresent()){
-    @if(message.isPresent()){
-     M.toast({html: '@Html(message.get())', classes: 'green darken-2'})
-    }
-    @if(error.isPresent()){
-     M.toast({html: '@Html(error.get())', classes: 'red darken-2'})
-    }
-}
-})
+@if(error.isPresent()){
+  M.toast({html: '@Html(error.get())', classes: 'red darken-2'})
 }
 @if(tourContent.isPresent) {
 // there is a tour for you!
