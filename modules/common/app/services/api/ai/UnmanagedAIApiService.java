@@ -1,7 +1,6 @@
 package services.api.ai;
 
 import java.io.File;
-import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.LinkedList;
@@ -17,7 +16,6 @@ import java.util.concurrent.TimeUnit;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
-import org.apache.commons.io.FileUtils;
 import org.apache.pekko.stream.Materializer;
 import org.apache.pekko.stream.javadsl.FileIO;
 import org.apache.pekko.stream.javadsl.Sink;
@@ -329,42 +327,52 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 
 		// run request
 		try {
-			requestCompletionStage.thenAccept(res -> {
+			requestCompletionStage.thenCompose(res -> {
 				logger.trace("AI API request: " + localAIHost + request.getPath() + " ["
 						+ (System.currentTimeMillis() - start) + "ms]");
+
+				// 1. Check for non-200 status codes
+				if (res.getStatus() != Http.Status.OK) {
+					String errorMsg = res.getBody();
+					request.setResult(Optional.of(request
+							.errorMessage("API returned status " + res.getStatus() + ": " + errorMsg).toString()));
+					return CompletableFuture.completedFuture(null);
+				}
+
+				// 2. Handle binary responses with streaming
 				if (request.getType().equals(REQUEST_TASK_IMAGE_GENERATION)) {
-					try {
-						String token = UUID.randomUUID().toString();
-						TemporaryFile tif = play.libs.Files.singletonTemporaryFileCreator().create("generatedImage",
-								".png");
-						File tempImageFile = tif.path().toFile();
-						FileUtils.writeByteArrayToFile(tempImageFile, res.getBodyAsBytes().toArray());
-						// cache for 1 day
-						cache.set(token, tempImageFile.getAbsolutePath(), (int) Duration.ofDays(1).toSeconds());
-						request.setResult(
-								Optional.of(Json.newObject().put("image_id", token).put("prompt", "").toString()));
-					} catch (IOException e) {
-						request.setResult(Optional.of(Json.newObject()
-								.put(RESPONSE_ERROR, "Image generation result problem (storage)").toString()));
-						logger.error("Problem in storing image generation result as temp file and in cache.", e);
-					}
+					String token = UUID.randomUUID().toString();
+					TemporaryFile tif = play.libs.Files.singletonTemporaryFileCreator().create("generatedImage",
+							".png");
+					File tempImageFile = tif.path().toFile();
+
+					return res.getBody(WSBodyReadables.instance.source())
+							.runWith(FileIO.toPath(tempImageFile.toPath()), materializer).thenAccept(ioResult -> {
+								// cache for 1 minute
+								cache.set(token, tempImageFile.getAbsolutePath(),
+										(int) Duration.ofMinutes(1).toSeconds());
+								request.setResult(Optional.of(Json.newObject().put("image_id", token)
+										.put("prompt", request.getParams().path(REQUEST_PROMPT).asText(""))
+										.toString()));
+							});
 				} else if (request.getType().equals(REQUEST_TASK_SPEECH_GENERATION)) {
-					try {
-						TemporaryFile tif = play.libs.Files.singletonTemporaryFileCreator().create("generatedSpeech",
-								".mp3");
-						File tempImageFile = tif.path().toFile();
-						FileUtils.writeByteArrayToFile(tempImageFile, res.getBodyAsBytes().toArray());
-						request.setResult(Optional.of(tempImageFile.getAbsolutePath()));
-					} catch (IOException e) {
-						request.setResult(Optional.of(Json.newObject()
-								.put(RESPONSE_ERROR, "Image generation result problem (storage)").toString()));
-						logger.error("Problem in storing image generation result as temp file and in cache.", e);
-					}
-				} else {
+					TemporaryFile tif = play.libs.Files.singletonTemporaryFileCreator().create("generatedSpeech",
+							".mp3");
+					File tempSpeechFile = tif.path().toFile();
+
+					return res.getBody(WSBodyReadables.instance.source())
+							.runWith(FileIO.toPath(tempSpeechFile.toPath()), materializer).thenAccept(ioResult -> {
+								request.setResult(Optional.of(tempSpeechFile.getAbsolutePath()));
+							});
+				}
+				// Handle textual responses directly in memory
+				else {
 					request.setResult(Optional.of(res.getBody()));
+					return CompletableFuture.completedFuture(null);
 				}
 			}).exceptionally((e) -> {
-				request.setResult(Optional.empty());
+				request.setResult(Optional.of(
+						request.errorMessage("API request execution problem: " + e.getLocalizedMessage()).toString()));
 				logger.error("AI API request: " + localAIHost + request.getPath() + " ["
 						+ (System.currentTimeMillis() - start) + "ms]: " + e.getLocalizedMessage());
 				// don't issue an exception
