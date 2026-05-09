@@ -72,6 +72,26 @@
 			border-radius: 2px;
 		}
 
+		.transcription-play-btn {
+			cursor: pointer;
+			margin-right: 0.5em;
+			color: #2196F3;
+			user-select: none;
+		}
+
+		.transcription-play-btn:hover {
+			color: #0b7dda;
+		}
+
+		.transcription-row.playing {
+			background-color: #e3f2fd;
+			border-radius: 4px;
+		}
+
+		.transcription-play-btn.playing {
+			color: #f44336;
+		}
+
 	</style>
 
 	<!-- navigation -->
@@ -161,6 +181,11 @@
 				<div class="determinate" style="width: 0%"></div>
 			</div>
 			<div>
+				<p id="output-help-text" style="display: none; margin-top: 0;">
+					You can click on the transcription text below to edit and fix any mistakes directly. 
+					Use the play buttons to listen to specific segments. 
+					Once you are satisfied, click "Download Result" to save your corrected transcript.
+				</p>
 				<div id="output-segments"></div>
 				<button id="download-btn" class="btn" style="margin-top: 10px; display: none;">Download Result</button>
 			</div>
@@ -268,6 +293,7 @@
 			const statusText = document.getElementById('status-text');
 			const transcribeBtn = document.getElementById('transcribe-btn');
 			const downloadBtn = document.getElementById('download-btn');
+			const outputHelpText = document.getElementById('output-help-text');
 
 			// Populate models and handle capability logic
 			modelsConfig.forEach(model => {
@@ -300,6 +326,31 @@
 			let selectedFile = null;
 			let pollTimeout = null;
 
+			const audioPlayer = new Audio();
+			let currentPlaybackEndTime = 0;
+			let currentPlayingRow = null;
+			let currentPlayingBtn = null;
+
+			function clearPlayingIndicator() {
+				if (currentPlayingRow) {
+					currentPlayingRow.classList.remove('playing');
+					currentPlayingRow = null;
+				}
+				if (currentPlayingBtn) {
+					currentPlayingBtn.classList.remove('playing');
+					currentPlayingBtn.textContent = '▶';
+					currentPlayingBtn = null;
+				}
+			}
+
+			audioPlayer.addEventListener('timeupdate', () => {
+				if (currentPlaybackEndTime > 0 && audioPlayer.currentTime >= currentPlaybackEndTime) {
+					audioPlayer.pause();
+					currentPlaybackEndTime = 0;
+					clearPlayingIndicator();
+				}
+			});
+
 			function handleFile(file) {
 				selectedFile = file;
 				const sizeMB = (file.size / 1024 / 1024).toFixed(2);
@@ -307,6 +358,10 @@
 				transcribeBtn.classList.remove('disabled');
 				statusText.textContent = '';
 				statusText.style.color = 'inherit';
+				
+				// set up audio player source
+				const url = URL.createObjectURL(file);
+				audioPlayer.src = url;
 			}
 
 			// preventing page from redirecting
@@ -470,6 +525,17 @@
 			let token = '';
 			let responseLength = 0;
 
+			function parseTimeToSeconds(timeStr) {
+				const parts = timeStr.split(':');
+				let seconds = 0;
+				if (parts.length === 2) {
+					seconds = parseInt(parts[0], 10) * 60 + parseFloat(parts[1]);
+				} else if (parts.length === 3) {
+					seconds = parseInt(parts[0], 10) * 3600 + parseInt(parts[1], 10) * 60 + parseFloat(parts[2]);
+				}
+				return seconds;
+			}
+
 			function renderSegments(text) {
 				outputSegments.innerHTML = ''; // Clear previous
 				const lines = text.split('\n');
@@ -494,6 +560,33 @@
 							prefixSpan.textContent = prefix;
 							rowDiv.appendChild(prefixSpan);
 						}
+
+						const playBtnSpan = document.createElement('span');
+						playBtnSpan.className = 'transcription-play-btn';
+						playBtnSpan.textContent = '▶';
+						playBtnSpan.title = 'Play segment';
+						playBtnSpan.addEventListener('click', () => {
+							if (playBtnSpan.classList.contains('playing')) {
+								audioPlayer.pause();
+								clearPlayingIndicator();
+								return;
+							}
+							clearPlayingIndicator();
+
+							currentPlayingRow = rowDiv;
+							currentPlayingBtn = playBtnSpan;
+							rowDiv.classList.add('playing');
+							playBtnSpan.classList.add('playing');
+							playBtnSpan.textContent = '⏸';
+
+							// Add a 0.5s buffer to start and end to avoid cutting off words
+							const startSecs = Math.max(0, parseTimeToSeconds(startTime) - 0.3);
+							const endSecs = parseTimeToSeconds(endTime) + 0.3;
+							currentPlaybackEndTime = endSecs;
+							audioPlayer.currentTime = startSecs;
+							audioPlayer.play().catch(e => console.error("Error playing audio:", e));
+						});
+						rowDiv.appendChild(playBtnSpan);
 
 						const badgeSpan = document.createElement('span');
 						badgeSpan.className = 'badge new transcription-badge';
@@ -535,6 +628,7 @@
 						statusText.textContent = "Transcription completed.";
 						transcribeBtn.classList.remove('disabled');
 						downloadBtn.style.display = 'inline-block';
+						outputHelpText.style.display = 'block';
 					} else {
 						pollTimeout = setTimeout(getResults, 8000);
 					}
@@ -560,6 +654,7 @@
 				determinateBar.style.width = '0%';
 				outputSegments.innerHTML = ""; // Keep empty during processing
 				downloadBtn.style.display = 'none';
+				outputHelpText.style.display = 'none';
 				
 				const languageURL = '@controllers.tools.routes.MediaToTextController.submit()?lang=' + langSelect.value + '&type=' + encodeURIComponent(file.type);
 				
