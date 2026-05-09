@@ -32,7 +32,7 @@
 		    display: none;
 		}
 
-		#output {
+		#output-segments {
 			height: 20em;
 			border: 1px solid #444;
 			background: white;
@@ -40,6 +40,36 @@
 			line-height: 1.9em;
 			font-family: monospace;
 			font-size: 0.8em;
+			overflow-y: auto;
+		}
+
+		.transcription-row {
+			display: flex;
+			align-items: flex-start;
+			margin-bottom: 0.5em;
+		}
+
+		.transcription-prefix {
+			margin-right: 0.5em;
+			font-weight: bold;
+			color: #555;
+		}
+
+		.transcription-badge {
+			margin-right: 0.5em;
+			white-space: nowrap;
+			background-color: #757575 !important;
+		}
+
+		.transcription-text {
+			flex: 1;
+			outline: none;
+			padding: 0 0.25em;
+		}
+
+		.transcription-text:focus, .transcription-text:hover {
+			background-color: #f0f0f0;
+			border-radius: 2px;
 		}
 
 	</style>
@@ -131,7 +161,7 @@
 				<div class="determinate" style="width: 0%"></div>
 			</div>
 			<div>
-				<textarea id="output"></textarea>
+				<div id="output-segments"></div>
 				<button id="download-btn" class="btn" style="margin-top: 10px; display: none;">Download Result</button>
 			</div>
 			<div>
@@ -229,7 +259,7 @@
 			const langSelect = document.getElementById('lang');
 			const timestampsCheckbox = document.getElementById('timestamps');
 			const diarizationCheckbox = document.getElementById('diarization');
-			const outputTextarea = document.getElementById('output');
+			const outputSegments = document.getElementById('output-segments');
 			const progressDiv = document.querySelector('.progress');
 			const determinateBar = document.querySelector('.determinate');
 			const retrievalLink = document.getElementById('retrievalLink');
@@ -382,7 +412,22 @@
 			}
 
 			downloadBtn.addEventListener('click', () => {
-				const text = outputTextarea.value;
+				let reconstructedText = '';
+				const rows = outputSegments.querySelectorAll('.transcription-row');
+				rows.forEach(row => {
+					const textSpan = row.querySelector('.transcription-text');
+					if (!textSpan) return;
+					
+					let lineContent = textSpan.textContent;
+					if (row.dataset.startTime && row.dataset.endTime) {
+						const prefix = row.dataset.prefix ? row.dataset.prefix + ' ' : '';
+						reconstructedText += `${prefix}[${row.dataset.startTime} - ${row.dataset.endTime}] ${lineContent}\n`;
+					} else {
+						reconstructedText += `${lineContent}\n`;
+					}
+				});
+
+				const text = reconstructedText.trim();
 				if (!text) return;
 				
 				let isSrt = timestampsCheckbox.checked;
@@ -425,6 +470,59 @@
 			let token = '';
 			let responseLength = 0;
 
+			function renderSegments(text) {
+				outputSegments.innerHTML = ''; // Clear previous
+				const lines = text.split('\n');
+				const lineRegex = /^(.*?)\[(\d{1,2}:\d{2}(?::\d{2})?(?:\.\d+)?) - (\d{1,2}:\d{2}(?::\d{2})?(?:\.\d+)?)\]\s*(.*)$/;
+
+				lines.forEach(line => {
+					if (!line.trim()) return;
+
+					const rowDiv = document.createElement('div');
+					rowDiv.className = 'transcription-row';
+
+					const match = line.match(lineRegex);
+					if (match) {
+						const prefix = match[1].trim();
+						const startTime = match[2];
+						const endTime = match[3];
+						const content = match[4];
+
+						if (prefix) {
+							const prefixSpan = document.createElement('span');
+							prefixSpan.className = 'transcription-prefix';
+							prefixSpan.textContent = prefix;
+							rowDiv.appendChild(prefixSpan);
+						}
+
+						const badgeSpan = document.createElement('span');
+						badgeSpan.className = 'badge new transcription-badge';
+						badgeSpan.setAttribute('data-badge-caption', '');
+						badgeSpan.textContent = `[${startTime} - ${endTime}]`;
+						rowDiv.appendChild(badgeSpan);
+
+						const textSpan = document.createElement('span');
+						textSpan.className = 'transcription-text';
+						textSpan.contentEditable = true;
+						textSpan.textContent = content;
+						
+						rowDiv.dataset.prefix = prefix;
+						rowDiv.dataset.startTime = startTime;
+						rowDiv.dataset.endTime = endTime;
+
+						rowDiv.appendChild(textSpan);
+					} else {
+						const textSpan = document.createElement('span');
+						textSpan.className = 'transcription-text';
+						textSpan.contentEditable = true;
+						textSpan.textContent = line;
+						rowDiv.appendChild(textSpan);
+					}
+
+					outputSegments.appendChild(rowDiv);
+				});
+			}
+
 			async function getResults() {
 				try {
 					const response = await fetch('@controllers.tools.routes.MediaToTextController.result("")' + token);
@@ -432,7 +530,7 @@
 					
 					if (responseLength < text.length) {
 						responseLength = text.length;
-						outputTextarea.value = text;
+						renderSegments(text);
 						progressDiv.style.display = 'none';
 						statusText.textContent = "Transcription completed.";
 						transcribeBtn.classList.remove('disabled');
@@ -460,7 +558,7 @@
 				outputContainer.style.display = 'block';
 				progressDiv.style.display = 'block';
 				determinateBar.style.width = '0%';
-				outputTextarea.value = ""; // Keep empty during processing
+				outputSegments.innerHTML = ""; // Keep empty during processing
 				downloadBtn.style.display = 'none';
 				
 				const languageURL = '@controllers.tools.routes.MediaToTextController.submit()?lang=' + langSelect.value + '&type=' + encodeURIComponent(file.type);
