@@ -94,6 +94,9 @@ libraryDependencies ++= Seq(
   // https://github.com/yomorun/hashids-java
   "org.hashids" % "hashids" % "1.0.3",
 
+  // bucket4j for rate limiting
+  "com.bucket4j" % "bucket4j-core" % "8.1.1",
+
   // Microsoft Email Gateway
   "com.microsoft.graph" % "microsoft-graph" % "5.41.0", //excludeAll(ExclusionRule(organization = "com.fasterxml.jackson.core"), ExclusionRule(organization = "com.fasterxml.jackson.module"), ExclusionRule(organization = "com.fasterxml.jackson.datatype")),
   "com.azure" % "azure-identity" % "1.2.5", //excludeAll(ExclusionRule(organization = "com.fasterxml.jackson.core"), ExclusionRule(organization = "com.fasterxml.jackson.module"), ExclusionRule(organization = "com.fasterxml.jackson.datatype")),
