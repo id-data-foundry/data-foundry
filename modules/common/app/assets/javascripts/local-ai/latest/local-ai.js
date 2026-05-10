@@ -557,7 +557,6 @@ const foundry = {
     api_token,
     server = document.location.origin,
     type = "file", //'file' or 'record'
-    sliceDuration = 5000, // miliseconds
     file, // The audio file that needs to be transcribed
     resultElementSelector, // Element that will be used to place the result on the page
     loadingElementSelector, // Element that will be given a loading indicator attribute when the AI is working
@@ -588,7 +587,7 @@ const foundry = {
       return;
     }
 
-    // Variable that will get larger each time a new part of the recording is created. How often this happens depends on the sliceDuration
+    // Variable that will get larger each time a new part of the recording is created.
     let transcription = "";
 
     // In record mode, start the recording
@@ -607,34 +606,31 @@ const foundry = {
     // Helper functions
 
     function startRecording() {
-      // Use RecordRTC library to handle microphone recordings
-      // First, check if RecordRTC is present, otherwise add this library to the page using a CDN link HTML element
-      loadRecordRTC(function () {
+      // Use native MediaRecorder and hark.js for voice activity detection
+      loadHark(function () {
         navigator.mediaDevices
           .getUserMedia({
             audio: true,
           })
           .then(function (stream) {
-            recordAudio = RecordRTC(stream, {
-              type: "audio",
-              mimeType: "audio/webm",
-              sampleRate: 44100,
-              recorderType: StereoAudioRecorder,
-              numberOfAudioChannels: 1,
-              desiredSampRate: 16000,
-              timeSlice: sliceDuration, // Duration of time slices (miliseconds) of transcriptions
-              disableLogs: !logging, // Disable logging is logging is set to false
+            window.df_mediaRecorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+            window.df_speechEvents = hark(stream, { interval: 100 });
 
-              ondataavailable: async function (blob) {
+            window.df_speechEvents.on('stopped_speaking', function() {
+              if (window.df_mediaRecorder.state === 'recording') {
+                // Stopping the recorder natively triggers ondataavailable
+                window.df_mediaRecorder.stop();
+                // Immediately start recording the next chunk
+                window.df_mediaRecorder.start();
+              }
+            });
 
-                recordAudio.stopRecording();
-                recordAudio.reset();
-                recordAudio.startRecording();
-
+            window.df_mediaRecorder.ondataavailable = async function (e) {
+              if (e.data && e.data.size > 0) {
                 // Add the result to transcription variable
                 let temp = await df_transcribe({
                   api_token: api_token,
-                  file: blob,
+                  file: e.data,
                 });
 
                 // Log the temporary transcription
@@ -643,9 +639,7 @@ const foundry = {
                 }
 
                 // don't output blank audio
-                if(temp == "[BLANK_AUDIO]") {
-                  temp = "";
-                } else {
+                if(temp && temp != "[BLANK_AUDIO]") {
                   // notify callback and logging
                   onTranscribe(temp);
                   
@@ -657,9 +651,10 @@ const foundry = {
                     document.querySelector(resultElementSelector).innerHTML += temp + " ";
                   }
                 }
-              },
-            });
-            recordAudio.startRecording();
+              }
+            };
+            
+            window.df_mediaRecorder.start();
           })
           .catch((err) => {
             // always check for errors at the end.
@@ -671,39 +666,53 @@ const foundry = {
     // Function to stop recording and create a new transcription of the complete recording instead of using slices
     async function stopRecording() {
       return new Promise((resolve) => {
-        recordAudio.stopRecording(async function () {
-          var blob = recordAudio.getBlob();
+        if (window.df_speechEvents) {
+          window.df_speechEvents.stop();
+          window.df_speechEvents = null;
+        }
 
-          // Allow the option to not give an api token while running foundry.stopRec(), and then return an empty string (and not place the result on screen)
-          let completeTranscription = "";
-          if (api_token) {
-            completeTranscription = await df_transcribe({
-              api_token: api_token,
-              file: blob,
-              type: "file",
-            });
+        if (window.df_mediaRecorder && window.df_mediaRecorder.state !== 'inactive') {
+          // Temporarily override ondataavailable to catch the final blob and resolve it
+          window.df_mediaRecorder.ondataavailable = async function(e) {
+            let completeTranscription = "";
+            if (e.data && e.data.size > 0 && api_token) {
+              completeTranscription = await df_transcribe({
+                api_token: api_token,
+                file: e.data,
+              });
 
-            // Log the raw transcription
-            if (logging) {
-              console.log("Transcription:", completeTranscription);
-            }
+              // Log the raw transcription
+              if (logging) {
+                console.log("Transcription:", completeTranscription);
+              }
 
-            // don't output blank audio
-            if(completeTranscription == "[BLANK_AUDIO]") {
-              completeTranscription = "";
-            } else {
-              // notify callback and logging
-              onTranscribe(completeTranscription);
+              // don't output blank audio
+              if(completeTranscription && completeTranscription != "[BLANK_AUDIO]") {
+                // notify callback and logging
+                onTranscribe(completeTranscription);
 
-              // Place result on screen
-              if (resultElementSelector) {
-                document.querySelector(resultElementSelector).innerHTML += completeTranscription;
+                // Place result on screen
+                if (resultElementSelector) {
+                  document.querySelector(resultElementSelector).innerHTML += completeTranscription + " ";
+                }
+              } else {
+                completeTranscription = "";
               }
             }
-          }
-
-          resolve(completeTranscription);
-        });
+            
+            // Clean up the media stream tracks
+            if (window.df_mediaRecorder && window.df_mediaRecorder.stream) {
+                window.df_mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            }
+            window.df_mediaRecorder = null;
+            
+            resolve(completeTranscription);
+          };
+          
+          window.df_mediaRecorder.stop();
+        } else {
+           resolve("");
+        }
       });
     }
     // This function is used to transcribe audio. It will return text.
@@ -711,7 +720,7 @@ const foundry = {
       // Create FormData object and append the file and other parameters
       const formData = new FormData();
       formData.append("model", model); // Add model
-      formData.append("file", file); // Add uploaded or provided file
+      formData.append("file", file, file.name || "audio.webm"); // Add uploaded or provided file, fallback to audio.webm for blobs
 
       try {
         // Make request
@@ -738,27 +747,27 @@ const foundry = {
       }
     }
 
-    // In order to make use of the RecordRTC library, check if this library is available, and add it if that is not the case. Then, use RecordRTC functionality
-    function loadRecordRTC(callback) {
-      // Check if RecordRTC is already available
-      if (typeof RecordRTC !== "undefined") {
+    // In order to make use of the hark library, check if this library is available, and add it if that is not the case. Then, use hark functionality
+    function loadHark(callback) {
+      // Check if hark is already available
+      if (typeof hark !== "undefined") {
         if (logging) {
-          console.log("RecordRTC is already loaded.");
+          console.log("hark is already loaded.");
         }
         callback(); // If loaded, run the callback
       } else {
         if (logging) {
-          console.log("RecordRTC is not loaded, adding script to the page.");
+          console.log("hark is not loaded, adding script to the page.");
         }
-        // Create a script element to load RecordRTC from CDN
+        // Create a script element to load hark from CDN
         var script = document.createElement("script");
-        script.src = "https://cdn.webrtc-experiment.com/RecordRTC.js";
+        script.src = "https://unpkg.com/hark@1.2.3/hark.bundle.js";
         script.async = true;
 
         // Set up callback when the script is loaded
         script.onload = function () {
           if (logging) {
-            console.log("RecordRTC has been loaded.");
+            console.log("hark has been loaded.");
           }
           callback();
         };

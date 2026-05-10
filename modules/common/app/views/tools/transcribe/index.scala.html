@@ -272,8 +272,8 @@
 	<script type="text/javascript">
 		document.addEventListener('DOMContentLoaded', () => {
 			const modelsConfig = [
-				{ id: 'parakeet_v3', name: 'Parakeet v3', timestamps: true, diarization: true },
-				{ id: 'cohere_transcribe', name: 'Cohere Transcribe', timestamps: false, diarization: false }
+				{ id: 'parakeet_v3', name: 'Parakeet v3', url: 'https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3', timestamps: true, diarization: true },
+				{ id: 'cohere_transcribe', name: 'Cohere Transcribe', url: 'https://huggingface.co/CohereLabs/cohere-transcribe-03-2026', timestamps: false, diarization: false }
 			];
 
 			const outputContainer = document.getElementById('output-container');
@@ -439,13 +439,34 @@
 				return `${hours}:${minutes}:${seconds},${millis}`;
 			}
 
-			function convertToSrt(text) {
+			function parseSrtTimeToMillis(srtTime) {
+				const parts = srtTime.split(',');
+				const timeParts = parts[0].split(':');
+				const hours = parseInt(timeParts[0], 10);
+				const minutes = parseInt(timeParts[1], 10);
+				const seconds = parseInt(timeParts[2], 10);
+				const millis = parseInt(parts[1], 10);
+				return (hours * 3600000) + (minutes * 60000) + (seconds * 1000) + millis;
+			}
+
+			function formatMillisToSrtTime(millis) {
+				const hours = Math.floor(millis / 3600000);
+				millis %= 3600000;
+				const minutes = Math.floor(millis / 60000);
+				millis %= 60000;
+				const seconds = Math.floor(millis / 1000);
+				const ms = Math.floor(millis % 1000);
+				return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')},${ms.toString().padStart(3, '0')}`;
+			}
+
+			function convertToSrt(text, aiStatementText) {
 				const lines = text.split('\n');
 				let srtOutput = '';
 				let counter = 1;
 				// Matches [MM:SS - MM:SS] Text or [HH:MM:SS - HH:MM:SS] Text
 				const regex = /^.*?\[(\d{1,2}:\d{2}(?::\d{2})?(?:\.\d+)?) - (\d{1,2}:\d{2}(?::\d{2})?(?:\.\d+)?)\]\s*(.*)$/;
 				let hasMatches = false;
+				let lastEndTimeStr = "00:00:00,000";
 
 				for (let i = 0; i < lines.length; i++) {
 					const line = lines[i].trim();
@@ -460,13 +481,28 @@
 						
 						srtOutput += `${counter}\r\n${start} --> ${end}\r\n${content}\r\n\r\n`;
 						counter++;
+						lastEndTimeStr = end;
 					}
+				}
+				
+				if (hasMatches && aiStatementText) {
+					let lastEndMillis = parseSrtTimeToMillis(lastEndTimeStr);
+					let finalStartStr = formatMillisToSrtTime(lastEndMillis + 100);
+					let finalEndStr = formatMillisToSrtTime(lastEndMillis + 5100);
+					srtOutput += `${counter}\r\n${finalStartStr} --> ${finalEndStr}\r\n${aiStatementText}\r\n\r\n`;
 				}
 				
 				return hasMatches ? srtOutput.trim() + '\r\n' : null;
 			}
 
 			downloadBtn.addEventListener('click', () => {
+				const selectedModelId = modelSelect.value;
+				const selectedModel = modelsConfig.find(m => m.id === selectedModelId);
+				const modelName = selectedModel ? selectedModel.name : "Unknown Model";
+				const modelUrl = selectedModel && selectedModel.url ? selectedModel.url : "Unknown URL";
+				const dateString = new Date().toLocaleString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+				const aiStatementText = `AI Statement: This transcription was generated using the ${modelName} model (${modelUrl}). Data Foundry was used for this transcription on ${dateString}.`;
+
 				let reconstructedText = '';
 				const rows = outputSegments.querySelectorAll('.transcription-row');
 				rows.forEach(row => {
@@ -490,13 +526,17 @@
 				let mimeType = 'text/plain';
 
 				if (isSrt) {
-					const srtConverted = convertToSrt(text);
+					const srtConverted = convertToSrt(text, aiStatementText);
 					if (srtConverted) {
 						finalText = srtConverted;
 						mimeType = 'text/srt';
 					} else {
 						isSrt = false; // Fallback to .txt if parsing failed
 					}
+				}
+				
+				if (!isSrt) {
+					finalText += `\n\n\n${aiStatementText}`;
 				}
 				
 				const ext = isSrt ? '.srt' : '.txt';
