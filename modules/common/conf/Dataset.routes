@@ -63,20 +63,19 @@ GET       /                               controllers.swagger.DatasetApiControll
  #          project_id:
  #            type: integer
  #            format: "int64"
- #          id:
- #            type: integer
- #            format: "int64"
  #          data:
  #            description: "information of files for Complete, Media, and Movement dataset"
  #            type: array
  #            items:
- #              ts:
- #                type: "string"
- #                description: "uploading date"
- #              name:
- #                type: "string"
- #              description:
- #                type: "string"
+ #              type: object
+ #              properties:
+ #                ts:
+ #                  type: "string"
+ #                  description: "uploading date"
+ #                name:
+ #                  type: "string"
+ #                description:
+ #                  type: "string"
  #    400:
  #      description: Not valid dataset.
  #    403:
@@ -683,14 +682,12 @@ DELETE    /entity/:id                     controllers.swagger.DatasetApiControll
  #            type: string
  #            description: State the data by Json structure, and use '\' to escape the reserved characters.
  #          ts-date:
- #            description: "Date for this record."
+ #            description: "Date for this record. Format as yyyy-MM-dd, keep it empty for today."
  #            type: "string"
- #            description: "yyyy-MM-dd, keep it empty for today."
  #            example: "2020-07-08"
  #          ts-time:
- #            description: "Time of the day for this record."
+ #            description: "Date for this record. Format as yyyy-MM-dd, keep it empty for today."
  #            type: "string"
- #            description: "HH:mm:ss, keep it empty for the time right now."
  #            example: "13:08:24"
  #  responses:
  #    200:
@@ -733,14 +730,12 @@ POST      /annotation/:id                 controllers.swagger.DatasetApiControll
  #            type: string
  #            description: State the data by Json structure, and use '\' to escape the reserved characters.
  #          ts-date:
- #            description: "Date for this record."
+ #            description: "Date for this record. Format as yyyy-MM-dd, keep it empty for today."
  #            type: "string"
- #            description: "yyyy-MM-dd, keep it empty for today."
  #            example: "2020-07-08"
  #          ts-time:
- #            description: "Time of the day for this record."
+ #            description: "Time of the day for this record. Format as HH:mm:ss, keep it empty for the time right now."
  #            type: "string"
- #            description: "HH:mm:ss, keep it empty for the time right now."
  #            example: "13:08:24"
  #  responses:
  #    200:

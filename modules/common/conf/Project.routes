@@ -196,14 +196,14 @@ GET       /:id                      controllers.swagger.ProjectApiController.pro
  #        items:
  #          type: object
  #          properties:
- #          type:
- #            type: "string"
- #          message:
- #            type: "string"
- #          source:
- #            type: "string"
- #          timestamp:
- #            type: "string"
+ #            type:
+ #              type: "string"
+ #            message:
+ #              type: "string"
+ #            source:
+ #              type: "string"
+ #            timestamp:
+ #              type: "string"
  #    400:
  #      description: Not valid project.
  #    403:
