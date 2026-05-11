@@ -53,6 +53,14 @@
 			margin-right: 0.5em;
 			font-weight: bold;
 			color: #555;
+			cursor: text;
+			padding: 0 0.25em;
+		}
+
+		.transcription-prefix:focus, .transcription-prefix:hover {
+			background-color: #f0f0f0;
+			border-radius: 2px;
+			outline: none;
 		}
 
 		.transcription-badge {
@@ -151,6 +159,9 @@
 					<input type="checkbox" id="diarization" name="diarization" class="filled-in" />
 					<span>Enable Diarization (if supported)</span>
 				</label>
+				<div id="diarization-warning" style="display: none; margin-top: 5px; font-size: 0.85em; color: #d32f2f;">
+					<b>Warning:</b> Speaker diarization is an automated process and might be inaccurate. Please review the assigned speakers carefully.
+				</div>
 			</div>
 		</div>
 		<div class="row">
@@ -294,6 +305,11 @@
 			const transcribeBtn = document.getElementById('transcribe-btn');
 			const downloadBtn = document.getElementById('download-btn');
 			const outputHelpText = document.getElementById('output-help-text');
+			const diarizationWarning = document.getElementById('diarization-warning');
+
+			diarizationCheckbox.addEventListener('change', () => {
+				diarizationWarning.style.display = diarizationCheckbox.checked ? 'block' : 'none';
+			});
 
 			// Populate models and handle capability logic
 			modelsConfig.forEach(model => {
@@ -463,8 +479,8 @@
 				const lines = text.split('\n');
 				let srtOutput = '';
 				let counter = 1;
-				// Matches [MM:SS - MM:SS] Text or [HH:MM:SS - HH:MM:SS] Text
-				const regex = /^.*?\[(\d{1,2}:\d{2}(?::\d{2})?(?:\.\d+)?) - (\d{1,2}:\d{2}(?::\d{2})?(?:\.\d+)?)\]\s*(.*)$/;
+				// Matches optional prefix, then timestamps, then content
+				const regex = /^(.*?)\[(\d{1,2}:\d{2}(?::\d{2})?(?:\.\d+)?) - (\d{1,2}:\d{2}(?::\d{2})?(?:\.\d+)?)\]\s*(.*)$/;
 				let hasMatches = false;
 				let lastEndTimeStr = "00:00:00,000";
 
@@ -475,11 +491,13 @@
 					const match = line.match(regex);
 					if (match) {
 						hasMatches = true;
-						let start = formatSrtTime(match[1]);
-						let end = formatSrtTime(match[2]);
-						let content = match[3];
+						let prefix = match[1].trim();
+						let start = formatSrtTime(match[2]);
+						let end = formatSrtTime(match[3]);
+						let content = match[4];
 						
-						srtOutput += `${counter}\r\n${start} --> ${end}\r\n${content}\r\n\r\n`;
+						let fullContent = prefix ? `${prefix} ${content}` : content;
+						srtOutput += `${counter}\r\n${start} --> ${end}\r\n${fullContent}\r\n\r\n`;
 						counter++;
 						lastEndTimeStr = end;
 					}
@@ -510,11 +528,14 @@
 					if (!textSpan) return;
 					
 					let lineContent = textSpan.textContent;
+					const prefixSpan = row.querySelector('.transcription-prefix');
+					let prefixContent = prefixSpan ? prefixSpan.textContent : '';
+					if (prefixContent && !prefixContent.endsWith(' ')) prefixContent += ' ';
+
 					if (row.dataset.startTime && row.dataset.endTime) {
-						const prefix = row.dataset.prefix ? row.dataset.prefix + ' ' : '';
-						reconstructedText += `${prefix}[${row.dataset.startTime} - ${row.dataset.endTime}] ${lineContent}\n`;
+						reconstructedText += `${prefixContent}[${row.dataset.startTime} - ${row.dataset.endTime}] ${lineContent}\n`;
 					} else {
-						reconstructedText += `${lineContent}\n`;
+						reconstructedText += `${prefixContent}${lineContent}\n`;
 					}
 				});
 
@@ -576,84 +597,116 @@
 				return seconds;
 			}
 
+			function createRowDiv(prefix, startTime, endTime, content) {
+				const rowDiv = document.createElement('div');
+				rowDiv.className = 'transcription-row';
+
+				if (prefix) {
+					const prefixSpan = document.createElement('span');
+					prefixSpan.className = 'transcription-prefix';
+					prefixSpan.textContent = prefix;
+					prefixSpan.contentEditable = true;
+					rowDiv.appendChild(prefixSpan);
+				}
+
+				if (startTime && endTime) {
+					const playBtnSpan = document.createElement('span');
+					playBtnSpan.className = 'transcription-play-btn';
+					playBtnSpan.textContent = '▶';
+					playBtnSpan.title = 'Play segment';
+					playBtnSpan.addEventListener('click', () => {
+						if (playBtnSpan.classList.contains('playing')) {
+							audioPlayer.pause();
+							clearPlayingIndicator();
+							return;
+						}
+						clearPlayingIndicator();
+
+						currentPlayingRow = rowDiv;
+						currentPlayingBtn = playBtnSpan;
+						rowDiv.classList.add('playing');
+						playBtnSpan.classList.add('playing');
+						playBtnSpan.textContent = '⏸';
+
+						// Add a 0.5s buffer to start and end to avoid cutting off words
+						const startSecs = Math.max(0, parseTimeToSeconds(startTime.replace(',', '.')) - 0.3);
+						const endSecs = parseTimeToSeconds(endTime.replace(',', '.')) + 0.3;
+						currentPlaybackEndTime = endSecs;
+						audioPlayer.currentTime = startSecs;
+						audioPlayer.play().catch(e => console.error("Error playing audio:", e));
+					});
+					rowDiv.appendChild(playBtnSpan);
+
+					const badgeSpan = document.createElement('span');
+					badgeSpan.className = 'badge new transcription-badge';
+					badgeSpan.setAttribute('data-badge-caption', '');
+					const displayStart = startTime.replace(',', '.');
+					const displayEnd = endTime.replace(',', '.');
+					badgeSpan.textContent = `[${displayStart} - ${displayEnd}]`;
+					rowDiv.appendChild(badgeSpan);
+					
+					rowDiv.dataset.startTime = displayStart;
+					rowDiv.dataset.endTime = displayEnd;
+				}
+
+				const textSpan = document.createElement('span');
+				textSpan.className = 'transcription-text';
+				textSpan.contentEditable = true;
+				textSpan.textContent = content;
+				
+				rowDiv.appendChild(textSpan);
+				outputSegments.appendChild(rowDiv);
+			}
+
 			function renderSegments(text) {
 				outputSegments.innerHTML = ''; // Clear previous
-				const lines = text.split('\n');
-				const lineRegex = /^(.*?)\[(\d{1,2}:\d{2}(?::\d{2})?(?:\.\d+)?) - (\d{1,2}:\d{2}(?::\d{2})?(?:\.\d+)?)\]\s*(.*)$/;
-
-				lines.forEach(line => {
-					if (!line.trim()) return;
-
-					const rowDiv = document.createElement('div');
-					rowDiv.className = 'transcription-row';
-
-					const match = line.match(lineRegex);
-					if (match) {
-						const prefix = match[1].trim();
-						const startTime = match[2];
-						const endTime = match[3];
-						const content = match[4];
-
-						if (prefix) {
-							const prefixSpan = document.createElement('span');
-							prefixSpan.className = 'transcription-prefix';
-							prefixSpan.textContent = prefix;
-							rowDiv.appendChild(prefixSpan);
-						}
-
-						const playBtnSpan = document.createElement('span');
-						playBtnSpan.className = 'transcription-play-btn';
-						playBtnSpan.textContent = '▶';
-						playBtnSpan.title = 'Play segment';
-						playBtnSpan.addEventListener('click', () => {
-							if (playBtnSpan.classList.contains('playing')) {
-								audioPlayer.pause();
-								clearPlayingIndicator();
-								return;
+				
+				const isSrt = text.includes('-->');
+				
+				if (isSrt) {
+					const blocks = text.trim().split(/\n\s*\n/);
+					blocks.forEach(block => {
+						const lines = block.split('\n');
+						if (lines.length >= 3) {
+							const timeRegex = /(\d{2}:\d{2}:\d{2},\d{3})\s*-->\s*(\d{2}:\d{2}:\d{2},\d{3})/;
+							const timeMatch = lines[1].match(timeRegex);
+							
+							if (timeMatch) {
+								let contentLines = lines.slice(2);
+								let content = contentLines.join('\n');
+								let startTime = timeMatch[1];
+								let endTime = timeMatch[2];
+								let prefix = '';
+								
+								const speakerMatch = content.match(/^(\[SPEAKER_[^\]]+\])\s*(.*)$/is);
+								if (speakerMatch) {
+									prefix = speakerMatch[1];
+									content = speakerMatch[2];
+								}
+								
+								createRowDiv(prefix, startTime, endTime, content);
+							} else {
+								createRowDiv('', null, null, block);
 							}
-							clearPlayingIndicator();
-
-							currentPlayingRow = rowDiv;
-							currentPlayingBtn = playBtnSpan;
-							rowDiv.classList.add('playing');
-							playBtnSpan.classList.add('playing');
-							playBtnSpan.textContent = '⏸';
-
-							// Add a 0.5s buffer to start and end to avoid cutting off words
-							const startSecs = Math.max(0, parseTimeToSeconds(startTime) - 0.3);
-							const endSecs = parseTimeToSeconds(endTime) + 0.3;
-							currentPlaybackEndTime = endSecs;
-							audioPlayer.currentTime = startSecs;
-							audioPlayer.play().catch(e => console.error("Error playing audio:", e));
-						});
-						rowDiv.appendChild(playBtnSpan);
-
-						const badgeSpan = document.createElement('span');
-						badgeSpan.className = 'badge new transcription-badge';
-						badgeSpan.setAttribute('data-badge-caption', '');
-						badgeSpan.textContent = `[${startTime} - ${endTime}]`;
-						rowDiv.appendChild(badgeSpan);
-
-						const textSpan = document.createElement('span');
-						textSpan.className = 'transcription-text';
-						textSpan.contentEditable = true;
-						textSpan.textContent = content;
+						} else {
+							createRowDiv('', null, null, block);
+						}
+					});
+				} else {
+					const lines = text.split('\n');
+					lines.forEach(line => {
+						if (!line.trim()) return;
+						let prefix = '';
+						let content = line;
+						const speakerMatch = content.match(/^(\[SPEAKER_[^\]]+\])\s*(.*)$/i);
+						if (speakerMatch) {
+							prefix = speakerMatch[1];
+							content = speakerMatch[2];
+						}
 						
-						rowDiv.dataset.prefix = prefix;
-						rowDiv.dataset.startTime = startTime;
-						rowDiv.dataset.endTime = endTime;
-
-						rowDiv.appendChild(textSpan);
-					} else {
-						const textSpan = document.createElement('span');
-						textSpan.className = 'transcription-text';
-						textSpan.contentEditable = true;
-						textSpan.textContent = line;
-						rowDiv.appendChild(textSpan);
-					}
-
-					outputSegments.appendChild(rowDiv);
-				});
+						createRowDiv(prefix, null, null, content);
+					});
+				}
 			}
 
 			async function getResults() {
