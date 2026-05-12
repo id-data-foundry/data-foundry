@@ -50,7 +50,7 @@
             </div>
 
             <div class="col s12 m6">
-                <form action="@routes.DatasetsController.selectiveDeleteDatasetByTime(ds.getId())" method="POST" onsubmit="if(document.getElementById('time_start_local').value) document.getElementById('time_start').value = new Date(document.getElementById('time_start_local').value).getTime(); if(document.getElementById('time_end_local').value) document.getElementById('time_end').value = new Date(document.getElementById('time_end_local').value).getTime();">
+                <form action="@routes.DatasetsController.selectiveDeleteDatasetByTime(ds.getId())" method="POST" novalidate onsubmit="var startLocal = document.getElementById('time_start_local').value; var endLocal = document.getElementById('time_end_local').value; if(startLocal) { var startDate = new Date(startLocal); if(!isNaN(startDate)) document.getElementById('time_start').value = startDate.getTime(); } if(endLocal) { var endDate = new Date(endLocal); if(!isNaN(endDate)) document.getElementById('time_end').value = endDate.getTime(); }">
                     <input type="hidden" name="csrfToken" value="@token"/>
                     <input type="hidden" name="start" id="time_start" value="">
                     <input type="hidden" name="end" id="time_end" value="">
