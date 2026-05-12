@@ -390,6 +390,37 @@ public abstract class LinkedDS {
 		}
 	}
 
+	/**
+	 * selective delete from the dataset by time
+	 * 
+	 * @param start
+	 * @param end
+	 * @return
+	 */
+	public int selectiveDeleteByTime(long start, long end) {
+		if (start < 0 && end < 0) {
+			return 0;
+		}
+
+		String whereClause = timeFilterWhereClause(start, end);
+		if (whereClause.isEmpty()) {
+			return 0;
+		}
+
+		try (Transaction transaction = DB.beginTransaction();
+		        Connection connection = transaction.connection();
+		        PreparedStatement stmt = connection
+		                .prepareStatement("DELETE FROM " + dataTableName + whereClause + ";");) {
+			int rows = stmt.executeUpdate();
+			transaction.commit();
+			return rows;
+		} catch (SQLException e) {
+			logger.error("Error in selective delete by time from dataset table.", e);
+			Slack.call("Exception", e.getLocalizedMessage());
+			return -1;
+		}
+	}
+
 	protected final String timeFilterWhereClause(long start, long end) {
 		if (start > -1l && end > -1l) {
 			return " WHERE ts >= " + tlsf(start) + " AND ts < " + tlsf(end);

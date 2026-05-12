@@ -1659,6 +1659,58 @@ public class DatasetsController extends AbstractAsyncController {
 		}
 	}
 
+	@Authenticated(UserAuth.class)
+	public Result selectiveDeleteDatasetByTime(Request request, Long id) {
+		Dataset ds = Dataset.find.byId(id);
+		if (ds == null) {
+			return redirect(HOME).addingToSession(request, "error", "Dataset not found.");
+		}
+
+		String username = getAuthenticatedUserNameOrReturn(request,
+				redirect(HOME).addingToSession(request, "error", "This action is not permitted for you."));
+		Project p = Project.find.byId(ds.getProject().getId());
+		if (p == null || !p.editableBy(username)) {
+			return redirect(HOME).addingToSession(request, "error", "This action is not permitted for you.");
+		}
+
+		DynamicForm df = formFactory.form().bindFromRequest(request);
+		String startStr = df.get("start");
+		String endStr = df.get("end");
+
+		long start = -1L;
+		long end = -1L;
+
+		try {
+			if (startStr != null && !startStr.trim().isEmpty()) {
+				start = Long.parseLong(startStr);
+			}
+			if (endStr != null && !endStr.trim().isEmpty()) {
+				end = Long.parseLong(endStr);
+			}
+		} catch (NumberFormatException e) {
+			return redirect(routes.DatasetsController.view(id)).addingToSession(request, "error",
+					"Invalid input for selective delete by time.");
+		}
+
+		if (start < 0 && end < 0) {
+			return redirect(routes.DatasetsController.view(id)).addingToSession(request, "error",
+					"Invalid input for selective delete by time.");
+		}
+
+		LinkedDS lds = datasetConnector.getDatasetDS(ds);
+		int rows = lds.selectiveDeleteByTime(start, end);
+
+		if (rows >= 0) {
+			LabNotesEntry.log(Dataset.class, LabNotesEntryType.DELETE, "Dataset, " + ds.getName()
+					+ ", selective delete by time: start=" + start + ", end=" + end + " (" + rows + " rows).", p);
+			return redirect(routes.DatasetsController.view(id)).addingToSession(request, "message",
+					"Successfully deleted " + rows + " rows.");
+		} else {
+			return redirect(routes.DatasetsController.view(id)).addingToSession(request, "error",
+					"An error occurred while deleting data.");
+		}
+	}
+
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	@Authenticated(UserAuth.class)

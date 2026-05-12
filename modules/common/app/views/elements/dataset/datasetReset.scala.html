@@ -48,6 +48,24 @@
                     <button type="submit" class="btn orange" onclick="return confirm('Are you sure you want to delete data matching this Key/Value?')">DELETE BY KEY/VALUE</button>
                 </form>
             </div>
+
+            <div class="col s12 m6">
+                <form action="@routes.DatasetsController.selectiveDeleteDatasetByTime(ds.getId())" method="POST" onsubmit="if(document.getElementById('time_start_local').value) document.getElementById('time_start').value = new Date(document.getElementById('time_start_local').value).getTime(); if(document.getElementById('time_end_local').value) document.getElementById('time_end').value = new Date(document.getElementById('time_end_local').value).getTime();">
+                    <input type="hidden" name="csrfToken" value="@token"/>
+                    <input type="hidden" name="start" id="time_start" value="">
+                    <input type="hidden" name="end" id="time_end" value="">
+                    
+                    <div class="input-field">
+                        <input type="datetime-local" id="time_start_local">
+                        <label class="active" for="time_start_local">Start Time</label>
+                    </div>
+                    <div class="input-field">
+                        <input type="datetime-local" id="time_end_local">
+                        <label class="active" for="time_end_local">End Time</label>
+                    </div>
+                    <button type="submit" class="btn orange" onclick="return confirm('Are you sure you want to delete data within this time range?')">DELETE BY TIME</button>
+                </form>
+            </div>
         </div>
 
         <hr/>
