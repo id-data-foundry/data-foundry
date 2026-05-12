@@ -6,6 +6,8 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pekko.actor.ActorSystem;
@@ -41,7 +43,10 @@ public class MediaToTextController extends AbstractAsyncController implements Ap
 	@Inject
 	UnmanagedAIApiService aiApiService;
 
-	public Result index() {
+	// Queue for audio transcriptions
+	private final ExecutorService transcriptionQueue = Executors.newSingleThreadExecutor();
+
+	public Result index(Request request) {
 		return ok(views.html.tools.transcribe.index.render());
 	}
 
@@ -110,6 +115,13 @@ public class MediaToTextController extends AbstractAsyncController implements Ap
 		return ok(content.get());
 	}
 
+	public Result resultView(Request request, String publicToken) {
+		getAuthenticatedUserOrReturn(request,
+				redirect(LANDING).addingToSession(request, "error", "Please log in first to use this tool."));
+
+		return ok(views.html.tools.transcribe.result.render(publicToken));
+	}
+
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	private CompletionStage<Result> processPDF(Request request, String lang, String type, Person user,
@@ -140,10 +152,11 @@ public class MediaToTextController extends AbstractAsyncController implements Ap
 	private CompletionStage<Result> processAV(Request request, String lang, String type, Person user,
 			String publicToken) {
 
+		final int timeoutMs = 600000; // 10 minutes timeout for audio transcriptions
+
 		// create request with empty parameters; they will be set differently later on
-		RemoteApiRequest internalAPIRequest = new RemoteApiRequest(REQUEST_TASK_MODELS,
-				ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, "", aiApiService.getInternalDocumentationAPIKey(),
-				-1L, Json.newObject());
+		RemoteApiRequest internalAPIRequest = new RemoteApiRequest(REQUEST_TASK_MODELS, timeoutMs, "",
+				aiApiService.getInternalDocumentationAPIKey(), -1L, Json.newObject());
 		internalAPIRequest.setPath("/v1/audio/transcriptions");
 
 		// set file and params in request via multi-part form data
@@ -153,12 +166,11 @@ public class MediaToTextController extends AbstractAsyncController implements Ap
 		}
 		internalAPIRequest.setMultipartFormData(mpfd);
 
-		// schedule the job and return data as String
-		actorSystem.dispatcher().execute(() -> {
+		// schedule the job in the sequential queue and return data as String
+		transcriptionQueue.execute(() -> {
 			try {
 				// submit and wait for timeout
-				aiApiService.submitApiRequest(internalAPIRequest)
-						.get(ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+				aiApiService.submitApiRequest(internalAPIRequest).get(timeoutMs, TimeUnit.MILLISECONDS);
 				String resultText = Json.parse(internalAPIRequest.getResult()).get("text").asText();
 				resultText = resultText.isEmpty() ? "Transcription error." : resultText;
 				cache.set(internalToken(publicToken), resultText, MediaProcessingService.EXPIRATION_TIMEOUT_SECS);

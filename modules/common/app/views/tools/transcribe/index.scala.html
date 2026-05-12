@@ -160,7 +160,7 @@
 					<span>Enable Diarization (if supported)</span>
 				</label>
 				<div id="diarization-warning" style="display: none; margin-top: 5px; font-size: 0.85em; color: #d32f2f;">
-					<b>Warning:</b> Speaker diarization is an automated process and might be inaccurate. Please review the assigned speakers carefully.
+					<b>Warning:</b> Speaker diarization is a <i>much slower</i> process than pure transcription, and it might be inaccurate. Please review the assigned speakers carefully.
 				</div>
 			</div>
 		</div>
@@ -776,7 +776,7 @@
 					token = await response.text();
 					statusText.textContent = "Processing... you can safely wait or copy the retrieval link below.";
 					pollTimeout = setTimeout(getResults, 5000);
-					retrievalLink.textContent = location.origin + '@controllers.tools.routes.MediaToTextController.result("")' + token;
+					retrievalLink.textContent = location.origin + '@controllers.tools.routes.MediaToTextController.resultView("")' + token;
 					
 				} catch (error) {
 					progressDiv.style.display = 'none';

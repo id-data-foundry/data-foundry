@@ -467,9 +467,10 @@ DELETE		/tools/chatbots/:id/file								controllers.tools.ChatbotController.dele
 GET			/tools/chatbots/:id									controllers.tools.ChatbotController.view(request: Request, id: Long)
 
 # tools: speech to text
-GET 		/tools/mediaprocess									controllers.tools.MediaToTextController.index
-GET 		/tools/mediaprocess/									controllers.tools.MediaToTextController.index
+GET 		/tools/mediaprocess									controllers.tools.MediaToTextController.index(request: Request)
+GET 		/tools/mediaprocess/								controllers.tools.MediaToTextController.index(request: Request)
 GET			/tools/mediaprocess/result/*token					controllers.tools.MediaToTextController.result(request: Request, token: String)
+GET			/tools/mediaprocess/view/*token						controllers.tools.MediaToTextController.resultView(request: Request, token: String)
 POST		/tools/mediaprocess/result							controllers.tools.MediaToTextController.submit(request: Request, lang: String ?= "en", type: String ?= "")
 POST		/tools/mediaprocess									controllers.tools.MediaToTextController.submitAndProcess(request: Request, type: String ?= "")
 
