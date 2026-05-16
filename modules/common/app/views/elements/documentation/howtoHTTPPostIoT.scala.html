@@ -98,3 +98,65 @@ iot.data("temperature", 32).data("door", "closed").log();</code>
 		</div>
 	</li>
 </ul>
+
+<p style="margin-top: 3em;">
+	<b>Batch Data Upload (CSV)</b>
+</p>
+<p>
+	You can upload an entire CSV file at once using the <code>logFile</code> endpoint. This is useful for importing large amounts of data. The CSV file must have a header row, and an optional <code>activity</code> column. Other columns will be stored as data.
+</p>
+<ul class="collapsible">
+	<li>
+		<div class="collapsible-header">JavaScript</div>
+		<div class="collapsible-body">
+			<pre class="language-js"><code class="language-js">
+var csvData = "activity,parameter1,parameter2\nWALKING,1,2\nRUNNING,3,4";
+fetch('@api.routes.TimeseriesDSController.logFile(dataset.getId()).absoluteURL(true, request.host())', {
+    method: 'POST',
+    mode: 'cors',
+    headers: {
+            'Content-Type': 'text/plain',
+            'api_token': '@dataset.configuration(Dataset.API_TOKEN, "TOKEN")',
+            'source_id': 'DEVICE_ID'
+    },
+    body: csvData
+});</code></pre>
+			<p>
+				Replace DEVICE_ID by the refId attribute of any device in the project. The <code>api_token</code> must be provided in the header.
+			</p>
+		</div>
+	</li>
+	<li>
+		<div class="collapsible-header">cURL</div>
+		<div class="collapsible-body">
+			<pre class="language-bash">
+				  <code class="language-bash">
+curl -X POST -H "Content-Type: text/plain" -H "api_token: @dataset.configuration(Dataset.API_TOKEN, "TOKEN")" -H "source_id: DEVICE_ID" --data-binary @@filename.csv @api.routes.TimeseriesDSController.logFile(dataset.getId()).absoluteURL(true, request.host())</code>
+			</pre>
+			<p>
+				Use <code>--data-binary @@filename.csv</code> to upload a file from your local machine. Replace DEVICE_ID by the refId attribute of any device in the project.
+			</p>
+		</div>
+	</li>
+	<li>
+		<div class="collapsible-header">Python</div>
+		<div class="collapsible-body">
+			<pre class="language-python">
+				  <code class="language-python">
+import requests
+
+url = "@api.routes.TimeseriesDSController.logFile(dataset.getId()).absoluteURL(true, request.host())"
+headers = {
+    "Content-Type": "text/plain",
+    "api_token": "@dataset.configuration(Dataset.API_TOKEN, "TOKEN")",
+    "source_id": "DEVICE_ID"
+}
+
+with open('data.csv', 'rb') as f:
+    response = requests.post(url, headers=headers, data=f)</code></pre>
+			<p>
+				Replace DEVICE_ID by the refId attribute of any device in the project. This script reads <code>data.csv</code> and sends it as the raw request body.
+			</p>
+		</div>
+	</li>
+</ul>
