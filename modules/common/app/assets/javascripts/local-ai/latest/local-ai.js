@@ -29,6 +29,9 @@ const foundry = {
     messages,
     temperature = 0.9,
     maxTokens = 250,
+    responseFormat,
+    tools,
+    toolChoice,
     logging = true,
     loadingElementSelector,
     resultElementSelector,
@@ -84,6 +87,9 @@ const foundry = {
             model: model,
             temperature: temperature,
             max_tokens: maxTokens,
+            ...(responseFormat && { response_format: responseFormat }),
+            ...(tools && { tools: tools }),
+            ...(toolChoice && { tool_choice: toolChoice }),
           }),
         }
       );
@@ -104,18 +110,24 @@ const foundry = {
       }
 
       // json.content contains the generated chat response
-      let chatResponse = json.choices[0].message.content;
+      let message = json.choices[0].message;
+      let chatResponse = message.content;
+      let toolCalls = message.tool_calls;
+
       if (logging) {
         console.log("Result:", chatResponse);
+        if (toolCalls) {
+          console.log("Tool Calls:", toolCalls);
+        }
       }
 
       // Place result on the page
-      if (resultElementSelector) {
+      if (resultElementSelector && chatResponse) {
         document.querySelector(resultElementSelector).innerHTML += chatResponse;
       }
 
       // Return the AI response and usage
-      return { text: chatResponse, usage: json.usage };
+      return { text: chatResponse, toolCalls: toolCalls, usage: json.usage };
     } catch (error) {
       console.error("Error:", error);
     }
@@ -455,6 +467,9 @@ const foundry = {
     messages,
     temperature = 0.8,
     maxTokens = 250,
+    responseFormat,
+    tools,
+    toolChoice,
     logging = true,
     loadingElementSelector,
     resultElementSelector,
@@ -517,6 +532,9 @@ const foundry = {
             model: model,
             temperature: temperature,
             max_tokens: maxTokens,
+            ...(responseFormat && { response_format: responseFormat }),
+            ...(tools && { tools: tools }),
+            ...(toolChoice && { tool_choice: toolChoice }),
           }),
         }
       );
@@ -537,18 +555,23 @@ const foundry = {
       }
 
       // json.content contains the generated chat response
-      let chatResponse = json.choices[0].message.content;
+      let message = json.choices[0].message;
+      let chatResponse = message.content;
+      let toolCalls = message.tool_calls;
 
       if (logging) {
         console.log("Result:", chatResponse);
+        if (toolCalls) {
+          console.log("Tool Calls:", toolCalls);
+        }
       }
 
       // Place result on the page
-      if (resultElementSelector) {
+      if (resultElementSelector && chatResponse) {
         document.querySelector(resultElementSelector).innerHTML += chatResponse;
       }
 
-      return { text: chatResponse, usage: json.usage };
+      return { text: chatResponse, toolCalls: toolCalls, usage: json.usage };
     } catch (error) {
       console.error("Error:", error);
     }
