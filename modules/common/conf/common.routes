@@ -22,6 +22,7 @@ GET 		/.well-known/security.txt							controllers.HomeController.securityTxt(req
 # users ---------------------------------------------------------------------------------------------------------------
 
 GET 		/users/profile										controllers.UsersController.edit(request: Request)
+GET 		/users/apiAccess									controllers.UsersController.apiAccess(request: Request)
 POST	 	/users/profileMe										controllers.UsersController.editMe(request: Request)
 GET		 	/users/generateToken									controllers.UsersController.generateToken(request: Request, service: String ?= "")
 GET		 	/users/generateToken/:service						controllers.UsersController.generateToken(request: Request, service: String)

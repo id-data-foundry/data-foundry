@@ -1,0 +1,194 @@
+@(token : String, telegramToken : String, user : Person, projects : List[models.Project], projectAPIKeys : java.util.Map[Long, services.api.GenericApiService.ProjectAPIInfo], datasets : List[models.Dataset])
+
+@main("API Access", "user") {
+<nav class="">
+  <div class="row">
+    <div class="col s8">
+      <a href="@routes.ProjectsController.index()" class="breadcrumb">Home</a>
+      <a href="#" class="breadcrumb">API Access</a>
+    </div>
+  </div>    
+</nav>
+
+<div class="row">
+  <div class="col s12">
+    <ul class="tabs">
+      <li class="tab col s3"><a target="_self" href="@routes.UsersController.edit()">Profile</a></li>
+      <li class="tab col s3"><a class="active" target="_self" href="@routes.UsersController.apiAccess()">API Access</a></li>
+    </ul>
+  </div>
+</div>
+
+<div id="api">
+<div class="row">
+  <div class="col s12">
+    <h2>API Access</h2>
+    <p>Manage your API tokens and access keys here. To protect your security, keys are hidden by default. Click "Reveal" to see a key for 15 seconds.</p>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col s12">
+    <ul class="collection with-header">
+      <li class="collection-header"><h4>Personal Access</h4></li>
+      
+      <!-- User API Token -->
+      <li class="collection-item">
+        <div>
+          <b>User API access token</b>
+          <p>
+            This is your <b>primary authentication token</b> for Data Foundry v2. It grants full administrative access to your account via the API.
+            <br>
+            <b>Usage:</b> Use this for automation scripts (Python, Node.js) to programmatically manage projects, datasets, and resources.
+            <br>
+            <span class="red-text"><b>Security:</b> This is a highly sensitive credential. <u>Never share this token</u> or include it in client-side/frontend code.</span>
+          </p>
+          <div class="row valign-wrapper">
+            <div class="col s9">
+              <code id="user-token" class="api-key-obfuscated">••••••••••••••••••••••••••••••••</code>
+            </div>
+            <div class="col s3">
+              @if(user.getAccesscode() != null && user.getAccesscode().length() > 0) {
+                <button class="btn-small reveal-btn" onclick="revealKey('user-token', '@user.getAccesscode()')">Reveal</button>
+              } else {
+                <a href="@routes.UsersController.generateToken("")" class="btn-small">Generate</a>
+              }
+            </div>
+          </div>
+        </div>
+      </li>
+
+      <!-- Telegram PIN -->
+      <li class="collection-item">
+        <div>
+          <b>Telegram PIN</b>
+          <p>
+            A numeric code used to link your Data Foundry account with the <b>Telegram Bot</b>.
+            <br>
+            <b>Usage:</b> Enter this PIN when prompted by the bot to identify yourself as a researcher.
+            <br>
+            <span class="orange-text text-darken-2"><b>Security:</b> Keep this PIN private. If shared, others could impersonate you in project chats.</span>
+          </p>
+          <div class="row valign-wrapper">
+            <div class="col s9">
+              <code id="telegram-pin" class="api-key-obfuscated" style="font-size: 1.5rem;">••••••••</code>
+            </div>
+            <div class="col s3">
+              @if(telegramToken.length() > 0) {
+                <button class="btn-small reveal-btn" onclick="revealKey('telegram-pin', '@telegramToken')">Reveal</button>
+              } else {
+                <button class="btn-small red" hx-post="@routes.UsersController.resetTelegramSession()" hx-target="body" hx-include="#csrfToken">Reset</button>
+              }
+            </div>
+          </div>
+        </div>
+      </li>
+    </ul>
+
+    <!-- Project AI API Keys -->
+    <ul class="collection with-header">
+      <li class="collection-header"><h4>Project AI API Keys</h4></li>
+      @if(projectAPIKeys.isEmpty()) {
+        <li class="collection-item">No projects with AI API keys found.</li>
+      }
+      @for(project <- projects) {
+        @if(projectAPIKeys.get(project.getId()) != null && projectAPIKeys.get(project.getId()).apiKey != null && !projectAPIKeys.get(project.getId()).apiKey.isEmpty()) {
+          <li class="collection-item">
+            <div>
+              <a href="@routes.ProjectsController.view(project.getId())"><b>@project.getName()</b></a>
+              <p>
+                Used to access <b>AI/LLM services</b> (like OpenAI or LocalAI) through the Data Foundry proxy.
+                <br>
+                <b>Usage:</b> Include in headers for AI-powered scripts or internal tools for this project.
+                <br>
+                <span class="blue-text"><b>Security:</b> These keys are linked to project quotas/credits. While they should be kept private, they can be used in project-specific tools or internal scripts.</span>
+              </p>
+              <div class="row valign-wrapper">
+                <div class="col s9">
+                  <code id="project-key-@project.getId()" class="api-key-obfuscated">••••••••••••••••••••••••••••••••</code>
+                </div>
+                <div class="col s3">
+                  <button class="btn-small reveal-btn" onclick="revealKey('project-key-@project.getId()', '@projectAPIKeys.get(project.getId()).apiKey')">Reveal</button>
+                </div>
+              </div>
+            </div>
+          </li>
+        }
+      }
+    </ul>
+
+    <!-- Dataset API Keys -->
+    <ul class="collection with-header">
+      <li class="collection-header"><h4>Dataset API Keys</h4></li>
+      @if(datasets.isEmpty()) {
+        <li class="collection-item">No datasets with API keys found.</li>
+      }
+      @for(dataset <- datasets) {
+        <li class="collection-item">
+          <div>
+            <b><a href="@routes.ProjectsController.view(dataset.getProject().getId())">@dataset.getProject().getName()</a> / <a href="@routes.DatasetsController.view(dataset.getId())">@dataset.getName()</a></b>
+            <p>
+              Provides <b>targeted access</b> to this specific dataset only.
+              <br>
+              <b>Usage:</b> Commonly used in data collection tools, IoT devices, or <u>frontend web components</u> that need to push/pull data for this dataset.
+              <br>
+              <span class="blue-text"><b>Security:</b> While still secret, these are lower risk than user tokens. They can be used in frontend code if the dataset is intended for public-facing data entry.</span>
+            </p>
+            <div class="row valign-wrapper">
+              <div class="col s9">
+                <code id="dataset-key-@dataset.getId()" class="api-key-obfuscated">••••••••••••••••••••••••••••••••</code>
+              </div>
+              <div class="col s3">
+                <button class="btn-small reveal-btn" onclick="revealKey('dataset-key-@dataset.getId()', '@dataset.configuration(models.Dataset.API_TOKEN, "")')">Reveal</button>
+              </div>
+            </div>
+          </div>
+        </li>
+      }
+    </ul>
+  </div>
+</div>
+</div>
+
+<input type="hidden" name="csrfToken" id="csrfToken" value="@token"/>
+
+<style>
+  .api-key-obfuscated {
+    background: #f4f4f4;
+    padding: 0.5rem;
+    border-radius: 4px;
+    display: block;
+    overflow-wrap: break-word;
+    font-family: monospace;
+    min-height: 2.5rem;
+  }
+  .reveal-btn {
+    width: 100%;
+  }
+  .tabs .tab a {
+    color: #4CAF50;
+  }
+  .tabs .tab a:hover, .tabs .tab a.active {
+    color: #2E7D32;
+    background-color: rgba(76, 175, 80, 0.1);
+  }
+  .tabs .indicator {
+    background-color: #4CAF50;
+  }
+</style>
+
+<script type="text/javascript">
+  function revealKey(id, key) {
+    const el = document.getElementById(id);
+    const originalText = el.innerText;
+    el.innerText = key;
+    el.style.color = "#d32f2f"; // Dark red to highlight revealed state
+    
+    // Hide after 15 seconds
+    setTimeout(() => {
+      el.innerText = originalText;
+      el.style.color = "";
+    }, 15000);
+  }
+</script>
+}

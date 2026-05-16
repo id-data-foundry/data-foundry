@@ -1,4 +1,4 @@
-@(token : String, telegramToken : String, user : Person, isActive : Boolean, updates : Integer, lastUpdateDate : String)
+@(token : String, user : Person, isActive : Boolean, updates : Integer, lastUpdateDate : String)
 @main("Edit user", "user") {
   <script src="@routes.DatasetsController.jsRoutes()" type="text/javascript"></script>
 
@@ -12,21 +12,16 @@
   </div>    
 </nav>
 
-@*
-  @if(updates > 0) {
-  <div class="row">
-    <div class="col s12">
-      <div class="card-panel grey black-text">
-        <a href="@routes.UsersController.viewUpdates(lastUpdateDate)" class="btn white green-text">
-          <span style="display: inline; line-height: 1.4em; font-size: 1.4em; position: relative; top: 3px;">@elements.icon("notifications")</span>
-        Project status (@updates)
-        </a>
-      </div>
-    </div>
+<div class="row">
+  <div class="col s12">
+    <ul class="tabs">
+      <li class="tab col s3"><a class="active" target="_self" href="@routes.UsersController.edit()">Profile</a></li>
+      <li class="tab col s3"><a target="_self" href="@routes.UsersController.apiAccess()">API Access</a></li>
+    </ul>
   </div>
-  }
-*@
+</div>
 
+<div id="edit">
 <div class="row">
   <div class="col s8">
     <h2>Edit profile</h2>
@@ -77,51 +72,6 @@
       </div>
     </div>
   </form>
-</div>
-
-  
-<div class="row">
-  <div class="col s12">
-    <h5>Telegram PIN</h5>
-    <p>
-      Use this PIN number to identify yourself in a chat with the Telegram bot as a research in one of your projects. 
-      Don't hand this PIN to anyone, otherwise they can impersonate your as a researcher in a Telegram chat in one of your projects. 
-      More information is available in the <a href="/documentation/Guides/Examples/Integrations/telegram.html" target="_blank">documentation</a>.
-      Note that any information you share via the desktop or mobile Telegram application will be also processed by <a href="https://telegram.org/privacy" target="_blank" rel="noopener">Telegram Messenger Inc.</a>
-    </p>
-  </div>
-  @if(telegramToken.length() > 0) {
-  <div class="col s12 m7">
-    <span style="font-size: 2rem; font-family: monospace;">@telegramToken</span>
-  </div>
-  } else {
-  <div class="col s12 m7">
-    <a href="#" class="btn red" hx-post="@routes.UsersController.resetTelegramSession()" hx-target="body" hx-include="#csrfToken">Reset Telegram session</a>
-  </div>
-  }
-</div>
-
-<div class="row">
-  <div class="col s12">
-    <h5>User API access token</h5>
-    <p>
-      Use this token to set up projects, datasets and project resources such as devices, participants and wearables from an external program like a Python script.
-      Note: This is NOT an AI API token which are project-specific. You can generate and retrieve AI API tokens in the project "edit" page.
-    </p>
-    @if(user.getAccesscode() != null && user.getAccesscode().length() > 0) {
-    <p>
-      Use this API access code with the v2 API for Data Foundry. Click below to generate one (also if you want to invalidate this current).
-    </p>
-    <textarea style="padding: 0.5rem; font-family: monospace;">@user.getAccesscode()</textarea>
-    } else {
-    <p>
-      No API access code set yet. Click below to generate one.
-    </p>
-    }
-  </div>
-  <div class="col s12">
-  	<a id="generateBtn" href="@routes.UsersController.generateToken("")" class="btn">Generate token</a>
-  </div>
 </div>
 
 <div class="row">
@@ -184,5 +134,6 @@
       }
     });
   </script>
+</div>
 </div>
 }

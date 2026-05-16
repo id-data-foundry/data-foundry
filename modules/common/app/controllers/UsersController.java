@@ -18,6 +18,8 @@ import com.typesafe.config.Config;
 
 import controllers.auth.UserAuth;
 import controllers.auth.V2UserApiAuth;
+import models.Dataset;
+import models.DatasetType;
 import models.LabNotesEntry;
 import models.LabNotesEntry.LabNotesEntryType;
 import models.Person;
@@ -37,6 +39,8 @@ import play.mvc.Security.Authenticated;
 import play.twirl.api.Html;
 import services.email.NotificationService;
 import services.search.SearchService;
+import services.api.GenericApiService.ProjectAPIInfo;
+import services.api.ai.ManagedAIApiService;
 import utils.DateUtils;
 import utils.auth.Roles;
 import utils.auth.TokenResolverUtil;
@@ -55,6 +59,7 @@ public class UsersController extends AbstractAsyncController {
 	private final SyncCacheApi cache;
 	private final TokenResolverUtil tokenResolverUtil;
 	private final OnboardingSupport onboardingSupport;
+	private final ManagedAIApiService managedAIAPIService;
 	private final boolean ssoEnabled;
 
 	private static final Logger.ALogger logger = Logger.of(UsersController.class);
@@ -62,13 +67,14 @@ public class UsersController extends AbstractAsyncController {
 	@Inject
 	public UsersController(Config configuration, NotificationService notificationService, SearchService searchService,
 			FormFactory formFactory, SyncCacheApi cache, TokenResolverUtil tokenResolverUtil,
-			OnboardingSupport onboardingSupport) {
+			OnboardingSupport onboardingSupport, ManagedAIApiService managedAIAPIService) {
 		this.notificationService = notificationService;
 		this.searchService = searchService;
 		this.formFactory = formFactory;
 		this.cache = cache;
 		this.tokenResolverUtil = tokenResolverUtil;
 		this.onboardingSupport = onboardingSupport;
+		this.managedAIAPIService = managedAIAPIService;
 
 		// only check SSO configuration once
 		ssoEnabled = ConfigurationUtils.isSSO(configuration);
@@ -224,6 +230,19 @@ public class UsersController extends AbstractAsyncController {
 	public Result edit(Request request) {
 		Person user = getAuthenticatedUserOrReturn(request, redirect(LANDING));
 
+		// get the LabNoteEntry info of this week
+		Date lastUpdateDate = DateUtils.startOfDay(new Date());
+		int updates = LabNotesEntry.countWeekUpdates(user, lastUpdateDate);
+
+		return ok(views.html.users.edit.render(csrfToken(request), user, onboardingSupport.isActive(user), updates,
+				new SimpleDateFormat("MMM d, yyyy").format(lastUpdateDate)));
+	}
+
+	@Authenticated(UserAuth.class)
+	@AddCSRFToken
+	public Result apiAccess(Request request) {
+		Person user = getAuthenticatedUserOrReturn(request, redirect(LANDING));
+
 		// set Telegram PIN in cache (valid for one hour)
 		final Optional<TelegramSession> session = TelegramSession.find.query().setMaxRows(1).where()
 				.eq("email", user.getEmail()).eq("state", "RESEARCHER").findOneOrEmpty();
@@ -235,12 +254,26 @@ public class UsersController extends AbstractAsyncController {
 			telegramToken = "";
 		}
 
-		// get the LabNoteEntry info of this week
-		Date lastUpdateDate = DateUtils.startOfDay(new Date());
-		int updates = LabNotesEntry.countWeekUpdates(user, lastUpdateDate);
+		// fetch project AI API keys (excluding archived projects)
+		List<Project> activeProjects = user.getOwnAndCollabProjects().stream() //
+				.filter(p -> !p.isArchivedProject()) //
+				.collect(Collectors.toList());
 
-		return ok(views.html.users.edit.render(csrfToken(request), telegramToken, user,
-				onboardingSupport.isActive(user), updates, new SimpleDateFormat("MMM d, yyyy").format(lastUpdateDate)));
+		java.util.Map<Long, ProjectAPIInfo> projectAPIKeys = new java.util.HashMap<>();
+		for (Project p : activeProjects) {
+			projectAPIKeys.put(p.getId(), managedAIAPIService.getProjectAPIAccess(user, p));
+		}
+
+		// collect dataset API keys from active projects
+		List<Dataset> datasets = activeProjects.stream() //
+				.flatMap(p -> p.getOperationalDatasets().stream()) //
+				.filter(d -> d.getDsType() == DatasetType.IOT || d.getDsType() == DatasetType.ENTITY
+						|| d.getDsType() == DatasetType.MEDIA) //
+				.filter(d -> !d.configuration(Dataset.API_TOKEN, "").isEmpty()) //
+				.collect(Collectors.toList());
+
+		return ok(views.html.users.apiAccess.render(csrfToken(request), telegramToken, user, activeProjects,
+				projectAPIKeys, datasets));
 	}
 
 	@Authenticated(UserAuth.class)
