@@ -26,7 +26,26 @@
     <div class="col s12 m6">
       <div class="card">
         <div class="card-image">
-          <img src="@api.routes.MediaDSController.scaledImage(dataset.getId(), item.link, "default")">
+          @if(item.link.endsWith("png") || item.link.endsWith("jpg") || item.link.endsWith("gif") || item.link.endsWith("jpeg")
+              || item.link.endsWith("PNG") || item.link.endsWith("JPG") || item.link.endsWith("GIF") || item.link.endsWith("JPEG")) {
+            <img src="@api.routes.MediaDSController.scaledImage(dataset.getId(), item.link, "default")">
+          } else {
+            @if(item.link.endsWith("mp4") || item.link.endsWith("MP4")) {
+              <video controls width="100%">
+                <source src="@api.routes.MediaDSController.scaledImage(dataset.getId(), item.link, "default")" type="video/mp4" />
+              </video>
+            } else {
+              @if(item.link.endsWith("mp3") || item.link.endsWith("MP3") || item.link.endsWith("ogg") || item.link.endsWith("OGG") || item.link.endsWith("wav") || item.link.endsWith("WAV") || item.link.endsWith("m4a") || item.link.endsWith("M4A")) {
+                <audio controls style="width: 100%; margin-top: 10px;">
+                  <source src="@api.routes.MediaDSController.scaledImage(dataset.getId(), item.link, "default")" />
+                </audio>
+              } else {
+                <div style="padding: 20px; text-align: center;">
+                  <a href="@api.routes.MediaDSController.downloadFile(dataset.getId(), item.link)">Download File</a>
+                </div>
+              }
+            }
+          }
           <span class="card-title">Current media</span>
         </div>
         <div class="card-content">
@@ -43,10 +62,10 @@
             <div class="input-field file-field">
               <div class="btn">
                 <span>New File</span>
-                <input id="file" type="file" name="files" accept=".png, .jpg, .jpeg, .gif">
+                <input id="file" type="file" name="files" accept=".png, .jpg, .jpeg, .gif, .mp3, .wav, .m4a, .ogg">
               </div>
               <div class="file-path-wrapper">
-                <input class="file-path validate" type="text" placeholder="Upload a new image to replace">
+                <input class="file-path validate" type="text" placeholder="Upload a new file to replace current one">
               </div>
             </div>
             <div class="input-field">

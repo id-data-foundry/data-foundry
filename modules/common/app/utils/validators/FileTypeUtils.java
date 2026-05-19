@@ -67,8 +67,12 @@ public final class FileTypeUtils {
 		audio.add("audio/mpeg");
 		audio.add("audio/mp3");
 		audio.add("audio/wav");
+		audio.add("audio/x-wav");
 		audio.add("audio/ogg");
 		audio.add("audio/webm");
+		audio.add("audio/mp4");
+		audio.add("audio/m4a");
+		audio.add("audio/x-m4a");
 		audio.add("audio/*");
 
 		Set<String> video = new HashSet<>();
@@ -397,7 +401,7 @@ public final class FileTypeUtils {
 	 */
 	public static boolean looksLikeAudioFile(File file) {
 		String fileName = file.getName().trim().toLowerCase();
-		return fileName.endsWith(".mp3") || fileName.endsWith(".ogg");
+		return fileName.endsWith(".mp3") || fileName.endsWith(".ogg") || fileName.endsWith(".wav") || fileName.endsWith(".m4a");
 	}
 
 	/**
@@ -454,7 +458,7 @@ public final class FileTypeUtils {
 	 */
 	public static boolean looksLikeAudioFile(String fileName) {
 		fileName = fileName.trim().toLowerCase();
-		return fileName.endsWith(".mp3") || fileName.endsWith(".ogg");
+		return fileName.endsWith(".mp3") || fileName.endsWith(".ogg") || fileName.endsWith(".wav") || fileName.endsWith(".m4a");
 	}
 
 	/**

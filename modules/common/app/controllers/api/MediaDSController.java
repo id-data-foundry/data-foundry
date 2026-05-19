@@ -327,16 +327,18 @@ public class MediaDSController extends AbstractDSController {
 						String fileType = filePart.getContentType();
 						String timestamp = df.get(fileName);
 
-						// restrict file type
-						if (!FileTypeUtils.looksLikeImageFile(fileName)) {
+						// restrict file type & content-based validation
+						if (FileTypeUtils.looksLikeImageFile(fileName)) {
+							if (!FileTypeUtils.validateAndLog(filePart, FileTypeUtils.FileCategory.IMAGE)) {
+								continue;
+							}
+						} else if (FileTypeUtils.looksLikeAudioFile(fileName)) {
+							if (!FileTypeUtils.validateAndLog(filePart, FileTypeUtils.FileCategory.AUDIO)) {
+								continue;
+							}
+						} else {
 							continue;
 						}
-
-						// content-based validation
-						if (!FileTypeUtils.validateAndLog(filePart, FileTypeUtils.FileCategory.IMAGE)) {
-							continue;
-						}
-
 						Date now = new Date();
 
 						// ensure that filename is unique on disk for participants
@@ -462,8 +464,10 @@ public class MediaDSController extends AbstractDSController {
 						String oldFileName = item.get().link;
 
 						// restrict file type
-						if (FileTypeUtils.looksLikeImageFile(filePart.getFilename())
-								&& FileTypeUtils.validateAndLog(filePart, FileTypeUtils.FileCategory.IMAGE)) {
+						if ((FileTypeUtils.looksLikeImageFile(filePart.getFilename())
+								&& FileTypeUtils.validateAndLog(filePart, FileTypeUtils.FileCategory.IMAGE))
+								|| (FileTypeUtils.looksLikeAudioFile(filePart.getFilename())
+										&& FileTypeUtils.validateAndLog(filePart, FileTypeUtils.FileCategory.AUDIO))) {
 
 							// New filename logic: timestamp + original filename
 							fileName = System.currentTimeMillis() + "_" + filePart.getFilename();
@@ -577,13 +581,16 @@ public class MediaDSController extends AbstractDSController {
 					String fileType = filePart.getContentType();
 					String timestamp = df.get(fileName);
 
-					// restrict file type
-					if (!FileTypeUtils.looksLikeImageFile(fileName)) {
-						continue;
-					}
-
-					// content-based validation
-					if (!FileTypeUtils.validateAndLog(filePart, FileTypeUtils.FileCategory.IMAGE)) {
+					// restrict file type & content-based validation
+					if (FileTypeUtils.looksLikeImageFile(fileName)) {
+						if (!FileTypeUtils.validateAndLog(filePart, FileTypeUtils.FileCategory.IMAGE)) {
+							continue;
+						}
+					} else if (FileTypeUtils.looksLikeAudioFile(fileName)) {
+						if (!FileTypeUtils.validateAndLog(filePart, FileTypeUtils.FileCategory.AUDIO)) {
+							continue;
+						}
+					} else {
 						continue;
 					}
 

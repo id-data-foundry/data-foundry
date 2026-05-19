@@ -58,7 +58,7 @@
                   <source src="@api.routes.MediaDSController.scaledImage(dataset.getId(),fileList.link,"thumb")" type="video/mp4" />
                 </video>
                 } else {
-                  @if(fileList.link.endsWith("mp3") || fileList.link.endsWith("MP3") || fileList.link.endsWith("ogg") || fileList.link.endsWith("OGG")) {
+                  @if(fileList.link.endsWith("mp3") || fileList.link.endsWith("MP3") || fileList.link.endsWith("ogg") || fileList.link.endsWith("OGG") || fileList.link.endsWith("wav") || fileList.link.endsWith("WAV") || fileList.link.endsWith("m4a") || fileList.link.endsWith("M4A")) {
                 <audio controls width="200">
                   <source src="@api.routes.MediaDSController.scaledImage(dataset.getId(),fileList.link,"thumb")" />
                 </audio>
@@ -130,7 +130,8 @@
               </a>
             }
             } else {
-              @if(fileList.link.endsWith("mp3") || fileList.link.endsWith("ogg")) {
+              @if(fileList.link.endsWith("mp3") || fileList.link.endsWith("ogg") || fileList.link.endsWith("wav") || fileList.link.endsWith("m4a")
+                  || fileList.link.endsWith("MP3") || fileList.link.endsWith("OGG") || fileList.link.endsWith("WAV") || fileList.link.endsWith("M4A")) {
             <div style="height: 200px; overflow: hidden; border-bottom: 1px solid #e0e0e0;">
               <audio controls width="200">
                 <source src="@api.routes.MediaDSController.scaledImage(dataset.getId(),fileList.link,"thumb")" />
@@ -172,7 +173,7 @@
               <div class="input-field file-field">
                 <div class="btn">
                   <span>File</span>
-                  <input id="files" type="file" name="files" multiple required="" accept=".png, .jpg, .jpeg, .gif">
+                  <input id="files" type="file" name="files" multiple required="" accept=".png, .jpg, .jpeg, .gif, .mp3, .wav, .m4a, .ogg">
                 </div>
                 <div class="file-path-wrapper">
                   <input class="file-path validate" type="text" placeholder="Upload one or more files">
@@ -213,7 +214,7 @@
               <br><br>
               Only upload and share data here if you have the right to do so. If in doubt, please check with support.
               <br><br>
-              Only <b>png, jpg, or gif files</b> are allowed.
+              Allowed formats: <b>png, jpg, gif, mp3, wav, m4a, ogg</b>.
             </p>
           </div>
         </div>
