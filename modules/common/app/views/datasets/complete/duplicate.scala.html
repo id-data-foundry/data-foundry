@@ -3,11 +3,19 @@
   @elements.dataset.datasetDuplicateTitlebar(dataset)
   <div class="row">
     <form class="col s12" onsubmit="return checkDate()" method="POST"
-        action="@api.routes.CompleteDSController.addMe(dataset.getProject().getId())">
+        action="@sendTo()">
       @elements.dataset.duplicateForm(dataset, token)
     </form>
   </div>
 
   @elements.dataset.datasetMetaData(dataset)
 
+}
+
+@sendTo() = {
+  @if(dataset.getCollectorType() == "ACTOR") {
+    @controllers.tools.routes.ActorController.add(dataset.getProject().getId())
+  } else {
+    @api.routes.CompleteDSController.addMe(dataset.getProject().getId())
+  }
 }

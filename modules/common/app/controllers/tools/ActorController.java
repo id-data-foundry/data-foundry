@@ -82,8 +82,10 @@ public class ActorController extends AbstractAsyncController {
 			return redirect(routes.ActorController.index());
 		}
 
+		String description = nss(df.get("description")) == "" ? "Script dataset" : df.get("description");
+
 		// create new dataset for the actor
-		Dataset ds = datasetConnector.create(nss(df.get("name")), DatasetType.COMPLETE, p, "Script dataset",
+		Dataset ds = datasetConnector.create(nss(df.get("dataset_name")), DatasetType.COMPLETE, p, description,
 				"Data Foundry scripting", null, df.get("license"));
 		ds.setCollectorType(Dataset.ACTOR);
 		ds.save();
