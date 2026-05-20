@@ -965,4 +965,31 @@ public class CompleteDSController extends AbstractDSController {
 		});
 	}
 
+	/**
+	 * Duplicate dataset with the same setting and name followed by a number
+	 *
+	 * @param request
+	 * @param id
+	 * @return
+	 */
+	@Authenticated(UserAuth.class)
+	@AddCSRFToken
+	public Result duplicate(Request request, Long id) {
+		String username = getAuthenticatedUserNameOrReturn(request, redirect(LANDING));
+
+		Dataset ds = Dataset.find.byId(id);
+		if (ds == null) {
+			return redirect(HOME).addingToSession(request, "error", "We could not find this dataset.");
+		}
+
+		Project p = ds.getProject();
+		p.refresh();
+		if (!p.editableBy(username)) {
+			return redirect(HOME).addingToSession(request, "error",
+					"You don't have permissions for this action. Need to be the owner or a collaborator of the "
+							+ "project.");
+		}
+
+		return ok(views.html.datasets.complete.duplicate.render(csrfToken(request), ds));
+	}
 }

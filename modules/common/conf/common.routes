@@ -173,6 +173,8 @@ GET 		/datasets/download/:id/participant/:participant_id			controllers.DatasetsC
 GET 		/datasets/downloadPublic/*token								controllers.DatasetsController.downloadPublic(request: Request, token: String, cluster_id: Long ?= -1L, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
 GET         /download/*token											controllers.DatasetsController.downloadTemporaryFile(request: Request, token: String)
 
+GET        /duplicate/:id                                              controllers.DatasetsController.duplicate(request: Request, id: Long)
+
 # reviews -------------------------------------------------------------------------------------------------------------
 
 GET			/review/						 					controllers.ReviewController.view(request: Request, invite_token: String ?= "")
@@ -308,6 +310,7 @@ GET			/datasets/ts/tableTree/:id							controllers.api.TimeseriesDSController.ta
 GET			/datasets/ts/:id/itemsNested						controllers.api.TimeseriesDSController.getItemsNested(request: Request, id: Long)
 GET			/datasets/ts/raw/:id.csv							controllers.api.TimeseriesDSController.downloadRaw(request: Request, id: Long, cluster_id: Long ?= -1L, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
 GET			/datasets/ts/rawPublic/*token						controllers.api.TimeseriesDSController.downloadRawPublic(request: Request, token: String)
+POST        /datasets/ts/duplicate/:id                          controllers.api.TimeseriesDSController.duplicate(request: Request, id: Long)
 
 # entity data
 GET			/datasets/entity/add/:id							controllers.api.EntityDSController.add(request: Request, id: Long)
@@ -328,6 +331,7 @@ PUT			/datasets/entity/:id/item/							controllers.api.EntityDSController.update
 DELETE		/datasets/entity/:id/item/							controllers.api.EntityDSController.deleteItem(request: Request, id: Long)
 GET			/datasets/entity/raw/:id.csv						controllers.api.EntityDSController.downloadRaw(request: Request, id: Long, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
 GET			/datasets/entity/rawPublic/*token					controllers.api.EntityDSController.downloadRawPublic(request: Request, token: String)
+POST		/datasets/entity/duplicate/:id                      controllers.api.EntityDSController.duplicate(request: Request, id: Long)
 
 # annotations data
 GET			/datasets/annotation/add/:id						controllers.api.AnnotationDSController.add(request: Request, id: Long)
@@ -338,11 +342,13 @@ GET			/datasets/annotation/record/:id						controllers.api.AnnotationDSControlle
 GET			/datasets/annotation/record/:id/:cluster			controllers.api.AnnotationDSController.recordForm(request: Request, id: Long, cluster: String)
 POST		/datasets/annotation/record/:id						controllers.api.AnnotationDSController.record(request: Request, id: Long)
 POST		/datasets/annotation/recordForProject/:id			controllers.api.AnnotationDSController.recordForProject(request: Request, id: Long)
+POST		/datasets/annotation/duplicate/:id                  controllers.api.AnnotationDSController.duplicate(request: Request, id: Long)
 
 # diary data
 GET			/datasets/diary/add/:id								controllers.api.DiaryDSController.add(request: Request, id: Long)
 POST		/datasets/diary/addMe/:id							controllers.api.DiaryDSController.addMe(request: Request, id: Long)
 POST		/datasets/diary/editMe/:id							controllers.api.DiaryDSController.editMe(request: Request, id: Long)
+POST		/datasets/diary/duplicate/:id                       controllers.api.DiaryDSController.duplicate(request: Request, id: Long)
 
 # complete data "existing"
 GET			/datasets/existing/add/:id							controllers.api.CompleteDSController.add(request: Request, id: Long)
@@ -359,6 +365,7 @@ GET			/datasets/existing/downloadLatest/:id/:fileName		controllers.api.CompleteD
 GET			/datasets/existing/filePublic/:filename/*token		controllers.api.CompleteDSController.downloadFilePublic(filename: String, token: String)
 GET			/datasets/existing/edit/:id/:fileId					controllers.api.CompleteDSController.editFile(request: Request, id: Long, fileId: Long)
 POST		/datasets/existing/edit/:id/:fileId					controllers.api.CompleteDSController.saveFile(request: Request, id: Long, fileId: Long)
+POST		/datasets/existing/duplicate/:id                    controllers.api.CompleteDSController.duplicate(request: Request, id: Long)
 
 # movement data
 GET			/datasets/movement/add/:id							controllers.api.MovementDSController.add(request: Request, id: Long)
@@ -366,6 +373,7 @@ POST		/datasets/movement/addMe/:id						controllers.api.MovementDSController.add
 POST		/datasets/movement/editMe/:id						controllers.api.MovementDSController.editMe(request: Request, id: Long)
 GET			/datasets/movement/downloadFile/:id/:fileId/:filename	controllers.api.MovementDSController.downloadFile(request: Request, id: Long, fileId: Long, filename: String)
 POST		/datasets/movement/uploadFile/:id					controllers.api.MovementDSController.uploadFile(request: Request, id: Long)
+POST		/datasets/movement/duplicate/:id                    controllers.api.MovementDSController.duplicate(request: Request, id: Long)
 
 # media data
 GET			/datasets/media/add/:id								controllers.api.MediaDSController.add(request: Request, id: Long)
@@ -379,6 +387,7 @@ POST		/datasets/media/uploadFile/:id						controllers.api.MediaDSController.uplo
 POST		/datasets/media/:id/file								controllers.api.MediaDSController.addItem(request: Request, id: Long)
 PUT			/datasets/media/:id/file/:itemId					controllers.api.MediaDSController.updateItem(request: Request, id: Long, itemId: Long)
 GET			/datasets/media/:id/testUpload						controllers.api.MediaDSController.test(request: Request, id: Long)
+POST		/datasets/media/duplicate/:id                       controllers.api.MediaDSController.duplicate(request: Request, id: Long)
 
 # expsampling data
 GET			/datasets/es/add/:id								controllers.api.ExpSamplingDSController.add(request: Request, id: Long)
@@ -401,6 +410,7 @@ GET			/datasets/form/visualize/:id						controllers.api.FormDSController.visuali
 GET			/datasets/form/raw/:id.csv							controllers.api.FormDSController.downloadRaw(request: Request, id: Long, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
 GET			/datasets/form/record/:id/*token					controllers.api.FormDSController.recordForm(request: Request, id: Long, token: String)
 POST		/datasets/form/record/:id							controllers.api.FormDSController.record(request: Request, id: Long)
+POST		/datasets/form/duplicate/:id                        controllers.api.FormDSController.duplicate(request: Request, id: Long)
 
 # survey data
 GET			/datasets/survey/add/:id								controllers.api.SurveyDSController.add(request: Request, id: Long)
@@ -412,14 +422,16 @@ GET			/datasets/survey/visualize/:id						controllers.api.SurveyDSController.vis
 GET			/datasets/survey/raw/:id.csv						controllers.api.SurveyDSController.downloadRaw(request: Request, id: Long, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
 GET			/datasets/survey/record/:id/*invite_token			controllers.api.SurveyDSController.recordForm(request: Request, id: Long, invite_token: String)
 POST		/datasets/survey/record/:id/*invite_token			controllers.api.SurveyDSController.record(request: Request, id: Long, invite_token: String)
+POST		/datasets/survey/duplicate/:id                      controllers.api.SurveyDSController.duplicate(request: Request, id: Long)
 
-# fitbit data 
+# fitbit data
 GET			/datasets/fitbit/add/:id							controllers.api.FitbitDSController.add(request: Request, id: Long)
 POST		/datasets/fitbit/addMe/:id							controllers.api.FitbitDSController.addMe(request: Request, id: Long)
 POST		/datasets/fitbit/editMe/:id							controllers.api.FitbitDSController.editMe(request: Request, id: Long)
 GET 		/datasets/fitbit/heartrate/:id 						controllers.api.FitbitDSController.heartrate(request: Request, id: Long)
+POST		/datasets/fitbit/duplicate/:id                      controllers.api.FitbitDSController.duplicate(request: Request, id: Long)
 
-# googlefit data 
+# googlefit data
 GET			/datasets/googlefit/add/:id							controllers.api.GoogleFitDSController.add(request: Request, id: Long)
 POST		/datasets/googlefit/addMe/:id						controllers.api.GoogleFitDSController.addMe(request: Request, id: Long)
 POST		/datasets/googlefit/editMe/:id						controllers.api.GoogleFitDSController.editMe(request: Request, id: Long)

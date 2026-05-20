@@ -1804,8 +1804,69 @@ public class DatasetsController extends AbstractAsyncController {
 	}
 
 	/**
+	 *
+	 * @param request
+	 * @return
+	 */
+	@Authenticated(UserAuth.class)
+	@AddCSRFToken
+	public Result duplicate(Request request, Long id) {
+		// only continue if user is logged in
+		Person user = getAuthenticatedUserOrReturn(request, redirect(controllers.routes.HomeController.login("", ""))
+				.addingToSession(request, AbstractAsyncController.REDIRECT_URL, request.path()));
+
+		// check if dataset exists
+		Dataset ds = Dataset.find.byId(id);
+		if (ds == null) {
+			return redirect(HOME).addingToSession(request, "error", "Dataset is not available.");
+		}
+
+		Project project = ds.getProject();
+		if (!project.visibleFor(user)) {
+			// non-public project --> home
+			if (!project.isPublicProject()) {
+				return redirect(HOME).addingToSession(request, "error", "Dataset is not available.");
+			}
+
+			// public project
+			return ok(views.html.datasets.viewPublic.render(ds, null, request));
+		}
+
+		// redirect to the right data set
+		switch (ds.getDsType()) {
+		case IOT:
+		case TIMESERIES:
+			return timeseriesDSController.duplicate(request, id);
+		case ENTITY:
+			return entityDSController.duplicate(request, id);
+		case ANNOTATION:
+			return annotationDSController.duplicate(request, id);
+		case DIARY:
+			return diaryDSController.duplicate(request, id);
+		case FORM:
+			return formDSController.duplicate(request, id);
+		case SURVEY:
+			return surveyDSController.duplicate(request, id);
+		case COMPLETE:
+			return completeDSController.duplicate(request, id);
+		// case LINKED:
+		// 	return linkedDSController.duplicate(request, id);
+		// case ES:
+		// 	return expSamplingDSController.duplicate(request, id);
+		case MOVEMENT:
+			return movementDSController.duplicate(request, id);
+		case MEDIA:
+			return mediaDSController.duplicate(request, id);
+		case FITBIT:
+			return fitbitDSController.duplicate(request, id);
+		default:
+			return redirect(routes.ProjectsController.view(id));
+		}
+	}
+
+	/**
 	 * generate Javascript routes resource
-	 * 
+	 *
 	 * @param request
 	 * @return
 	 */
