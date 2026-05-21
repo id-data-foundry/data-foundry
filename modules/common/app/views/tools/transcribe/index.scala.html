@@ -1,6 +1,7 @@
 @()
 @main("Media Transcription", "tools") {
-
+	<script src="@routes.Assets.versioned("javascripts/mediabunny.js")"></script>
+	<script src="@routes.Assets.versioned("javascripts/mediabunny-mp3-encoder.js")"></script>
 	<style type="text/css">
 		
 		.upload-area {
@@ -748,8 +749,65 @@
 				outputSegments.innerHTML = ""; // Keep empty during processing
 				downloadBtn.style.display = 'none';
 				outputHelpText.style.display = 'none';
+
+				let fileToUpload = file;
 				
-				const languageURL = '@controllers.tools.routes.MediaToTextController.submit()?lang=' + langSelect.value + '&type=' + encodeURIComponent(file.type);
+				// Preprocess audio/video files (except PDF) using Mediabunny
+				if (file.type !== 'application/pdf' && typeof Mediabunny !== 'undefined') {
+					try {
+						statusText.textContent = "Preprocessing media (extracting and compressing audio track)...";
+						determinateBar.classList.remove('indeterminate');
+						determinateBar.classList.add('determinate');
+
+						const { Input, Output, Conversion, BlobSource, Mp3OutputFormat, BufferTarget, ALL_FORMATS } = Mediabunny;
+						
+						// Register the MP3 encoder extension
+						if (typeof MediabunnyMp3Encoder !== 'undefined' && MediabunnyMp3Encoder.registerMp3Encoder) {
+							MediabunnyMp3Encoder.registerMp3Encoder(Mediabunny);
+						}
+
+						const input = new Input({
+							source: new BlobSource(file),
+							formats: ALL_FORMATS,
+						});
+
+						const bufferTarget = new BufferTarget();
+
+						const output = new Output({
+							format: new Mp3OutputFormat(),
+							target: bufferTarget,
+						});
+
+						const conversion = await Conversion.init({
+							input,
+							output,
+							audio: {
+								codec: 'mp3',
+								sampleRate: 16000,
+								numberOfChannels: 1,
+								bitrate: 64000
+							},
+							selectTracks: (tracks) => tracks.filter(t => t.type === 'audio')
+						});
+
+						conversion.onProgress = (progress) => {
+							determinateBar.style.width = (progress * 100) + "%";
+						};
+
+						await conversion.execute();
+						
+						const buffer = bufferTarget.buffer;
+						const blob = new Blob([buffer], { type: 'audio/mp3' });
+						fileToUpload = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".mp3", { type: "audio/mp3" });
+						
+						statusText.textContent = "Preprocessing complete. Uploading...";
+					} catch (e) {
+						console.error("Preprocessing failed:", e);
+						statusText.textContent = "Preprocessing failed, uploading original file...";
+					}
+				}
+				
+				const languageURL = '@controllers.tools.routes.MediaToTextController.submit()?lang=' + langSelect.value + '&type=' + encodeURIComponent(fileToUpload.type);
 				
 				try {
 					// Note: fetch doesn't support upload progress. 
@@ -762,7 +820,7 @@
 					formData.append("model", modelSelect.value);
 					formData.append("timestamps", timestampsCheckbox.checked.toString());
 					formData.append("diarization", diarizationCheckbox.checked.toString());
-					formData.append('file', file);
+					formData.append('file', fileToUpload);
 
 					const response = await fetch(languageURL, {
 						method: 'POST',
