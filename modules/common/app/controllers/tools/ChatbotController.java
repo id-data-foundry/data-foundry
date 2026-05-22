@@ -687,8 +687,8 @@ public class ChatbotController extends AbstractAsyncController {
 
 		// if there is a conversation history, run a quick request to reformulate the user prompt in context of the
 		// history
-		String userPrompt = ch.items
-				.isEmpty()
+		boolean hasUserMessage = ch.items().stream().anyMatch(ConversationItem::isUser);
+		String userPrompt = !hasUserMessage
 						? originalUserPrompt
 						: reformulateUserPromptWithHistory(user.getEmail(), ds.getProject().getId(), pai.apiKey,
 								ds.configuration(Dataset.CHATBOT_MODEL, ""), originalUserPrompt, ch)
@@ -794,10 +794,15 @@ public class ChatbotController extends AbstractAsyncController {
 	private Optional<String> reformulateUserPromptWithHistory(String user, long projectId, String apiKey, String model,
 			String userPrompt, ConversationHistory ch) {
 		ObjectNode requestJson = Json.newObject();
-		requestJson.put(ApiServiceConstants.REQUEST_TASK, ApiServiceConstants.REQUEST_TASK_COMPLETION);
+		requestJson.put(ApiServiceConstants.REQUEST_TASK, ApiServiceConstants.REQUEST_TASK_CHAT_COMPLETION);
 		requestJson.put(ApiServiceConstants.REQUEST_API_TOKEN, apiKey);
 		requestJson.put(ApiServiceConstants.REQUEST_MODEL, model);
 		requestJson.put(ApiServiceConstants.REQUEST_MAX_TOKENS, 1000);
+
+		// prepare messages
+		ArrayNode messages = requestJson.putArray(ApiServiceConstants.REQUEST_MESSAGES);
+		messages.add(Json.newObject().put("role", ConversationItem.SYSTEM).put("content",
+				"You are a helpful assistant. Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language. Keep as much details as possible from previous messages. Keep entity names and all. Return ONLY the standalone question, no intro or outro."));
 
 		// contextualize the user prompt given the chat history
 		StringBuilder sb = new StringBuilder();
@@ -807,23 +812,20 @@ public class ChatbotController extends AbstractAsyncController {
 			sb.append(item.content());
 			sb.append("\n");
 		}
-		requestJson.put(ApiServiceConstants.REQUEST_PROMPT,
-				"""
-						Given the following conversation and a follow up question, rephrase the follow up question to be a standalone question, in its original language. Keep as much details as possible from previous messages. Keep entity names and all.
-
-						Chat History:
-						%s
-						Follow Up Input: %s
-						Standalone question:
-						      		"""
-						.formatted(sb.toString(), userPrompt));
+		messages.add(Json.newObject().put("role", ConversationItem.USER).put("content", """
+				Chat History:
+				%s
+				Follow Up Input: %s
+				Standalone question:""".formatted(sb.toString(), userPrompt)));
 
 		try {
 			final RemoteApiRequest apiRequest = new RemoteApiRequest("",
 					ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, user, apiKey, projectId, requestJson);
 			String result = managedAIAPIService.submitApiRequest(apiRequest);
 			ObjectNode on = (ObjectNode) Json.parse(result);
-			String resultAsText = on.get("text").asText();
+
+			JsonNode contentNode = on.get("content");
+			String resultAsText = (contentNode != null && !contentNode.isNull()) ? contentNode.asText() : "";
 
 			// check whether we have thinking tokens in the result, if so just take what's behind
 			if (resultAsText.contains("final<|message|>")) {
@@ -831,7 +833,7 @@ public class ChatbotController extends AbstractAsyncController {
 						.substring(resultAsText.indexOf("final<|message|>") + "final<|message|>".length());
 			}
 
-			return Optional.of(resultAsText);
+			return Optional.of(resultAsText.trim());
 		} catch (Exception e) {
 			return Optional.empty();
 		}
