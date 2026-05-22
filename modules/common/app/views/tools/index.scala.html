@@ -182,6 +182,24 @@
 				</div>
 			</div>
 		</div>
+
+		<div class="col s12 l4">
+			<div class="card" @if(!aiAvailable) { style="opacity: 0.5;" }>
+				<div class="card-content">
+          			<span class="card-title">Local AI Examples</span>
+          			<p>
+          				Explore examples demonstrating various capabilities of the Local AI features.
+          			</p>
+        		</div>
+        		<div class="card-action">
+					@if(aiAvailable) {
+						<a href="/documentation/Guides/LocalAI/examples/overview.html">Open</a>
+					} else {
+						<span class="grey-text">Currently unavailable</span>
+					}
+				</div>
+			</div>
+		</div>
 	</div>
 	}
 }
