@@ -32,6 +32,8 @@ const foundry = {
     responseFormat,
     tools,
     toolChoice,
+    stream = false,
+    onChunk,
     logging = true,
     loadingElementSelector,
     resultElementSelector,
@@ -87,6 +89,7 @@ const foundry = {
             model: model,
             temperature: temperature,
             max_tokens: maxTokens,
+            stream: stream,
             ...(responseFormat && { response_format: responseFormat }),
             ...(tools && { tools: tools }),
             ...(toolChoice && { tool_choice: toolChoice }),
@@ -94,25 +97,105 @@ const foundry = {
         }
       );
 
-      // Wait for LocalAI response
-      const json = await response.json();
+      // check for error in response
+      if(!response.ok) {
+        const errorJson = await response.json();
+        alert(errorJson.error || "An error occurred");
+        if (loadingElement) {
+          loadingElement.setAttribute("aria-busy", "false");
+        }
+        return;
+      }
+
+      let chatResponse = "";
+      let toolCalls = undefined;
+      let usage = undefined;
+
+      if (stream) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          
+          let parts = buffer.split(/\r?\n\r?\n/);
+          buffer = parts.pop();
+
+          for (const eventStr of parts) {
+            if (!eventStr.trim()) continue;
+
+            const lines = eventStr.split(/\r?\n/);
+            let dataStr = "";
+            for (const line of lines) {
+              if (line.trim().startsWith("data:")) {
+                dataStr += line.replace(/^data:\s*/, "") + "\n";
+              }
+            }
+            dataStr = dataStr.trim();
+
+            if (dataStr === "[DONE]") continue;
+            if (!dataStr) continue;
+
+            try {
+              const data = JSON.parse(dataStr);
+              const choice = data.choices && data.choices[0];
+              const delta = choice && (choice.delta || choice.message);
+              
+              if (delta && delta.content !== undefined && delta.content !== null) {
+                const content = delta.content;
+
+                // Stop loading indicator on first chunk
+                if (loadingElement) {
+                  loadingElement.setAttribute("aria-busy", "false");
+                  loadingElement = null;
+                }
+
+                chatResponse += content;
+                if (onChunk) {
+                  onChunk(content);
+                }
+                if (resultElementSelector) {
+                  const el = document.querySelector(resultElementSelector);
+                  if (el) el.insertAdjacentText('beforeend', content);
+                }
+              }
+              if (data.usage) {
+                usage = data.usage;
+              }
+            } catch (e) {
+              console.error("SSE parse error", e, dataStr);
+            }
+          }
+        }
+      } else {
+        // Wait for LocalAI response
+        const json = await response.json();
+
+        // check for error in response
+        if(json.error) {
+          // if so, display and return
+          alert(json.error);
+          if (loadingElement) {
+            loadingElement.setAttribute("aria-busy", "false");
+          }
+          return;
+        }
+
+        // json.content contains the generated chat response
+        let message = json.choices[0].message;
+        chatResponse = message.content;
+        toolCalls = message.tool_calls;
+        usage = json.usage;
+      }
 
       // Stop loading indicator
       if (loadingElement) {
         loadingElement.setAttribute("aria-busy", "false");
       }
-
-      // check for error in response
-      if(json.error) {
-        // if so, display and return
-        alert(json.error);
-        return;
-      }
-
-      // json.content contains the generated chat response
-      let message = json.choices[0].message;
-      let chatResponse = message.content;
-      let toolCalls = message.tool_calls;
 
       if (logging) {
         console.log("Result:", chatResponse);
@@ -121,13 +204,13 @@ const foundry = {
         }
       }
 
-      // Place result on the page
-      if (resultElementSelector && chatResponse) {
+      // Place result on the page (only if not streaming, as streaming already handles this)
+      if (!stream && resultElementSelector && chatResponse) {
         document.querySelector(resultElementSelector).innerHTML += chatResponse;
       }
 
       // Return the AI response and usage
-      return { text: chatResponse, toolCalls: toolCalls, usage: json.usage };
+      return { text: chatResponse, toolCalls: toolCalls, usage: usage };
     } catch (error) {
       console.error("Error:", error);
     }
@@ -470,6 +553,8 @@ const foundry = {
     responseFormat,
     tools,
     toolChoice,
+    stream = false,
+    onChunk,
     logging = true,
     loadingElementSelector,
     resultElementSelector,
@@ -532,6 +617,7 @@ const foundry = {
             model: model,
             temperature: temperature,
             max_tokens: maxTokens,
+            stream: stream,
             ...(responseFormat && { response_format: responseFormat }),
             ...(tools && { tools: tools }),
             ...(toolChoice && { tool_choice: toolChoice }),
@@ -539,25 +625,105 @@ const foundry = {
         }
       );
 
-      // Wait for LocalAI response
-      const json = await response.json();
+      // check for error in response
+      if(!response.ok) {
+        const errorJson = await response.json();
+        alert(errorJson.error || "An error occurred");
+        if (loadingElement) {
+          loadingElement.setAttribute("aria-busy", "false");
+        }
+        return;
+      }
+
+      let chatResponse = "";
+      let toolCalls = undefined;
+      let usage = undefined;
+
+      if (stream) {
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder("utf-8");
+        let buffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          
+          let parts = buffer.split(/\r?\n\r?\n/);
+          buffer = parts.pop();
+
+          for (const eventStr of parts) {
+            if (!eventStr.trim()) continue;
+
+            const lines = eventStr.split(/\r?\n/);
+            let dataStr = "";
+            for (const line of lines) {
+              if (line.trim().startsWith("data:")) {
+                dataStr += line.replace(/^data:\s*/, "") + "\n";
+              }
+            }
+            dataStr = dataStr.trim();
+
+            if (dataStr === "[DONE]") continue;
+            if (!dataStr) continue;
+
+            try {
+              const data = JSON.parse(dataStr);
+              const choice = data.choices && data.choices[0];
+              const delta = choice && (choice.delta || choice.message);
+              
+              if (delta && delta.content !== undefined && delta.content !== null) {
+                const content = delta.content;
+
+                // Stop loading indicator on first chunk
+                if (loadingElement) {
+                  loadingElement.setAttribute("aria-busy", "false");
+                  loadingElement = null;
+                }
+
+                chatResponse += content;
+                if (onChunk) {
+                  onChunk(content);
+                }
+                if (resultElementSelector) {
+                  const el = document.querySelector(resultElementSelector);
+                  if (el) el.insertAdjacentText('beforeend', content);
+                }
+              }
+              if (data.usage) {
+                usage = data.usage;
+              }
+            } catch (e) {
+              console.error("SSE parse error", e, dataStr);
+            }
+          }
+        }
+      } else {
+        // Wait for LocalAI response
+        const json = await response.json();
+
+        // check for error in response
+        if(json.error) {
+          // if so, display and return
+          alert(json.error);
+          if (loadingElement) {
+            loadingElement.setAttribute("aria-busy", "false");
+          }
+          return;
+        }
+
+        // json.content contains the generated chat response
+        let message = json.choices[0].message;
+        chatResponse = message.content;
+        toolCalls = message.tool_calls;
+        usage = json.usage;
+      }
 
       // Stop loading indicator
       if (loadingElement) {
         loadingElement.setAttribute("aria-busy", "false");
       }
-
-      // check for error in response
-      if(json.error) {
-        // if so, display and return
-        alert(json.error);
-        return;
-      }
-
-      // json.content contains the generated chat response
-      let message = json.choices[0].message;
-      let chatResponse = message.content;
-      let toolCalls = message.tool_calls;
 
       if (logging) {
         console.log("Result:", chatResponse);
@@ -567,7 +733,7 @@ const foundry = {
       }
 
       // Place result on the page
-      if (resultElementSelector && chatResponse) {
+      if (!stream && resultElementSelector && chatResponse) {
         document.querySelector(resultElementSelector).innerHTML += chatResponse;
       }
 

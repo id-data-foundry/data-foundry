@@ -175,20 +175,39 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 	 */
 	public void submitApiRequest(StreamingRemoteApiRequest request) {
 
-		// fast track credit requests
+		// 1. check if we have an API token set and whether this token is valid
+		switch (request.getInternalApiKey()) {
+		case "":
+			request.setResult(Optional.of(Json.newObject().put(RESPONSE_ERROR, "No api-key available.").toString()));
+			return;
+		case OPENAI_APIKEY:
+			request.setInternalApiKey(openAIAPIKey);
+			break;
+		default:
+			break;
+		}
+
+		// 2. fast track credit requests
 		if (request.isCreditRequest()) {
 			request.appendResult(checkCredits(request.getUserApiKey()).get());
 			request.finish();
 		}
 
-		// compute requested credits
+		// 3. compute requested credits
 		if (request.isDirectOpenAIApiRequest()) {
 			// this can be sent directly, no need to check for DB: submit and return immediately
 			executionService.submitRequest(request, (r) -> processRequest(r), request.getMsTimeout());
 			return;
 		}
 
-		// check authorization from DB and check available credits for this request, if sufficient update credits
+		// 4. fast track local documentation API requests
+		if (request.getUserApiKey().equals(getInternalDocumentationAPIKey()) && request.getRequestedTokens() <= 1) {
+			// submit and wait for timeout
+			executionService.submitRequest(request, (r) -> processRequest(r), request.getMsTimeout());
+			return;
+		}
+
+		// 5. check authorization from DB and check available credits for this request, if sufficient update credits
 		Optional<String> errorResponse = checkAndUpdateCredits(request.getUserApiKey(), request.getRequestedTokens());
 		// if an error response is returned, abort and return it directly
 		if (errorResponse.isPresent()) {
@@ -196,7 +215,7 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 			return;
 		}
 
-		// submit and return immediately
+		// 6. submit and return immediately
 		executionService.submitRequest(request, (r) -> processRequest(r), request.getMsTimeout());
 	}
 
