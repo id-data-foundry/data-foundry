@@ -7,8 +7,7 @@
 
       <b>Download an image from the dataset</b>
 
-      <pre class="language-javascript">
-          <code class="language-javascript">// download function
+      <pre class="language-javascript"><code class="language-javascript">// download function
 const downloadFile = (id, imageElementId) => {
   const response = await fetch('@api.routes.MediaDSController.getItemApi(dataset.getId(), "FILENAME").absoluteURL(request, request.secure())', {
     headers: {
@@ -34,8 +33,7 @@ downloadFile(participantId, '#imageElement')</code></pre>
 
       <b>Upload an image to the dataset</b>
 
-      <pre class="language-javascript">
-          <code class="language-javascript">// upload function
+      <pre class="language-javascript"><code class="language-javascript">// upload function
 const uploadFile = () => {
 	const myform = document.querySelector('#myform');
   const formData = new FormData(myform);
@@ -59,6 +57,67 @@ const uploadFile = () => {
       	You can try the image upload here in a new tab: 
       	<a href="@api.routes.MediaDSController.test(dataset.getId())" target="_blank" class="">Test image upload</a>
       </p>
+    </div>
+  </li>
+  <li>
+    <div class="collapsible-header">cURL</div>
+    <div class="collapsible-body">
+
+      <b>Download an image from the dataset</b>
+
+      <pre class="language-bash"><code class="language-bash">curl -O -J \
+  -H "api_token: @dataset.configuration(Dataset.API_TOKEN, "TOKEN")" \
+  -H "participant_id: PARTICIPANT_ID" \
+  '@api.routes.MediaDSController.getItemApi(dataset.getId(), "FILENAME").absoluteURL(request, request.secure())'</code></pre>
+
+      <b>Upload an image to the dataset</b>
+
+      <pre class="language-bash"><code class="language-bash">curl -X POST \
+  -H "api_token: @dataset.configuration(Dataset.API_TOKEN, "TOKEN")" \
+  -H "participant_id: PARTICIPANT_ID" \
+  -F "files=@@/path/to/your/image.jpg" \
+  '@api.routes.MediaDSController.addItemApi(dataset.getId()).absoluteURL(request, request.secure())'</code></pre>
+    </div>
+  </li>
+  <li>
+    <div class="collapsible-header">Python</div>
+    <div class="collapsible-body">
+
+      <b>Download an image from the dataset</b>
+
+      <pre class="language-python"><code class="language-python">import requests
+import shutil
+
+url = '@api.routes.MediaDSController.getItemApi(dataset.getId(), "FILENAME").absoluteURL(request, request.secure())'
+headers = {
+    'api_token': '@dataset.configuration(Dataset.API_TOKEN, "TOKEN")',
+    'participant_id': 'PARTICIPANT_ID'
+}
+
+response = requests.get(url, headers=headers, stream=True)
+if response.status_code == 200:
+    with open('FILENAME', 'wb') as f:
+        response.raw.decode_content = True
+        shutil.copyfileobj(response.raw, f)
+else:
+    print(f"Failed to download. Status code: {response.status_code}")</code></pre>
+
+      <b>Upload an image to the dataset</b>
+
+      <pre class="language-python"><code class="language-python">import requests
+
+url = '@api.routes.MediaDSController.addItemApi(dataset.getId()).absoluteURL(request, request.secure())'
+headers = {
+    'api_token': '@dataset.configuration(Dataset.API_TOKEN, "TOKEN")',
+    'participant_id': 'PARTICIPANT_ID'
+}
+files = {'files': open('/path/to/your/image.jpg', 'rb')}
+
+response = requests.post(url, headers=headers, files=files)
+if response.status_code == 200:
+    print("Upload successful!")
+else:
+    print(f"Failed to upload. Status code: {response.status_code}")</code></pre>
     </div>
   </li>
 </ul>

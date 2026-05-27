@@ -1,6 +1,7 @@
 package controllers.api;
 
 import java.io.File;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -12,6 +13,8 @@ import javax.inject.Inject;
 
 import org.apache.pekko.stream.javadsl.Source;
 import org.apache.pekko.util.ByteString;
+
+import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import controllers.auth.DatasetApiAuth;
 import controllers.auth.ParticipantAuth;
@@ -34,6 +37,7 @@ import play.data.FormFactory;
 import play.filters.csrf.AddCSRFToken;
 import play.filters.csrf.RequireCSRFCheck;
 import play.libs.Files.TemporaryFile;
+import play.libs.Json;
 import play.mvc.Http;
 import play.mvc.Http.MultipartFormData.FilePart;
 import play.mvc.Http.Request;
@@ -235,25 +239,20 @@ public class MediaDSController extends AbstractDSController {
 			Project p = ds.getProject();
 			p.refresh();
 
-			Participant participant = null;
 			String participantId = request.headers().get("participant_id").orElse("");
-			if (participantId == null || participantId.isEmpty()) {
-				return notFound();
-			}
-
 			Optional<Participant> participantOpt = Participant.findByRefId(participantId);
-			if (participantOpt.isEmpty() || !p.hasParticipant(participantOpt.get())) {
-				return notFound();
+			if (!participantOpt.isEmpty() && !p.hasParticipant(participantOpt.get())) {
+				return notFound("Participant not found.");
 			}
 
 			final MediaDS meds = (MediaDS) datasetConnector.getDatasetDS(ds);
-			Optional<File> requestedFile = meds.getLatestFileVersionForParticipant(participant, fileName);
+			Optional<File> requestedFile = meds.getFile(fileNameParam);
 			if (!requestedFile.isPresent() || !requestedFile.get().exists()) {
 				return notFound("No file found: " + fileName);
 			}
 
 			LabNotesEntry.log(MediaDSController.class, LabNotesEntryType.DOWNLOAD,
-					"Dataset downloaded: " + ds.getName(), ds.getProject());
+					"Dataset file downloaded: " + ds.getName(), ds.getProject());
 
 			// remove all non-printable, non-ASCII characters
 			fileName = fileName.replaceAll("\\P{Print}", "%");
@@ -297,15 +296,16 @@ public class MediaDSController extends AbstractDSController {
 
 				DynamicForm df = formFactory.form().bindFromRequest(request);
 				if (df == null) {
-					return badRequest("Form malformed.");
+					return badRequest("Data malformed.");
 				}
 
-				long pid = -1;
 				Participant participant = Participant.EMPTY_PARTICIPANT;
 				String participantId = df.get("participant_id");
+				if (participantId == null || participantId.isEmpty()) {
+					participantId = request.headers().get("participant_id").orElse("");
+				}
 				if (participantId != null && participantId.length() > 0) {
-					pid = DataUtils.parseLong(participantId);
-					participant = Participant.find.byId(pid);
+					participant = Participant.findByRefId(participantId).orElse(Participant.EMPTY_PARTICIPANT);
 					if (participant == null || !p.hasParticipant(participant)) {
 						participant = Participant.EMPTY_PARTICIPANT;
 					}
@@ -319,6 +319,8 @@ public class MediaDSController extends AbstractDSController {
 					if (!theFolder.exists()) {
 						theFolder.mkdirs();
 					}
+
+					List<String> savedFiles = new ArrayList<>();
 
 					for (int i = 0; i < fileParts.size(); i++) {
 						FilePart<TemporaryFile> filePart = fileParts.get(i);
@@ -353,6 +355,7 @@ public class MediaDSController extends AbstractDSController {
 						if (storeFile.isPresent()) {
 							long ts = DataUtils.parseLong(timestamp);
 							String description = nss(df.get("description"));
+							savedFiles.add(storeFile.get());
 							cpds.addRecord(participant, storeFile.get(), description, now, "imported fully");
 							cpds.importFileContents(participant,
 									routes.MediaDSController.image(id, storeFile.get()).absoluteURL(request,
@@ -363,12 +366,16 @@ public class MediaDSController extends AbstractDSController {
 
 					LabNotesEntry.log(MediaDSController.class, LabNotesEntryType.DATA,
 							"Files uploaded to dataset: " + ds.getName(), ds.getProject());
+
+					ObjectNode result = Json.newObject();
+					result.set("files", Json.toJson(savedFiles));
+					return ok(result).as("application/json");
 				}
 			} catch (Exception e) {
 				// do nothing
 			}
 
-			return ok("").as("application/json");
+			return badRequest("Missing files.").as("application/json");
 		}).exceptionally(e -> {
 			logger.error("Media dataset index problem", e);
 			return badRequest();
@@ -381,7 +388,7 @@ public class MediaDSController extends AbstractDSController {
 	}
 
 	/**
-	 * Dataset API file update ("update item")
+	 * Dataset file update ("update item")
 	 * 
 	 * @param request
 	 * @param id
@@ -471,11 +478,14 @@ public class MediaDSController extends AbstractDSController {
 
 							// New filename logic: timestamp + original filename
 							fileName = System.currentTimeMillis() + "_" + filePart.getFilename();
-							link = routes.MediaDSController.image(id, fileName).absoluteURL(request,
-									environment.isProd());
 
 							// store file with NEW name
-							mds.storeFile(tempfile.path().toFile(), fileName);
+							Optional<String> storeFile = mds.storeFile(tempfile.path().toFile(), fileName);
+							if (storeFile.isPresent()) {
+								fileName = storeFile.get();
+								link = routes.MediaDSController.image(id, fileName).absoluteURL(request,
+										environment.isProd());
+							}
 
 							// clear thumbnails and delete OLD file
 							Optional<File> originalFile = mds.getFile(oldFileName);
@@ -493,12 +503,14 @@ public class MediaDSController extends AbstractDSController {
 				LabNotesEntry.log(MediaDSController.class, LabNotesEntryType.DATA,
 						"File updated in dataset: " + ds.getName(), ds.getProject());
 
+				ObjectNode result = Json.newObject();
+				result.put("fileName", fileName);
+				return ok(result).as("application/json");
+
 			} catch (Exception e) {
 				logger.error("Media dataset update problem", e);
 				return badRequest();
 			}
-
-			return ok("").as("application/json");
 		}).exceptionally(e -> {
 			logger.error("Media dataset update problem", e);
 			return badRequest();
