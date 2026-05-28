@@ -570,6 +570,34 @@ public class Dataset extends Model {
 	}
 
 	/**
+	 * return the total number items in this data
+	 * 
+	 * @return
+	 */
+	public long getItemCount() {
+		String dataTableName = DatasetConnector.getDatasetDSUnmanaged(this).getDataTableName();
+		if (dataTableName == null) {
+			return 0;
+		}
+
+		// count rows in table
+		long result = 0;
+		try (Transaction transaction = DB.beginTransaction();
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("SELECT count(*) FROM " + dataTableName + ";");) {
+			ResultSet rs = stmt.executeQuery();
+			if (rs.next()) {
+				result = rs.getLong(1);
+			}
+			transaction.commit();
+		} catch (SQLException e) {
+			logger.error("Error in getting item count.", e);
+		}
+
+		return result;
+	}
+
+	/**
 	 * return the number items in this data during the specified week
 	 * 
 	 * @param monday

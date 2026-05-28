@@ -34,7 +34,21 @@
                 &lt; Hide dimensions
             </a>
             
-            <div class="input-field" style="margin: 0; min-width: 250px; margin-left: auto;">
+            <div id="range-selector-container" class="input-field" style="margin: 0; margin-left: auto; min-width: 150px; display: none;">
+                <select id="range-selector">
+                    <option value="-1" selected>All data</option>
+                    <option value="1">Last 24 hours</option>
+                    <option value="2">Last 2 days</option>
+                    <option value="3">Last 3 days</option>
+                    <option value="7">Last 7 days</option>
+                    <option value="14">Last 14 days</option>
+                    <option value="30">Last 30 days</option>
+                    <option value="60">Last 60 days</option>
+                </select>
+                <label>Data Range</label>
+            </div>
+            
+            <div class="input-field" style="margin: 0; min-width: 250px; ">
                 <select id="view-level-selector">
                     <option value="project:-1" @if(clusterId == -1L && participantId == -1L && deviceId == -1L){selected}>Full Project View</option>
                     
@@ -122,7 +136,7 @@
 <script type="text/javascript">
     const datasets = [
         @for(ds <- p.getOperationalDatasets().stream().filter(ds => ds.getDsType() == models.DatasetType.IOT || ds.getDsType() == models.DatasetType.MOVEMENT || ds.getDsType() == models.DatasetType.FITBIT || ds.getDsType() == models.DatasetType.GOOGLEFIT || ds.getDsType() == models.DatasetType.DIARY || ds.getDsType() == models.DatasetType.ANNOTATION || ds.getDsType() == models.DatasetType.MEDIA).collect(java.util.stream.Collectors.toList())) {
-            { id: @ds.getId(), name: "@ds.getName()", type: "@ds.getDsType()" },
+            { id: @ds.getId(), name: "@ds.getName()", type: "@ds.getDsType()", items: @ds.getItemCount() },
         }
     ];
 
@@ -148,6 +162,13 @@
         document.getElementById('loading-progress').style.display = 'block';
         document.getElementById('dimension-selector').innerHTML = '<p class="grey-text">Fetching data...</p>';
         
+        // Calculate time range
+        const rangeInDays = parseInt(document.getElementById('range-selector').value);
+        let startTimestamp = -1;
+        if (rangeInDays > 0) {
+            startTimestamp = Date.now() - (rangeInDays * 24 * 60 * 60 * 1000);
+        }
+
         const fetchPromises = datasets.map(ds => {
             let url = `/datasets/download/${ds.id}`;
             if (currentType === 'cluster' && currentId !== -1) {
@@ -158,6 +179,11 @@
                 url = `/datasets/download/${ds.id}/device/${currentId}`;
             }
             
+            // Append start timestamp if set
+            if (startTimestamp > 0) {
+                url += (url.includes('?') ? '&' : '?') + `start=${startTimestamp}`;
+            }
+
             return fetch(url)
                 .then(r => r.ok ? r.text() : "")
                 .then(csv => {
@@ -222,6 +248,7 @@
 
         rawRows.forEach(row => {
             const dsType = typeMap[row.dataset];
+            const source = [row.pp1, row.pp2, row.pp3].filter(Boolean).join(' - ') || 'unknown';
             
             if (dsType === 'DIARY' || dsType === 'ANNOTATION') {
                 const entryUid = `${row.dataset}: entry`;
@@ -233,6 +260,7 @@
                         variable: 'entry',
                         value: content,
                         uid: entryUid,
+                        source: source,
                         isActivity: false,
                         dsType: dsType,
                         eventDetail: content
@@ -255,6 +283,7 @@
                         variable: 'link',
                         value: fixProtocol(imageUrl),
                         uid: linkUid,
+                        source: source,
                         isActivity: false,
                         dsType: dsType,
                         eventDetail: row.description || ''
@@ -271,6 +300,7 @@
                             variable: key,
                             value: row[key],
                             uid: uid,
+                            source: source,
                             isActivity: key.toLowerCase() === 'activity',
                             dsType: dsType,
                             eventDetail: row[key]
@@ -497,18 +527,20 @@
                             {
                                 "name": "Numeric Area Chart",
                                 "transform": [{"filter": "datum.isActivity === false && datum.dsType !== 'DIARY' && datum.dsType !== 'ANNOTATION' && datum.dsType !== 'MEDIA'"}],
-                                "mark": {"type": "area", "line": true, "interpolate": "monotone", "tooltip": true},
+                                "mark": {"type": "area", "line": true, "interpolate": "monotone", "tooltip": true, "opacity": 0.5},
                                 "encoding": {
                                     "y": {
                                         "field": "value", 
                                         "type": "quantitative", 
                                         "title": null, 
-                                        "stack": "zero",
+                                        "stack": null,
                                         "scale": {"zero": false}
                                     },
+                                    "detail": {"field": "source", "type": "nominal"},
                                     "color": {"field": "uid", "type": "nominal", "legend": null},
                                     "tooltip": [
                                         {"field": "ts", "type": "temporal", "title": "Time", "timeUnit": "yearmonthdatehoursminutes"},
+                                        {"field": "source", "type": "nominal", "title": "Source"},
                                         {"field": "value", "type": "nominal", "title": "Value"}
                                     ]
                                 }
@@ -526,6 +558,7 @@
                                     "color": {"field": "value", "type": "nominal", "legend": null},
                                     "tooltip": [
                                         {"field": "ts", "type": "temporal", "title": "Time", "timeUnit": "yearmonthdatehoursminutes"},
+                                        {"field": "source", "type": "nominal", "title": "Source"},
                                         {"field": "value", "type": "nominal", "title": "Value"}
                                     ]
                                 }
@@ -662,6 +695,11 @@
         M.Modal.init(document.querySelectorAll('.modal'));
         M.FormSelect.init(document.querySelectorAll('select'));
         
+        // Check if any dataset has more than 5,000 items to show range selector
+        if (datasets.some(ds => ds.items > 5000)) {
+            document.getElementById('range-selector-container').style.display = 'block';
+        }
+
         // Handle download button
         const downloadBtn = document.getElementById('download-csv-btn');
         if (downloadBtn) {
@@ -675,6 +713,14 @@
                 const [type, id] = this.value.split(':');
                 currentType = type;
                 currentId = parseInt(id);
+                loadAllData();
+            });
+        }
+        
+        // Handle range selection
+        const rangeSelector = document.getElementById('range-selector');
+        if (rangeSelector) {
+            rangeSelector.addEventListener('change', function() {
                 loadAllData();
             });
         }
