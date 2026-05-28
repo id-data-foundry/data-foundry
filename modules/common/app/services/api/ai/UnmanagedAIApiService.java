@@ -107,10 +107,31 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 			// ok, parse and make a mapping data structure
 			String modelJson = internalAPIRequest.getResult();
 			localModelMetadata.updateModels(modelJson);
+
+			// additionally ping endpoints for capabilities
+			pingEndpoint("/v1/chat/completions").thenAccept(localModelMetadata::setTextToTextAvailable);
+			pingEndpoint("/v1/images/generations").thenAccept(localModelMetadata::setTextToImageAvailable);
+			pingEndpoint("/v1/audio/transcriptions").thenAccept(localModelMetadata::setSpeechToTextAvailable);
+			pingEndpoint("/v1/audio/speech").thenAccept(localModelMetadata::setTextToSpeechAvailable);
+
 		} catch (Exception e) {
 			logger.error("❌ Failed to fetch models from AI backend: " + e.getMessage());
 			localModelMetadata.clearModels();
 		}
+	}
+
+	/**
+	 * ping the given endpoint path and check for availability (anything but 404 or connection error)
+	 *
+	 * @param path
+	 * @return
+	 */
+	private CompletableFuture<Boolean> pingEndpoint(String path) {
+		return wsClient.url(localAIHost + path).setRequestTimeout(Duration.ofSeconds(2)).get().thenApply(res -> {
+			return res.getStatus() != 404;
+		}).exceptionally(e -> {
+			return false;
+		}).toCompletableFuture();
 	}
 
 	@Override

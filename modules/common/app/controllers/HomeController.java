@@ -510,6 +510,15 @@ public class HomeController extends AbstractAsyncController {
 								.put("model", this.localModelMetadata.getModelName(r.getModel()))
 								.put("state", r.getState()).put("valid", r.getValidUntil());
 					}).collect(() -> Json.newArray(), ArrayNode::add, ArrayNode::addAll));
+
+					// ai capabilities
+					ObjectNode capabilities = Json.newObject();
+					capabilities.put("t2t", localModelMetadata.isTextToTextAvailable());
+					capabilities.put("t2i", localModelMetadata.isTextToImageAvailable());
+					capabilities.put("stt", localModelMetadata.isSpeechToTextAvailable());
+					capabilities.put("tts", localModelMetadata.isTextToSpeechAvailable());
+					jo.set("ai_capabilities", capabilities);
+
 					return EventSource.Event.event(jo);
 				});
 

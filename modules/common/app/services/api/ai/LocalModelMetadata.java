@@ -22,13 +22,35 @@ public class LocalModelMetadata {
 
 	private Map<String, ModelMetadata> modelmapper = new ConcurrentHashMap<>();
 
+	// Capability flags
+	private boolean textToTextAvailable = false;
+	private boolean textToImageAvailable = false;
+	private boolean speechToTextAvailable = false;
+	private boolean textToSpeechAvailable = false;
+
 	/**
 	 * clear all models
 	 */
 	public void clearModels() {
 		modelmapper = new ConcurrentHashMap<>();
+		textToTextAvailable = false;
+		textToImageAvailable = false;
+		speechToTextAvailable = false;
+		textToSpeechAvailable = false;
 		logger.info("Cleared all models.");
 	}
+
+	public boolean isTextToTextAvailable() { return textToTextAvailable; }
+	public void setTextToTextAvailable(boolean available) { this.textToTextAvailable = available; }
+
+	public boolean isTextToImageAvailable() { return textToImageAvailable; }
+	public void setTextToImageAvailable(boolean available) { this.textToImageAvailable = available; }
+
+	public boolean isSpeechToTextAvailable() { return speechToTextAvailable; }
+	public void setSpeechToTextAvailable(boolean available) { this.speechToTextAvailable = available; }
+
+	public boolean isTextToSpeechAvailable() { return textToSpeechAvailable; }
+	public void setTextToSpeechAvailable(boolean available) { this.textToSpeechAvailable = available; }
 
 	/**
 	 * map the given model id (from request) to actual model id; this will resolve models also via the alias

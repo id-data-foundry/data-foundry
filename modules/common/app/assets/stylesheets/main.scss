@@ -682,7 +682,7 @@ p.info-msg .timestamp, p.error-msg .timestamp {
 	    line-height: 1rem;
 	}
 	
-	& span ut, & span rt {
+	& span ut, & span rt, & span at {
 	    padding: 0.1rem 0.3rem;
 	    background: #ffe082;
 	    color: black;
@@ -696,5 +696,14 @@ p.info-msg .timestamp, p.error-msg .timestamp {
 
 	& span rt {
 	    background: #80cbc4;
+	}
+
+	& span at {
+		background: #81c784;
+		&.off {
+			background: #e0e0e0;
+			color: #9e9e9e;
+			text-decoration: line-through;
+		}
 	}
 }

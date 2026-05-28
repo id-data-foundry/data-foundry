@@ -22,6 +22,7 @@
     // Set up an event listener for messages
     eventSource.onmessage = function(event) {
         let e = JSON.parse(event.data)
+        let caps = e.ai_capabilities;
         document.querySelector('#df-activity').innerHTML = `
         <span style="line-height: 64px; text-align: right;">
           #evt/s <em>${Number.parseFloat(e.incomingData).toFixed(1)}</em>
@@ -32,6 +33,12 @@
           active users: ${e.activeUsers.map(u => '<ut>' + u + '</ut>').join(' ')}
           <br>
           API requests: ${e.api_requests.length == 0 ? '-' : e.api_requests.map(r => '<rt>' + r.model + '</rt>').join(' ')}
+          <br>
+          AI features: 
+          <at class="${caps.t2t ? '' : 'off'}">t2t</at>
+          <at class="${caps.t2i ? '' : 'off'}">t2i</at>
+          <at class="${caps.stt ? '' : 'off'}">stt</at>
+          <at class="${caps.tts ? '' : 'off'}">tts</at>
         </span>
         `;
     };
