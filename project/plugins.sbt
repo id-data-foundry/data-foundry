@@ -1,5 +1,5 @@
 // The Play plugin
-addSbtPlugin("org.playframework" % "sbt-plugin" % "3.0.10")
+addSbtPlugin("org.playframework" % "sbt-plugin" % "3.0.11")
 
 // https://github.com/sbt/sbt-eclipse
 addSbtPlugin("com.github.sbt" % "sbt-eclipse" % "6.2.0")
