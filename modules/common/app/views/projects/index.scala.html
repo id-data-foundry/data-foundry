@@ -24,7 +24,7 @@
         let e = JSON.parse(event.data)
         document.querySelector('#df-activity').innerHTML = `
         <span style="line-height: 64px; text-align: right;">
-          #evt/s <em>${e.incomingData}</em>
+          #evt/s <em>${Number.parseFloat(e.incomingData).toFixed(1)}</em>
           #users <em>${e.activeUsers.length}</em> 
           #api-reqs <em>${e.api_requests.length}</em>
         </span>

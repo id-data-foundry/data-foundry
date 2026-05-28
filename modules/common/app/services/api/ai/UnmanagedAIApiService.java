@@ -108,7 +108,8 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 			String modelJson = internalAPIRequest.getResult();
 			localModelMetadata.updateModels(modelJson);
 		} catch (Exception e) {
-			// do nothing
+			logger.error("❌ Failed to fetch models from AI backend: " + e.getMessage());
+			localModelMetadata.clearModels();
 		}
 	}
 

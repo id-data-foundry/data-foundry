@@ -177,10 +177,10 @@ public class RefreshTask {
 			logger.error("Error in initializing the Cron tasks.", e);
 		}
 
-		// schedule model retrieval from AI backend, first run after 15 seconds, then every 30 minutes
-		final FiniteDuration THIRTY_MINUTES = Duration.create(30, TimeUnit.MINUTES);
+		// schedule model retrieval from AI backend, first run after 15 seconds, then every 1 minute
+		final FiniteDuration ONE_MINUTE = Duration.create(1, TimeUnit.MINUTES);
 		tasks.add(this.actorSystem.scheduler().scheduleAtFixedRate(Duration.create(15, TimeUnit.SECONDS),
-		        THIRTY_MINUTES, () -> unmanagedAIService.refresh(), this.executionContext));
+		        ONE_MINUTE, () -> unmanagedAIService.refresh(), this.executionContext));
 
 		// schedule search indexing, first run after 5 seconds, then every 5 minutes
 		final FiniteDuration TEN_MINUTES = Duration.create(5, TimeUnit.MINUTES);

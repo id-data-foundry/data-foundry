@@ -1,8 +1,8 @@
 package services.api.ai;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
@@ -20,11 +20,19 @@ public class LocalModelMetadata {
 
 	private static final Logger.ALogger logger = Logger.of(LocalModelMetadata.class);
 
-	private Map<String, ModelMetadata> modelmapper = new HashMap<>();
+	private Map<String, ModelMetadata> modelmapper = new ConcurrentHashMap<>();
+
+	/**
+	 * clear all models
+	 */
+	public void clearModels() {
+		modelmapper = new ConcurrentHashMap<>();
+		logger.info("Cleared all models.");
+	}
 
 	/**
 	 * map the given model id (from request) to actual model id; this will resolve models also via the alias
-	 * 
+	 *
 	 * @param modelId
 	 * @return
 	 */
@@ -35,7 +43,7 @@ public class LocalModelMetadata {
 
 	/**
 	 * retrieve the shortened model name
-	 * 
+	 *
 	 * @param modelId
 	 * @return
 	 */
@@ -46,7 +54,7 @@ public class LocalModelMetadata {
 
 	/**
 	 * retrieve a sorted list of models as list of modelmetadata instances
-	 * 
+	 *
 	 * @return
 	 */
 	public List<ModelMetadata> getModels() {
@@ -56,7 +64,7 @@ public class LocalModelMetadata {
 
 	/**
 	 * get all available models in a map of short key and display model name, sorted ABC by display model name
-	 * 
+	 *
 	 * @return
 	 */
 	public List<Tuple<String, String>> getModelNames() {
@@ -66,56 +74,46 @@ public class LocalModelMetadata {
 
 	/**
 	 * update model mapper from JSON
-	 * 
+	 *
 	 * @param modelJson
 	 */
 	public void updateModels(String modelJson) {
 		// parse and check if it's an array
 		if (modelJson == null || modelJson.isEmpty()) {
-			logger.error("❌ Model update failed, JSON empty.");
+			logger.warn("⚠️ Model update failed, JSON empty. Clearing models.");
+			clearModels();
 			return;
 		}
 
-		// then extract model meta data
-		json2ModelList(modelJson).stream().forEach(m -> {
+		List<ModelMetadata> models = json2ModelList(modelJson);
+		if (models.isEmpty()) {
+			logger.warn("⚠️ No models found in JSON. Clearing models.");
+			clearModels();
+			return;
+		}
+
+		// then extract model meta data into a new map
+		Map<String, ModelMetadata> newModelMapper = new ConcurrentHashMap<>();
+		models.stream().forEach(m -> {
 			// first model
 			{
 				String key = m.id();
-				if (modelmapper.containsKey(key)) {
-					ModelMetadata existingMM = modelmapper.get(key);
-					if (existingMM.hashValue() != m.hashValue()) {
-						modelmapper.put(key, m);
-						logger.info("Replaced model 🧪" + key);
-					} else {
-//						logger.trace("Same model 🧪" + key);
-					}
-				} else {
-					modelmapper.put(key, m);
-					logger.info("Added model 🧪" + key);
-				}
+				newModelMapper.put(key, m);
 			}
 			// then alias
 			{
 				if (m.alias() != null) {
 					m.alias().stream().forEach(key -> {
-						if (modelmapper.containsKey(key)) {
-							ModelMetadata existingMM = modelmapper.get(key);
-							if (existingMM.hashValue() != m.hashValue()) {
-								modelmapper.put(key, m);
-								logger.info("Replaced alias 🏷 ️" + key);
-							} else {
-//								logger.trace("Same alias 🏷 ️" + key);
-							}
-						} else {
-							modelmapper.put(key, m);
-							logger.info("Added alias 🏷️ " + key);
-						}
+						newModelMapper.put(key, m);
 					});
 				}
 			}
 		});
-	}
 
+		// Atomically replace the map
+		this.modelmapper = newModelMapper;
+		logger.info("Successfully synced 🧪" + models.size() + " models.");
+	}
 	/**
 	 * convert JSON String to list of ModelMetaData objects
 	 * 
