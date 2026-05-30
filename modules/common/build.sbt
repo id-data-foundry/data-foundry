@@ -3,7 +3,7 @@ organization := "TUe-ID"
 version := "SNAPSHOT"
 maintainer := "m.funk@tue.nl"
 
-scalaVersion := "2.13.14"
+scalaVersion := "2.13.18"
 
 resolvers += Resolver.bintrayRepo("webjars","maven")
 resolvers += "Artifactory" at "https://artifactory.openpreservation.org/artifactory/vera-dev/"
