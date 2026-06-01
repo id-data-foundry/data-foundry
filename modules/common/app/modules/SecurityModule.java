@@ -153,6 +153,7 @@ public class SecurityModule extends AbstractModule {
 			oidcConfiguration.setDiscoveryURI(configuration.getString(ConfigurationUtils.DF_SSO_DISCOVERY));
 			// specific to AzureAD
 			oidcConfiguration.setTenant(configuration.getString(ConfigurationUtils.DF_SSO_TENANT));
+			oidcConfiguration.setExpireSessionWithToken(false);
 
 			oidcClient = new AzureAd2Client(oidcConfiguration);
 			oidcClient.setCallbackUrl(baseUrl + "/auth/callback");
@@ -167,6 +168,7 @@ public class SecurityModule extends AbstractModule {
 			oidcConfiguration.setDiscoveryURI(configuration.getString(ConfigurationUtils.DF_SSO_DISCOVERY));
 			// specific to plain OIDC
 			oidcConfiguration.setScope("openid");
+			oidcConfiguration.setExpireSessionWithToken(false);
 
 			// no SSO configured?
 			if (ConfigurationUtils.isSSO(configuration)) {
