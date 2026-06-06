@@ -39,7 +39,7 @@ import play.mvc.Http.MimeTypes;
 import play.mvc.Http.Request;
 import play.mvc.Result;
 import play.mvc.Security.Authenticated;
-import services.api.ai.ManagedAIApiService;
+import services.api.ai.UnmanagedAIApiService;
 import services.maintenance.DatabaseBackupService;
 import services.maintenance.ProjectLifecycleService;
 import utils.DataUtils;
@@ -56,7 +56,7 @@ public class AdminController extends AbstractAsyncController {
 	private final AdminUtils adminUtils;
 	private final TokenResolverUtil tokenResolverUtil;
 	private final DatabaseBackupService backupService;
-	private final ManagedAIApiService managedAIApiService;
+	private final UnmanagedAIApiService aiApiService;
 	private final FormFactory formFactory;
 	private final ActorSystem actorSystem;
 	private final ProjectLifecycleService lifeCycleService;
@@ -64,13 +64,14 @@ public class AdminController extends AbstractAsyncController {
 	@Inject
 	public AdminController(SyncCacheApi cache, Config config, Configurator configurator, AdminUtils adminUtils,
 			ActorSystem actorSystem, TokenResolverUtil tokenResolverUtil, DatabaseBackupService backupService,
-			ManagedAIApiService openAIApiService, FormFactory formFactory, ProjectLifecycleService lifeCycleService) {
+			UnmanagedAIApiService managedAIApiService, FormFactory formFactory,
+			ProjectLifecycleService lifeCycleService) {
 		this.cache = cache;
 		this.configurator = configurator;
 		this.adminUtils = adminUtils;
 		this.tokenResolverUtil = tokenResolverUtil;
 		this.backupService = backupService;
-		this.managedAIApiService = openAIApiService;
+		this.aiApiService = managedAIApiService;
 		this.formFactory = formFactory;
 		this.actorSystem = actorSystem;
 		this.lifeCycleService = lifeCycleService;
@@ -126,9 +127,9 @@ public class AdminController extends AbstractAsyncController {
 		}
 
 		// api access
-		long datastoreDatasetId = managedAIApiService.getDataStoreDatasetId();
+		long aiApiAccessDatasetId = aiApiService.getDataStoreDatasetId();
 
-		return ok(views.html.admin.api.render(datastoreDatasetId, csrfToken(request)));
+		return ok(views.html.admin.api.render(aiApiAccessDatasetId, csrfToken(request)));
 	}
 
 	@AddCSRFToken
@@ -181,8 +182,8 @@ public class AdminController extends AbstractAsyncController {
 
 		ExpressionList<Dataset> query = Dataset.find.query().where();
 		// filter by COMPLETE type and presence of WEB_ACCESS_TOKEN in configuration
-		query = query.eq("dsType", DatasetType.COMPLETE)
-				.raw("configuration like ?", "%" + Dataset.WEB_ACCESS_TOKEN + "%");
+		query = query.eq("dsType", DatasetType.COMPLETE).raw("configuration like ?",
+				"%" + Dataset.WEB_ACCESS_TOKEN + "%");
 
 		PagedList<Dataset> pagedDatasets = query.orderBy("id desc").setMaxRows(20).setFirstRow(page * 20)
 				.findPagedList();

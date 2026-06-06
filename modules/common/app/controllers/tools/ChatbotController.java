@@ -487,7 +487,8 @@ public class ChatbotController extends AbstractAsyncController {
 			String responseHtml = resultFragment.response() != null ? resultFragment.response().renderedContent()
 					: "We have encountered a problem. Perhaps try again later.";
 
-			if ("true".equals(ds.configuration(Dataset.CHATBOT_SHOW_SOURCES, "false")) && resultFragment.prompt() != null) {
+			if ("true".equals(ds.configuration(Dataset.CHATBOT_SHOW_SOURCES, "false"))
+					&& resultFragment.prompt() != null) {
 				List<ConversationContext> contexts = resultFragment.prompt().context();
 				if (!contexts.isEmpty() && contexts.get(0).ranking() > 0) { // ranking > 0 to avoid empty/dummy contexts
 					StringBuilder refs = new StringBuilder(
@@ -688,11 +689,9 @@ public class ChatbotController extends AbstractAsyncController {
 		// if there is a conversation history, run a quick request to reformulate the user prompt in context of the
 		// history
 		boolean hasUserMessage = ch.items().stream().anyMatch(ConversationItem::isUser);
-		String userPrompt = !hasUserMessage
-						? originalUserPrompt
-						: reformulateUserPromptWithHistory(user.getEmail(), ds.getProject().getId(), pai.apiKey,
-								ds.configuration(Dataset.CHATBOT_MODEL, ""), originalUserPrompt, ch)
-								.orElse(originalUserPrompt);
+		String userPrompt = !hasUserMessage ? originalUserPrompt
+				: reformulateUserPromptWithHistory(user.getEmail(), ds.getProject().getId(), pai.apiKey,
+						ds.configuration(Dataset.CHATBOT_MODEL, ""), originalUserPrompt, ch).orElse(originalUserPrompt);
 
 		// search index for relevant information chunks for the user request
 		final CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
@@ -955,10 +954,8 @@ public class ChatbotController extends AbstractAsyncController {
 			try {
 				String finalFileName = storeFile.get();
 				String detectedMime = FileTypeUtils.detectMime(tempFile.path().toFile());
-				String contents = mediaProcessingService
-						.scheduleMediaToTextProcess(tempFile.path().toFile(), "en", detectedMime, "SYSTEM",
-								UUID.randomUUID().toString())
-						.toCompletableFuture().get();
+				String contents = mediaProcessingService.scheduleMediaToTextProcess(tempFile.path().toFile(), "en",
+						detectedMime, "SYSTEM", UUID.randomUUID().toString()).toCompletableFuture().get();
 
 				ArrayNode documentIndex = Json.newArray();
 
@@ -975,7 +972,8 @@ public class ChatbotController extends AbstractAsyncController {
 					embeddings.get(counter++).forEach(d -> {
 						ar.add(d.floatValue());
 					});
-					documentIndex.add(Json.newObject().put("file", finalFileName).put("content", str).set("embedding", ar));
+					documentIndex
+							.add(Json.newObject().put("file", finalFileName).put("content", str).set("embedding", ar));
 				}
 
 				// write the index to disk

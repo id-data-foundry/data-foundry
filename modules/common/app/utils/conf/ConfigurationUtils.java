@@ -74,6 +74,7 @@ public class ConfigurationUtils {
 	// ----------------------------------------------------------------------------------------------------------------
 
 	public static final String DF_LOCALAI_HOST = "df.processing.localai.host";
+	public static final String DF_AI_API_KEY = "df.processing.ai.key";
 
 	// ----------------------------------------------------------------------------------------------------------------
 
@@ -88,8 +89,6 @@ public class ConfigurationUtils {
 
 	public static final String DF_VENDOR_GOOGLEFIT_ID = "df.vendor.googlefit.id";
 	public static final String DF_VENDOR_GOOGLEFIT_SECRET = "df.vendor.googlefit.secret";
-
-	public static final String DF_VENDOR_OPENAI = "df.vendor.openai.key";
 
 	// ----------------------------------------------------------------------------------------------------------------
 
@@ -112,13 +111,13 @@ public class ConfigurationUtils {
 		defaultValueFormat.put(DF_SSO_CLIENT, "\"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx\"");
 		defaultValueFormat.put(DF_SSO_SECRET, "\"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx\"");
 		defaultValueFormat.put(DF_SSO_DISCOVERY,
-		        "\"https://auth-provider.com/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/v2.0/.well-known/...\"");
+				"\"https://auth-provider.com/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/v2.0/.well-known/...\"");
 
 		defaultValueFormat.put(DF_MSGRAPH_TENANT, "\"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx\"");
 		defaultValueFormat.put(DF_MSGRAPH_CLIENT, "\"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx\"");
 		defaultValueFormat.put(DF_MSGRAPH_SECRET, "\"xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx\"");
 		defaultValueFormat.put(DF_MSGRAPH_DISCOVERY,
-		        "\"https://auth-provider.com/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/v2.0/.well-known/...\"");
+				"\"https://auth-provider.com/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx/v2.0/.well-known/...\"");
 
 		defaultValueFormat.put(DF_USERS_ADMINS, "[\"admin1@example.com\",\"admin2@example.org\"]");
 		defaultValueFormat.put(DF_USERS_MODERATORS, "[\"mod1@example.com\",\"mod2@example.org\"]");
@@ -133,7 +132,7 @@ public class ConfigurationUtils {
 
 		defaultValueFormat.put(DF_OOCSI_SERVER, "\"oocsi.example.org\"");
 		defaultValueFormat.put(DF_VENDOR_SLACK_CHANNEL,
-		        "\"https://hooks.slack.com/services/XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\"");
+				"\"https://hooks.slack.com/services/XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\"");
 
 		defaultValueFormat.put(DF_LOCALAI_HOST, "\"http://localhost:9191\"");
 
@@ -141,7 +140,7 @@ public class ConfigurationUtils {
 		defaultValueFormat.put(DF_VENDOR_FITBIT_SECRET, "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
 
 		defaultValueFormat.put(DF_VENDOR_GOOGLEFIT_ID,
-		        "111111111111-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com");
+				"111111111111-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com");
 		defaultValueFormat.put(DF_VENDOR_GOOGLEFIT_SECRET, "xxxxx-xxxxx_xxxxxxxxx-xx");
 
 		defaultValueFormat.put(DF_TELEGRAM_BOTNAME, "\"somethingTelegram_bot\"");
@@ -170,10 +169,10 @@ public class ConfigurationUtils {
 	 */
 	private static boolean checkGeneralConfig(Config configuration, List<String> sb) {
 		return internalCheckConfiguration(new String[] { DF_BASEURL, DF_UPLOAD_DIR, DF_MAX_ACTIVE_PROJECTS,
-		        DF_SSO_CLIENT, DF_SSO_SECRET, DF_SSO_DISCOVERY, DF_MSGRAPH_TENANT, DF_MSGRAPH_CLIENT, DF_MSGRAPH_SECRET,
-		        DF_MSGRAPH_DISCOVERY, DF_USERS_ADMINS, DF_USERS_MODERATORS, DF_USERS_REVIEWERS, DF_KEYS_API,
-		        DF_KEYS_AUTH_API, DF_KEYS_V2_MULTI_API, DF_KEYS_V2_USER_API, DF_KEYS_REGISTRATION_ACCESS,
-		        DF_KEYS_PROJECT_TOKEN, DF_OOCSI_SERVER, DF_VENDOR_SLACK_CHANNEL, DF_LOCALAI_HOST }, configuration, sb);
+				DF_SSO_CLIENT, DF_SSO_SECRET, DF_SSO_DISCOVERY, DF_MSGRAPH_TENANT, DF_MSGRAPH_CLIENT, DF_MSGRAPH_SECRET,
+				DF_MSGRAPH_DISCOVERY, DF_USERS_ADMINS, DF_USERS_MODERATORS, DF_USERS_REVIEWERS, DF_KEYS_API,
+				DF_KEYS_AUTH_API, DF_KEYS_V2_MULTI_API, DF_KEYS_V2_USER_API, DF_KEYS_REGISTRATION_ACCESS,
+				DF_KEYS_PROJECT_TOKEN, DF_OOCSI_SERVER, DF_VENDOR_SLACK_CHANNEL, DF_LOCALAI_HOST }, configuration, sb);
 	}
 
 	/**
@@ -184,7 +183,7 @@ public class ConfigurationUtils {
 	 */
 	public static boolean checkFitbitConfig(Config configuration, List<String> sb) {
 		return internalCheckConfiguration(new String[] { DF_VENDOR_FITBIT_ID, DF_VENDOR_FITBIT_SECRET }, configuration,
-		        sb);
+				sb);
 	}
 
 	/**
@@ -195,7 +194,7 @@ public class ConfigurationUtils {
 	 */
 	public static boolean checkGoogleFitConfig(Config configuration, List<String> sb) {
 		return internalCheckConfiguration(new String[] { DF_VENDOR_GOOGLEFIT_ID, DF_VENDOR_GOOGLEFIT_SECRET },
-		        configuration, sb);
+				configuration, sb);
 	}
 
 	/**
@@ -206,7 +205,7 @@ public class ConfigurationUtils {
 	 */
 	public static boolean checkTelegramConfig(Config configuration, List<String> sb) {
 		return internalCheckConfiguration(new String[] { DF_TELEGRAM_BOTNAME, DF_TELEGRAM_BOTTOKEN }, configuration,
-		        sb);
+				sb);
 	}
 
 	/**
@@ -219,7 +218,7 @@ public class ConfigurationUtils {
 	 */
 	private static boolean internalCheckConfiguration(String[] key, Config configuration, List<String> sb) {
 		Map<String, String> pathsMessages = Arrays.stream(key)
-		        .collect(Collectors.toMap(s -> s, s -> defaultValueFormat.get(s)));
+				.collect(Collectors.toMap(s -> s, s -> defaultValueFormat.get(s)));
 		return internalCheckConfigurations(pathsMessages, configuration, sb);
 	}
 
@@ -232,7 +231,7 @@ public class ConfigurationUtils {
 	 * @return true if configured fully and correctly, false otherwise
 	 */
 	private static boolean internalCheckConfigurations(Map<String, String> pathMsgs, Config configuration,
-	        List<String> sb) {
+			List<String> sb) {
 		boolean isConfigured = true;
 		for (Map.Entry<String, String> entry : pathMsgs.entrySet()) {
 			if (!configuration.hasPath(entry.getKey())) {
@@ -315,7 +314,7 @@ public class ConfigurationUtils {
 
 	public static boolean isSSO(Config configuration) {
 		return configuration.hasPath(ConfigurationUtils.DF_SSO_CLIENT)
-		        && configuration.getString(ConfigurationUtils.DF_SSO_CLIENT).trim().length() > 0;
+				&& configuration.getString(ConfigurationUtils.DF_SSO_CLIENT).trim().length() > 0;
 	}
 
 	/**

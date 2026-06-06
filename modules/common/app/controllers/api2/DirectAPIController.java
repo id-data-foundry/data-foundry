@@ -40,34 +40,6 @@ public class DirectAPIController extends Controller {
 		this.audioService = audioService;
 	}
 
-	/**
-	 * send an API request to the OpenAI API
-	 * 
-	 * @param request
-	 * @param id
-	 * @return
-	 */
-	public CompletionStage<Result> submitOpenAIRequest(Request request, long id) {
-		return CompletableFuture.supplyAsync(() -> {
-			Project project = Project.find.byId(id);
-			if (project == null || project.getOwner() == null) {
-				return noContent().as("application/json");
-			}
-			String username = project.getOwner().getName();
-			final RemoteApiRequest apiRequest = new RemoteApiRequest("",
-			        ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, username, "", id,
-			        (ObjectNode) request.body().asJson());
-			return ok(managedAIService.submitApiRequest(apiRequest)).as("application/json");
-		});
-	}
-
-	/**
-	 * send an API request to the LocalAI API
-	 * 
-	 * @param request
-	 * @param id
-	 * @return
-	 */
 	public CompletionStage<Result> submitLocalAIRequest(Request request, long id) {
 		return CompletableFuture.supplyAsync(() -> {
 			Project project = Project.find.byId(id);

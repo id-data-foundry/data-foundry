@@ -47,7 +47,7 @@ public class ManagedAIApiService extends AbstractAIApiService implements ApiServ
 
 	@Inject
 	public ManagedAIApiService(Config configuration, AdminUtils adminUtils, DatasetConnector datasetConnector,
-	        TokenResolverUtil tokenResolver, RemoteRequestsExecutionService executorService, LocalModelMetadata lmmd) {
+			TokenResolverUtil tokenResolver, RemoteRequestsExecutionService executorService, LocalModelMetadata lmmd) {
 		super(configuration, adminUtils, datasetConnector, tokenResolver, lmmd);
 		this.executionService = executorService;
 
@@ -68,18 +68,6 @@ public class ManagedAIApiService extends AbstractAIApiService implements ApiServ
 		switch (request.getInternalApiKey()) {
 		case "":
 			return Json.newObject().put(RESPONSE_ERROR, "No api-key available.").toString();
-		case OPENAI_APIKEY:
-			// only check project match if the local key is given
-			if (!request.getUserApiKey().startsWith(OPENAI_API_KEY_PREFIX)) {
-				// check if the apiKey is used in the right project
-				long id = tokenResolver.getProjectIdFromParticipationToken(request.getUserApiKey().replace("df-", ""));
-				if (request.getProjectId() != id) {
-					request.cancel();
-					return Json.newObject().put(RESPONSE_ERROR, "API key does not match this project.").toString();
-				}
-			}
-			request.setInternalApiKey(openAIAPIKey);
-			break;
 		case LOCALAI_APIKEY: {
 			// check if the apiKey is used in the right project
 			long id = tokenResolver.getProjectIdFromParticipationToken(request.getUserApiKey().replace("df-", ""));
@@ -108,7 +96,7 @@ public class ManagedAIApiService extends AbstractAIApiService implements ApiServ
 		// 5. submit and wait for timeout
 		try {
 			executionService.submitRequest(request, (r) -> processRequest(r), request.getMsTimeout())
-			        .get(request.getMsTimeout() + 1000, TimeUnit.MILLISECONDS);
+					.get(request.getMsTimeout() + 1000, TimeUnit.MILLISECONDS);
 		} catch (InterruptedException | ExecutionException | TimeoutException e) {
 			// do nothing on failure
 		}
@@ -129,7 +117,7 @@ public class ManagedAIApiService extends AbstractAIApiService implements ApiServ
 		if (!r.isValid()) {
 			r.cancel();
 			r.setResult(Optional.of(Json.newObject()
-			        .put(RESPONSE_ERROR, "Parameters are not provided in a JSON object {}.").toString()));
+					.put(RESPONSE_ERROR, "Parameters are not provided in a JSON object {}.").toString()));
 			return;
 		}
 
@@ -152,11 +140,11 @@ public class ManagedAIApiService extends AbstractAIApiService implements ApiServ
 		case "":
 			// empty task -> opt for the default completion request
 			r.setResult(Optional.of(
-			        dispatchCompletionRequest(r.getUsername(), r.getInternalApiKey(), r.getModel(), r.getParams())));
+					dispatchCompletionRequest(r.getUsername(), r.getInternalApiKey(), r.getModel(), r.getParams())));
 			break;
 		case REQUEST_TASK_COMPLETION:
 			r.setResult(Optional.of(
-			        dispatchCompletionRequest(r.getUsername(), r.getInternalApiKey(), r.getModel(), r.getParams())));
+					dispatchCompletionRequest(r.getUsername(), r.getInternalApiKey(), r.getModel(), r.getParams())));
 			break;
 		case REQUEST_TASK_CHAT_COMPLETION:
 			r.setResult(Optional.of(dispatchChatCompletionRequest(r)));
@@ -169,7 +157,7 @@ public class ManagedAIApiService extends AbstractAIApiService implements ApiServ
 			break;
 		default:
 			r.setResult(
-			        Optional.of(Json.newObject().put(RESPONSE_ERROR, "Specified task is not available.").toString()));
+					Optional.of(Json.newObject().put(RESPONSE_ERROR, "Specified task is not available.").toString()));
 		}
 	}
 
@@ -184,7 +172,7 @@ public class ManagedAIApiService extends AbstractAIApiService implements ApiServ
 	 * @return
 	 */
 	private String dispatchCompletionRequest(String username, final String apiKey, String model,
-	        ObjectNode requestParams) {
+			ObjectNode requestParams) {
 
 		final String prompt;
 		if (requestParams.has(REQUEST_PROMPT)) {
@@ -232,14 +220,14 @@ public class ManagedAIApiService extends AbstractAIApiService implements ApiServ
 
 		// create service with 28 secs timeout for moderation requests
 		OpenAiService service = new OpenAiService(
-		        createService(apiKey, ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS));
+				createService(apiKey, ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS));
 
 		ObjectNode result = Json.newObject();
 		try {
 			// dispatch the completion request and handle the outcome
 			CompletionResult completion = service.createCompletion(completionRequest);
 			if (!apiKey.equals(LOCALAI_APIKEY)) {
-				logger.info("Dispatched OpenAI API completion request by " + username + ": " + prompt);
+				logger.info("Dispatched AI API completion request by " + username + ": " + prompt);
 			}
 
 			// log the result and finish reason in the response
@@ -253,11 +241,11 @@ public class ManagedAIApiService extends AbstractAIApiService implements ApiServ
 				result.put(RESPONSE_COST, completion.getUsage().getTotalTokens());
 			} else {
 				result.put(RESPONSE_ERROR,
-				        "Unknown API problem (check API key or API status --> https://status.openai.com).");
+						"Unknown API problem (check API key or API status --> https://status.openai.com).");
 			}
 		} catch (Exception e) {
 			result.put(RESPONSE_ERROR,
-			        "Unknown API problem (check API key or API status --> https://status.openai.com).");
+					"Unknown API problem (check API key or API status --> https://status.openai.com).");
 			logger.error("Problem", e);
 		}
 
@@ -319,7 +307,7 @@ public class ManagedAIApiService extends AbstractAIApiService implements ApiServ
 
 		// set standard params
 		if (request.getModel().isEmpty()) {
-			ccrb = ccrb.model(MODEL_GPT_4O_MINI).maxTokens(250);
+			ccrb = ccrb.model(LOCALAI_MODEL_DEFAULT).maxTokens(250);
 		} else {
 			ccrb = ccrb.model(request.getModel());
 
@@ -337,7 +325,7 @@ public class ManagedAIApiService extends AbstractAIApiService implements ApiServ
 
 		// create service with 60 secs timeout
 		OpenAiService service = new OpenAiService(
-		        createService(request.getInternalApiKey(), ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS));
+				createService(request.getInternalApiKey(), ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS));
 
 		ObjectNode result = Json.newObject();
 
@@ -347,9 +335,8 @@ public class ManagedAIApiService extends AbstractAIApiService implements ApiServ
 
 			// only log if this is a paid request (= OpenAI)
 			if (request.getRequestedTokens() > 1) {
-				logger.info("Dispatched OpenAI API chat completion request by " + request.getUsername() + ": "
-				        + messages.stream().map(m -> m.getRole() + ":" + m.getContent())
-				                .collect(Collectors.joining("\n")));
+				logger.info("Dispatched AI API chat completion request by " + request.getUsername() + ": " + messages
+						.stream().map(m -> m.getRole() + ":" + m.getContent()).collect(Collectors.joining("\n")));
 			}
 
 			// add the result and finish reason to the response
@@ -364,11 +351,11 @@ public class ManagedAIApiService extends AbstractAIApiService implements ApiServ
 				result.put(RESPONSE_COST, completion.getUsage().getTotalTokens());
 			} else {
 				result.put(RESPONSE_ERROR,
-				        "Unknown API problem (check API key or API status --> https://status.openai.com).");
+						"Unknown API problem (check API key or API status --> https://status.openai.com).");
 			}
 		} catch (Exception e) {
 			result.put(RESPONSE_ERROR,
-			        "Unknown API problem (check API key or API status --> https://status.openai.com).");
+					"Unknown API problem (check API key or API status --> https://status.openai.com).");
 			logger.error("Problem", e);
 		}
 
@@ -398,7 +385,7 @@ public class ManagedAIApiService extends AbstractAIApiService implements ApiServ
 
 		// create service
 		OpenAiService service = new OpenAiService(
-		        createService(apiKey, ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS));
+				createService(apiKey, ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS));
 
 		ObjectNode result = Json.newObject();
 		try {
@@ -427,7 +414,7 @@ public class ManagedAIApiService extends AbstractAIApiService implements ApiServ
 			}
 		} catch (Exception e) {
 			result.put(RESPONSE_ERROR,
-			        "Unknown API problem (check API key or API status --> https://status.openai.com).");
+					"Unknown API problem (check API key or API status --> https://status.openai.com).");
 			logger.error("Problem", e);
 		}
 
@@ -438,11 +425,11 @@ public class ManagedAIApiService extends AbstractAIApiService implements ApiServ
 
 		// create request
 		EmbeddingRequest er = EmbeddingRequest.builder().input(contentToEmbed)
-		        .model("text-embedding-nomic-embed-text-v2-moe").build();
+				.model("text-embedding-nomic-embed-text-v2-moe").build();
 
 		// create service
 		OpenAiService service = new OpenAiService(
-		        createService(LOCALAI_APIKEY, ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS));
+				createService(LOCALAI_APIKEY, ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS));
 
 		// run service with request
 		EmbeddingResult ers = service.createEmbeddings(er);

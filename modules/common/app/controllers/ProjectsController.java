@@ -54,7 +54,7 @@ import play.mvc.Result;
 import play.mvc.Security.Authenticated;
 import play.twirl.api.Html;
 import services.api.GenericApiService.ProjectAPIInfo;
-import services.api.ai.ManagedAIApiService;
+import services.api.ai.UnmanagedAIApiService;
 import services.email.NotificationService;
 import services.maintenance.ProjectLifecycleService;
 import services.search.SearchService;
@@ -85,7 +85,7 @@ public class ProjectsController extends AbstractAsyncController {
 	private final OnboardingSupport onboardingSupport;
 	private final TelegramBotService telegramBotUtils;
 	private final SearchService searchService;
-	private final ManagedAIApiService managedAIAPIService;
+	private final UnmanagedAIApiService aiAPIService;
 	private final ProjectLifecycleService lifeCycleService;
 	private static final Logger.ALogger logger = Logger.of(ProjectsController.class);
 	private final int MAX_ACTIVE_PROJECTS;
@@ -95,7 +95,7 @@ public class ProjectsController extends AbstractAsyncController {
 			FormFactory formFactory, CompleteDSController cdsc, DatasetConnector datasetConnector,
 			NotificationService notificationService, TokenResolverUtil tokenResolverUtil,
 			OnboardingSupport onboardingSupport, TelegramBotService telegramBotService, SearchService searchService,
-			ManagedAIApiService managedAiAPIService, ProjectLifecycleService lifeCycleService) {
+			UnmanagedAIApiService aiAPIService, ProjectLifecycleService lifeCycleService) {
 		this.config = config;
 		this.configurator = configurator;
 		this.environment = environment;
@@ -108,7 +108,7 @@ public class ProjectsController extends AbstractAsyncController {
 		this.onboardingSupport = onboardingSupport;
 		this.telegramBotUtils = telegramBotService;
 		this.searchService = searchService;
-		this.managedAIAPIService = managedAiAPIService;
+		this.aiAPIService = aiAPIService;
 		this.lifeCycleService = lifeCycleService;
 
 		this.MAX_ACTIVE_PROJECTS = ConfigurationUtils.configureInt(config, ConfigurationUtils.DF_MAX_ACTIVE_PROJECTS,
@@ -1936,13 +1936,15 @@ public class ProjectsController extends AbstractAsyncController {
 		}
 
 		// retrieve settings for the API access
-		ProjectAPIInfo pai = managedAIAPIService.getProjectAPIAccess(user, project);
+		ProjectAPIInfo pai = aiAPIService.getProjectAPIAccess(user, project);
+		boolean isAIConfigured = ConfigurationUtils.checkConfiguration(config, ConfigurationUtils.DF_LOCALAI_HOST);
 
-		return ok(views.html.projects.projectAPIAccess.render(project.getId(), pai, csrfToken(request)));
+		return ok(
+				views.html.projects.projectAPIAccess.render(project.getId(), pai, isAIConfigured, csrfToken(request)));
 	}
 
 	@AddCSRFToken
-	public Result activateOpenAIApiAccess(Request request, long id) {
+	public Result activateAIApiAccess(Request request, long id) {
 		Person user = getAuthenticatedUserOrReturn(request, noContent());
 
 		// check if project exists and belongs to user
@@ -1952,9 +1954,11 @@ public class ProjectsController extends AbstractAsyncController {
 		}
 
 		// update key and retrieve settings for the API access
-		ProjectAPIInfo pai = managedAIAPIService.activateProjectAPIAccess(user, project);
+		ProjectAPIInfo pai = aiAPIService.activateProjectAPIAccess(user, project);
+		boolean isAIConfigured = ConfigurationUtils.checkConfiguration(config, ConfigurationUtils.DF_LOCALAI_HOST);
 
-		return ok(views.html.projects.projectAPIAccess.render(project.getId(), pai, csrfToken(request)));
+		return ok(
+				views.html.projects.projectAPIAccess.render(project.getId(), pai, isAIConfigured, csrfToken(request)));
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////

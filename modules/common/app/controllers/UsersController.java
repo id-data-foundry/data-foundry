@@ -37,10 +37,10 @@ import play.mvc.Http.Request;
 import play.mvc.Result;
 import play.mvc.Security.Authenticated;
 import play.twirl.api.Html;
+import services.api.GenericApiService.ProjectAPIInfo;
+import services.api.ai.UnmanagedAIApiService;
 import services.email.NotificationService;
 import services.search.SearchService;
-import services.api.GenericApiService.ProjectAPIInfo;
-import services.api.ai.ManagedAIApiService;
 import utils.DateUtils;
 import utils.auth.Roles;
 import utils.auth.TokenResolverUtil;
@@ -59,7 +59,7 @@ public class UsersController extends AbstractAsyncController {
 	private final SyncCacheApi cache;
 	private final TokenResolverUtil tokenResolverUtil;
 	private final OnboardingSupport onboardingSupport;
-	private final ManagedAIApiService managedAIAPIService;
+	private final UnmanagedAIApiService aiAPIService;
 	private final boolean ssoEnabled;
 
 	private static final Logger.ALogger logger = Logger.of(UsersController.class);
@@ -67,14 +67,14 @@ public class UsersController extends AbstractAsyncController {
 	@Inject
 	public UsersController(Config configuration, NotificationService notificationService, SearchService searchService,
 			FormFactory formFactory, SyncCacheApi cache, TokenResolverUtil tokenResolverUtil,
-			OnboardingSupport onboardingSupport, ManagedAIApiService managedAIAPIService) {
+			OnboardingSupport onboardingSupport, UnmanagedAIApiService managedAIAPIService) {
 		this.notificationService = notificationService;
 		this.searchService = searchService;
 		this.formFactory = formFactory;
 		this.cache = cache;
 		this.tokenResolverUtil = tokenResolverUtil;
 		this.onboardingSupport = onboardingSupport;
-		this.managedAIAPIService = managedAIAPIService;
+		this.aiAPIService = managedAIAPIService;
 
 		// only check SSO configuration once
 		ssoEnabled = ConfigurationUtils.isSSO(configuration);
@@ -261,7 +261,7 @@ public class UsersController extends AbstractAsyncController {
 
 		java.util.Map<Long, ProjectAPIInfo> projectAPIKeys = new java.util.HashMap<>();
 		for (Project p : activeProjects) {
-			projectAPIKeys.put(p.getId(), managedAIAPIService.getProjectAPIAccess(user, p));
+			projectAPIKeys.put(p.getId(), aiAPIService.getProjectAPIAccess(user, p));
 		}
 
 		// collect dataset API keys from active projects

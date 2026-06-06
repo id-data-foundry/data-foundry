@@ -1,7 +1,8 @@
-@(projectId: Long, pai: services.api.GenericApiService.ProjectAPIInfo, csrfToken: String)
+@(projectId: Long, pai: services.api.GenericApiService.ProjectAPIInfo, isAIConfigured: Boolean, csrfToken: String)
 
+@if(isAIConfigured) {
 <form
-    hx-post="@routes.ProjectsController.activateOpenAIApiAccess(projectId)"
+    hx-post="@routes.ProjectsController.activateAIApiAccess(projectId)"
     @if(pai.created > 0) {
     hx-confirm="Are you sure that you want to generate a new key? Click OK to generate the new key."
     }
@@ -9,12 +10,7 @@
     <input type="hidden" name="csrfToken" value="@csrfToken">
     <h5>Project API access</h5>
     <p>
-        You can configure API access for this project here. That means, you can generate an API key for this project (and you as a user) that allows to access a Data Foundry API. If it is configured in your Data Foundry, you can access the <a href="/documentation/Learning/LocalAI/index.html" target="_blank" rel="noopener">LocalAI API</a> with a generated key below. Check our <a href="/documentation/Reference/LocalAI/AIAPI.html" target="_blank" rel="noopener">documentation</a> to learn how to use this API from Data Foundry.
-    </p>
-    <p>
-        <i>
-            Please note: Do not use OpenAI API functionality for collecting sensitive and confidential information. Furthermore, do not use it to collect personal data including special category of personal data.
-        </i>
+        You can configure API access for this project here. That means, you can generate an API key for this project (and you as a user) that allows to access the Data Foundry AI API. This API is compatible with the OpenAI API and you can access the <a href="/documentation/Learning/LocalAI/index.html" target="_blank" rel="noopener">LocalAI API</a> with a generated key below. Check our <a href="/documentation/Reference/LocalAI/AIAPI.html" target="_blank" rel="noopener">documentation</a> to learn how to use this API from Data Foundry.
     </p>
 
     @if(pai.created > 0) {
@@ -77,7 +73,7 @@
     <details open>
         <summary class="active">Important information</summary>
         <p>
-            The use of this API is controlled by Data Foundry and at the moment <i>free</i>. We will monitor the usage of the API and also log any prompts that are submitted for quality assurance and debugging purposes. We will only log data that is exchanged with OpenAI as an external party, not data that is exchanged with our LocalAI instance.
+            The use of this API is controlled by Data Foundry and at the moment <i>free</i>. We will monitor the usage of the API and also log any prompts that are submitted for quality assurance and debugging purposes. 
         </p>
         <p>
             If you suspect that your API key has somehow leaked, generate a new one (which invalidates the old one) <i>and</i> <a href="/links/contact" target="_blank">contact us</a> for help.
@@ -87,3 +83,9 @@
         </p>
     </details>
 </form>
+} else {
+    <h5>Project API access</h5>
+    <p>
+        AI API access is currently not configured for this Data Foundry installation.
+    </p>
+}

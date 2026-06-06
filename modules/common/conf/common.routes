@@ -130,7 +130,7 @@ GET			/projects/:id/wearables								controllers.ProjectsController.wearable(req
 GET			/projects/:id/datasets/latest						controllers.ProjectsController.latestDataset(request: Request, id: Long)
 
 GET 		/projects/:id/apis									controllers.ProjectsController.projectApiAccess(request: Request, id: Long)
-POST 		/projects/:id/apis/openAI							controllers.ProjectsController.activateOpenAIApiAccess(request: Request, id: Long)
+POST 		/projects/:id/apis/ai								controllers.ProjectsController.activateAIApiAccess(request: Request, id: Long)
 
 # datasets ------------------------------------------------------------------------------------------------------------
 
@@ -614,7 +614,6 @@ GET			/api/v2/generate/:service							controllers.api2.AuthApiController.generat
 
 # API API
 
-POST		/api/vendor/openai/:id								controllers.api2.DirectAPIController.submitOpenAIRequest(request: Request, id: Long)
 POST		/api/vendor/localai/:id								controllers.api2.DirectAPIController.submitLocalAIRequest(request: Request, id: Long)
 POST		/api/vendor/s2t/:id									controllers.api2.DirectAPIController.submitS2TRequest(request: Request, id: Long)
 POST		/api/vendor/t2s/:id									controllers.api2.DirectAPIController.submitT2SRequest(request: Request, id: Long)

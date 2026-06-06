@@ -184,27 +184,8 @@ public class RemoteApiRequest extends ApiRequest<String> implements ApiServiceCo
 		this.task = task;
 
 		// ------------------------------------------------------------------------------------------------------------
-		// OpenAI requests are indicated by...
-		// (1) an OpenAI API key
-		if (apiToken.startsWith(OPENAI_API_KEY_PREFIX)) {
-			// if someone uses their own API key, bypass all db stuff, assign model and go
-			setInternalApiKey(apiToken);
-			this.model = modelName;
-			this.requestedTokens = 0;
-		}
-		// (2) a specific OpenAI model name
-		else if (getModelCostsFuzzy(modelName) > 0) {
-			setInternalApiKey(OPENAI_APIKEY);
-			this.model = getModelFullName(modelName);
-			if (modelName.contains("-")) {
-				this.requestedTokens = getModelCostsFuzzy(modelName);
-			} else {
-				this.requestedTokens = getModelCosts(modelName);
-			}
-		}
-		// ------------------------------------------------------------------------------------------------------------
-		// Or is this a credit request perhaps?
-		else if (task.equals(REQUEST_TASK_CREDITS)) {
+		// Is this a credit request perhaps?
+		if (task.equals(REQUEST_TASK_CREDITS)) {
 			setInternalApiKey(LOCALAI_APIKEY);
 			this.model = "";
 			this.requestedTokens = 0;
@@ -213,7 +194,7 @@ public class RemoteApiRequest extends ApiRequest<String> implements ApiServiceCo
 		// Or is the model empty? --> map to default LocalAI model
 		else if (modelName.isEmpty()) {
 			setInternalApiKey(LOCALAI_APIKEY);
-			this.model = MODEL_LOCALAI_DEFAULT;
+			this.model = LOCALAI_MODEL_DEFAULT;
 			this.requestedTokens = 1;
 		}
 		// ------------------------------------------------------------------------------------------------------------
@@ -268,15 +249,6 @@ public class RemoteApiRequest extends ApiRequest<String> implements ApiServiceCo
 	 */
 	public boolean isModelsRequest() {
 		return getTask().equals(REQUEST_TASK_MODELS) || getType().equals(REQUEST_TASK_MODELS);
-	}
-
-	/**
-	 * check whether the api token has an OpenAI prefix
-	 * 
-	 * @return
-	 */
-	public boolean isDirectOpenAIApiRequest() {
-		return getUserApiKey().startsWith(OPENAI_API_KEY_PREFIX);
 	}
 
 	public int getRequestedTokens() {

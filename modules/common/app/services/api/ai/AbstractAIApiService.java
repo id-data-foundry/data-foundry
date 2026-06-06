@@ -27,29 +27,30 @@ import utils.conf.ConfigurationUtils;
 
 public class AbstractAIApiService extends GenericApiService {
 
-	protected final String openAIAPIKey;
+	protected final String localAIAPIKey;
 	protected final String localAIHost;
+
 	protected final LocalModelMetadata localModelMetadata;
 
 	private static final Logger.ALogger logger = Logger.of(UnmanagedAIApiService.class);
 
 	protected AbstractAIApiService(Config configuration, AdminUtils adminUtils, DatasetConnector datasetConnector,
-	        TokenResolverUtil tokenResolver, LocalModelMetadata lmmd) {
+			TokenResolverUtil tokenResolver, LocalModelMetadata lmmd) {
 		super(configuration, adminUtils, datasetConnector, tokenResolver);
 
-		// retrieve the Open AI API key from configuration
-		if (configuration.hasPath(ConfigurationUtils.DF_VENDOR_OPENAI)) {
-			openAIAPIKey = configuration.getString(ConfigurationUtils.DF_VENDOR_OPENAI);
-		} else {
-			openAIAPIKey = "";
-		}
-
-		// retrieve Local AI host from configuration
+		// retrieve DF AI host from configuration
 		final String tempLocalAIHost;
 		if (configuration.hasPath(ConfigurationUtils.DF_LOCALAI_HOST)) {
 			tempLocalAIHost = configuration.getString(ConfigurationUtils.DF_LOCALAI_HOST);
 		} else {
 			tempLocalAIHost = "";
+		}
+
+		// retrieve the DF AI API key from configuration
+		if (configuration.hasPath(ConfigurationUtils.DF_AI_API_KEY)) {
+			localAIAPIKey = configuration.getString(ConfigurationUtils.DF_AI_API_KEY);
+		} else {
+			localAIAPIKey = "";
 		}
 
 		if (tempLocalAIHost.isEmpty()) {
@@ -76,22 +77,12 @@ public class AbstractAIApiService extends GenericApiService {
 	 */
 	protected OpenAiApi createService(String apiKey, int timeoutMS) {
 		ObjectMapper mapper = OpenAiService.defaultObjectMapper();
-		if (apiKey.equals(LOCALAI_APIKEY)) {
-			OkHttpClient client = new OkHttpClient.Builder().connectionPool(new ConnectionPool(2, 30, TimeUnit.SECONDS))
-			        .readTimeout(timeoutMS, TimeUnit.MILLISECONDS).build();
-			Retrofit retrofit = new Retrofit.Builder().baseUrl(localAIHost + "/").client(client)
-			        .addConverterFactory(JacksonConverterFactory.create(mapper))
-			        .addCallAdapterFactory(RxJava2CallAdapterFactory.create()).build();
-			return retrofit.create(OpenAiApi.class);
-		} else {
-			OkHttpClient client = new OkHttpClient.Builder().addInterceptor(new AuthenticationInterceptor(apiKey))
-			        .connectionPool(new ConnectionPool(2, 30, TimeUnit.SECONDS))
-			        .readTimeout(timeoutMS, TimeUnit.MILLISECONDS).build();
-			Retrofit retrofit = new Retrofit.Builder().baseUrl(OPENAI_BASE_URL).client(client)
-			        .addConverterFactory(JacksonConverterFactory.create(mapper))
-			        .addCallAdapterFactory(RxJava2CallAdapterFactory.create()).build();
-			return retrofit.create(OpenAiApi.class);
-		}
+		OkHttpClient client = new OkHttpClient.Builder().connectionPool(new ConnectionPool(2, 30, TimeUnit.SECONDS))
+				.readTimeout(timeoutMS, TimeUnit.MILLISECONDS).build();
+		Retrofit retrofit = new Retrofit.Builder().baseUrl(localAIHost + "/").client(client)
+				.addConverterFactory(JacksonConverterFactory.create(mapper))
+				.addCallAdapterFactory(RxJava2CallAdapterFactory.create()).build();
+		return retrofit.create(OpenAiApi.class);
 	}
 
 	/**

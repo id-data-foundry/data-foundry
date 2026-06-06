@@ -24,7 +24,6 @@ import models.Project;
 import models.ds.SurveyDS;
 import models.sr.Cluster;
 import models.sr.Participant;
-import play.Logger;
 import play.cache.SyncCacheApi;
 import play.data.DynamicForm;
 import play.data.FormFactory;
@@ -44,13 +43,13 @@ public class SurveyDSController extends AbstractDSController {
 	private static final String FORM_TEMPLATE_TEXT = "form_template_text";
 	private static final String FORM_HTML_TEXT = "form_html_text";
 
-	private static final Logger.ALogger logger = Logger.of(SurveyDSController.class);
+//	private static final Logger.ALogger logger = Logger.of(SurveyDSController.class);
 
 	private final TokenResolverUtil tokenResolverUtil;
 
 	@Inject
 	public SurveyDSController(FormFactory formFactory, SyncCacheApi cache, DatasetConnector datasetConnector,
-	        TokenResolverUtil tokenResolverUtil, OnboardingSupport onboardingSupport) {
+			TokenResolverUtil tokenResolverUtil, OnboardingSupport onboardingSupport) {
 		super(formFactory, cache, datasetConnector, onboardingSupport);
 
 		this.tokenResolverUtil = tokenResolverUtil;
@@ -64,13 +63,13 @@ public class SurveyDSController extends AbstractDSController {
 		Dataset ds = Dataset.find.byId(id);
 		if (ds == null) {
 			return redirect(controllers.routes.HomeController.index()).addingToSession(request, "error",
-			        "We could not find this dataset.");
+					"We could not find this dataset.");
 		}
 
 		// check ownership and collaboratorship
 		if (!ds.visibleFor(username)) {
 			return redirect(controllers.routes.ProjectsController.view(ds.getProject().getId()))
-			        .addingToSession(request, "error", "Dataset is not accessible.");
+					.addingToSession(request, "error", "Dataset is not accessible.");
 		}
 
 		List<Participant> participants = ds.getProject().getParticipants();
@@ -90,7 +89,7 @@ public class SurveyDSController extends AbstractDSController {
 		Project p = Project.find.byId(id);
 		if (p == null || !p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "Project not valid or you don't have permissions for this action. Need to be the owner or a collaborator of the project.");
+					"Project not valid or you don't have permissions for this action. Need to be the owner or a collaborator of the project.");
 		}
 
 		return ok(views.html.datasets.survey.add.render(csrfToken(request), p));
@@ -104,7 +103,7 @@ public class SurveyDSController extends AbstractDSController {
 		Project p = Project.find.byId(id);
 		if (p == null || !p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "Project not valid or you don't have permissions for this action. Need to be the owner or a collaborator of the project.");
+					"Project not valid or you don't have permissions for this action. Need to be the owner or a collaborator of the project.");
 		}
 
 		DynamicForm df = formFactory.form().bindFromRequest(request);
@@ -113,7 +112,7 @@ public class SurveyDSController extends AbstractDSController {
 		}
 
 		Dataset ds = datasetConnector.create(df.get("dataset_name"), DatasetType.SURVEY, p, df.get("description"),
-		        df.get("target_object"), "", df.get("license"));
+				df.get("target_object"), "", df.get("license"));
 
 		// dates
 		storeDates(ds, df);
@@ -138,7 +137,7 @@ public class SurveyDSController extends AbstractDSController {
 		p.refresh();
 		if (!p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "You don't have permissions for this action. Need to be the owner or a collaborator of the project.");
+					"You don't have permissions for this action. Need to be the owner or a collaborator of the project.");
 		}
 
 		return ok(views.html.datasets.survey.edit.render(csrfToken(request), ds));
@@ -158,13 +157,13 @@ public class SurveyDSController extends AbstractDSController {
 		p.refresh();
 		if (!p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "You don't have permissions for this action. Need to be the owner or a collaborator of the project.");
+					"You don't have permissions for this action. Need to be the owner or a collaborator of the project.");
 		}
 
 		DynamicForm df = formFactory.form().bindFromRequest(request);
 		if (df == null) {
 			return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
-			        "Expecting some data");
+					"Expecting some data");
 		}
 
 		ds.setName(htmlTagEscape(nss(df.get("dataset_name"), 64)));
@@ -218,14 +217,14 @@ public class SurveyDSController extends AbstractDSController {
 
 		if (invite_token == null || invite_token.length() == 0) {
 			return redirect(controllers.routes.HomeController.index()).addingToSession(request, "error",
-			        "Participant token is not given.");
+					"Participant token is not given.");
 		}
 
 		// check participant id from invite_id
 		long participant_id = tokenResolverUtil.getParticipantIdFromParticipationToken(invite_token);
 		if (participant_id <= 0) {
 			return redirect(controllers.routes.HomeController.index()).addingToSession(request, "error",
-			        "Participant token is not recognized.");
+					"Participant token is not recognized.");
 		}
 
 		Participant participant = Participant.find.byId(participant_id);
@@ -238,7 +237,7 @@ public class SurveyDSController extends AbstractDSController {
 			return redirect(HOME).addingToSession(request, "error", "Dataset is not available.");
 		} else if (!ds.canAppend()) {
 			return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
-			        "Dataset is closed (adjust start and end dates to open).");
+					"Dataset is closed (adjust start and end dates to open).");
 		}
 
 		Project project = ds.getProject();
@@ -278,14 +277,14 @@ public class SurveyDSController extends AbstractDSController {
 
 		if (invite_token == null || invite_token.length() == 0) {
 			return redirect(controllers.routes.HomeController.index()).addingToSession(request, "error",
-			        "Participant token is not given.");
+					"Participant token is not given.");
 		}
 
 		// check participant id from invite_id
 		long participant_id = tokenResolverUtil.getParticipantIdFromParticipationToken(invite_token);
 		if (participant_id <= 0) {
 			return redirect(controllers.routes.HomeController.index()).addingToSession(request, "error",
-			        "Participant token is not recognized.");
+					"Participant token is not recognized.");
 		}
 
 		Participant participant = Participant.find.byId(participant_id);
@@ -298,7 +297,7 @@ public class SurveyDSController extends AbstractDSController {
 			return redirect(HOME).addingToSession(request, "error", "Dataset is not available.");
 		} else if (!ds.canAppend()) {
 			return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
-			        "Dataset is closed (adjust start and end dates to open).");
+					"Dataset is closed (adjust start and end dates to open).");
 		}
 
 		Project project = ds.getProject();
@@ -323,23 +322,23 @@ public class SurveyDSController extends AbstractDSController {
 		// collect items
 		ObjectNode on = Json.newObject();
 		df.keySet().stream()
-		        .filter(key -> key.startsWith("choice_") || key.startsWith("text_") || key.startsWith("numerical_"))
-		        .forEach(key -> {
-			        String[] value = df.get(key);
-			        if (value != null) {
-				        if (value.length == 1) {
-					        if (key.startsWith("text_")) {
-						        String text = value[0].replace("\n", "<br>")
-						                .replaceAll("[\\p{Cntrl}\\p{Cc}\\p{Cf}\\p{Co}\\p{Cn}]", "");
-						        on.put(key, text);
-					        } else {
-						        on.put(key, value[0]);
-					        }
-				        } else {
-					        on.put(key, String.join(",", value));
-				        }
-			        }
-		        });
+				.filter(key -> key.startsWith("choice_") || key.startsWith("text_") || key.startsWith("numerical_"))
+				.forEach(key -> {
+					String[] value = df.get(key);
+					if (value != null) {
+						if (value.length == 1) {
+							if (key.startsWith("text_")) {
+								String text = value[0].replace("\n", "<br>")
+										.replaceAll("[\\p{Cntrl}\\p{Cc}\\p{Cf}\\p{Co}\\p{Cn}]", "");
+								on.put(key, text);
+							} else {
+								on.put(key, value[0]);
+							}
+						} else {
+							on.put(key, String.join(",", value));
+						}
+					}
+				});
 
 		// text
 		String text = on.toString();
@@ -352,7 +351,7 @@ public class SurveyDSController extends AbstractDSController {
 
 		// flash and redirect
 		return ok(views.html.datasets.survey.thanks.render(ds)).addingToSession(request, "message",
-		        "Survey entry recorded, thanks!");
+				"Survey entry recorded, thanks!");
 	}
 
 	@Authenticated(UserAuth.class)
@@ -372,7 +371,7 @@ public class SurveyDSController extends AbstractDSController {
 		if (template_text == null) {
 			// no form to render
 			return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "message",
-			        "There is no form set up yet.");
+					"There is no form set up yet.");
 		}
 
 		// render visualization
@@ -388,15 +387,15 @@ public class SurveyDSController extends AbstractDSController {
 	public CompletionStage<Result> downloadExternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
 		final List<Long> participantIds = cluster.getParticipantList();
 		return CompletableFuture.supplyAsync(() -> internalExport(ds, participantIds, limit, start, end))
-		        .thenApplyAsync(chunks -> ok().chunked(chunks)
-		                .withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
-		                .as("text/csv"));
+				.thenApplyAsync(chunks -> ok().chunked(chunks)
+						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
+						.as("text/csv"));
 	}
 
 	public CompletionStage<Result> downloadInternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
 		final List<Long> participantIds = cluster != null ? cluster.getParticipantList() : Collections.emptyList();
 		return CompletableFuture.supplyAsync(() -> internalExport(ds, participantIds, limit, start, end))
-		        .thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
+				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
 	}
 
 	@Authenticated(UserAuth.class)
@@ -417,13 +416,13 @@ public class SurveyDSController extends AbstractDSController {
 		if (acceptLicenseFirst(request, username, project)) {
 			// redirect to accept license first
 			return redirectCS(controllers.routes.ProjectsController.license(project.getId(),
-			        controllers.api.routes.SurveyDSController.downloadRaw(id, -1L, -1l, -1l).relativeTo("/")));
+					controllers.api.routes.SurveyDSController.downloadRaw(id, -1L, -1l, -1l).relativeTo("/")));
 		}
 
 		return CompletableFuture.supplyAsync(() -> internalExportRaw(ds, limit, start, end))
-		        .thenApplyAsync(chunks -> ok().chunked(chunks)
-		                .withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
-		                .as("text/csv"));
+				.thenApplyAsync(chunks -> ok().chunked(chunks)
+						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
+						.as("text/csv"));
 	}
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -437,7 +436,7 @@ public class SurveyDSController extends AbstractDSController {
 	 * @return
 	 */
 	private Source<ByteString, ?> internalExport(Dataset ds, List<Long> participantIds, long limit, long start,
-	        long end) {
+			long end) {
 		SurveyDS fmsc = (SurveyDS) datasetConnector.getDatasetDS(ds);
 		return createStream().mapMaterializedValue(sourceActor -> {
 			CompletableFuture.runAsync(() -> fmsc.exportProjected(sourceActor, participantIds, limit, start, end));
@@ -464,7 +463,7 @@ public class SurveyDSController extends AbstractDSController {
 	public String getParticipantViewLink(Dataset ds, String host) {
 		// Point to the project recruitment page because we need a participant
 		return controllers.routes.ParticipationController.recruit(tokenResolverUtil.getDatasetToken(ds.getId()))
-		        .absoluteURL(true, host);
+				.absoluteURL(true, host);
 	}
 
 }

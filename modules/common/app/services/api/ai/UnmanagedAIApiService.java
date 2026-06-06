@@ -147,9 +147,6 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 		case "":
 			request.setResult(Optional.of(Json.newObject().put(RESPONSE_ERROR, "No api-key available.").toString()));
 			return CompletableFuture.completedFuture(null);
-		case OPENAI_APIKEY:
-			request.setInternalApiKey(openAIAPIKey);
-			break;
 		default:
 			break;
 		}
@@ -201,10 +198,8 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 		switch (request.getInternalApiKey()) {
 		case "":
 			request.setResult(Optional.of(Json.newObject().put(RESPONSE_ERROR, "No api-key available.").toString()));
+			request.setInternalApiKey(localAIAPIKey);
 			return;
-		case OPENAI_APIKEY:
-			request.setInternalApiKey(openAIAPIKey);
-			break;
 		default:
 			break;
 		}
@@ -215,12 +210,12 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 			request.finish();
 		}
 
-		// 3. compute requested credits
-		if (request.isDirectOpenAIApiRequest()) {
-			// this can be sent directly, no need to check for DB: submit and return immediately
-			executionService.submitRequest(request, (r) -> processRequest(r), request.getMsTimeout());
-			return;
-		}
+//		// 3. compute requested credits
+//		if (request.isDirectOpenAIApiRequest()) {
+//			// this can be sent directly, no need to check for DB: submit and return immediately
+//			executionService.submitRequest(request, (r) -> processRequest(r), request.getMsTimeout());
+//			return;
+//		}
 
 		// 4. fast track local documentation API requests
 		if (request.getUserApiKey().equals(getInternalDocumentationAPIKey()) && request.getRequestedTokens() <= 1) {
