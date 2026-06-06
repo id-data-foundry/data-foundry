@@ -653,6 +653,7 @@ p.info-msg .timestamp, p.error-msg .timestamp {
 }
 
 #df-activity {
+    position: relative;
     margin: 0 0.3rem;
     padding: 0rem 2rem;
     z-index: 10000;
