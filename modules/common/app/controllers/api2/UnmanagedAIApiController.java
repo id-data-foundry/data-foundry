@@ -92,7 +92,7 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 							StreamingRemoteApiRequest internalAPIRequest = new StreamingRemoteApiRequest(writer,
 									ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, REQUEST_TASK_CHAT_COMPLETION,
 									"", apiKey, -1L, (ObjectNode) json);
-							internalAPIRequest.setPath("/v1/chat/completions");
+							internalAPIRequest.setPath("/chat/completions");
 							aiApiService.submitApiRequest(internalAPIRequest);
 							return NotUsed.getInstance();
 						});
@@ -101,7 +101,7 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 				// buffered request
 				RemoteApiRequest internalAPIRequest = new RemoteApiRequest(REQUEST_TASK_CHAT_COMPLETION,
 						ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, "", apiKey, -1L, (ObjectNode) json);
-				internalAPIRequest.setPath("/v1/chat/completions");
+				internalAPIRequest.setPath("/chat/completions");
 
 				try {
 					// submit and wait for timeout
@@ -141,7 +141,7 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 			// create request
 			RemoteApiRequest internalAPIRequest = new RemoteApiRequest(REQUEST_TASK_MODELS,
 					ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, "", apiKey, -1L, Json.newObject());
-			internalAPIRequest.setPath("/v1/audio/transcriptions");
+			internalAPIRequest.setPath("/audio/transcriptions");
 
 			// set file in request
 			internalAPIRequest.setMultipartFormData(mpfd);
@@ -178,7 +178,7 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 			ObjectNode requestParams = (ObjectNode) request.body().asJson();
 			RemoteApiRequest internalAPIRequest = new RemoteApiRequest(REQUEST_TASK_IMAGE_GENERATION,
 					ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS * 5, "", apiKey, -1L, requestParams);
-			internalAPIRequest.setPath("/v1/images/generations");
+			internalAPIRequest.setPath("/images/generations");
 
 			try {
 				// submit and wait for timeout
@@ -229,7 +229,7 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 			ObjectNode requestParams = (ObjectNode) request.body().asJson();
 			RemoteApiRequest internalAPIRequest = new RemoteApiRequest(REQUEST_TASK_SPEECH_GENERATION,
 					ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS / 2, "", apiKey, -1L, requestParams);
-			internalAPIRequest.setPath("/v1/audio/speech");
+			internalAPIRequest.setPath("/audio/speech");
 
 			try {
 				// submit and wait for timeout
@@ -319,7 +319,6 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 			// create request
 			RemoteApiRequest internalAPIRequest = new RemoteApiRequest(REQUEST_TASK_MODELS,
 					ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, "", authorization, -1L);
-//			internalAPIRequest.setPath("/v1/models");
 			internalAPIRequest.setPath("/models");
 
 			try {

@@ -1,24 +1,10 @@
 package services.api.ai;
 
-import java.io.IOException;
-import java.util.concurrent.TimeUnit;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.theokanning.openai.OpenAiApi;
-import com.theokanning.openai.service.OpenAiService;
 import com.typesafe.config.Config;
 
 import datasets.DatasetConnector;
-import okhttp3.ConnectionPool;
-import okhttp3.Interceptor;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
-import okhttp3.Response;
 import play.Logger;
-import retrofit2.Retrofit;
-import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory;
-import retrofit2.converter.jackson.JacksonConverterFactory;
 import services.api.GenericApiService;
 import services.api.remoting.RemoteApiRequest;
 import utils.admin.AdminUtils;
@@ -28,7 +14,7 @@ import utils.conf.ConfigurationUtils;
 public class AbstractAIApiService extends GenericApiService {
 
 	protected final String localAIAPIKey;
-	protected final String localAIHost;
+	protected final String aiBaseUrl;
 
 	protected final LocalModelMetadata localModelMetadata;
 
@@ -39,11 +25,11 @@ public class AbstractAIApiService extends GenericApiService {
 		super(configuration, adminUtils, datasetConnector, tokenResolver);
 
 		// retrieve DF AI host from configuration
-		final String tempLocalAIHost;
-		if (configuration.hasPath(ConfigurationUtils.DF_LOCALAI_HOST)) {
-			tempLocalAIHost = configuration.getString(ConfigurationUtils.DF_LOCALAI_HOST);
+		String tempAIBaseUrl;
+		if (configuration.hasPath(ConfigurationUtils.DF_AI_BASEURL)) {
+			tempAIBaseUrl = configuration.getString(ConfigurationUtils.DF_AI_BASEURL);
 		} else {
-			tempLocalAIHost = "";
+			tempAIBaseUrl = "";
 		}
 
 		// retrieve the DF AI API key from configuration
@@ -53,36 +39,24 @@ public class AbstractAIApiService extends GenericApiService {
 			localAIAPIKey = "";
 		}
 
-		if (tempLocalAIHost.isEmpty()) {
+		if (tempAIBaseUrl.isEmpty()) {
 			// empty, then stop
-			localAIHost = tempLocalAIHost;
-		} else if (!tempLocalAIHost.startsWith("http")) {
-			// add protocol, if not given; default is HTTPS
-			localAIHost = "https://" + tempLocalAIHost;
+			aiBaseUrl = tempAIBaseUrl;
 		} else {
-			// take over the configured value; this should be the usual case
-			localAIHost = tempLocalAIHost;
+			if (!tempAIBaseUrl.startsWith("http")) {
+				// add protocol, if not given; default is HTTPS
+				tempAIBaseUrl = "https://" + tempAIBaseUrl;
+			}
+
+			// remove trailing slash, if given
+			if (tempAIBaseUrl.endsWith("/")) {
+				tempAIBaseUrl = tempAIBaseUrl.substring(0, tempAIBaseUrl.length() - 1);
+			}
+
+			aiBaseUrl = tempAIBaseUrl;
 		}
 
 		localModelMetadata = lmmd;
-	}
-
-	/**
-	 * create service for the API call; this method is API key aware, that is, it will check whether the request
-	 * contains an OpenAI key or a local AI "key" and dispatch the API request accordingly to the right service
-	 * 
-	 * @param apiKey
-	 * @param timeoutMS
-	 * @return
-	 */
-	protected OpenAiApi createService(String apiKey, int timeoutMS) {
-		ObjectMapper mapper = OpenAiService.defaultObjectMapper();
-		OkHttpClient client = new OkHttpClient.Builder().connectionPool(new ConnectionPool(2, 30, TimeUnit.SECONDS))
-				.readTimeout(timeoutMS, TimeUnit.MILLISECONDS).build();
-		Retrofit retrofit = new Retrofit.Builder().baseUrl(localAIHost + "/").client(client)
-				.addConverterFactory(JacksonConverterFactory.create(mapper))
-				.addCallAdapterFactory(RxJava2CallAdapterFactory.create()).build();
-		return retrofit.create(OpenAiApi.class);
 	}
 
 	/**
@@ -111,24 +85,6 @@ public class AbstractAIApiService extends GenericApiService {
 		// also set the max_tokens to default if not set
 		if (!json.has("max_tokens")) {
 			json.put("max_tokens", 500);
-		}
-	}
-
-	/**
-	 * patched from Open AI Api library
-	 *
-	 */
-	public class AuthenticationInterceptor implements Interceptor {
-		private final String token;
-
-		AuthenticationInterceptor(String token) {
-			this.token = token;
-		}
-
-		@Override
-		public Response intercept(Chain chain) throws IOException {
-			Request request = chain.request().newBuilder().header("Authorization", "Bearer " + token).build();
-			return chain.proceed(request);
 		}
 	}
 

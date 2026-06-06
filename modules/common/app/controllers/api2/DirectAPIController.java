@@ -21,7 +21,7 @@ import play.mvc.Http.Request;
 import play.mvc.Result;
 import services.api.ApiServiceConstants;
 import services.api.GenericApiService;
-import services.api.ai.ManagedAIApiService;
+import services.api.ai.UnmanagedAIApiService;
 import services.api.processing.AudioProcessingApiService;
 import services.api.remoting.RemoteApiRequest;
 
@@ -29,14 +29,14 @@ import services.api.remoting.RemoteApiRequest;
 public class DirectAPIController extends Controller {
 
 	private SyncCacheApi cache;
-	private final ManagedAIApiService managedAIService;
+	private final UnmanagedAIApiService aiApiService;
 	private final AudioProcessingApiService audioService;
 
 	@Inject
-	public DirectAPIController(SyncCacheApi cache, ManagedAIApiService managedAIService,
+	public DirectAPIController(SyncCacheApi cache, UnmanagedAIApiService aiApiService,
 	        AudioProcessingApiService audioService) {
 		this.cache = cache;
-		this.managedAIService = managedAIService;
+		this.aiApiService = aiApiService;
 		this.audioService = audioService;
 	}
 
@@ -50,7 +50,7 @@ public class DirectAPIController extends Controller {
 			final RemoteApiRequest apiRequest = new RemoteApiRequest("",
 			        ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, username, "", id,
 			        (ObjectNode) request.body().asJson());
-			return ok(managedAIService.submitApiRequest(apiRequest)).as("application/json");
+			return ok(aiApiService.submitApiRequestSync(apiRequest)).as("application/json");
 		});
 	}
 

@@ -17,7 +17,7 @@ import datasets.DatasetConnector;
 import models.Dataset;
 import models.DatasetType;
 import play.Logger;
-import services.api.ai.ManagedAIApiService;
+import services.api.ai.UnmanagedAIApiService;
 import services.api.js.JSDBApiService;
 import services.api.processing.AudioProcessingApiService;
 import services.inlets.ScheduledService;
@@ -34,7 +34,7 @@ public class JSExecutorService implements ScheduledService {
 	private final TelegramBotService botService;
 	private final JSSandboxFactory sandboxFactory;
 	private final OOCSIClientUtil oocsiClientUtil;
-	private final ManagedAIApiService managedAiApiService;
+	private final UnmanagedAIApiService aiApiService;
 	private final AudioProcessingApiService audioProcessing;
 	private final JSDBApiService jsdbApiService;
 	private final RealTimeNotificationService realtimeNotifications;
@@ -48,14 +48,14 @@ public class JSExecutorService implements ScheduledService {
 
 	@Inject
 	public JSExecutorService(DatasetConnector datasetConnector, OOCSIClientUtil oocsiClientFactory,
-	        TelegramBotService botService, ManagedAIApiService managedAIApiService,
+	        TelegramBotService botService, UnmanagedAIApiService aiApiService,
 	        AudioProcessingApiService audioProcessing, JSDBApiService jsdbApiService,
 	        RealTimeNotificationService realtimeNotifications) {
 
 		this.datasetConnector = datasetConnector;
 		this.oocsiClientUtil = oocsiClientFactory;
 		this.botService = botService;
-		this.managedAiApiService = managedAIApiService;
+		this.aiApiService = aiApiService;
 		this.audioProcessing = audioProcessing;
 		this.jsdbApiService = jsdbApiService;
 		this.realtimeNotifications = realtimeNotifications;
@@ -88,7 +88,7 @@ public class JSExecutorService implements ScheduledService {
 	 */
 	public JSActor addActor(Dataset ds) {
 		JSActor actor = new JSActor(ds, datasetConnector, sandboxFactory, EXECUTOR, oocsiClientUtil, botService,
-		        managedAiApiService, audioProcessing, jsdbApiService, realtimeNotifications);
+		        aiApiService, audioProcessing, jsdbApiService, realtimeNotifications);
 		actors.put(ds.getId(), actor);
 
 		return actor;
@@ -102,7 +102,7 @@ public class JSExecutorService implements ScheduledService {
 	 */
 	public JSActor addTrialActor(Dataset ds) {
 		JSActor actor = new JSActor(ds, datasetConnector, sandboxFactory, EXECUTOR, oocsiClientUtil, botService,
-		        managedAiApiService, audioProcessing, jsdbApiService, realtimeNotifications);
+		        aiApiService, audioProcessing, jsdbApiService, realtimeNotifications);
 		trialActors.put(ds.getId(), actor);
 
 		return actor;
@@ -158,7 +158,7 @@ public class JSExecutorService implements ScheduledService {
 			if (!actors.containsKey(ds.getId())) {
 				// initialize and install a new actor
 				JSActor actor = new JSActor(ds, datasetConnector, sandboxFactory, EXECUTOR, oocsiClientUtil, botService,
-				        managedAiApiService, audioProcessing, jsdbApiService, realtimeNotifications);
+				        aiApiService, audioProcessing, jsdbApiService, realtimeNotifications);
 				actors.put(ds.getId(), actor);
 				actor.setCode(code, null);
 			}

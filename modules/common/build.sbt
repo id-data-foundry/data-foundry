@@ -102,9 +102,6 @@ libraryDependencies ++= Seq(
   "com.azure" % "azure-identity" % "1.2.5", //excludeAll(ExclusionRule(organization = "com.fasterxml.jackson.core"), ExclusionRule(organization = "com.fasterxml.jackson.module"), ExclusionRule(organization = "com.fasterxml.jackson.datatype")),
   "com.squareup.okhttp3" % "okhttp" % "4.10.0",
 
-  // OpenAI API
-  "com.theokanning.openai-gpt3-java" % "service" % "0.11.0" excludeAll(ExclusionRule(organization = "com.fasterxml.jackson.core"), ExclusionRule(organization = "com.fasterxml.jackson.module"), ExclusionRule(organization = "com.fasterxml.jackson.datatype")),
-
   // OpenDataLoader for PDF text extraction
   "org.opendataloader" % "opendataloader-pdf-core" % "2.2.0" excludeAll(ExclusionRule(organization = "com.fasterxml.jackson.core")),
 

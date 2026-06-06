@@ -73,7 +73,7 @@ public class ConfigurationUtils {
 
 	// ----------------------------------------------------------------------------------------------------------------
 
-	public static final String DF_LOCALAI_HOST = "df.processing.localai.host";
+	public static final String DF_AI_BASEURL = "df.processing.ai.baseurl";
 	public static final String DF_AI_API_KEY = "df.processing.ai.key";
 
 	// ----------------------------------------------------------------------------------------------------------------
@@ -134,7 +134,7 @@ public class ConfigurationUtils {
 		defaultValueFormat.put(DF_VENDOR_SLACK_CHANNEL,
 				"\"https://hooks.slack.com/services/XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\"");
 
-		defaultValueFormat.put(DF_LOCALAI_HOST, "\"http://localhost:9191\"");
+		defaultValueFormat.put(DF_AI_BASEURL, "\"http://localhost:9191/v1\"");
 
 		defaultValueFormat.put(DF_VENDOR_FITBIT_ID, "xxxxxxx");
 		defaultValueFormat.put(DF_VENDOR_FITBIT_SECRET, "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
@@ -172,7 +172,7 @@ public class ConfigurationUtils {
 				DF_SSO_CLIENT, DF_SSO_SECRET, DF_SSO_DISCOVERY, DF_MSGRAPH_TENANT, DF_MSGRAPH_CLIENT, DF_MSGRAPH_SECRET,
 				DF_MSGRAPH_DISCOVERY, DF_USERS_ADMINS, DF_USERS_MODERATORS, DF_USERS_REVIEWERS, DF_KEYS_API,
 				DF_KEYS_AUTH_API, DF_KEYS_V2_MULTI_API, DF_KEYS_V2_USER_API, DF_KEYS_REGISTRATION_ACCESS,
-				DF_KEYS_PROJECT_TOKEN, DF_OOCSI_SERVER, DF_VENDOR_SLACK_CHANNEL, DF_LOCALAI_HOST }, configuration, sb);
+				DF_KEYS_PROJECT_TOKEN, DF_OOCSI_SERVER, DF_VENDOR_SLACK_CHANNEL, DF_AI_BASEURL }, configuration, sb);
 	}
 
 	/**

@@ -69,7 +69,7 @@ import play.mvc.Security.Authenticated;
 import services.api.ApiServiceConstants;
 import services.api.GenericApiService.ProjectAPIInfo;
 import services.api.ai.LocalModelMetadata;
-import services.api.ai.ManagedAIApiService;
+import services.api.ai.UnmanagedAIApiService;
 import services.api.remoting.RemoteApiRequest;
 import services.processing.MediaProcessingService;
 import services.slack.Slack;
@@ -85,7 +85,7 @@ public class ChatbotController extends AbstractAsyncController {
 	private final FormFactory formFactory;
 	private final DatasetConnector datasetConnector;
 	private final CompleteDSController completeDSController;
-	private final ManagedAIApiService managedAIAPIService;
+	private final UnmanagedAIApiService aiAPIService;
 	private final MediaProcessingService mediaProcessingService;
 	private final SyncCacheApi cache;
 	private final LocalModelMetadata localModelMetadata;
@@ -95,13 +95,13 @@ public class ChatbotController extends AbstractAsyncController {
 
 	@Inject
 	public ChatbotController(FormFactory formFactory, DatasetConnector datasetConnector,
-			CompleteDSController completeDSController, ManagedAIApiService managedAiAPIService,
+			CompleteDSController completeDSController, UnmanagedAIApiService aiAPIService,
 			MediaProcessingService mediaProcessingService, SyncCacheApi cache, LocalModelMetadata lmmd,
 			TokenResolverUtil tokenResolver) {
 		this.formFactory = formFactory;
 		this.datasetConnector = datasetConnector;
 		this.completeDSController = completeDSController;
-		this.managedAIAPIService = managedAiAPIService;
+		this.aiAPIService = aiAPIService;
 		this.mediaProcessingService = mediaProcessingService;
 		this.cache = cache;
 		this.localModelMetadata = lmmd;
@@ -171,9 +171,9 @@ public class ChatbotController extends AbstractAsyncController {
 		ds.update();
 
 		// ensure that the project has an activated API key for local AI
-		ProjectAPIInfo pai = managedAIAPIService.getProjectAPIAccess(user, p);
+		ProjectAPIInfo pai = aiAPIService.getProjectAPIAccess(user, p);
 		if (pai.apiKey.isEmpty()) {
-			managedAIAPIService.activateProjectAPIAccess(user, p);
+			aiAPIService.activateProjectAPIAccess(user, p);
 		} else if (pai.tokensMax < pai.tokensUsed + 1000) {
 			// TODO here we need to increase the token allowance
 		}
@@ -669,7 +669,7 @@ public class ChatbotController extends AbstractAsyncController {
 			String originalUserPrompt) {
 
 		// check whether the chatbot owner has enough tokens, if not quick abort
-		ProjectAPIInfo pai = managedAIAPIService.getProjectAPIAccess(ds.getProject().getOwner(), ds.getProject());
+		ProjectAPIInfo pai = aiAPIService.getProjectAPIAccess(ds.getProject().getOwner(), ds.getProject());
 		if (pai.apiKey.isEmpty()) {
 			return new ConversationFragment(new ConversationItem("user", "", "", ""),
 					new ConversationItem("assistant", "", "",
@@ -751,7 +751,7 @@ public class ChatbotController extends AbstractAsyncController {
 			final RemoteApiRequest apiRequest = new RemoteApiRequest("",
 					ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, user.getEmail(), pai.apiKey,
 					ds.getProject().getId(), requestJson);
-			String llmResult = managedAIAPIService.submitApiRequest(apiRequest);
+			String llmResult = aiAPIService.submitApiRequestSync(apiRequest);
 			ObjectNode on = (ObjectNode) Json.parse(llmResult);
 			JsonNode contentNode = on.get("content");
 			String resultAsText = (contentNode != null && !contentNode.isNull()) ? contentNode.asText() : "";
@@ -820,7 +820,7 @@ public class ChatbotController extends AbstractAsyncController {
 		try {
 			final RemoteApiRequest apiRequest = new RemoteApiRequest("",
 					ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, user, apiKey, projectId, requestJson);
-			String result = managedAIAPIService.submitApiRequest(apiRequest);
+			String result = aiAPIService.submitApiRequestSync(apiRequest);
 			ObjectNode on = (ObjectNode) Json.parse(result);
 
 			JsonNode contentNode = on.get("content");
@@ -965,7 +965,7 @@ public class ChatbotController extends AbstractAsyncController {
 						+ cpds.getFolder().getAbsolutePath());
 
 				// process chunks to embeddings and store them in file
-				List<List<Double>> embeddings = managedAIAPIService.dispatchEmbeddingRequest("SYSTEM", chunks);
+				List<List<Double>> embeddings = aiAPIService.dispatchEmbeddingRequest("SYSTEM", chunks);
 				int counter = 0;
 				for (String str : chunks) {
 					ArrayNode ar = Json.newArray();
@@ -1223,7 +1223,7 @@ public class ChatbotController extends AbstractAsyncController {
 			IndexSearcher searcher = new IndexSearcher(indexReader);
 
 			// embed query
-			List<List<Double>> embeddings = managedAIAPIService.dispatchEmbeddingRequest("SYSTEM",
+			List<List<Double>> embeddings = aiAPIService.dispatchEmbeddingRequest("SYSTEM",
 					Arrays.asList(queryStr));
 			int dims = embeddings.get(0).size();
 			float[] floatArray = new float[dims];

@@ -1937,7 +1937,7 @@ public class ProjectsController extends AbstractAsyncController {
 
 		// retrieve settings for the API access
 		ProjectAPIInfo pai = aiAPIService.getProjectAPIAccess(user, project);
-		boolean isAIConfigured = ConfigurationUtils.checkConfiguration(config, ConfigurationUtils.DF_LOCALAI_HOST);
+		boolean isAIConfigured = ConfigurationUtils.checkConfiguration(config, ConfigurationUtils.DF_AI_BASEURL);
 
 		return ok(
 				views.html.projects.projectAPIAccess.render(project.getId(), pai, isAIConfigured, csrfToken(request)));
@@ -1955,7 +1955,7 @@ public class ProjectsController extends AbstractAsyncController {
 
 		// update key and retrieve settings for the API access
 		ProjectAPIInfo pai = aiAPIService.activateProjectAPIAccess(user, project);
-		boolean isAIConfigured = ConfigurationUtils.checkConfiguration(config, ConfigurationUtils.DF_LOCALAI_HOST);
+		boolean isAIConfigured = ConfigurationUtils.checkConfiguration(config, ConfigurationUtils.DF_AI_BASEURL);
 
 		return ok(
 				views.html.projects.projectAPIAccess.render(project.getId(), pai, isAIConfigured, csrfToken(request)));

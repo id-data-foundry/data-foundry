@@ -12,6 +12,8 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -22,6 +24,8 @@ import org.apache.pekko.stream.javadsl.Sink;
 import org.apache.pekko.stream.javadsl.Source;
 import org.apache.pekko.util.ByteString;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.typesafe.config.Config;
 
 import datasets.DatasetConnector;
@@ -75,10 +79,10 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 		this.materializer = materializer;
 
 		// check whether local AI is defined
-		if (ConfigurationUtils.checkConfiguration(configuration, ConfigurationUtils.DF_LOCALAI_HOST)) {
-			logger.info("Local AI service is defined: " + configuration.getString(ConfigurationUtils.DF_LOCALAI_HOST));
+		if (ConfigurationUtils.checkConfiguration(configuration, ConfigurationUtils.DF_AI_BASEURL)) {
+			logger.info("AI service is defined: " + configuration.getString(ConfigurationUtils.DF_AI_BASEURL));
 		} else {
-			logger.info("Local AI service is not defined.");
+			logger.info("AI service is not defined.");
 		}
 	}
 
@@ -86,7 +90,7 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 
 	@Override
 	public void refresh() {
-		if (!ConfigurationUtils.checkConfiguration(configuration, ConfigurationUtils.DF_LOCALAI_HOST)) {
+		if (!ConfigurationUtils.checkConfiguration(configuration, ConfigurationUtils.DF_AI_BASEURL)) {
 			return;
 		}
 
@@ -109,10 +113,10 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 			localModelMetadata.updateModels(modelJson);
 
 			// additionally ping endpoints for capabilities
-			pingEndpoint("/v1/chat/completions").thenAccept(localModelMetadata::setTextToTextAvailable);
-			pingEndpoint("/v1/images/generations").thenAccept(localModelMetadata::setTextToImageAvailable);
-			pingEndpoint("/v1/audio/transcriptions").thenAccept(localModelMetadata::setSpeechToTextAvailable);
-			pingEndpoint("/v1/audio/speech").thenAccept(localModelMetadata::setTextToSpeechAvailable);
+			pingEndpoint("/chat/completions").thenAccept(localModelMetadata::setTextToTextAvailable);
+			pingEndpoint("/images/generations").thenAccept(localModelMetadata::setTextToImageAvailable);
+			pingEndpoint("/audio/transcriptions").thenAccept(localModelMetadata::setSpeechToTextAvailable);
+			pingEndpoint("/audio/speech").thenAccept(localModelMetadata::setTextToSpeechAvailable);
 
 		} catch (Exception e) {
 			logger.error("❌ Failed to fetch models from AI backend: " + e.getMessage());
@@ -127,7 +131,7 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 	 * @return
 	 */
 	private CompletableFuture<Boolean> pingEndpoint(String path) {
-		return wsClient.url(localAIHost + path).setRequestTimeout(Duration.ofSeconds(2)).get().thenApply(res -> {
+		return wsClient.url(aiBaseUrl + path).setRequestTimeout(Duration.ofSeconds(2)).get().thenApply(res -> {
 			return res.getStatus() != 404;
 		}).exceptionally(e -> {
 			return false;
@@ -183,6 +187,21 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 
 		// 6. submit and wait for timeout
 		return executionService.submitRequest(request, (r) -> processRequest(r), request.getMsTimeout());
+	}
+
+	/**
+	 * run a remote API request for max. msTimeout millisecond; abort on timeout (synchronous wrapper)
+	 *
+	 * @param request
+	 * @return
+	 */
+	public String submitApiRequestSync(RemoteApiRequest request) {
+		try {
+			this.submitApiRequest(request).get(request.getMsTimeout() + 1000, TimeUnit.MILLISECONDS);
+		} catch (Exception e) {
+			// ignore
+		}
+		return request.getResult();
 	}
 
 	/**
@@ -287,7 +306,7 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 	}
 
 	private void runApiRequest(StreamingRemoteApiRequest request) {
-		wsClient.url(localAIHost + request.getPath()).setRequestTimeout(Duration.ofMillis(request.getMsTimeout()))
+		wsClient.url(aiBaseUrl + request.getPath()).setRequestTimeout(Duration.ofMillis(request.getMsTimeout()))
 				.setMethod("POST").setBody(request.getParams()).addHeader("X-API-Model", nss(request.getModel()))
 				.stream().thenAccept((res) -> {
 					res.getBody(WSBodyReadables.instance.source()).map(bs -> {
@@ -364,7 +383,7 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 		// run request
 		try {
 			requestCompletionStage.thenCompose(res -> {
-				logger.trace("AI API request: " + localAIHost + request.getPath() + " ["
+				logger.trace("AI API request: " + aiBaseUrl + request.getPath() + " ["
 						+ (System.currentTimeMillis() - start) + "ms]");
 
 				// 1. Check for non-200 status codes
@@ -409,21 +428,50 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 			}).exceptionally((e) -> {
 				request.setResult(Optional.of(
 						request.errorMessage("API request execution problem: " + e.getLocalizedMessage()).toString()));
-				logger.error("AI API request: " + localAIHost + request.getPath() + " ["
+				logger.error("AI API request: " + aiBaseUrl + request.getPath() + " ["
 						+ (System.currentTimeMillis() - start) + "ms]: " + e.getLocalizedMessage());
 				// don't issue an exception
 				return null;
 			}).toCompletableFuture().get();
 		} catch (InterruptedException | ExecutionException e) {
-			logger.error("AI API request: " + localAIHost + request.getPath() + " ["
+			logger.error("AI API request: " + aiBaseUrl + request.getPath() + " ["
 					+ (System.currentTimeMillis() - start) + "ms]: " + e.getLocalizedMessage());
 		}
 	}
 
 	private WSRequest prepareWSRemoteAPIRequest(RemoteApiRequest request) {
-		return wsClient.url(localAIHost + request.getPath())
+		return wsClient.url(aiBaseUrl + request.getPath())
 				.setRequestTimeout(Duration.ofMillis(request.getMsTimeout()))
 				.addHeader("X-API-Model", nss(request.getModel()));
+	}
+
+	public List<List<Double>> dispatchEmbeddingRequest(String username, List<String> contentToEmbed) {
+		// create request
+		ObjectNode jsonPayload = Json.newObject();
+		jsonPayload.put("model", "text-embedding-nomic-embed-text-v2-moe");
+		jsonPayload.set("input", Json.toJson(contentToEmbed));
+
+		try {
+			WSResponse res = wsClient.url(aiBaseUrl + "/embeddings")
+					.setRequestTimeout(Duration.ofMillis(ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS))
+					.post(jsonPayload).toCompletableFuture()
+					.get(ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS + 1000, TimeUnit.MILLISECONDS);
+
+			if (res.getStatus() == Http.Status.OK) {
+				JsonNode responseJson = res.asJson();
+				if (responseJson.has("data") && responseJson.get("data").isArray()) {
+					return StreamSupport.stream(responseJson.get("data").spliterator(), false).map(item -> {
+						JsonNode embeddingNode = item.get("embedding");
+						return StreamSupport.stream(embeddingNode.spliterator(), false).map(JsonNode::asDouble)
+								.collect(Collectors.toList());
+					}).collect(Collectors.toList());
+				}
+			}
+		} catch (Exception e) {
+			logger.error("❌ Failed to fetch embeddings from AI backend: " + e.getMessage());
+		}
+
+		return new LinkedList<>();
 	}
 
 	public String getInternalDocumentationAPIKey() {

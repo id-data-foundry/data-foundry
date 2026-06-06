@@ -41,7 +41,7 @@ import nl.tue.id.oocsi.client.protocol.EventHandler;
 import play.Logger;
 import play.libs.Json;
 import services.api.ApiServiceConstants;
-import services.api.ai.ManagedAIApiService;
+import services.api.ai.UnmanagedAIApiService;
 import services.api.js.JSDBApiRequest;
 import services.api.js.JSDBApiService;
 import services.api.processing.AudioProcessingApiService;
@@ -77,7 +77,7 @@ public class JSActor {
 	private final DatasetConnector datasetConnector;
 	private final ExecutorService EXECUTOR;
 	private final TelegramBotService botService;
-	private final ManagedAIApiService managedAIApiService;
+	private final UnmanagedAIApiService aiAPIService;
 	private final AudioProcessingApiService audioProcessing;
 	private final JSDBApiService jsdbApiService;
 	private final OOCSIClientUtil oocsiClientUtil;
@@ -116,7 +116,7 @@ public class JSActor {
 
 	public JSActor(Dataset ds, DatasetConnector datasetConnector, JSSandboxFactory sandboxFactory,
 	        ExecutorService executorService, OOCSIClientUtil oocsiClientUtil, TelegramBotService botService,
-	        ManagedAIApiService managedAIApiService, AudioProcessingApiService audioProcessing,
+	        UnmanagedAIApiService aiAPIService, AudioProcessingApiService audioProcessing,
 	        JSDBApiService jsdbApiService, RealTimeNotificationService realtimeNotifications) {
 		this.dsId = ds.getId();
 		this.dsName = ds.getName();
@@ -131,7 +131,7 @@ public class JSActor {
 		this.sandboxFactory = sandboxFactory;
 		this.EXECUTOR = executorService;
 		this.oocsiClientUtil = oocsiClientUtil;
-		this.managedAIApiService = managedAIApiService;
+		this.aiAPIService = aiAPIService;
 		this.audioProcessing = audioProcessing;
 		this.jsdbApiService = jsdbApiService;
 		this.realtimeNotifications = realtimeNotifications;
@@ -850,10 +850,10 @@ public class JSActor {
 	public String apiDispatch(String api, String data) {
 		sideEffects = true;
 		if (api.equalsIgnoreCase("openai-gpt") || api.equalsIgnoreCase("openai") || api.equalsIgnoreCase("localai-gpt")
-		        || api.equalsIgnoreCase("localai")) {
+		        || api.equalsIgnoreCase("localai") || api.equalsIgnoreCase("ai") || api.equalsIgnoreCase("local-ai")) {
 			// create and post request
 			RemoteApiRequest ar = new RemoteApiRequest("", 10000, this.owner, "", getProjectId(), data);
-			return managedAIApiService.submitApiRequest(ar);
+			return aiAPIService.submitApiRequestSync(ar);
 		} else if (api.equalsIgnoreCase("t2s")) {
 			try {
 				// create and post request
