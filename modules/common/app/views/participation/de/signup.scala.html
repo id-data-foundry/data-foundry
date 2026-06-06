@@ -46,20 +46,20 @@
                 <div class="input-field col s12 m6 l6">
                     <select name="gender" required="">
                         <option value="" disabled>Wähle dein Geschlecht</option>
-                        <option value="1" @if(participant.gender==1){selected}>Männlich</option>
-                        <option value="2" @if(participant.gender==2){selected}>Weiblich</option>
-                        <option value="3" @if(participant.gender==3){selected}>Nicht-binär</option>
-                        <option value="0" @if(participant.gender==0){selected}>Möchte ich nicht angeben</option>
+                        <option value="1" @if(participant.getGender()==1){selected}>Männlich</option>
+                        <option value="2" @if(participant.getGender()==2){selected}>Weiblich</option>
+                        <option value="3" @if(participant.getGender()==3){selected}>Nicht-binär</option>
+                        <option value="0" @if(participant.getGender()==0){selected}>Möchte ich nicht angeben</option>
                     </select>
                     <label>Geschlecht</label>
                 </div>
                 <div class="input-field col s12 m6 l6">
                     <select name="age_range">
                         <option value="" disabled>Wähle deine Altersgruppe</option>
-                        <option value="1" @if(participant.ageRange==1){selected}>Unter 18</option>
-                        <option value="2" @if(participant.ageRange==2){selected}>18-25</option>
-                        <option value="3" @if(participant.ageRange==3){selected}>25-50</option>
-                        <option value="4" @if(participant.ageRange==4){selected}>50+</option>
+                        <option value="1" @if(participant.getAgeRange()==1){selected}>Unter 18</option>
+                        <option value="2" @if(participant.getAgeRange()==2){selected}>18-25</option>
+                        <option value="3" @if(participant.getAgeRange()==3){selected}>25-50</option>
+                        <option value="4" @if(participant.getAgeRange()==4){selected}>50+</option>
                     </select>
                     <label>Altersgruppe</label>
                 </div>

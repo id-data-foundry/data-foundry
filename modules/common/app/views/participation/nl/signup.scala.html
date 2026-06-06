@@ -46,20 +46,20 @@
                 <div class="input-field col s12 m6 l6">
                     <select name="gender">
                         <option value="" disabled>Kies je geslacht</option>
-                        <option value="1" @if(participant.gender==1){selected}>Man</option>
-                        <option value="2" @if(participant.gender==2){selected}>Vrouw</option>
-                        <option value="3" @if(participant.gender==3){selected}>Non-binair</option>
-                        <option value="0" @if(participant.gender==0){selected}>Geef liever geen antwoord</option>
+                        <option value="1" @if(participant.getGender()==1){selected}>Man</option>
+                        <option value="2" @if(participant.getGender()==2){selected}>Vrouw</option>
+                        <option value="3" @if(participant.getGender()==3){selected}>Non-binair</option>
+                        <option value="0" @if(participant.getGender()==0){selected}>Geef liever geen antwoord</option>
                     </select>
                     <label>Jouw Geslacht</label>
                 </div>
                 <div class="input-field col s12 m6 l6">
                     <select name="age_range">
                         <option value="" disabled>Kies je leeftijd</option>
-                        <option value="1" @if(participant.ageRange==1){selected}>Jonger dan 18</option>
-                        <option value="2" @if(participant.ageRange==2){selected}>18 - 25</option>
-                        <option value="3" @if(participant.ageRange==3){selected}>25 - 50</option>
-                        <option value="4" @if(participant.ageRange==4){selected}>50 of ouder</option>
+                        <option value="1" @if(participant.getAgeRange()==1){selected}>Jonger dan 18</option>
+                        <option value="2" @if(participant.getAgeRange()==2){selected}>18 - 25</option>
+                        <option value="3" @if(participant.getAgeRange()==3){selected}>25 - 50</option>
+                        <option value="4" @if(participant.getAgeRange()==4){selected}>50 of ouder</option>
                     </select>
                     <label>Je leeftijd</label>
                 </div>

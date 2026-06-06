@@ -59,11 +59,11 @@
       <div class="input-field col s12 m7">
         <select name="gender" class="validate">
           <option value="" disabled>Choose your gender</option>
-          <option value="1" @if(participant.gender==1){selected}>Male</option>
-          <option value="2" @if(participant.gender==2){selected}>Female</option>
-          <option value="3" @if(participant.gender==3){selected}>Non-binary</option>
-          <option value="0" @if(participant.gender==0){selected}>Prefer not to say</option>
-          <option value="4" @if(participant.gender==4){selected}>Not given</option>
+          <option value="1" @if(participant.getGender()==1){selected}>Male</option>
+          <option value="2" @if(participant.getGender()==2){selected}>Female</option>
+          <option value="3" @if(participant.getGender()==3){selected}>Non-binary</option>
+          <option value="0" @if(participant.getGender()==0){selected}>Prefer not to say</option>
+          <option value="4" @if(participant.getGender()==4){selected}>Not given</option>
         </select>
         <label>Gender</label>
       </div>
@@ -75,11 +75,11 @@
       <div class="input-field col s12 m7">
         <select name="age_range">
           <option value="" disabled>Choose your age</option>
-          <option value="1" @if(participant.ageRange==1){selected}>Under 18</option>
-          <option value="2" @if(participant.ageRange==2){selected}>18 - 25</option>
-          <option value="3" @if(participant.ageRange==3){selected}>26 - 50</option>
-          <option value="4" @if(participant.ageRange==4){selected}>50 above</option>
-          <option value="5" @if(participant.ageRange==5){selected}>Not given</option>
+          <option value="1" @if(participant.getAgeRange()==1){selected}>Under 18</option>
+          <option value="2" @if(participant.getAgeRange()==2){selected}>18 - 25</option>
+          <option value="3" @if(participant.getAgeRange()==3){selected}>26 - 50</option>
+          <option value="4" @if(participant.getAgeRange()==4){selected}>50 above</option>
+          <option value="5" @if(participant.getAgeRange()==5){selected}>Not given</option>
         </select>
         <label>Age</label>
       </div>
