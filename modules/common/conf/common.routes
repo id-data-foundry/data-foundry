@@ -612,17 +612,6 @@ GET			/api/v2/generate/:service							controllers.api2.AuthApiController.generat
 
 # -------------------------------------------------------------------------------------------------------------------------
 
-# API API
-
-POST		/api/vendor/localai/:id								controllers.api2.DirectAPIController.submitLocalAIRequest(request: Request, id: Long)
-POST		/api/vendor/s2t/:id									controllers.api2.DirectAPIController.submitS2TRequest(request: Request, id: Long)
-POST		/api/vendor/t2s/:id									controllers.api2.DirectAPIController.submitT2SRequest(request: Request, id: Long)
-POST		/api/vendor/t2s/:id/download							controllers.api2.DirectAPIController.submitAndDownloadT2SRequest(request: Request, id: Long)
-GET 		/api/vendor/t2s/:token								controllers.api2.DirectAPIController.downloadCachedT2SFile(request: Request, token: String)
-
-
-# -------------------------------------------------------------------------------------------------------------------------
-
 GET 			/licenses										controllers.HomeController.licenses()
 
 # ---------------------------------------------------------------------------------------------------------------------
