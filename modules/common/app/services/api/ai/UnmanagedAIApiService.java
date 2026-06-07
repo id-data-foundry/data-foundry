@@ -101,7 +101,6 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 			RemoteApiRequest internalAPIRequest = new RemoteApiRequest(REQUEST_TASK_MODELS,
 					ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, "", "", -1L);
 //			internalAPIRequest.setPath("/v1/models");
-			internalAPIRequest.setPath("/models");
 			internalAPIRequest.setUserApiKey(getInternalDocumentationAPIKey());
 
 			// submit and wait for timeout
@@ -476,6 +475,49 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 
 	public String getInternalDocumentationAPIKey() {
 		return internalDocumentationAPIKey;
+	}
+
+	/**
+	 * parse a chat completion response from the AI backend
+	 *
+	 * @param jsonResponse
+	 * @return
+	 */
+	public ObjectNode parseChatCompletionResponse(String jsonResponse) {
+		ObjectNode result = Json.newObject();
+		try {
+			JsonNode jn = Json.parse(jsonResponse);
+
+			// check for error
+			if (jn.has(RESPONSE_ERROR)) {
+				result.set(RESPONSE_ERROR, jn.get(RESPONSE_ERROR));
+				return result;
+			}
+
+			// check for choices
+			if (jn.has("choices") && jn.get("choices").isArray() && jn.get("choices").size() > 0) {
+				JsonNode choice = jn.get("choices").get(0);
+				if (choice.has("message")) {
+					JsonNode message = choice.get("message");
+					result.put(RESPONSE_ROLE, message.path(RESPONSE_ROLE).asText("assistant"));
+					result.put(RESPONSE_CONTENT, message.path(RESPONSE_CONTENT).asText(""));
+				}
+				result.put(RESPONSE_FINISH_REASON, choice.path("finish_reason").asText(""));
+			} else if (jn.has(RESPONSE_CONTENT)) {
+				// fallback for non-OpenAI responses that might already be flat
+				result.put(RESPONSE_ROLE, jn.path(RESPONSE_ROLE).asText("assistant"));
+				result.put(RESPONSE_CONTENT, jn.path(RESPONSE_CONTENT).asText(""));
+			}
+
+			// extract usage/cost
+			if (jn.has("usage")) {
+				result.put(RESPONSE_COST, jn.get("usage").path("total_tokens").asInt(0));
+			}
+
+		} catch (Exception e) {
+			result.put(RESPONSE_ERROR, "Failed to parse AI response: " + e.getMessage());
+		}
+		return result;
 	}
 
 }

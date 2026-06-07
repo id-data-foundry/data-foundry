@@ -13,8 +13,8 @@ public class StreamingRemoteApiRequest extends RemoteApiRequest {
 	private boolean isRunning = false;
 	private final ChunkedWriter writer;
 
-	public StreamingRemoteApiRequest(ChunkedWriter writer, int msTimeout, String type, String username,
-	        String authorization, long projectId, ObjectNode params) throws IOException {
+	public StreamingRemoteApiRequest(String type, int msTimeout, String username, String authorization,
+	        long projectId, ObjectNode params, ChunkedWriter writer) throws IOException {
 		super(type, msTimeout, username, authorization, projectId, params);
 		this.writer = writer;
 	}

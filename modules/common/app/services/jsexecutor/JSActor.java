@@ -52,21 +52,19 @@ import services.telegrambot.TelegramBotService;
 import utils.GenericJSONMapDeserializer;
 import utils.oocsi.OOCSIClientUtil;
 
-public class JSActor {
+public class JSActor implements ApiServiceConstants {
 
 	private static final Logger.ALogger logger = Logger.of(JSActor.class);
 
 	// default timeout for script runs
 	private static final int DEFAULT_TIMEOUT = 1000;
-	// penalty timeout for scripts that exceed the default timeout
-	private static final long DEFAULT_TIMEOUT_SE = DEFAULT_TIMEOUT * 3;
 	// execution constraints
 	private static final long MAX_CPU = 200;
 	private static final long MAX_MEM = 5 * 1024 * 1024;
 	private static final int MAX_STATEMENTS = 100;
 
 	private final List<String> EXCLUSION = new ArrayList<String>(
-	        Arrays.asList("resource_id", "token", "api-token", "_MESSAGE_ID", "_MESSAGE_HANDLE", "query", "timestamp"));
+			Arrays.asList("resource_id", "token", "api-token", "_MESSAGE_ID", "_MESSAGE_HANDLE", "query", "timestamp"));
 
 	private final SimpleDateFormat fileTimestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
@@ -115,9 +113,9 @@ public class JSActor {
 	private NashornSandbox trialSandbox;
 
 	public JSActor(Dataset ds, DatasetConnector datasetConnector, JSSandboxFactory sandboxFactory,
-	        ExecutorService executorService, OOCSIClientUtil oocsiClientUtil, TelegramBotService botService,
-	        UnmanagedAIApiService aiAPIService, AudioProcessingApiService audioProcessing,
-	        JSDBApiService jsdbApiService, RealTimeNotificationService realtimeNotifications) {
+			ExecutorService executorService, OOCSIClientUtil oocsiClientUtil, TelegramBotService botService,
+			UnmanagedAIApiService aiAPIService, AudioProcessingApiService audioProcessing,
+			JSDBApiService jsdbApiService, RealTimeNotificationService realtimeNotifications) {
 		this.dsId = ds.getId();
 		this.dsName = ds.getName();
 		this.dsProjectId = ds.getProject().getId();
@@ -217,7 +215,7 @@ public class JSActor {
 			// really unexpected stuff is sent to Slack
 			Slack.call("Script problem (setCode)", e.getLocalizedMessage());
 			logger.error("Unexpected problem (setCode) in script for " + owner + " (" + getDatasetId() + "): "
-			        + e.getLocalizedMessage());
+					+ e.getLocalizedMessage());
 			return false;
 		}
 	}
@@ -336,7 +334,7 @@ public class JSActor {
 		// acquire the lock
 		if (!compiledExecutionPermission.tryAcquire()) {
 			logger.info(
-			        "Compiled script not executed due to missing permits for " + owner + " (" + getDatasetId() + ")");
+					"Compiled script not executed due to missing permits for " + owner + " (" + getDatasetId() + ")");
 			return "";
 		}
 
@@ -362,7 +360,7 @@ public class JSActor {
 					// set longer timeout as penalty
 					nextPossibleRun = finished + runtimeDuration * 2;
 					logger.info("Compiled script executed in " + runtimeDuration + "ms for " + owner + " ("
-					        + getDatasetId() + ")");
+							+ getDatasetId() + ")");
 				} else {
 					nextPossibleRun = finished + DEFAULT_TIMEOUT;
 				}
@@ -381,9 +379,9 @@ public class JSActor {
 			} catch (Exception e) {
 				// really unexpected problems are sent to Slack
 				Slack.call("Script problem (runCompiled) for ds " + getDatasetId() + " for " + owner,
-				        e.getLocalizedMessage());
+						e.getLocalizedMessage());
 				logger.error("Unexpected problem (runCompiled) in script " + getDatasetId() + " for " + owner + " ("
-				        + getDatasetId() + "): " + e.getLocalizedMessage());
+						+ getDatasetId() + "): " + e.getLocalizedMessage());
 			}
 
 		} catch (Exception e) {
@@ -469,7 +467,7 @@ public class JSActor {
 				// really unexpected stuff
 				actor.error(e.getLocalizedMessage());
 				logger.error("Unexpected problem in script for " + owner + " (" + getDatasetId() + "): "
-				        + e.getLocalizedMessage(), e);
+						+ e.getLocalizedMessage(), e);
 			}
 		}
 
@@ -580,21 +578,21 @@ public class JSActor {
 			// collect devices for each participant
 			ArrayNode participantDevices = Json.newArray();
 			project.getClusters().stream().filter(c -> c.hasParticipant(p))
-			        .forEach(c -> c.getDevices().forEach(d -> participantDevices.add(d.getId())));
+					.forEach(c -> c.getDevices().forEach(d -> participantDevices.add(d.getId())));
 
 			// collect wearables for each participant
 			ArrayNode participantWearables = Json.newArray();
 			project.getClusters().stream().filter(c -> c.hasParticipant(p))
-			        .forEach(c -> c.getDevices().forEach(d -> participantWearables.add(d.getId())));
+					.forEach(c -> c.getDevices().forEach(d -> participantWearables.add(d.getId())));
 
 			// create participant object with list of devices and wearables and add it to list
 			ObjectNode participantObject = Json.newObject() //
-			        .put("id", p.getId()) //
-			        .put("participant_id", p.getRefId()) //
-			        .put("name", p.getName()) //
-			        .put("pp1", p.getPublicParameter1()) //
-			        .put("pp2", p.getPublicParameter2()) //
-			        .put("pp3", p.getPublicParameter3());
+					.put("id", p.getId()) //
+					.put("participant_id", p.getRefId()) //
+					.put("name", p.getName()) //
+					.put("pp1", p.getPublicParameter1()) //
+					.put("pp2", p.getPublicParameter2()) //
+					.put("pp3", p.getPublicParameter3());
 			participantObject.set("devices", participantDevices);
 			participantObject.set("wearables", participantWearables);
 			actor.participants.add(participantObject);
@@ -603,34 +601,34 @@ public class JSActor {
 			// collect participants for each device
 			ArrayNode deviceParticipants = Json.newArray();
 			project.getClusters().stream().filter(c -> c.hasDevice(d))
-			        .forEach(c -> c.getParticipants().forEach(p -> deviceParticipants.add(p.getId())));
+					.forEach(c -> c.getParticipants().forEach(p -> deviceParticipants.add(p.getId())));
 
 			// create device object with list of participants
 			actor.devices.add(Json.newObject() //
-			        .put("id", d.getId()) //
-			        .put("device_id", d.getRefId()) //
-			        .put("name", d.getName()) //
-			        .put("pp1", d.getPublicParameter1()) //
-			        .put("pp2", d.getPublicParameter2()) //
-			        .put("pp3", d.getPublicParameter3()) //
-			        .set("participants", deviceParticipants));
+					.put("id", d.getId()) //
+					.put("device_id", d.getRefId()) //
+					.put("name", d.getName()) //
+					.put("pp1", d.getPublicParameter1()) //
+					.put("pp2", d.getPublicParameter2()) //
+					.put("pp3", d.getPublicParameter3()) //
+					.set("participants", deviceParticipants));
 		});
 		project.getWearables().stream().forEach(d -> {
 			// collect participants for each wearable
 			ArrayNode wearableParticipants = Json.newArray();
 			project.getClusters().stream().filter(c -> c.hasWearable(d))
-			        .forEach(c -> c.getParticipants().forEach(p -> wearableParticipants.add(p.getId())));
+					.forEach(c -> c.getParticipants().forEach(p -> wearableParticipants.add(p.getId())));
 
 			// create wearable object with list of participants
 			actor.wearables.add(Json.newObject() //
-			        .put("id", d.getId()) //
-			        .put("wearable_id", d.getRefId()) //
-			        .put("name", d.getName()) //
-			        .put("brand", d.getBrand()) //
-			        .put("pp1", d.getPublicParameter1()) //
-			        .put("pp2", d.getPublicParameter2()) //
-			        .put("pp3", d.getPublicParameter3()) //
-			        .set("participants", wearableParticipants));
+					.put("id", d.getId()) //
+					.put("wearable_id", d.getRefId()) //
+					.put("name", d.getName()) //
+					.put("brand", d.getBrand()) //
+					.put("pp1", d.getPublicParameter1()) //
+					.put("pp2", d.getPublicParameter2()) //
+					.put("pp3", d.getPublicParameter3()) //
+					.set("participants", wearableParticipants));
 		});
 		project.getClusters().stream().forEach(c -> {
 			// collect participants, devices, and wearables
@@ -649,10 +647,10 @@ public class JSActor {
 			actor.clusters.add(cluster);
 		});
 		project.getDatasets().stream().forEach(d -> actor.datasets.add(Json.newObject() //
-		        .put("id", d.getId()) //
-		        .put("dataset_id", d.getRefId()) //
-		        .put("name", d.getName()) //
-		        .put("type", d.getDsType().name())));
+				.put("id", d.getId()) //
+				.put("dataset_id", d.getRefId()) //
+				.put("name", d.getName()) //
+				.put("type", d.getDsType().name())));
 
 		return actor;
 	}
@@ -779,10 +777,10 @@ public class JSActor {
 				JsonNode jn = Json.parse(message);
 				oocsi.channel(channelName).data(GenericJSONMapDeserializer.deserialize(jn)).send();
 				logger.trace("OOCSI event from script " + this.getDatasetId() + " to channel '" + channelName + "': "
-				        + message);
+						+ message);
 			} catch (Exception e) {
 				logger.error("Error parsing OOCSI event payload from script " + this.getDatasetId() + " to channel '"
-				        + channelName + "': " + message);
+						+ channelName + "': " + message);
 			}
 		}, EXECUTOR);
 	}
@@ -821,7 +819,7 @@ public class JSActor {
 			@Override
 			public String run(Project project, DatasetConnector datasetConnector) {
 				Optional<Participant> pa = project.getParticipants().stream()
-				        .filter(p -> p.getRefId().equals(participantId)).findFirst();
+						.filter(p -> p.getRefId().equals(participantId)).findFirst();
 				return pa.isPresent() ? pa.get().getEmail() : null;
 			}
 		});
@@ -830,7 +828,7 @@ public class JSActor {
 		if (email != null && !email.isEmpty()) {
 			botService.sendMessageToParticipant(getProjectId(), email, message, EXECUTOR);
 			logger.info("Telegram message from script " + getDatasetId() + " to participant '" + participantId + "': "
-			        + message);
+					+ message);
 		} else {
 			logger.info("Telegram message not sent, participant '" + participantId + "' not found.");
 		}
@@ -849,18 +847,22 @@ public class JSActor {
 	 */
 	public String apiDispatch(String api, String data) {
 		sideEffects = true;
-		if (api.equalsIgnoreCase("openai-gpt") || api.equalsIgnoreCase("openai") || api.equalsIgnoreCase("localai-gpt")
-		        || api.equalsIgnoreCase("localai") || api.equalsIgnoreCase("ai") || api.equalsIgnoreCase("local-ai")) {
+		String apiKey = aiAPIService.getProjectAPIAccess(getProject().getOwner(), getProject()).apiKey;
+		if (api.equalsIgnoreCase("ai") || api.equalsIgnoreCase("localai") || api.equalsIgnoreCase("local-ai")
+				|| api.equalsIgnoreCase("openai-gpt") || api.equalsIgnoreCase("openai")
+				|| api.equalsIgnoreCase("localai-gpt")) {
 			// create and post request
-			RemoteApiRequest ar = new RemoteApiRequest("", 10000, this.owner, "", getProjectId(), data);
-			return aiAPIService.submitApiRequestSync(ar);
+			RemoteApiRequest ar = new RemoteApiRequest(REQUEST_TASK_CHAT_COMPLETION, 10000, this.owner, apiKey,
+					getProjectId(), data);
+			String result = aiAPIService.submitApiRequestSync(ar);
+			return aiAPIService.parseChatCompletionResponse(result).toString();
 		} else if (api.equalsIgnoreCase("t2s")) {
 			try {
 				// create and post request
-				RemoteApiRequest ar = new RemoteApiRequest("", ApiServiceConstants.API_REQUEST_JS_TIMEOUT_MS,
-				        this.owner, "", getProjectId(), data);
+				RemoteApiRequest ar = new RemoteApiRequest(REQUEST_TASK_SPEECH_GENERATION,
+						ApiServiceConstants.API_REQUEST_JS_TIMEOUT_MS, this.owner, apiKey, getProjectId(), data);
 				audioProcessing.submitApiRequest(ar).get(ApiServiceConstants.API_REQUEST_JS_TIMEOUT_MS,
-				        TimeUnit.MILLISECONDS);
+						TimeUnit.MILLISECONDS);
 				return ar.getResult();
 			} catch (InterruptedException | ExecutionException | TimeoutException | CancellationException e) {
 				return Json.newObject().put("error", "No results, API timed out.").toString();
@@ -895,8 +897,8 @@ public class JSActor {
 	@Override
 	public String toString() {
 		return canRun()
-		        ? "Subscribed to '" + this.channelName + "' with " + runs + " runs so far (last:  " + lastUpdate + ")"
-		        : "Not active.";
+				? "Subscribed to '" + this.channelName + "' with " + runs + " runs so far (last:  " + lastUpdate + ")"
+				: "Not active.";
 	}
 
 	private static final JsonObject event2json(OOCSIEvent event, List<String> EXCLUSION) {

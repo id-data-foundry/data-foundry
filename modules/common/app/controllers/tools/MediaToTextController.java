@@ -155,9 +155,8 @@ public class MediaToTextController extends AbstractAsyncController implements Ap
 		final int timeoutMs = 600000; // 10 minutes timeout for audio transcriptions
 
 		// create request with empty parameters; they will be set differently later on
-		RemoteApiRequest internalAPIRequest = new RemoteApiRequest(REQUEST_TASK_MODELS, timeoutMs, "",
+		RemoteApiRequest internalAPIRequest = new RemoteApiRequest(REQUEST_TASK_AUDIO_TRANSCRIPTION, timeoutMs, "",
 				aiApiService.getInternalDocumentationAPIKey(), -1L, Json.newObject());
-		internalAPIRequest.setPath("/v1/audio/transcriptions");
 
 		// set file and params in request via multi-part form data
 		MultipartFormData<TemporaryFile> mpfd = request.body().asMultipartFormData();

@@ -336,23 +336,32 @@ public class CompleteDSController extends AbstractDSController {
 		// check whether file is accessible either to registered user or in general because the project is public
 		Project p = ds.getProject();
 		p.refresh();
-		// only the owner can delete
-		if (!p.belongsTo(username)) {
+
+		// only the owner or collaborators can delete
+		if (!p.editableBy(username)) {
 			return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
-					"Only the project owner can delete files.");
+					"Only the project owner or collaborators can delete files.");
 		}
 
 		// remove the file
 		final CompleteDS cpds = datasetConnector.getTypedDatasetDS(ds);
-		Optional<File> requestedFileOpt = cpds.getFile(fileId);
-		if (requestedFileOpt.isPresent()) {
-			File requestedFile = requestedFileOpt.get();
-			if (requestedFile.exists()) {
-				requestedFile.delete();
-				cpds.deleteRecord(fileId);
-				LabNotesEntry.log(CompleteDSController.class, LabNotesEntryType.DELETE,
-						"Files deleted from dataset: " + ds.getName(), ds.getProject());
-			}
+		Optional<String> filenameOpt = cpds.getFileName(fileId);
+		if (filenameOpt.isPresent()) {
+			String filename = filenameOpt.get();
+
+			// delete both plain and timestamped versions if they exist
+			cpds.getFile(filename).ifPresent(f -> f.delete());
+			cpds.getFile(fileId).ifPresent(f -> {
+				if (f.exists()) {
+					f.delete();
+				}
+			});
+
+			// delete all records for this filename to prevent ghosts
+			cpds.deleteRecord(filename);
+
+			LabNotesEntry.log(CompleteDSController.class, LabNotesEntryType.DELETE,
+					"Files deleted from dataset: " + ds.getName(), ds.getProject());
 		}
 
 		// invalidate cache

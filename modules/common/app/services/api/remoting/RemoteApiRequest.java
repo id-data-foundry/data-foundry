@@ -211,6 +211,30 @@ public class RemoteApiRequest extends ApiRequest<String> implements ApiServiceCo
 			}
 			this.requestedTokens = 1;
 		}
+
+		// ------------------------------------------------------------------------------------------------------------
+		// Path mapping based on task or type
+		final String currentTask = !getTask().isEmpty() ? getTask() : getType();
+		switch (currentTask) {
+		case REQUEST_TASK_CHAT_COMPLETION:
+			setPath("/chat/completions");
+			break;
+		case REQUEST_TASK_MODELS:
+			setPath("/models");
+			break;
+		case REQUEST_TASK_IMAGE_GENERATION:
+			setPath("/images/generations");
+			break;
+		case REQUEST_TASK_SPEECH_GENERATION:
+			setPath("/audio/speech");
+			break;
+		case REQUEST_TASK_AUDIO_TRANSCRIPTION:
+			setPath("/audio/transcriptions");
+			break;
+		default:
+			// No default path, allows manual override if needed
+			break;
+		}
 	}
 
 	public String getUserApiKey() {

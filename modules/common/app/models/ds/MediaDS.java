@@ -190,7 +190,26 @@ public class MediaDS extends CompleteDS {
 
 	@Override
 	public void deleteRecord(String file_name) {
-		// do nothing
+
+		// delete record
+		try (Transaction transaction = DB.beginTransaction();
+				Connection connection = transaction.connection();
+				PreparedStatement stmtRaw = connection
+						.prepareStatement("DELETE FROM " + dataTableNameRawFiles + " WHERE file_name LIKE ?;");
+				PreparedStatement stmtFull = connection
+						.prepareStatement("DELETE FROM " + dataTableName + " WHERE link LIKE ?;");) {
+
+			stmtRaw.setString(1, file_name);
+			stmtRaw.executeUpdate();
+
+			stmtFull.setString(1, "%" + file_name);
+			stmtFull.executeUpdate();
+
+			transaction.commit();
+		} catch (Exception e) {
+			logger.error("Error in deleting a record from dataset table.", e);
+			Slack.call("Exception", e.getLocalizedMessage());
+		}
 	}
 
 	@Override
@@ -210,6 +229,34 @@ public class MediaDS extends CompleteDS {
 			logger.error("Error in deleting a record from dataset table.", e);
 			Slack.call("Exception", e.getLocalizedMessage());
 		}
+	}
+
+	/**
+	 * return the file name for the given record id
+	 * 
+	 * @param fileId
+	 * @return
+	 */
+	@Override
+	public Optional<String> getFileName(Long fileId) {
+		Optional<String> result = Optional.empty();
+		try (Transaction transaction = DB.beginTransaction();
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("SELECT file_name FROM " + dataTableNameRawFiles + " WHERE id = ?;");) {
+
+			stmt.setLong(1, fileId);
+			ResultSet rs = stmt.executeQuery();
+			if (rs.next()) {
+				result = Optional.of(rs.getString("file_name"));
+			}
+
+			transaction.commit();
+		} catch (Exception e) {
+			logger.error("Error in retrieving file name by id.", e);
+			Slack.call("Exception", e.getLocalizedMessage());
+		}
+		return result;
 	}
 
 	@Override

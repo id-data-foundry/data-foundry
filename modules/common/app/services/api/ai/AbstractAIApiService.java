@@ -68,12 +68,12 @@ public class AbstractAIApiService extends GenericApiService {
 		ObjectNode json = request.getParams();
 
 		// check and map requested model
-		if (json.has("model")) {
-			String requestedModel = json.get("model").asText("");
+		if (json.has(REQUEST_MODEL)) {
+			String requestedModel = json.get(REQUEST_MODEL).asText("");
 			if (!requestedModel.isEmpty()) {
 				// map the model and replace it in the request json
 				String mappedModelId = this.localModelMetadata.mapModelId(requestedModel);
-				json.put("model", mappedModelId);
+				json.put(REQUEST_MODEL, mappedModelId);
 
 				// log if a mapping took place
 				if (!requestedModel.equals(mappedModelId)) {
@@ -83,8 +83,8 @@ public class AbstractAIApiService extends GenericApiService {
 		}
 
 		// also set the max_tokens to default if not set
-		if (!json.has("max_tokens")) {
-			json.put("max_tokens", 500);
+		if (!json.has(REQUEST_MAX_TOKENS)) {
+			json.put(REQUEST_MAX_TOKENS, 500);
 		}
 	}
 

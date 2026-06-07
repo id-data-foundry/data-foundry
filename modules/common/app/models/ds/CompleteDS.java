@@ -168,13 +168,31 @@ public class CompleteDS extends LinkedDS {
 		}
 	}
 
-	public void deleteAllFiles() {
-		final File theFolder = this.getFolder();
-		if (theFolder.exists()) {
-			for (File file : theFolder.listFiles()) {
-				file.delete();
+	/**
+	 * return the file name for the given record id
+	 * 
+	 * @param fileId
+	 * @return
+	 */
+	public Optional<String> getFileName(Long fileId) {
+		Optional<String> result = Optional.empty();
+		try (Transaction transaction = DB.beginTransaction();
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("SELECT file_name FROM " + dataTableName + " WHERE id = ?;");) {
+
+			stmt.setLong(1, fileId);
+			ResultSet rs = stmt.executeQuery();
+			if (rs.next()) {
+				result = Optional.of(rs.getString("file_name"));
 			}
+
+			transaction.commit();
+		} catch (Exception e) {
+			logger.error("Error in retrieving file name by id.", e);
+			Slack.call("Exception", e.getLocalizedMessage());
 		}
+		return result;
 	}
 
 	/**
@@ -253,14 +271,24 @@ public class CompleteDS extends LinkedDS {
 	@Override
 	public void resetDataset() {
 
+		// delete all files, but just on disk
+		deleteAllFiles();
+
+		// delete data in database
+		super.resetDataset();
+	}
+
+	/**
+	 * delete all files in this dataset, but just on disk
+	 * 
+	 * 
+	 */
+	public void deleteAllFiles() {
 		// delete all files in dataset folder
 		File[] listFiles = getFolder().listFiles();
 		if (listFiles != null) {
 			Arrays.stream(listFiles).forEach(f -> f.delete());
 		}
-
-		// delete data in database
-		super.resetDataset();
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////

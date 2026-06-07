@@ -31,6 +31,7 @@ public interface ApiServiceConstants {
 	String REQUEST_TASK_EMBEDDING = "embedding";
 	String REQUEST_TASK_IMAGE_GENERATION = "image_generation";
 	String REQUEST_TASK_SPEECH_GENERATION = "speech_generation";
+	String REQUEST_TASK_AUDIO_TRANSCRIPTION = "audio_transcription";
 
 	String TOKENS_USED = "tokensUsed";
 	String TOKENS_MAX = "tokensMax";

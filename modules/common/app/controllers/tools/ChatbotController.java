@@ -748,13 +748,17 @@ public class ChatbotController extends AbstractAsyncController {
 		// run the LLM
 		ConversationItem responseItem = null;
 		try {
-			final RemoteApiRequest apiRequest = new RemoteApiRequest("",
+			final RemoteApiRequest apiRequest = new RemoteApiRequest(ApiServiceConstants.REQUEST_TASK_CHAT_COMPLETION,
 					ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, user.getEmail(), pai.apiKey,
 					ds.getProject().getId(), requestJson);
 			String llmResult = aiAPIService.submitApiRequestSync(apiRequest);
-			ObjectNode on = (ObjectNode) Json.parse(llmResult);
-			JsonNode contentNode = on.get("content");
-			String resultAsText = (contentNode != null && !contentNode.isNull()) ? contentNode.asText() : "";
+			ObjectNode on = aiAPIService.parseChatCompletionResponse(llmResult);
+
+			if (on.has(ApiServiceConstants.RESPONSE_ERROR)) {
+				throw new RuntimeException(on.get(ApiServiceConstants.RESPONSE_ERROR).asText());
+			}
+
+			String resultAsText = on.path(ApiServiceConstants.RESPONSE_CONTENT).asText("");
 
 			// generate response item, including the messages
 			responseItem = new ConversationItem(ConversationItem.ASSISTANT, resultAsText, messages.toPrettyString(),
@@ -818,13 +822,16 @@ public class ChatbotController extends AbstractAsyncController {
 				Standalone question:""".formatted(sb.toString(), userPrompt)));
 
 		try {
-			final RemoteApiRequest apiRequest = new RemoteApiRequest("",
+			final RemoteApiRequest apiRequest = new RemoteApiRequest(ApiServiceConstants.REQUEST_TASK_CHAT_COMPLETION,
 					ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, user, apiKey, projectId, requestJson);
 			String result = aiAPIService.submitApiRequestSync(apiRequest);
-			ObjectNode on = (ObjectNode) Json.parse(result);
+			ObjectNode on = aiAPIService.parseChatCompletionResponse(result);
 
-			JsonNode contentNode = on.get("content");
-			String resultAsText = (contentNode != null && !contentNode.isNull()) ? contentNode.asText() : "";
+			if (on.has(ApiServiceConstants.RESPONSE_ERROR)) {
+				return Optional.empty();
+			}
+
+			String resultAsText = on.path(ApiServiceConstants.RESPONSE_CONTENT).asText("");
 
 			// check whether we have thinking tokens in the result, if so just take what's behind
 			if (resultAsText.contains("final<|message|>")) {
@@ -1064,15 +1071,18 @@ public class ChatbotController extends AbstractAsyncController {
 
 			// retrieve filename before actual deletion
 			final CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
-			String filename = cpds.getFile(fileId).get().getName();
+			Optional<String> filenameOpt = cpds.getFileName(fileId);
 
 			// now delete the file itself
 			completeDSController.delete(request, dsId, fileId);
 
 			// delete the index file as well
-			File indexFile = new File(cpds.getFolder().getAbsolutePath() + File.separator + filename + ".idx");
-			if (indexFile.exists()) {
-				indexFile.delete();
+			if (filenameOpt.isPresent()) {
+				String filename = filenameOpt.get();
+				File indexFile = new File(cpds.getFolder().getAbsolutePath() + File.separator + filename + ".idx");
+				if (indexFile.exists()) {
+					indexFile.delete();
+				}
 			}
 
 			// re-index all documents
@@ -1223,8 +1233,7 @@ public class ChatbotController extends AbstractAsyncController {
 			IndexSearcher searcher = new IndexSearcher(indexReader);
 
 			// embed query
-			List<List<Double>> embeddings = aiAPIService.dispatchEmbeddingRequest("SYSTEM",
-					Arrays.asList(queryStr));
+			List<List<Double>> embeddings = aiAPIService.dispatchEmbeddingRequest("SYSTEM", Arrays.asList(queryStr));
 			int dims = embeddings.get(0).size();
 			float[] floatArray = new float[dims];
 			for (int i = 0; i < floatArray.length; i++) {
