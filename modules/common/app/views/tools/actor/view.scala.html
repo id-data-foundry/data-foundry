@@ -2,6 +2,7 @@
 
 @main("Data Foundry") {
   <script src='@routes.Assets.versioned("javascripts/codeflask.min.js")' type="text/javascript"></script>
+  <script src='@routes.Assets.versioned("javascripts/mermaid.min.js")' type="text/javascript"></script>
   <script src="@routes.DatasetsController.jsRoutes()" type="text/javascript"></script>
 
   <style type="text/css">
@@ -53,7 +54,7 @@
     <div class="row">
       <div class="col s12">
         <details>
-          <summary>
+          <summary style="cursor: pointer; font-weight: 500;">
             What are scripts on Data Foundry?
           </summary>
           <p>
@@ -167,6 +168,64 @@
             <div id="liveOutput" style="padding: 1em 0; height: 12em; overflow: scroll;" hx-get="@controllers.tools.routes.ActorController.log(dataset.getId())" hx-trigger="every 1s"></div>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col s12">
+    <div class="card">
+      <div class="card-content">
+        <details>
+          <summary style="cursor: pointer; font-weight: 500;">How do scripts work?</summary>
+          <div style="margin-top: 15px;">
+            <p>
+              <b>Triggers</b>: Scripts on Data Foundry are reactive. They are automatically triggered by incoming events from an <b>OOCSI channel</b> or a message from a <b>Telegram</b> chat.
+            </p>
+            <p>
+              <b>Database access</b>: During execution, scripts can securely exchange information with the Data Foundry database. They can retrieve or update participant profiles in <b>Entity datasets</b> and log new data or events into <b>IoT and diary datasets</b>.
+            </p>
+            <p>
+              <b>Actions</b>: Scripts can trigger external actions or send out data by posting messages to <b>OOCSI channels</b> or sending <b>Telegram</b> replies and notifications to participants or researchers.
+            </p>
+          </div>
+          <div class="mermaid" style="margin-top: 20px; display: flex; justify-content: center;">
+            sequenceDiagram
+              participant O as OOCSI (In)
+              participant T as Telegram (In)
+              participant S as Script
+              participant DB as Database
+              participant AI as AI Service
+              participant OO as OOCSI (Out)
+              participant TO as Telegram (Out)
+
+              alt OOCSI Event
+                  O->>S: Input Event
+              else Telegram Message
+                  T->>S: Input Message
+              end
+
+              Note right of S: Context: participants, devices, etc.
+              
+              rect rgb(245, 245, 245)
+                  Note over S, DB: Persistence
+                  S->>DB: Read or update data
+                  DB-->>S: Confirmation or Data
+              end
+
+              opt Intelligence
+                  S->>AI: AI Task (e.g. Chat, Analysis)
+                  AI-->>S: AI Result
+              end
+
+              rect rgb(245, 245, 245)
+                  Note over S, TO: Interaction
+                  S->>OO: Send OOCSI message
+                  S->>TO: Send Telegram message or reply
+              end
+          </div>
+        </details>
       </div>
     </div>
   </div>
@@ -447,5 +506,13 @@ else {
 
     updateFileList();
 
+  </script>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'default',
+      securityLevel: 'loose'
+    });
   </script>
 }

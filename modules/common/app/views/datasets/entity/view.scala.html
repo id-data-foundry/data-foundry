@@ -1,6 +1,7 @@
 @(dataset: Dataset, user: String)(implicit request: Http.Request)
 @main("View dataset", "profile") {
   <script src='@routes.Assets.versioned("javascripts/vega.min.js")' type="text/javascript"></script>
+  <script src='@routes.Assets.versioned("javascripts/mermaid.min.js")' type="text/javascript"></script>
   <script src="@routes.DatasetsController.jsRoutes()" type="text/javascript"></script>
   @elements.dataset.datasetTitlebar(dataset, user) {
       @if(dataset.editableBy(user)) {
@@ -35,6 +36,51 @@
   }
   
   @if(user != null && !user.isEmpty() && dataset.editableBy(user)) {
+  <!-- workflow diagram -->
+  <div class="row">
+    <div class="col s12">
+      <div class="card">
+        <div class="card-content">
+          <details>
+            <summary style="cursor: pointer; font-weight: 500;">How it works (Workflow Diagram)</summary>
+            <div style="margin-top: 15px;">
+              <p>
+                <b>What it is</b>: These datasets act like a digital profile or a "status board". They keep track of the most recent information for a person or an object (like a name or current settings).
+              </p>
+              <p>
+                <b>How it works</b>: Profiles are updated via <b>HTTP requests (API)</b> or <b>OOCSI messages</b>. When new information comes in, the profile is updated so it always shows the latest state.
+              </p>
+              <p>
+                <b>What you can do</b>: You can keep other systems in sync via <b>OOCSI</b> or export the latest status of all entities as a <b>CSV spreadsheet</b>.
+              </p>
+            </div>
+            <div class="mermaid" style="margin-top: 20px; display: flex; justify-content: center;">
+              sequenceDiagram
+                participant A as App / Script (HTTP)
+                participant O as OOCSI
+                participant DS as Entity Dataset
+                participant OUT as OOCSI
+                participant CSV as CSV Export
+
+                alt State Update
+                    A->>DS: Update via HTTP/API
+                else
+                    O->>DS: Update via OOCSI
+                end
+
+                rect rgb(245, 245, 245)
+                    Note over DS, CSV: Synchronization
+                    DS->>OUT: Sync via OOCSI channel
+                    DS->>CSV: Export last states as CSV
+                end
+            </div>
+
+          </details>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="row white">
     <div class="col s12">
     	<h5>Configuration</h5>
@@ -54,5 +100,13 @@
     }
     
   </div>
+
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: 'default',
+      securityLevel: 'loose'
+    });
+  </script>
   }
 }
