@@ -32,11 +32,12 @@ import models.ds.SurveyDS;
 import models.ds.TimeseriesDS;
 import models.sr.Cluster;
 import play.libs.Json;
+import services.inlets.ScheduledService;
 import services.outlets.OOCSIStreamOutService;
 import utils.conf.ConfigurationUtils;
 
 @Singleton
-public class DatasetConnector {
+public class DatasetConnector implements ScheduledService {
 
 	private final Config config;
 	private final OOCSIStreamOutService oocsiService;
@@ -223,5 +224,15 @@ public class DatasetConnector {
 	public void createInstance(Dataset ds) {
 		LinkedDS lds = getDatasetDS(ds);
 		lds.createInstance();
+	}
+
+	@Override
+	public void refresh() {
+		TimeseriesDS.flushQueue();
+	}
+
+	@Override
+	public void stop() {
+		TimeseriesDS.flushQueue();
 	}
 }

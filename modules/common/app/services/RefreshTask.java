@@ -37,6 +37,7 @@ import services.processing.AnalyticsService;
 import services.search.SearchService;
 import services.slack.Slack;
 import services.telegrambot.TelegramBotService;
+import datasets.DatasetConnector;
 import utils.conf.Configurator;
 
 /**
@@ -60,7 +61,8 @@ public class RefreshTask {
 	        OOCSIService oocsiService, OOCSIStreamOutService oocsiOutletService, FitBitService fbService,
 	        GoogleFitService gfService, DatabaseBackupService dbBackup, TelegramBotService telegramBotService,
 	        JSExecutorService jsExecutorService, ProjectLifecycleService projectLifecycleService,
-	        AnalyticsService analytics, SearchService searchService, UnmanagedAIApiService unmanagedAIService) {
+	        AnalyticsService analytics, SearchService searchService, UnmanagedAIApiService unmanagedAIService,
+	        DatasetConnector datasetConnector) {
 
 		this.actorSystem = actorSystem;
 		this.executionContext = executionContext;
@@ -100,6 +102,7 @@ public class RefreshTask {
 		services.add(oocsiOutletService);
 		services.add(jsExecutorService);
 		services.add(analytics);
+		services.add(datasetConnector);
 
 		// start Telegram bot service if it's configured properly
 		if (configurator.isTelegramAvailable()) {

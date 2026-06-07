@@ -15,6 +15,7 @@ import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
 
 import org.apache.pekko.stream.javadsl.SourceQueueWithComplete;
@@ -33,13 +34,26 @@ import play.Logger;
 import play.libs.Json;
 import services.outlets.OOCSIStreamOutService;
 import services.slack.Slack;
+import utils.StringUtils;
 
 public class TimeseriesDS extends LinkedDS {
 
 	static final Logger.ALogger logger = Logger.of(TimeseriesDS.class);
 
 	private static final List<String> EXCLUSION = new ArrayList<String>(
-	        Arrays.asList("device_id", "activity", "timestamp"));
+			Arrays.asList("device_id", "activity", "timestamp"));
+
+	/**
+	 * Internal record to store records for batch insertion
+	 */
+	private record QueuedRecord(String dataTableName, long deviceId, String pp1, String pp2, String pp3, Date ts,
+			String activity, String data) {
+	}
+
+	/**
+	 * Static queue to store records across all instances of TimeseriesDS
+	 */
+	private static final ConcurrentLinkedQueue<QueuedRecord> queue = new ConcurrentLinkedQueue<>();
 
 	public TimeseriesDS(Dataset dataset) {
 		super(dataset);
@@ -54,15 +68,15 @@ public class TimeseriesDS extends LinkedDS {
 	public void createInstance() {
 		try (Transaction transaction = DB.beginTransaction(); Connection connection = transaction.connection();) {
 			connection.createStatement().execute("CREATE TABLE IF NOT EXISTS " + dataTableName + " ( " //
-			        + "id bigint auto_increment not null," //
-			        + "device_id bigint," //
-			        + "ts timestamp," //
-			        + "activity varchar(255),"//
-			        + "pp1 varchar(255)," //
-			        + "pp2 varchar(255)," //
-			        + "pp3 varchar(255)," //
-			        + "data TEXT," //
-			        + "PRIMARY KEY (id) );");
+					+ "id bigint auto_increment not null," //
+					+ "device_id bigint," //
+					+ "ts timestamp," //
+					+ "activity varchar(255),"//
+					+ "pp1 varchar(255)," //
+					+ "pp2 varchar(255)," //
+					+ "pp3 varchar(255)," //
+					+ "data TEXT," //
+					+ "PRIMARY KEY (id) );");
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in creating dataset table in DB.", e);
@@ -78,7 +92,7 @@ public class TimeseriesDS extends LinkedDS {
 				// schema is ok, do nothing
 			} else {
 				connection.createStatement().execute("ALTER TABLE IF EXISTS " + dataTableName + " " //
-				        + "ALTER COLUMN data TEXT;");
+						+ "ALTER COLUMN data TEXT;");
 				logger.info("Dataset table " + dataTableName + " migrated.");
 			}
 			transaction.commit();
@@ -186,15 +200,15 @@ public class TimeseriesDS extends LinkedDS {
 
 		// post update on OOCSI
 		oocsiStreaming.datasetUpdate(dataset,
-		        OOCSIStreamOutService.map().put("operation", "add").put("activity", nss(activity, 255))
-		                .put("data", data).put("device_id", nss(device.getRefId(), 32)).build());
+				OOCSIStreamOutService.map().put("operation", "add").put("activity", nss(activity, 255))
+						.put("data", data).put("device_id", nss(device.getRefId(), 32)).build());
 
 		// check whether projection update is necessary
 		updateProjection(data);
 	}
 
 	/**
-	 * internal operation to add a sample to the database for any device
+	 * internal operation to add a sample to the database for any device (queued)
 	 * 
 	 * @param device
 	 * @param ts
@@ -202,28 +216,18 @@ public class TimeseriesDS extends LinkedDS {
 	 * @param data
 	 */
 	public void internalAddRecord(Device device, Date ts, String activity, String data) {
-		// insert record
-		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("INSERT INTO " + dataTableName
-		                + " (device_id, ts, activity, pp1, pp2, pp3, data )" + " VALUES (?, ?, ?, ?, ?, ?, ?);");) {
-			stmt.setLong(1, device.getId());
-			stmt.setTimestamp(2, new Timestamp(ts.getTime()));
-			stmt.setString(3, nss(activity, 255));
-			stmt.setString(4, nss(device.getPublicParameter1(), 255));
-			stmt.setString(5, nss(device.getPublicParameter2(), 255));
-			stmt.setString(6, nss(device.getPublicParameter3(), 255));
-			stmt.setString(7, nss(data));
-			stmt.executeUpdate();
-			transaction.commit();
-		} catch (Exception e) {
-			logger.error("Error in inserting record in dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+		queue.offer(new QueuedRecord(dataTableName, device.getId() != null ? device.getId() : -1L,
+				device.getPublicParameter1(), device.getPublicParameter2(), device.getPublicParameter3(), ts, activity,
+				data));
+
+		// flush if queue grows too large (prevent OOM during massive imports)
+		if (queue.size() > 10000) {
+			flushQueue();
 		}
 	}
 
 	/**
-	 * internal operation to add a sample to the database for any device
+	 * internal operation to add a sample to the database for any device (queued)
 	 * 
 	 * @param deviceId
 	 * @param ts
@@ -231,31 +235,67 @@ public class TimeseriesDS extends LinkedDS {
 	 * @param data
 	 */
 	public void internalAddRecord(String device_id, String pp1, String pp2, String pp3, Date ts, String activity,
-	        ObjectNode data) {
+			ObjectNode data) {
 
 		// create synthetic public parameter 1 for open participation devices
 		final String spp = device_id;
 
-		// insert record
-		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("INSERT INTO " + dataTableName
-		                + " (device_id, ts, activity, pp1, pp2, pp3, data )" + " VALUES (?, ?, ?, ?, ?, ?, ?);");) {
+		queue.offer(
+				new QueuedRecord(dataTableName, 0, pp1 == null ? spp : pp1, pp2, pp3, ts, activity, data.toString()));
 
-			stmt.setLong(1, 0);
-			stmt.setTimestamp(2, new Timestamp(ts.getTime()));
-			stmt.setString(3, nss(activity, 255));
-			stmt.setString(4, nss(pp1 == null ? spp : pp1, 255));
-			stmt.setString(5, nss(pp2, 255));
-			stmt.setString(6, nss(pp3, 255));
-			stmt.setString(7, nss(data.toString()));
-			stmt.executeUpdate();
-			transaction.commit();
+		// flush if queue grows too large (prevent OOM during massive imports)
+		if (queue.size() > 10000) {
+			flushQueue();
+		}
+	}
 
-			// note: don't post to OOCSI here because this is a batch operation
-		} catch (Exception e) {
-			logger.error("Error in inserting record in dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+	/**
+	 * Flush the queue of records to the database using batched insertions
+	 */
+	public static synchronized void flushQueue() {
+		if (queue.isEmpty()) {
+			return;
+		}
+
+		// take all currently available records from the queue
+		List<QueuedRecord> batch = new ArrayList<>();
+		QueuedRecord r;
+		while ((r = queue.poll()) != null) {
+			batch.add(r);
+		}
+
+		// group records by table name (each dataset has its own table)
+		Map<String, List<QueuedRecord>> recordsByTable = batch.stream()
+				.collect(Collectors.groupingBy(QueuedRecord::dataTableName));
+
+		// process each table batch
+		for (Map.Entry<String, List<QueuedRecord>> entry : recordsByTable.entrySet()) {
+			String tableName = entry.getKey();
+			List<QueuedRecord> tableRecords = entry.getValue();
+
+			try (Transaction transaction = DB.beginTransaction();
+					Connection connection = transaction.connection();
+					PreparedStatement stmt = connection.prepareStatement("INSERT INTO " + tableName
+							+ " (device_id, ts, activity, pp1, pp2, pp3, data ) VALUES (?, ?, ?, ?, ?, ?, ?);");) {
+
+				for (QueuedRecord record : tableRecords) {
+					stmt.setLong(1, record.deviceId());
+					stmt.setTimestamp(2, new Timestamp(record.ts().getTime()));
+					stmt.setString(3, StringUtils.nss(record.activity(), 255));
+					stmt.setString(4, StringUtils.nss(record.pp1(), 255));
+					stmt.setString(5, StringUtils.nss(record.pp2(), 255));
+					stmt.setString(6, StringUtils.nss(record.pp3(), 255));
+					stmt.setString(7, StringUtils.nss(record.data()));
+					stmt.addBatch();
+				}
+
+				stmt.executeBatch();
+				transaction.commit();
+			} catch (Exception e) {
+				logger.error("Error in inserting record batch in dataset " + tableName, e);
+				Slack.call("Exception",
+						"Error in inserting record batch in dataset " + tableName + ": " + e.getLocalizedMessage());
+			}
 		}
 	}
 
@@ -267,27 +307,27 @@ public class TimeseriesDS extends LinkedDS {
 	}
 
 	public void export(SourceQueueWithComplete<ByteString> destinationQueue, List<Long> deviceIds, long limit,
-	        long start, long end) {
+			long start, long end) {
 
 		final String whereClause;
 		if (deviceIds.isEmpty()) {
 			whereClause = timeFilterWhereClause(start, end);
 		} else {
 			whereClause = " WHERE device_id IN ("
-			        + deviceIds.stream().map(l -> l.toString()).collect(Collectors.joining(",")) + ") "
-			        + timeFilterWhereClause(start, end).replace("WHERE", "AND");
+					+ deviceIds.stream().map(l -> l.toString()).collect(Collectors.joining(",")) + ") "
+					+ timeFilterWhereClause(start, end).replace("WHERE", "AND");
 		}
 
 		// create the actual database for the data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection
-		                .prepareStatement("SELECT id, device_id, ts, activity, pp1, pp2, pp3, data FROM "
-		                        + dataTableName + whereClause + " ORDER BY ts ASC " + limitExpression(limit) + ";");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("SELECT id, device_id, ts, activity, pp1, pp2, pp3, data FROM "
+								+ dataTableName + whereClause + " ORDER BY ts ASC " + limitExpression(limit) + ";");
+				ResultSet rs = stmt.executeQuery();) {
 
 			destinationQueue.offer(ByteString.fromString("id,device_id,ts,activity,pp1,pp2,pp3,data\n"))
-			        .toCompletableFuture().get();
+					.toCompletableFuture().get();
 			while (rs.next()) {
 				StringBuffer sb = new StringBuffer();
 				sb.append(rs.getLong(1) + ",");
@@ -316,7 +356,7 @@ public class TimeseriesDS extends LinkedDS {
 	}
 
 	public void exportProjected(SourceQueueWithComplete<ByteString> destinationQueue, List<Long> deviceIds, long limit,
-	        long start, long end) {
+			long start, long end) {
 
 		// check whether there is a projection given
 		if (!dataset.getConfiguration().containsKey(Dataset.DATA_PROJECTION)) {
@@ -329,8 +369,8 @@ public class TimeseriesDS extends LinkedDS {
 			whereClause = timeFilterWhereClause(start, end);
 		} else {
 			whereClause = " WHERE device_id IN ("
-			        + deviceIds.stream().map(l -> l.toString()).collect(Collectors.joining(",")) + ") "
-			        + timeFilterWhereClause(start, end).replace("WHERE", "AND");
+					+ deviceIds.stream().map(l -> l.toString()).collect(Collectors.joining(",")) + ") "
+					+ timeFilterWhereClause(start, end).replace("WHERE", "AND");
 		}
 
 		// retrieve and process projection
@@ -338,17 +378,17 @@ public class TimeseriesDS extends LinkedDS {
 
 		// export the data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection
-		                .prepareStatement("SELECT id, device_id, ts, activity, pp1, pp2, pp3, data FROM "
-		                        + dataTableName + whereClause + " ORDER BY id ASC " + limitExpression(limit) + ";");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("SELECT id, device_id, ts, activity, pp1, pp2, pp3, data FROM "
+								+ dataTableName + whereClause + " ORDER BY id ASC " + limitExpression(limit) + ";");
+				ResultSet rs = stmt.executeQuery();) {
 
 			// sourceActor.tell(ByteString.fromString("# dataset export created on " + new Date() + "\n"), null);
 			destinationQueue
-			        .offer(ByteString
-			                .fromString("id,device_id,ts,activity,pp1,pp2,pp3," + String.join(",", projection) + "\n"))
-			        .toCompletableFuture().get();
+					.offer(ByteString
+							.fromString("id,device_id,ts,activity,pp1,pp2,pp3," + String.join(",", projection) + "\n"))
+					.toCompletableFuture().get();
 
 			while (rs.next()) {
 				StringBuffer sb = new StringBuffer();
@@ -414,8 +454,8 @@ public class TimeseriesDS extends LinkedDS {
 			whereClause = timeFilterWhereClause(start, end);
 		} else {
 			whereClause = " WHERE device_id IN ("
-			        + cluster.getDevices().stream().map(d -> d.getId().toString()).collect(Collectors.joining(","))
-			        + ") " + timeFilterWhereClause(start, end).replace("WHERE", "AND");
+					+ cluster.getDevices().stream().map(d -> d.getId().toString()).collect(Collectors.joining(","))
+					+ ") " + timeFilterWhereClause(start, end).replace("WHERE", "AND");
 		}
 
 		// start JSON array
@@ -426,11 +466,11 @@ public class TimeseriesDS extends LinkedDS {
 
 		// export the data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection
-		                .prepareStatement("SELECT id, device_id, ts, activity, pp1, pp2, pp3, data FROM "
-		                        + dataTableName + whereClause + " ORDER BY id ASC LIMIT " + limit + ";");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("SELECT id, device_id, ts, activity, pp1, pp2, pp3, data FROM "
+								+ dataTableName + whereClause + " ORDER BY id ASC LIMIT " + limit + ";");
+				ResultSet rs = stmt.executeQuery();) {
 
 			boolean firstRow = true;
 			while (rs.next()) {
@@ -489,8 +529,8 @@ public class TimeseriesDS extends LinkedDS {
 			whereClause = timeFilterWhereClause(start, end);
 		} else {
 			whereClause = " WHERE device_id IN ("
-			        + cluster.getDevices().stream().map(d -> d.getId().toString()).collect(Collectors.joining(","))
-			        + ") " + timeFilterWhereClause(start, end).replace("WHERE", "AND");
+					+ cluster.getDevices().stream().map(d -> d.getId().toString()).collect(Collectors.joining(","))
+					+ ") " + timeFilterWhereClause(start, end).replace("WHERE", "AND");
 		}
 
 		// set a max limit for the result as defined in constant MAX_ROWS_RETRIEVE_PROJECTED
@@ -501,11 +541,11 @@ public class TimeseriesDS extends LinkedDS {
 		List<ObjectNode> objects = new LinkedList<ObjectNode>();
 		// export the data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection
-		                .prepareStatement("SELECT id, device_id, ts, activity, pp1, pp2, pp3, data FROM "
-		                        + dataTableName + whereClause + " ORDER BY id DESC LIMIT " + limit + ";");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("SELECT id, device_id, ts, activity, pp1, pp2, pp3, data FROM "
+								+ dataTableName + whereClause + " ORDER BY id DESC LIMIT " + limit + ";");
+				ResultSet rs = stmt.executeQuery();) {
 
 			while (rs.next()) {
 				// ObjectNode on = result.addObject();
@@ -557,8 +597,8 @@ public class TimeseriesDS extends LinkedDS {
 		try (Transaction transaction = DB.beginTransaction();
 				Connection connection = transaction.connection();
 				PreparedStatement stmt = connection
-						.prepareStatement("SELECT id, device_id, ts, activity, pp1, pp2, pp3, data FROM " + dataTableName
-								+ " WHERE id IN " + "(SELECT MAX(id) FROM " + dataTableName
+						.prepareStatement("SELECT id, device_id, ts, activity, pp1, pp2, pp3, data FROM "
+								+ dataTableName + " WHERE id IN " + "(SELECT MAX(id) FROM " + dataTableName
 								+ " GROUP BY device_id, pp1) ORDER BY ts DESC LIMIT 1000;");
 				ResultSet rs = stmt.executeQuery();) {
 
@@ -619,9 +659,10 @@ public class TimeseriesDS extends LinkedDS {
 	 */
 	public void updateProjection(final List<String> projection) {
 		String updatedProjection;
+		boolean changed = false;
+
 		// existing --> compare before store
 		if (dataset.getConfiguration().containsKey(Dataset.DATA_PROJECTION)) {
-			boolean changed = false;
 			updatedProjection = dataset.getConfiguration().get(Dataset.DATA_PROJECTION);
 			List<String> existingProjection = new ArrayList<String>(Arrays.asList(updatedProjection.split(",")));
 			for (String column : projection) {
@@ -642,8 +683,10 @@ public class TimeseriesDS extends LinkedDS {
 		}
 
 		// store projection
-		dataset.getConfiguration().put(Dataset.DATA_PROJECTION, updatedProjection);
-		dataset.update();
+		if (changed || !dataset.getConfiguration().containsKey(Dataset.DATA_PROJECTION)) {
+			dataset.getConfiguration().put(Dataset.DATA_PROJECTION, updatedProjection);
+			dataset.update();
+		}
 	}
 
 	/**
