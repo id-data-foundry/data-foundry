@@ -3,6 +3,8 @@ package services.api;
 import java.util.Optional;
 import java.util.UUID;
 
+import javax.inject.Inject;
+
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.typesafe.config.Config;
 
@@ -15,7 +17,6 @@ import models.ds.EntityDS;
 import models.ds.LinkedDS;
 import play.Logger;
 import play.libs.Json;
-import services.slack.Slack;
 import utils.admin.AdminUtils;
 import utils.auth.TokenResolverUtil;
 
@@ -35,8 +36,11 @@ abstract public class GenericApiService implements ApiServiceConstants {
 	protected final long datastoreDSId;
 	protected EntityDS datastore;
 
+	@Inject
+	protected ThrottlingService throttlingService;
+
 	protected GenericApiService(Config configuration, AdminUtils adminUtils, DatasetConnector datasetConnector,
-	        TokenResolverUtil tokenResolver) {
+			TokenResolverUtil tokenResolver) {
 
 		this.tokenResolver = tokenResolver;
 
@@ -56,13 +60,13 @@ abstract public class GenericApiService implements ApiServiceConstants {
 
 			// is there a system project?
 			Optional<Project> systemProjectOpt = Project.find.query().where().eq("refId", AdminUtils.SYSTEM_PROJECT)
-			        .findOneOrEmpty();
+					.findOneOrEmpty();
 
 			Project systemProject;
 			if (systemProjectOpt.isEmpty()) {
 				// first create a project
 				systemProject = Project.create(AdminUtils.SYSTEM_PROJECT, adminUtils.getFirstAdminUser().get(), "",
-				        false, false);
+						false, false);
 				systemProject.setRefId(AdminUtils.SYSTEM_PROJECT);
 				systemProject.save();
 				logger.info("Created system project.");
@@ -94,7 +98,7 @@ abstract public class GenericApiService implements ApiServiceConstants {
 			tempDataset.refresh();
 			datastoreDataset = tempDataset;
 
-			logger.info("Created entity table for the OpenAI API service.");
+			logger.info("Created entity table for the AI API service.");
 		} else {
 			datastoreDataset = dsOpt.get();
 		}
@@ -142,7 +146,7 @@ abstract public class GenericApiService implements ApiServiceConstants {
 				return Optional.of(Json.newObject().put(TOKENS_USED, tokens).put(TOKENS_MAX, maxTokens).toString());
 			} else {
 				return Optional.of(Json.newObject()
-				        .put(RESPONSE_ERROR, "Please ensure a correct DF API key is provided.").toString());
+						.put(RESPONSE_ERROR, "Please ensure a correct DF API key is provided.").toString());
 			}
 		}
 	}
@@ -155,7 +159,15 @@ abstract public class GenericApiService implements ApiServiceConstants {
 	 * @return
 	 */
 	protected Optional<String> checkAndUpdateCredits(String apiToken, int requestedTokens) {
-		int tokens = -1, maxTokens = -1;
+		// enforce rate limiting per token
+		if (throttlingService != null && !throttlingService.tryConsume(apiToken)) {
+			return Optional.of(Json.newObject()
+					.put(RESPONSE_ERROR,
+							"Too many requests. Please slow down. (Max 1 request per second with a burst of 20)")
+					.toString());
+		}
+
+		int tokens = -1;
 
 		// return if API functionality needs to be blocked because the token DB is not available
 		if (datastoreDSId == -1L || datastore == null) {
@@ -178,23 +190,11 @@ abstract public class GenericApiService implements ApiServiceConstants {
 
 				// assign tokens from profile
 				tokens = profile.path(TOKENS_USED).asInt(0);
-				maxTokens = profile.path(TOKENS_MAX).asInt(2000);
-
-				if (maxTokens <= 0 || tokens + requestedTokens > maxTokens) {
-					return Optional
-					        .of(Json.newObject().put(RESPONSE_ERROR, "Not enough token credits remaining.").toString());
-				}
 			}
 
 			// update datastore
 			datastore.updateItem(apiToken, Optional.empty(),
-			        Json.newObject().put(TOKENS_USED, tokens + requestedTokens));
-
-			// notify admin via slack if credits are running out
-			if (tokens + requestedTokens > DEFAULT_STARTING_CREDITS - 200
-			        && tokens + requestedTokens < DEFAULT_STARTING_CREDITS - 150) {
-				Slack.call("system", "Tokens are running out for " + apiToken);
-			}
+					Json.newObject().put(TOKENS_USED, tokens + requestedTokens));
 
 			return Optional.empty();
 		}
@@ -304,13 +304,13 @@ abstract public class GenericApiService implements ApiServiceConstants {
 		}
 
 		String newApiKey = ApiServiceConstants.DF_API_KEY_PREFIX
-		        + tokenResolver.getParticipationToken(project.getId(), user.getId());
+				+ tokenResolver.getParticipationToken(project.getId(), user.getId());
 		long now = System.currentTimeMillis();
 		datastore.updateItem(userProjectKey, Optional.empty(), //
-		        Json.newObject().put(CURRENT_TOKEN, newApiKey).put(CREATED, now) //
-		                .put("user", user.getId()).put("email", user.getEmail()).put("project", project.getId()));
+				Json.newObject().put(CURRENT_TOKEN, newApiKey).put(CREATED, now) //
+						.put("user", user.getId()).put("email", user.getEmail()).put("project", project.getId()));
 		datastore.addItem(newApiKey, Optional.empty(),
-		        Json.newObject().put(TOKENS_USED, tokensUsed).put(TOKENS_MAX, tokensMax));
+				Json.newObject().put(TOKENS_USED, tokensUsed).put(TOKENS_MAX, tokensMax));
 		return new ProjectAPIInfo(newApiKey, now, tokensUsed, tokensMax);
 	}
 

@@ -19,9 +19,10 @@ public class ThrottlingService {
     }
 
     private Bucket newBucket(String apiKey) {
-        // 60 requests per minute per token
-        Refill refill = Refill.intervally(60, Duration.ofMinutes(1));
-        Bandwidth limit = Bandwidth.classic(60, refill);
+        // 1 request per second refill rate
+        Refill refill = Refill.intervally(1, Duration.ofSeconds(1));
+        // Burst capacity of 20
+        Bandwidth limit = Bandwidth.classic(20, refill);
         return Bucket.builder()
             .addLimit(limit)
             .build();
