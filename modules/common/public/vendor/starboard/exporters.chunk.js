@@ -1,20 +1,412 @@
-(self.webpackChunkstarboard_notebook=self.webpackChunkstarboard_notebook||[]).push([["exporters"],{"./src/content/exporters/bufferMock.ts":()=>{globalThis.Buffer||(globalThis.Buffer={isBuffer:()=>!1})},"./src/content/exporters/exportersModule.ts":(H,x,i)=>{"use strict";i.r(x),i.d(x,{exportAsHtml:()=>v});var A=i("./src/content/exporters/bufferMock.ts"),g=i("./node_modules/jsesc/jsesc.js"),p=i.n(g),f=i("./src/content/serialization.ts");function v(j,N){var w;const B=(0,f.f)(j),O=p()(B,{quotes:"backtick",minimal:!0,es6:!0,isScriptContext:!0}),d=N.cdnPrefix;return`<!doctype html>
+"use strict";
+(self["webpackChunkstarboard_notebook"] = self["webpackChunkstarboard_notebook"] || []).push([["exporters"],{
+
+/***/ "./src/content/exporters/bufferMock.ts"
+() {
+
+
+if (!globalThis.Buffer) {
+  globalThis.Buffer = {
+    isBuffer: () => false
+  };
+}
+
+
+/***/ },
+
+/***/ "./src/content/exporters/exportersModule.ts"
+(__unused_webpack_module, __webpack_exports__, __webpack_require__) {
+
+
+// EXPORTS
+__webpack_require__.d(__webpack_exports__, {
+  exportAsHtml: () => (/* reexport */ exportAsHtml)
+});
+
+// EXTERNAL MODULE: ./src/content/exporters/bufferMock.ts
+var bufferMock = __webpack_require__("./src/content/exporters/bufferMock.ts");
+// EXTERNAL MODULE: ../../node_modules/jsesc/jsesc.js
+var jsesc = __webpack_require__("../../node_modules/jsesc/jsesc.js");
+var jsesc_default = /*#__PURE__*/__webpack_require__.n(jsesc);
+// EXTERNAL MODULE: ./src/content/serialization.ts
+var serialization = __webpack_require__("./src/content/serialization.ts");
+;// ./src/content/exporters/html.ts
+
+
+
+
+function exportAsHtml(content, opts) {
+  var _a;
+  const notebookContentString = (0,serialization/* notebookContentToText */.P)(content);
+  const escapedNb = jsesc_default()(notebookContentString, {
+    quotes: "backtick",
+    minimal: true,
+    es6: true,
+    isScriptContext: true
+  });
+  const cdn = opts.cdnPrefix;
+  const body = `<!doctype html>
 <html>
     <head>
         <meta charset="utf-8">
-        <title>${(w=j.metadata.title)!=null?w:"Starboard Notebook"}</title>
+        <title>${(_a = content.metadata.title) != null ? _a : "Starboard Notebook"}</title>
         <meta name="viewport" content="width=device-width,initial-scale=1">
-        <link rel="icon" href="${d}favicon.ico">
-        <link href="${d}starboard-notebook.css" rel="stylesheet">
+        <link rel="icon" href="${cdn}favicon.ico">
+        <link href="${cdn}starboard-notebook.css" rel="stylesheet">
     </head>
     <body>
         <script>
-            window.initialNotebookContent = \`${O}\`;
-            window.starboardArtifactsUrl = \`${d}\`;
+            window.initialNotebookContent = \`${escapedNb}\`;
+            window.starboardArtifactsUrl = \`${cdn}\`;
         <\/script>
-        <script src="${d}starboard-notebook.js"><\/script>
+        <script src="${cdn}starboard-notebook.js"><\/script>
     </body>
-</html>`}},"./node_modules/jsesc/jsesc.js":H=>{"use strict";const x={},i=x.hasOwnProperty,A=(e,t)=>{for(const s in e)i.call(e,s)&&t(s,e[s])},g=(e,t)=>(t&&A(t,(s,l)=>{e[s]=l}),e),p=(e,t)=>{const s=e.length;let l=-1;for(;++l<s;)t(e[l])},f=x.toString,v=Array.isArray,j=Buffer.isBuffer,N=e=>f.call(e)=="[object Object]",w=e=>typeof e=="string"||f.call(e)=="[object String]",B=e=>typeof e=="number"||f.call(e)=="[object Number]",O=e=>typeof e=="function",d=e=>f.call(e)=="[object Map]",q=e=>f.call(e)=="[object Set]",z={'"':'\\"',"'":"\\'","\\":"\\\\","\b":"\\b","\f":"\\f","\n":"\\n","\r":"\\r","	":"\\t"},J=/["'\\\b\f\n\r\t]/,U=/[0-9]/,I=/[ !#-&\(-\[\]-_a-~]/,c=(e,t)=>{const s=()=>{D=m,++t.indentLevel,m=t.indent.repeat(t.indentLevel)},l={escapeEverything:!1,minimal:!1,isScriptContext:!1,quotes:"single",wrap:!1,es6:!1,json:!1,compact:!0,lowercaseHex:!1,numbers:"decimal",indent:"	",indentLevel:0,__inline1__:!1,__inline2__:!1},o=t&&t.json;o&&(l.quotes="double",l.wrap=!0),t=g(l,t),t.quotes!="single"&&t.quotes!="double"&&t.quotes!="backtick"&&(t.quotes="single");const b=t.quotes=="double"?'"':t.quotes=="backtick"?"`":"'",a=t.compact,$=t.lowercaseHex;let m=t.indent.repeat(t.indentLevel),D="";const T=t.__inline1__,k=t.__inline2__,h=a?"":`
-`;let n,C=!0;const W=t.numbers=="binary",G=t.numbers=="octal",K=t.numbers=="decimal",Q=t.numbers=="hexadecimal";if(o&&e&&O(e.toJSON)&&(e=e.toJSON()),!w(e)){if(d(e))return e.size==0?"new Map()":(a||(t.__inline1__=!0,t.__inline2__=!1),"new Map("+c(Array.from(e),t)+")");if(q(e))return e.size==0?"new Set()":"new Set("+c(Array.from(e),t)+")";if(j(e))return e.length==0?"Buffer.from([])":"Buffer.from("+c(Array.from(e),t)+")";if(v(e))return n=[],t.wrap=!0,T&&(t.__inline1__=!1,t.__inline2__=!0),k||s(),p(e,r=>{C=!1,k&&(t.__inline2__=!1),n.push((a||k?"":m)+c(r,t))}),C?"[]":k?"["+n.join(", ")+"]":"["+h+n.join(","+h)+h+(a?"":D)+"]";if(B(e)){if(o)return JSON.stringify(e);if(K)return String(e);if(Q){let r=e.toString(16);return $||(r=r.toUpperCase()),"0x"+r}if(W)return"0b"+e.toString(2);if(G)return"0o"+e.toString(8)}else return N(e)?(n=[],t.wrap=!0,s(),A(e,(r,y)=>{C=!1,n.push((a?"":m)+c(r,t)+":"+(a?"":" ")+c(y,t))}),C?"{}":"{"+h+n.join(","+h)+h+(a?"":D)+"}"):o?JSON.stringify(e)||"null":String(e)}const S=e;let u=-1;const L=S.length;for(n="";++u<L;){const r=S.charAt(u);if(t.es6){const M=S.charCodeAt(u);if(M>=55296&&M<=56319&&L>u+1){const E=S.charCodeAt(u+1);if(E>=56320&&E<=57343){let F=((M-55296)*1024+E-56320+65536).toString(16);$||(F=F.toUpperCase()),n+="\\u{"+F+"}",++u;continue}}}if(!t.escapeEverything){if(I.test(r)){n+=r;continue}if(r=='"'){n+=b==r?'\\"':r;continue}if(r=="`"){n+=b==r?"\\`":r;continue}if(r=="'"){n+=b==r?"\\'":r;continue}}if(r=="\0"&&!o&&!U.test(S.charAt(u+1))){n+="\\0";continue}if(J.test(r)){n+=z[r];continue}const y=r.charCodeAt(0);if(t.minimal&&y!=8232&&y!=8233){n+=r;continue}let _=y.toString(16);$||(_=_.toUpperCase());const P=_.length>2||o;n+="\\"+(P?"u":"x")+("0000"+_).slice(P?-4:-2)}return t.wrap&&(n=b+n+b),b=="`"&&(n=n.replace(/\$\{/g,"\\${")),t.isScriptContext?n.replace(/<\/(script|style)/gi,"<\\/$1").replace(/<!--/g,o?"\\u003C!--":"\\x3C!--"):n};c.version="2.5.2",H.exports=c}}]);
+</html>`;
+  return body;
+}
 
+;// ./src/content/exporters/exportersModule.ts
+
+
+
+
+/***/ },
+
+/***/ "../../node_modules/jsesc/jsesc.js"
+(module) {
+
+
+
+const object = {};
+const hasOwnProperty = object.hasOwnProperty;
+const forOwn = (object, callback) => {
+	for (const key in object) {
+		if (hasOwnProperty.call(object, key)) {
+			callback(key, object[key]);
+		}
+	}
+};
+
+const extend = (destination, source) => {
+	if (!source) {
+		return destination;
+	}
+	forOwn(source, (key, value) => {
+		destination[key] = value;
+	});
+	return destination;
+};
+
+const forEach = (array, callback) => {
+	const length = array.length;
+	let index = -1;
+	while (++index < length) {
+		callback(array[index]);
+	}
+};
+
+const toString = object.toString;
+const isArray = Array.isArray;
+const isBuffer = Buffer.isBuffer;
+const isObject = (value) => {
+	// This is a very simple check, but it’s good enough for what we need.
+	return toString.call(value) == '[object Object]';
+};
+const isString = (value) => {
+	return typeof value == 'string' ||
+		toString.call(value) == '[object String]';
+};
+const isNumber = (value) => {
+	return typeof value == 'number' ||
+		toString.call(value) == '[object Number]';
+};
+const isFunction = (value) => {
+	return typeof value == 'function';
+};
+const isMap = (value) => {
+	return toString.call(value) == '[object Map]';
+};
+const isSet = (value) => {
+	return toString.call(value) == '[object Set]';
+};
+
+/*--------------------------------------------------------------------------*/
+
+// https://mathiasbynens.be/notes/javascript-escapes#single
+const singleEscapes = {
+	'"': '\\"',
+	'\'': '\\\'',
+	'\\': '\\\\',
+	'\b': '\\b',
+	'\f': '\\f',
+	'\n': '\\n',
+	'\r': '\\r',
+	'\t': '\\t'
+	// `\v` is omitted intentionally, because in IE < 9, '\v' == 'v'.
+	// '\v': '\\x0B'
+};
+const regexSingleEscape = /["'\\\b\f\n\r\t]/;
+
+const regexDigit = /[0-9]/;
+const regexWhitelist = /[ !#-&\(-\[\]-_a-~]/;
+
+const jsesc = (argument, options) => {
+	const increaseIndentation = () => {
+		oldIndent = indent;
+		++options.indentLevel;
+		indent = options.indent.repeat(options.indentLevel)
+	};
+	// Handle options
+	const defaults = {
+		'escapeEverything': false,
+		'minimal': false,
+		'isScriptContext': false,
+		'quotes': 'single',
+		'wrap': false,
+		'es6': false,
+		'json': false,
+		'compact': true,
+		'lowercaseHex': false,
+		'numbers': 'decimal',
+		'indent': '\t',
+		'indentLevel': 0,
+		'__inline1__': false,
+		'__inline2__': false
+	};
+	const json = options && options.json;
+	if (json) {
+		defaults.quotes = 'double';
+		defaults.wrap = true;
+	}
+	options = extend(defaults, options);
+	if (
+		options.quotes != 'single' &&
+		options.quotes != 'double' &&
+		options.quotes != 'backtick'
+	) {
+		options.quotes = 'single';
+	}
+	const quote = options.quotes == 'double' ?
+		'"' :
+		(options.quotes == 'backtick' ?
+			'`' :
+			'\''
+		);
+	const compact = options.compact;
+	const lowercaseHex = options.lowercaseHex;
+	let indent = options.indent.repeat(options.indentLevel);
+	let oldIndent = '';
+	const inline1 = options.__inline1__;
+	const inline2 = options.__inline2__;
+	const newLine = compact ? '' : '\n';
+	let result;
+	let isEmpty = true;
+	const useBinNumbers = options.numbers == 'binary';
+	const useOctNumbers = options.numbers == 'octal';
+	const useDecNumbers = options.numbers == 'decimal';
+	const useHexNumbers = options.numbers == 'hexadecimal';
+
+	if (json && argument && isFunction(argument.toJSON)) {
+		argument = argument.toJSON();
+	}
+
+	if (!isString(argument)) {
+		if (isMap(argument)) {
+			if (argument.size == 0) {
+				return 'new Map()';
+			}
+			if (!compact) {
+				options.__inline1__ = true;
+				options.__inline2__ = false;
+			}
+			return 'new Map(' + jsesc(Array.from(argument), options) + ')';
+		}
+		if (isSet(argument)) {
+			if (argument.size == 0) {
+				return 'new Set()';
+			}
+			return 'new Set(' + jsesc(Array.from(argument), options) + ')';
+		}
+		if (isBuffer(argument)) {
+			if (argument.length == 0) {
+				return 'Buffer.from([])';
+			}
+			return 'Buffer.from(' + jsesc(Array.from(argument), options) + ')';
+		}
+		if (isArray(argument)) {
+			result = [];
+			options.wrap = true;
+			if (inline1) {
+				options.__inline1__ = false;
+				options.__inline2__ = true;
+			}
+			if (!inline2) {
+				increaseIndentation();
+			}
+			forEach(argument, (value) => {
+				isEmpty = false;
+				if (inline2) {
+					options.__inline2__ = false;
+				}
+				result.push(
+					(compact || inline2 ? '' : indent) +
+					jsesc(value, options)
+				);
+			});
+			if (isEmpty) {
+				return '[]';
+			}
+			if (inline2) {
+				return '[' + result.join(', ') + ']';
+			}
+			return '[' + newLine + result.join(',' + newLine) + newLine +
+				(compact ? '' : oldIndent) + ']';
+		} else if (isNumber(argument)) {
+			if (json) {
+				// Some number values (e.g. `Infinity`) cannot be represented in JSON.
+				return JSON.stringify(argument);
+			}
+			if (useDecNumbers) {
+				return String(argument);
+			}
+			if (useHexNumbers) {
+				let hexadecimal = argument.toString(16);
+				if (!lowercaseHex) {
+					hexadecimal = hexadecimal.toUpperCase();
+				}
+				return '0x' + hexadecimal;
+			}
+			if (useBinNumbers) {
+				return '0b' + argument.toString(2);
+			}
+			if (useOctNumbers) {
+				return '0o' + argument.toString(8);
+			}
+		} else if (!isObject(argument)) {
+			if (json) {
+				// For some values (e.g. `undefined`, `function` objects),
+				// `JSON.stringify(value)` returns `undefined` (which isn’t valid
+				// JSON) instead of `'null'`.
+				return JSON.stringify(argument) || 'null';
+			}
+			return String(argument);
+		} else { // it’s an object
+			result = [];
+			options.wrap = true;
+			increaseIndentation();
+			forOwn(argument, (key, value) => {
+				isEmpty = false;
+				result.push(
+					(compact ? '' : indent) +
+					jsesc(key, options) + ':' +
+					(compact ? '' : ' ') +
+					jsesc(value, options)
+				);
+			});
+			if (isEmpty) {
+				return '{}';
+			}
+			return '{' + newLine + result.join(',' + newLine) + newLine +
+				(compact ? '' : oldIndent) + '}';
+		}
+	}
+
+	const string = argument;
+	// Loop over each code unit in the string and escape it
+	let index = -1;
+	const length = string.length;
+	result = '';
+	while (++index < length) {
+		const character = string.charAt(index);
+		if (options.es6) {
+			const first = string.charCodeAt(index);
+			if ( // check if it’s the start of a surrogate pair
+				first >= 0xD800 && first <= 0xDBFF && // high surrogate
+				length > index + 1 // there is a next code unit
+			) {
+				const second = string.charCodeAt(index + 1);
+				if (second >= 0xDC00 && second <= 0xDFFF) { // low surrogate
+					// https://mathiasbynens.be/notes/javascript-encoding#surrogate-formulae
+					const codePoint = (first - 0xD800) * 0x400 + second - 0xDC00 + 0x10000;
+					let hexadecimal = codePoint.toString(16);
+					if (!lowercaseHex) {
+						hexadecimal = hexadecimal.toUpperCase();
+					}
+					result += '\\u{' + hexadecimal + '}';
+					++index;
+					continue;
+				}
+			}
+		}
+		if (!options.escapeEverything) {
+			if (regexWhitelist.test(character)) {
+				// It’s a printable ASCII character that is not `"`, `'` or `\`,
+				// so don’t escape it.
+				result += character;
+				continue;
+			}
+			if (character == '"') {
+				result += quote == character ? '\\"' : character;
+				continue;
+			}
+			if (character == '`') {
+				result += quote == character ? '\\`' : character;
+				continue;
+			}
+			if (character == '\'') {
+				result += quote == character ? '\\\'' : character;
+				continue;
+			}
+		}
+		if (
+			character == '\0' &&
+			!json &&
+			!regexDigit.test(string.charAt(index + 1))
+		) {
+			result += '\\0';
+			continue;
+		}
+		if (regexSingleEscape.test(character)) {
+			// no need for a `hasOwnProperty` check here
+			result += singleEscapes[character];
+			continue;
+		}
+		const charCode = character.charCodeAt(0);
+		if (options.minimal && charCode != 0x2028 && charCode != 0x2029) {
+			result += character;
+			continue;
+		}
+		let hexadecimal = charCode.toString(16);
+		if (!lowercaseHex) {
+			hexadecimal = hexadecimal.toUpperCase();
+		}
+		const longhand = hexadecimal.length > 2 || json;
+		const escaped = '\\' + (longhand ? 'u' : 'x') +
+			('0000' + hexadecimal).slice(longhand ? -4 : -2);
+		result += escaped;
+		continue;
+	}
+	if (options.wrap) {
+		result = quote + result + quote;
+	}
+	if (quote == '`') {
+		result = result.replace(/\$\{/g, '\\\$\{');
+	}
+	if (options.isScriptContext) {
+		// https://mathiasbynens.be/notes/etago
+		return result
+			.replace(/<\/(script|style)/gi, '<\\/$1')
+			.replace(/<!--/g, json ? '\\u003C!--' : '\\x3C!--');
+	}
+	return result;
+};
+
+jsesc.version = '2.5.2';
+
+module.exports = jsesc;
+
+
+/***/ }
+
+}]);
 //# sourceMappingURL=exporters.chunk.js.map
