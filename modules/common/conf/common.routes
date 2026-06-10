@@ -598,6 +598,9 @@ POST        /v1/pdf/text                                        controllers.api2
 
 # v2 API
 
++no-csrf
+POST		/api/v2/scripts/:id/webhook/:token						controllers.api2.ActorWebhookController.webhook(request: Request, id: Long, token: String)
+
 # Open API Docs
 GET   		/api/v2/swagger.json        							controllers.Assets.at(path:String="/public", file:String="swagger.json")
 GET   		/api/v2/docs/*file        							controllers.Assets.at(path:String="/public/lib/swagger-ui", file:String)

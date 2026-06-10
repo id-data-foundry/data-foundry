@@ -147,32 +147,41 @@
         <div class="row">
           <div class="col s12">
             <b>Trigger</b><br>
-            Choose how this script is triggered. You can use an OOCSI channel, Telegram messages, or a recurring Timer.
+            Choose how this script is triggered. You can use an OOCSI channel, Telegram messages, a recurring Timer, or a Webhook (POST request).
           </div>
-          <div class="col s12" style="margin-top: 1em;">
-            <p>
-              <label>
-                <input name="trigger_type" type="radio" value="oocsi" @if(!dataset.configuration(Dataset.ACTOR_CHANNEL, "").startsWith("telegram") && !dataset.configuration(Dataset.ACTOR_CHANNEL, "").startsWith("cron:")) {checked} />
-                <span>OOCSI Channel</span>
-              </label>
-              <label style="margin-left: 2em;">
-                <input name="trigger_type" type="radio" value="telegram" @if(dataset.configuration(Dataset.ACTOR_CHANNEL, "").startsWith("telegram")) {checked} />
-                <span>Telegram Bot</span>
-              </label>
-              <label style="margin-left: 2em;">
-                <input name="trigger_type" type="radio" value="timer" @if(dataset.configuration(Dataset.ACTOR_CHANNEL, "").startsWith("cron:")) {checked} />
-                <span>Timer</span>
-              </label>
-            </p>
+          <div class="input-field col s12" style="margin-top: 1em;">
+            <select id="trigger_type">
+              <option value="oocsi" @if(!dataset.configuration(Dataset.ACTOR_CHANNEL, "").startsWith("telegram") && !dataset.configuration(Dataset.ACTOR_CHANNEL, "").startsWith("cron:") && !dataset.configuration(Dataset.ACTOR_CHANNEL, "").startsWith("webhook")) {selected}>OOCSI Channel</option>
+              <option value="telegram" @if(dataset.configuration(Dataset.ACTOR_CHANNEL, "").startsWith("telegram")) {selected}>Telegram Bot</option>
+              <option value="timer" @if(dataset.configuration(Dataset.ACTOR_CHANNEL, "").startsWith("cron:")) {selected}>Timer</option>
+              <option value="webhook" @if(dataset.configuration(Dataset.ACTOR_CHANNEL, "").startsWith("webhook")) {selected}>Webhook</option>
+            </select>
+            <label>Trigger type</label>
           </div>
 
-          <div id="trigger_oocsi_config" class="input-field col s12 trigger-config">
-            <input id="input_channel" name="input_channel" type="text" value="@if(!dataset.configuration(Dataset.ACTOR_CHANNEL, "").startsWith("telegram") && !dataset.configuration(Dataset.ACTOR_CHANNEL, "").startsWith("cron:")) {@dataset.configuration(Dataset.ACTOR_CHANNEL, "")}" class="validate">
-            <label for="input_channel">OOCSI channel name</label>
+          <div id="trigger_oocsi_config" class="col s12 trigger-config">
+            <p>
+            	OOCSI messages trigger this script. Provide a channel name to listen for incoming events.
+            	Use <code>DF.oocsi("some-channel", data);</code> to send OOCSI messages.
+            </p>
+            <div class="input-field">
+              <input id="input_channel" name="input_channel" type="text" value="@if(!dataset.configuration(Dataset.ACTOR_CHANNEL, "").startsWith("telegram") && !dataset.configuration(Dataset.ACTOR_CHANNEL, "").startsWith("cron:") && !dataset.configuration(Dataset.ACTOR_CHANNEL, "").startsWith("webhook")) {@dataset.configuration(Dataset.ACTOR_CHANNEL, "")}" class="validate">
+              <label for="input_channel">OOCSI channel name</label>
+            </div>
           </div>
 
           <div id="trigger_telegram_config" class="col s12 trigger-config" style="display: none; margin-bottom: 1em;">
-            Telegram bot is active. Use <code>DF.telegramReply()</code> to respond to messages.
+            Telegram bot messages trigger this script. Use <code>DF.telegramReply()</code> to respond to messages.
+          </div>
+
+          <div id="trigger_webhook_config" class="col s12 trigger-config" style="display: none; margin-bottom: 1em;">
+            Send a POST request to <code class="webhook-url-display"></code> to trigger this script. Data in the request body (JSON) will be available in the script as <code>data</code>.
+            <details style="margin-top: 10px;">
+              <summary style="cursor: pointer; font-weight: 500;">Show curl example</summary>
+              <div style="padding: 10px; background: #f5f5f5; border-radius: 4px; margin-top: 5px;">
+                <pre style="margin: 0; white-space: pre-wrap;"><code class="webhook-curl-display"></code></pre>
+              </div>
+            </details>
           </div>
 
           <div id="trigger_timer_config" class="col s12 trigger-config" style="display: none;">
@@ -492,13 +501,15 @@ else {
     $('#installBtn').click(function(e) {
       $('#installBtn').attr('disabled', true)
       
-      let triggerType = $('input[name="trigger_type"]:checked').val();
+      let triggerType = $('#trigger_type').val();
       let channelName = "";
       
       if (triggerType === 'oocsi') {
         channelName = $('#input_channel').val();
       } else if (triggerType === 'telegram') {
         channelName = 'telegram';
+      } else if (triggerType === 'webhook') {
+        channelName = 'webhook';
       } else if (triggerType === 'timer') {
         let preset = $('#timer_preset').val();
         let cron = "";
@@ -547,9 +558,18 @@ else {
       return false;
     });
 
-    $('input[name="trigger_type"]').change(function() {
+    $('#trigger_type').change(function() {
       $('.trigger-config').hide();
-      $('#trigger_' + $(this).val() + '_config').show();
+      let val = $(this).val();
+      $('#trigger_' + val + '_config').show();
+      
+      if (val === 'oocsi') {
+        let channel = $('#input_channel').val();
+        if (channel === 'webhook' || channel === 'telegram' || channel.startsWith('cron:')) {
+          $('#input_channel').val('');
+          M.updateTextFields();
+        }
+      }
     });
 
     $('#timer_preset').change(function() {
@@ -568,6 +588,12 @@ else {
 
     // initialize UI state
     $(document).ready(function() {
+      // populate webhook info
+      let webhookPath = "/api/v2/scripts/@dataset.getId()/webhook/@dataset.getApiToken()";
+      let absoluteWebhookUrl = window.location.origin + webhookPath;
+      $('.webhook-url-display').text(absoluteWebhookUrl);
+      $('.webhook-curl-display').text('curl -X POST -H "Content-Type: application/json" -d \'{"key": "value"}\' ' + absoluteWebhookUrl);
+
       let currentChannel = "@dataset.configuration(Dataset.ACTOR_CHANNEL, "")";
       if (currentChannel.startsWith("cron:")) {
         let cron = currentChannel.substring(5);
@@ -606,6 +632,9 @@ else {
       } else if (currentChannel.startsWith("telegram")) {
         $('#trigger_telegram_config').show();
         $('.trigger-config').not('#trigger_telegram_config').hide();
+      } else if (currentChannel.startsWith("webhook")) {
+        $('#trigger_webhook_config').show();
+        $('.trigger-config').not('#trigger_webhook_config').hide();
       } else {
         $('#trigger_oocsi_config').show();
         $('.trigger-config').not('#trigger_oocsi_config').hide();

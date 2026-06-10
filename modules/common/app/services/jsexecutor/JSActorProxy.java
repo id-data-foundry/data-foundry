@@ -17,6 +17,8 @@ public class JSActorProxy {
 	private StringBuffer sb = new StringBuffer();
 	private JSActor actor;
 	private final long ttl;
+	
+	private String responseData = null;
 
 	@HostAccess.Export
 	public JsonObject data;
@@ -34,6 +36,17 @@ public class JSActorProxy {
 	public JSActorProxy(JSActor actor) {
 		this.actor = actor;
 		this.ttl = System.currentTimeMillis() + ApiServiceConstants.API_REQUEST_JS_TIMEOUT_MS;
+	}
+
+	// response data -------------------------------------------------------------
+
+	@HostAccess.Export
+	public void setResponse(String responseData) {
+		this.responseData = responseData;
+	}
+
+	public String getResponse() {
+		return this.responseData;
 	}
 
 	// event data ----------------------------------------------------------------

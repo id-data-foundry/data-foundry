@@ -288,7 +288,9 @@ public class JSActor implements ApiServiceConstants {
 	private synchronized void internalUpdate(JsonObject data) {
 		Date now = new Date();
 		if (this.compiledProgram) {
-			String outputMessages = runCompiled(data);
+			JSActorProxy actorProxy = runCompiled(data);
+			String outputMessages = actorProxy != null ? actorProxy.getMessages() : "";
+
 			if (!outputMessages.isEmpty()) {
 				messages.offerFirst(outputMessages);
 			}
@@ -324,18 +326,68 @@ public class JSActor implements ApiServiceConstants {
 	}
 
 	/**
+	 * update the actor with JSON data and return the response payload if set
+	 * 
+	 * @param data
+	 * @return
+	 */
+	public synchronized Optional<String> updateAndGetResponse(JsonObject data) {
+		Date now = new Date();
+		Optional<String> response = Optional.empty();
+		if (this.compiledProgram) {
+			JSActorProxy actorProxy = runCompiled(data);
+			if (actorProxy != null) {
+				String outputMessages = actorProxy.getMessages();
+				response = Optional.ofNullable(actorProxy.getResponse());
+
+				if (!outputMessages.isEmpty()) {
+					messages.offerFirst(outputMessages);
+				}
+
+				// write the output messages to the log file
+				Dataset ds = Dataset.find.byId(getDatasetId());
+				final CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
+				Optional<File> logFileOpt = cpds.getFileTemp("log.txt");
+
+				// create log file in records if the file does not exist
+				if (!logFileOpt.get().exists()) {
+					cpds.addRecord("log.txt", "Log file for the script output", now);
+				}
+
+				// write to log file
+				try (FileWriter fw = new FileWriter(logFileOpt.get(), true)) {
+					fw.write(outputMessages + "\n");
+				} catch (Exception e) {
+					// do nothing
+				}
+			}
+		}
+
+		// keep track of this run
+		lastUpdate = now;
+		runs++;
+
+		// reduce the messages queue
+		while (messages.size() > 10) {
+			messages.pollLast();
+		}
+
+		return response;
+	}
+
+	/**
 	 * run the actor's compiled code with the supplied data from the OOCSI or Telegram inlet
 	 * 
 	 * @param data
 	 * @return
 	 */
-	private String runCompiled(JsonObject data) {
+	private JSActorProxy runCompiled(JsonObject data) {
 
 		// acquire the lock
 		if (!compiledExecutionPermission.tryAcquire()) {
 			logger.info(
 					"Compiled script not executed due to missing permits for " + owner + " (" + getDatasetId() + ")");
-			return "";
+			return null;
 		}
 
 		long start = System.currentTimeMillis();
@@ -391,7 +443,7 @@ public class JSActor implements ApiServiceConstants {
 		// release the lock
 		compiledExecutionPermission.release();
 
-		return actor != null ? actor.getMessages() : "";
+		return actor;
 	}
 
 	/**
@@ -513,6 +565,9 @@ public class JSActor implements ApiServiceConstants {
 		} else if (channelName.toLowerCase().startsWith("cron:")) {
 			// handled by JSExecutorService loop
 			logger.info("Installed timer trigger for script " + getName());
+		} else if (channelName.toLowerCase().startsWith("webhook")) {
+			// nothing else necessary
+			logger.info("Installed webhook trigger for script " + getName());
 		} else {
 			// create OOCSI client if not existing
 			if (oocsi == null) {
@@ -549,6 +604,8 @@ public class JSActor implements ApiServiceConstants {
 			logger.info("Removed Telegram responder script " + getName());
 		} else if (channelName.toLowerCase().startsWith("cron:")) {
 			logger.info("Removed timer trigger for script " + getName());
+		} else if (channelName.toLowerCase().startsWith("webhook")) {
+			logger.info("Removed webhook trigger for script " + getName());
 		} else {
 			if (oocsi != null) {
 				oocsi.unsubscribe(channelName);

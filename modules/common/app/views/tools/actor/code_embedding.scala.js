@@ -82,6 +82,9 @@ var program = (function() {
 		oocsi: function(c, d) {
 			actor.sendOOCSIMessage(c, JSON.stringify(d));
 		},
+		setResponse: function(d) {
+			actor.setResponse(JSON.stringify(d));
+		},
 		api: function(api, d) {
 			return JSON.parse(actor.apiDispatch(api, JSON.stringify(d)));
 		},
