@@ -1,5 +1,6 @@
 package services.jsexecutor;
 
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -10,6 +11,7 @@ import java.util.stream.Collectors;
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.ResourceLimits;
 
+import com.google.gson.JsonObject;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
 
@@ -17,6 +19,7 @@ import datasets.DatasetConnector;
 import models.Dataset;
 import models.DatasetType;
 import play.Logger;
+import play.libs.Time.CronExpression;
 import services.api.ai.UnmanagedAIApiService;
 import services.api.js.JSDBApiService;
 import services.api.processing.AudioProcessingApiService;
@@ -43,14 +46,15 @@ public class JSExecutorService implements ScheduledService {
 	private Map<Long, JSActor> actors = new HashMap<Long, JSActor>();
 	private Map<Long, JSActor> trialActors = new HashMap<Long, JSActor>();
 	private Map<Long, String> subscriptions = new HashMap<Long, String>();
+	private Map<Long, Long> timerNextRuns = new HashMap<Long, Long>();
 
 	private final ExecutorService EXECUTOR = Executors.newWorkStealingPool();
 
 	@Inject
 	public JSExecutorService(DatasetConnector datasetConnector, OOCSIClientUtil oocsiClientFactory,
-	        TelegramBotService botService, UnmanagedAIApiService aiApiService,
-	        AudioProcessingApiService audioProcessing, JSDBApiService jsdbApiService,
-	        RealTimeNotificationService realtimeNotifications) {
+			TelegramBotService botService, UnmanagedAIApiService aiApiService,
+			AudioProcessingApiService audioProcessing, JSDBApiService jsdbApiService,
+			RealTimeNotificationService realtimeNotifications) {
 
 		this.datasetConnector = datasetConnector;
 		this.oocsiClientUtil = oocsiClientFactory;
@@ -63,7 +67,7 @@ public class JSExecutorService implements ScheduledService {
 		// test available engines for JS execution
 		boolean tempActivation = false;
 		try (Context context = Context.newBuilder("js")
-		        .resourceLimits(ResourceLimits.newBuilder().statementLimit(10, null).build()).build();) {
+				.resourceLimits(ResourceLimits.newBuilder().statementLimit(10, null).build()).build();) {
 			context.eval("js", "1+1");
 			// Graal JS is available, continue with Graal JS Engine
 			tempActivation = true;
@@ -88,7 +92,7 @@ public class JSExecutorService implements ScheduledService {
 	 */
 	public JSActor addActor(Dataset ds) {
 		JSActor actor = new JSActor(ds, datasetConnector, sandboxFactory, EXECUTOR, oocsiClientUtil, botService,
-		        aiApiService, audioProcessing, jsdbApiService, realtimeNotifications);
+				aiApiService, audioProcessing, jsdbApiService, realtimeNotifications);
 		actors.put(ds.getId(), actor);
 
 		return actor;
@@ -102,7 +106,7 @@ public class JSExecutorService implements ScheduledService {
 	 */
 	public JSActor addTrialActor(Dataset ds) {
 		JSActor actor = new JSActor(ds, datasetConnector, sandboxFactory, EXECUTOR, oocsiClientUtil, botService,
-		        aiApiService, audioProcessing, jsdbApiService, realtimeNotifications);
+				aiApiService, audioProcessing, jsdbApiService, realtimeNotifications);
 		trialActors.put(ds.getId(), actor);
 
 		return actor;
@@ -123,20 +127,21 @@ public class JSExecutorService implements ScheduledService {
 
 		// refresh channels from IoT datasets
 		List<Dataset> actorDatasets = Dataset.find.query().where().eq("dsType", DatasetType.COMPLETE)
-		        .eq("collectorType", Dataset.ACTOR).findList().stream()
-		        .filter(ds -> ds.isActive() && ds.getProject().isActive()).collect(Collectors.toList());
+				.eq("collectorType", Dataset.ACTOR).findList().stream()
+				.filter(ds -> ds.isActive() && ds.getProject().isActive()).collect(Collectors.toList());
 
 		List<Long> actorDatasetIds = actorDatasets.stream().map(ds -> ds.getId()).collect(Collectors.toList());
 
 		// disconnect actors that are not active anymore
 		List<Long> inactiveActors = actors.keySet().stream().filter(id -> !actorDatasetIds.contains(id))
-		        .collect(Collectors.toList());
+				.collect(Collectors.toList());
 		inactiveActors.forEach(id -> {
 			JSActor actor = actors.get(id);
 			if (actor != null) {
 				logger.info("Removing actor of inactive dataset " + actor.getName());
 				unsubscribe(id, actor);
 				actors.remove(id);
+				timerNextRuns.remove(id);
 				actor.stop();
 			}
 		});
@@ -158,7 +163,7 @@ public class JSExecutorService implements ScheduledService {
 			if (!actors.containsKey(ds.getId())) {
 				// initialize and install a new actor
 				JSActor actor = new JSActor(ds, datasetConnector, sandboxFactory, EXECUTOR, oocsiClientUtil, botService,
-				        aiApiService, audioProcessing, jsdbApiService, realtimeNotifications);
+						aiApiService, audioProcessing, jsdbApiService, realtimeNotifications);
 				actors.put(ds.getId(), actor);
 				actor.setCode(code, null);
 			}
@@ -168,6 +173,46 @@ public class JSExecutorService implements ScheduledService {
 
 			String channelName = ds.configuration(Dataset.ACTOR_CHANNEL, "").trim();
 			if (channelName.length() > 0) {
+
+				// check if channel changed
+				if (subscriptions.containsKey(ds.getId()) && !subscriptions.get(ds.getId()).equals(channelName)) {
+					timerNextRuns.remove(ds.getId());
+				}
+
+				// check for cron timer
+				if (channelName.toLowerCase().startsWith("cron:")) {
+					String cronExpression = channelName.substring(5).trim();
+					try {
+						CronExpression ce = new CronExpression(cronExpression);
+						long now = System.currentTimeMillis();
+						if (!timerNextRuns.containsKey(ds.getId())) {
+							Date nextRun = ce.getNextValidTimeAfter(new Date(now));
+							if (nextRun != null) {
+								timerNextRuns.put(ds.getId(), nextRun.getTime());
+							}
+						} else {
+							long nextRunTime = timerNextRuns.get(ds.getId());
+							if (now >= nextRunTime) {
+								// trigger actor
+								JsonObject jo = new JsonObject();
+								jo.addProperty("event", "timer");
+								jo.addProperty("timestamp", now);
+								actor.update(jo);
+
+								// schedule next run
+								Date nextRun = ce.getNextValidTimeAfter(new Date(now));
+								if (nextRun != null) {
+									timerNextRuns.put(ds.getId(), nextRun.getTime());
+									logger.trace("Next run scheduled for script " + actor.getName() + " at " + nextRun);
+								} else {
+									timerNextRuns.remove(ds.getId());
+								}
+							}
+						}
+					} catch (Exception e) {
+						logger.error("Error in cron expression for script " + actor.getName(), e);
+					}
+				}
 
 				// existing subscription
 				if (subscriptions.containsKey(ds.getId())) {
@@ -187,6 +232,7 @@ public class JSExecutorService implements ScheduledService {
 				}
 			} else if (subscriptions.containsKey(ds.getId())) {
 				unsubscribe(ds.getId(), actor);
+				timerNextRuns.remove(ds.getId());
 			}
 		}
 	}
@@ -216,7 +262,7 @@ public class JSExecutorService implements ScheduledService {
 
 	public List<JSActor> getSubscribedActors(final String channelName) {
 		return subscriptions.entrySet().stream().filter(e -> e.getValue().equals(channelName))
-		        .map(e -> getActor(e.getKey())).filter(a -> a != null).collect(Collectors.toList());
+				.map(e -> getActor(e.getKey())).filter(a -> a != null).collect(Collectors.toList());
 	}
 
 }

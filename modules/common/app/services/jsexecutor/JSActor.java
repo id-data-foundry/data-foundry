@@ -510,6 +510,9 @@ public class JSActor implements ApiServiceConstants {
 		if (channelName.toLowerCase().startsWith("telegram_")) {
 			// nothing else necessary
 			logger.info("Installed Telegram responder script " + getName());
+		} else if (channelName.toLowerCase().startsWith("cron:")) {
+			// handled by JSExecutorService loop
+			logger.info("Installed timer trigger for script " + getName());
 		} else {
 			// create OOCSI client if not existing
 			if (oocsi == null) {
@@ -544,6 +547,8 @@ public class JSActor implements ApiServiceConstants {
 		// check for Telegram subscription
 		if (channelName.toLowerCase().startsWith("telegram_")) {
 			logger.info("Removed Telegram responder script " + getName());
+		} else if (channelName.toLowerCase().startsWith("cron:")) {
+			logger.info("Removed timer trigger for script " + getName());
 		} else {
 			if (oocsi != null) {
 				oocsi.unsubscribe(channelName);

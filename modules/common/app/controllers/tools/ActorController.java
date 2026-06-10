@@ -22,6 +22,7 @@ import play.data.DynamicForm;
 import play.data.FormFactory;
 import play.filters.csrf.AddCSRFToken;
 import play.filters.csrf.RequireCSRFCheck;
+import play.libs.Time.CronExpression;
 import play.mvc.Http.MimeTypes;
 import play.mvc.Http.Request;
 import play.mvc.Result;
@@ -193,6 +194,13 @@ public class ActorController extends AbstractAsyncController {
 		channelName = channelName.replace("\"", "");
 		if (channelName.toLowerCase().startsWith("telegram")) {
 			channelName = channelName + "_" + ds.getProject().getId();
+		} else if (channelName.toLowerCase().startsWith("cron:")) {
+			// check for valid cron expression
+			try {
+				new CronExpression(channelName.substring(5).trim());
+			} catch (Exception e) {
+				return badRequest("Invalid cron expression for timer.").as(MimeTypes.HTML);
+			}
 		}
 
 		String code = nss(request.body().asText());
@@ -207,7 +215,7 @@ public class ActorController extends AbstractAsyncController {
 		// check actor
 		JSActor actor = jsExecService.getActor(ds.getId());
 		if (actor == null) {
-			// actor is not available, craete new one
+			// actor is not available, create new one
 			actor = jsExecService.addActor(ds);
 		}
 
