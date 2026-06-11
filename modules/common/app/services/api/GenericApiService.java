@@ -33,7 +33,11 @@ abstract public class GenericApiService implements ApiServiceConstants {
 	static final String CREATED = "created";
 
 	protected final TokenResolverUtil tokenResolver;
-	protected final long datastoreDSId;
+	protected final Config configuration;
+	protected final AdminUtils adminUtils;
+	protected final DatasetConnector datasetConnector;
+
+	protected long datastoreDSId = -1L;
 	protected EntityDS datastore;
 
 	@Inject
@@ -42,7 +46,16 @@ abstract public class GenericApiService implements ApiServiceConstants {
 	protected GenericApiService(Config configuration, AdminUtils adminUtils, DatasetConnector datasetConnector,
 			TokenResolverUtil tokenResolver) {
 
+		this.configuration = configuration;
+		this.adminUtils = adminUtils;
+		this.datasetConnector = datasetConnector;
 		this.tokenResolver = tokenResolver;
+	}
+
+	private synchronized void initDatastoreIfNeeded() {
+		if (datastore != null) {
+			return;
+		}
 
 		// check dataset availability
 		final Dataset datastoreDataset;
@@ -116,6 +129,7 @@ abstract public class GenericApiService implements ApiServiceConstants {
 	 * @return
 	 */
 	protected Optional<String> checkCredits(String apiKey) {
+		initDatastoreIfNeeded();
 		int tokens = -1, maxTokens = -1;
 
 		// return if API functionality needs to be blocked because the token DB is not available
@@ -159,6 +173,7 @@ abstract public class GenericApiService implements ApiServiceConstants {
 	 * @return
 	 */
 	protected Optional<String> checkAndUpdateCredits(String apiToken, int requestedTokens) {
+		initDatastoreIfNeeded();
 		// enforce rate limiting per token
 		if (throttlingService != null && !throttlingService.tryConsume(apiToken)) {
 			return Optional.of(Json.newObject()
@@ -206,10 +221,12 @@ abstract public class GenericApiService implements ApiServiceConstants {
 	 * @return
 	 */
 	public long getDataStoreDatasetId() {
+		initDatastoreIfNeeded();
 		return datastoreDSId;
 	}
 
 	public ProjectAPIInfo getProjectAPIAccess(Person user, Project project) {
+		initDatastoreIfNeeded();
 		String userProjectKey = tokenResolver.getStableParticipationToken(project.getId(), user.getId());
 
 		// return if API functionality needs to be blocked because the token DB is not available
@@ -242,6 +259,7 @@ abstract public class GenericApiService implements ApiServiceConstants {
 	}
 
 	public ObjectNode getProjectAPIUsage(String apiToken) {
+		initDatastoreIfNeeded();
 
 		// return if API functionality needs to be blocked because the token DB is not available
 		if (datastoreDSId == -1L || datastore == null) {
@@ -263,6 +281,7 @@ abstract public class GenericApiService implements ApiServiceConstants {
 	}
 
 	public synchronized ProjectAPIInfo activateProjectAPIAccess(Person user, Project project) {
+		initDatastoreIfNeeded();
 		String userProjectKey = tokenResolver.getStableParticipationToken(project.getId(), user.getId());
 
 		// return if API functionality needs to be blocked because the token DB is not available
@@ -298,6 +317,7 @@ abstract public class GenericApiService implements ApiServiceConstants {
 	}
 
 	ProjectAPIInfo updateApiKey(Person user, Project project, String userProjectKey, int tokensUsed, int tokensMax) {
+		initDatastoreIfNeeded();
 		// return if API functionality needs to be blocked because the token DB is not available
 		if (datastoreDSId == -1L || datastore == null) {
 			return new ProjectAPIInfo("", 0, 0, 0, Optional.of("No API access configured. Please contact support."));
