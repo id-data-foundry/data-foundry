@@ -47,7 +47,7 @@ public class StarboardController extends AbstractAsyncController {
 	SyncCacheApi cache;
 
 	private static final Pattern URL_PATTERN = Pattern.compile("https?://[^/]+/web/[^/]+/(.+)");
-	private static final Pattern PYODIDE_OPEN_URL_PATTERN = Pattern.compile("pyodide\\.open_url\\(([^)]+)\\)");
+	private static final Pattern PYODIDE_OPEN_URL_PATTERN = Pattern.compile("pyodide\\.http\\.open_url\\(([^)]+)\\)");
 	private static final Pattern PD_TO_DATETIME_PATTERN = Pattern
 			.compile("pd\\.to_datetime\\((\\s*\\w+\\[(\"|')Date\\2\\]\\s*)(?![^)]*format\\s*=)[^)]*\\)");
 
@@ -176,7 +176,7 @@ public class StarboardController extends AbstractAsyncController {
 		List<String> starboardLines = Files.readAllLines(inputFile.toPath());
 
 		// List of blocked patterns
-		List<String> BLOCKED_PATTERNS = List.of("import pyodide", "import micropip",
+		List<String> BLOCKED_PATTERNS = List.of("import pyodide", "import pyodide.http", "import micropip",
 				"await micropip.install('seaborn==0.13.2')", "await micropip.install('scipy')");
 
 		// construct translated data structure

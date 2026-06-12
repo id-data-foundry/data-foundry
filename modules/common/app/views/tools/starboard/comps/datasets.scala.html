@@ -1,6 +1,6 @@
 @(projects : List[models.Project])(implicit request: Http.Request)
 <div class="col">
-	<b>Access data from your datasets in a noteboook</b>
+	<b>Access data from your datasets in a notebook</b>
 	<br>
 	First select the project and dataset you want to import, then select the type of notebook cell (JavaScript/Python):
 	@for(p <- projects) {
@@ -26,13 +26,13 @@ console.log(json)
 # import libraries (needed only once in the notebook)
 import pandas as pd
 import matplotlib.pyplot as plt
-import pyodide
+import pyodide.http
 
 # download from this url
 url = "@routes.DatasetsController.download(ds.getId()).absoluteURL(request)"
 
 # download and parse CSV into Pandas DataFrame
-df = pd.read_csv(pyodide.open_url(url))
+df = pd.read_csv(pyodide.http.open_url(url))
 
 # work with the DataFrame and print results
 print(df.groupby('activity').max())
