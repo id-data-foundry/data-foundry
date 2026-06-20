@@ -30,6 +30,7 @@ import play.mvc.Call;
 import play.mvc.Controller;
 import play.mvc.Http;
 import play.mvc.Http.Request;
+import play.mvc.Http.RequestHeader;
 import play.mvc.Result;
 import services.maintenance.RealTimeNotificationService;
 import utils.DateUtils;
@@ -93,7 +94,7 @@ public class AbstractAsyncController extends Controller {
 	 * @param request
 	 * @return
 	 */
-	public Optional<String> getAuthenticatedUserName(Request request) {
+	public Optional<String> getAuthenticatedUserName(RequestHeader request) {
 		final PlayWebContext context = new PlayWebContext(request);
 		final ProfileManager profileManager = new ProfileManager(context, sessionStore);
 		Optional<UserProfile> proOpt = profileManager.getProfile();
@@ -116,7 +117,7 @@ public class AbstractAsyncController extends Controller {
 	 * @param request
 	 * @return
 	 */
-	public Optional<Person> getAuthenticatedUser(Request request) {
+	public Optional<Person> getAuthenticatedUser(RequestHeader request) {
 		final PlayWebContext context = new PlayWebContext(request);
 		final ProfileManager profileManager = new ProfileManager(context, sessionStore);
 		Optional<UserProfile> proOpt = profileManager.getProfile();
@@ -174,13 +175,13 @@ public class AbstractAsyncController extends Controller {
 
 					// set accesscode
 					user.setAccesscode(tokenResolverUtil.createUserAccessToken(user.getId(),
-					        System.currentTimeMillis() + V2UserApiAuth.API_TOKEN_VALIDITY));
+							System.currentTimeMillis() + V2UserApiAuth.API_TOKEN_VALIDITY));
 					user.update();
 
 					// create default project for user
 					Project p = Project.create(firstName + "'s 1st project", user,
-					        "This is your first project, it's private and not shareable, please edit information with proper content.",
-					        false, false);
+							"This is your first project, it's private and not shareable, please edit information with proper content.",
+							false, false);
 					p.save();
 
 					// refresh to get the user id
@@ -228,8 +229,8 @@ public class AbstractAsyncController extends Controller {
 		// do a full refresh for HTMX requests
 		Result rrd = request.header("HX-Request").isPresent() ? result.withHeader("HX-Refresh", "true") : result;
 		throw new ResponseException(
-		        rrd.addingToSession(request, "error", "Please log in first, we will take you to your destination then.")
-		                .addingToSession(request, AbstractAsyncController.REDIRECT_URL, request.path()));
+				rrd.addingToSession(request, "error", "Please log in first, we will take you to your destination then.")
+						.addingToSession(request, AbstractAsyncController.REDIRECT_URL, request.path()));
 	}
 
 	/**
@@ -248,8 +249,8 @@ public class AbstractAsyncController extends Controller {
 		// do a full refresh for HTMX requests
 		Result rrd = request.header("HX-Request").isPresent() ? result.withHeader("HX-Refresh", "true") : result;
 		throw new ResponseException(
-		        rrd.addingToSession(request, "error", "Please log in first, we will take you to your destination then.")
-		                .addingToSession(request, AbstractAsyncController.REDIRECT_URL, request.path()));
+				rrd.addingToSession(request, "error", "Please log in first, we will take you to your destination then.")
+						.addingToSession(request, AbstractAsyncController.REDIRECT_URL, request.path()));
 	}
 
 	// ----------------------------------------------------------------------------------------------------------------

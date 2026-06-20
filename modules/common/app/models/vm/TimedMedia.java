@@ -26,12 +26,12 @@ public class TimedMedia extends TimedObject {
 	public Long ds_id;
 
 	public TimedMedia(long id, Date timestamp, String link, String mediaType, String description,
-	        Participant participant) {
+			Participant participant) {
 		this(id, timestamp, link, mediaType, description, participant, -1L);
 	}
 
 	public TimedMedia(long id, Date timestamp, String link, String mediaType, String description,
-	        Participant participant, Long datasetId) {
+			Participant participant, Long datasetId) {
 		this.id = id;
 		this.timestamp = timestamp;
 		this.link = link;
@@ -108,6 +108,10 @@ public class TimedMedia extends TimedObject {
 
 	public Long getId() {
 		return id;
+	}
+
+	public String getLink() {
+		return link;
 	}
 
 }

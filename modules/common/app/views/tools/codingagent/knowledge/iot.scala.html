@@ -1,0 +1,28 @@
+@()
+# IoT Datasets: Your Data Log
+
+Think of an IoT dataset as a **log for data collection**. It is perfect for storing a timeline of events, like sensor readings over time or a history of button presses.
+
+## How to log data
+- **Endpoint**: `POST /api/v1/datasets/ts/{dataset_id}/{api_token}`
+- **What to send**: You need to provide a `source_id` (like your device's name) and the actual `data` you want to log.
+
+## Example: Logging sensor data (JavaScript)
+```javascript
+const datasetId = 12345;
+const apiToken = 'df-xxxxxxxxxxxxxxxxxxxx';
+const url = `/api/v1/datasets/ts/${datasetId}/${apiToken}`;
+
+fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+        source_id: 'my-weather-sensor',
+        activity: 'reading', // optional
+        data: {
+            temperature: 22.4,
+            humidity: 45
+        }
+    })
+});
+```

@@ -1,0 +1,88 @@
+@()
+# OOCSI: Middleware and Connectivity
+
+OOCSI is a middleware and connectivity infrastructure designed for rapid prototyping. It allows you to connect diverse systems—from web prototypes and mobile apps to IoT devices—using a simple, real-time messaging protocol.
+
+The `oocsi-web.js` library is the official web client for OOCSI, enabling WebSocket communication between your web applications and an OOCSI server.
+
+---
+
+## 1. Overview & Setup
+
+To use OOCSI in your web project, you first need to include the `oocsi-web.js` script and then connect to an OOCSI server (e.g., `wss://oocsi.net/ws`).
+
+### Inclusion
+You can find the script in the project at:
+`DataFoundry/modules/common/public/javascripts/oocsi-web.js`
+
+### Connecting
+Use `OOCSI.connect()` to initialize the connection. You can provide a server URL, a unique client name, and a callback function that runs once the connection is established.
+
+```javascript
+// Connect to the OOCSI server
+OOCSI.connect(
+    "wss://oocsi.net/ws", // OOCSI server address
+    "my_web_prototype_####", // Client name (#### will be replaced with random digits)
+    function(event) {
+        console.log("Connected to OOCSI!");
+    }
+);
+```
+
+---
+
+## 2. Basic Messaging
+
+OOCSI messaging is based on **channels**. You can send data to a channel (or a specific client) and subscribe to channels to receive incoming messages.
+
+### Sending Messages
+Use `OOCSI.send(recipient, data)` to send a JSON object to a specific recipient or channel.
+
+```javascript
+// Send data to the 'test_channel'
+OOCSI.send("test_channel", {
+    message: "Hello from the web prototype!",
+    value: 42,
+    timestamp: Date.now()
+});
+```
+
+### Receiving Messages (Subscribing)
+Use `OOCSI.subscribe(channel, callback)` to listen for messages on a specific channel.
+
+```javascript
+// Subscribe to 'test_channel'
+OOCSI.subscribe("test_channel", function(event) {
+    console.log("Received data:", event.data);
+    console.log("From sender:", event.sender);
+});
+```
+
+---
+
+## 3. Variables (State Synchronization)
+
+OOCSI Variables provide a powerful way to synchronize state across multiple clients automatically. When a variable's value is updated by one client, all other clients subscribed to that variable receive the update.
+
+### Using OOCSI Variables
+Use `OOCSI.variable(channel, name, throttle)` to create a synchronized variable.
+
+```javascript
+// Create a synchronized variable 'brightness' on the 'lighting_control' channel
+// The throttle (in milliseconds) limits how often updates are sent
+var brightness = OOCSI.variable("lighting_control", "brightness", 100);
+
+// Set a new value (this will be broadcasted to all other clients)
+brightness(75);
+
+// Get the current value
+console.log("Current brightness:", brightness());
+
+// Subscribe to local changes (whenever the value is updated locally or externally)
+brightness.subscribe(function(newValue) {
+    console.log("Brightness updated to:", newValue);
+    // Update your UI here
+});
+```
+
+With OOCSI Variables, you don't need to manually send and parse messages for state management; the library handles the synchronization for you.

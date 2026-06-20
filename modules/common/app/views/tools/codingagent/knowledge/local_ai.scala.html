@@ -1,0 +1,79 @@
+@()
+# Local AI: AI Capabilities in the Browser
+
+The `local-ai.js` library provides a convenient way to interact with Data Foundry's AI capabilities directly from your web applications.
+
+To use the library functions, you need to retrieve the Project API key in Data Foundry. Users can generate an API key on the "Edit Project" page.
+
+
+---
+
+## 1. Setup
+
+### Installation
+To use the library, add a `script` tag in your HTML head:
+
+```html
+<script src="/assets/javascripts/local-ai/latest/local-ai.min.js"></script>
+```
+
+---
+
+## 2. Core Functions
+
+### foundry.textToText({...})
+**Description:** Generates text based on a prompt or a series of messages.
+
+**Parameters:**
+- `api_token` (string, required): Your API key.
+- `prompt` (string, optional): The text prompt.
+- `messages` (array, optional): Array of message objects (e.g., `{role: "user", content: "..."}`).
+- `stream` (boolean, optional): If true, streams the response.
+- `onChunk` (function, optional): Callback for each received chunk when streaming.
+- `resultElementSelector` (string, optional): CSS selector where the result will be displayed.
+
+**Example:**
+```javascript
+foundry.textToText({
+  api_token: "your_api_key",
+  prompt: "What is the capital of France?",
+  resultElementSelector: "#result-container"
+});
+```
+
+### foundry.textToImage({...})
+**Description:** Generates an image based on a text prompt.
+
+**Parameters:**
+- `api_token` (string, required): Your API key.
+- `prompt` (string, required): Description of the image.
+- `width` / `height` (number, optional): Dimensions (default 512x512).
+- `resultElementSelector` (string, optional): CSS selector for an `<img>` element.
+
+**Example:**
+```javascript
+foundry.textToImage({
+  api_token: "your_api_key",
+  prompt: "A futuristic cityscape at sunset",
+  resultElementSelector: "#result-image"
+});
+```
+
+### foundry.textToSpeech({...})
+**Description:** Converts text into speech and plays it.
+
+**Parameters:**
+- `api_token` (string, required): Your API key.
+- `prompt` (string, required): The text to convert.
+- `voice` (string, optional): The voice style (e.g., "af_heart").
+- `resultElementSelector` (string, optional): CSS selector for an `<audio>` element.
+
+**Example:**
+```javascript
+foundry.textToSpeech({
+  api_token: "your_api_key",
+  prompt: "Hello, world!",
+  resultElementSelector: "#audio-player"
+});
+```
+

@@ -88,4 +88,8 @@ public class AbstractAIApiService extends GenericApiService {
 		}
 	}
 
+	public String getAiBaseUrl() {
+		return aiBaseUrl;
+	}
+
 }

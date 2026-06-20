@@ -1,0 +1,48 @@
+@()
+# Entity Datasets: Your Easy Database
+
+Think of an Entity dataset as an **easy database**. It is great for storing things like **user profiles**, settings, or the current state of a device. Instead of a long log, each item has a unique ID (`resource_id`), and you can easily update it or fetch the latest version.
+
+**Important**: For Entity datasets, you must send your `api_token` and the `resource_id` in the **headers** of your request.
+
+## Available Actions
+All actions use this base URL: `/api/v1/datasets/entity/{dataset_id}`
+
+*   **Create a profile**: `POST`
+*   **Read a profile**: `GET`
+*   **Update a profile**: `PUT`
+*   **Delete a profile**: `DELETE`
+
+## Example: Saving and reading a user profile (JavaScript)
+```javascript
+const datasetId = 67890;
+const apiToken = 'df-xxxxxxxxxxxxxxxxxxxx';
+const userId = 'user-001'; // The unique ID for this specific profile
+const url = `/api/v1/datasets/entity/${datasetId}`;
+
+// 1. Update (or create) a user's profile
+fetch(url, {
+    method: 'PUT',
+    headers: {
+        'api_token': apiToken,
+        'resource_id': userId,
+        'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+        username: 'Alice',
+        favorite_color: 'blue',
+        level: 4
+    })
+});
+
+// 2. Fetch a user's profile
+fetch(url, {
+    method: 'GET',
+    headers: {
+        'api_token': apiToken,
+        'resource_id': userId
+    }
+})
+.then(response => response.json())
+.then(data => console.log("Profile data:", data));
+```

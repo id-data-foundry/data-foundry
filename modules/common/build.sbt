@@ -106,8 +106,24 @@ libraryDependencies ++= Seq(
   "org.opendataloader" % "opendataloader-pdf-core" % "2.2.0" excludeAll(ExclusionRule(organization = "com.fasterxml.jackson.core")),
 
   // Apache Tika to check file uploads
-  "org.apache.tika" % "tika-core" % "3.2.3"
+  "org.apache.tika" % "tika-core" % "3.2.3",
 
+  // AgentScope for coding agent
+  "io.agentscope" % "agentscope" % "2.0.0-RC3" excludeAll(
+    ExclusionRule(organization = "com.fasterxml.jackson.core"),
+    ExclusionRule(organization = "com.fasterxml.jackson.module"),
+    ExclusionRule(organization = "com.fasterxml.jackson.datatype")
+  ),
+  "io.agentscope" % "agentscope-harness" % "2.0.0-RC3" excludeAll(
+    ExclusionRule(organization = "com.fasterxml.jackson.core"),
+    ExclusionRule(organization = "com.fasterxml.jackson.module"),
+    ExclusionRule(organization = "com.fasterxml.jackson.datatype")
+  ),
+  "com.openai" % "openai-java" % "4.39.1" excludeAll(
+    ExclusionRule(organization = "com.fasterxml.jackson.core"),
+    ExclusionRule(organization = "com.fasterxml.jackson.module"),
+    ExclusionRule(organization = "com.fasterxml.jackson.datatype")
+  )
 )
 
 // don't generate documentation

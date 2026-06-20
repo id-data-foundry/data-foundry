@@ -1,0 +1,48 @@
+@()
+# Knowledge: DataFoundry APIs for Coding Agents
+
+This guide shows you how to prototype digital and connected prototypes and apps with support for data storage, connectivity and AI.
+
+The Coding Agent has access to built-in tools to help you manage your project.
+
+### Finding your Dataset IDs and API Tokens
+If you are unsure about which `dataset_id` or `api_token` to use, you can ask the agent to **"get project metadata"**. 
+
+The agent will retrieve:
+- **Project Info**: Name and description.
+- **Datasets**: A list of all datasets in the project, including their types and **API Tokens**.
+- **Resources**: IDs and Reference IDs for **devices**, **wearables**, and **participants** associated with the project.
+
+This information is essential for configuring the API calls described in sections 1 and 2.
+
+---
+
+## 1. IoT Datasets: Your Data Log
+
+Think of an IoT dataset as a **log for data collection**. It is perfect for storing a timeline of events, like sensor readings over time or a history of button presses.
+
+Access needs a **Dataset API Token**. For detailed instructions and code examples, see: [IoT Datasets Guide](DF-iot-dataset.md)
+
+---
+
+## 2. Entity Datasets: Your Easy Database
+
+Think of an Entity dataset as an **easy database**. It is great for storing things like **user profiles**, settings, or the current state of a device. Instead of a long log, each item has a unique ID, and you can easily update it or fetch the latest version.
+
+Access needs a **Dataset API Token**. For detailed instructions and code examples, see: [Entity Datasets Guide](DF-entity-dataset.md)
+
+---
+
+## 3. OOCSI: Middleware and Connectivity
+
+OOCSI is a middleware and connectivity infrastructure designed for rapid prototyping and connecting diverse systems through a simple WebSocket-based protocol.
+
+For detailed instructions and code examples on how to use the OOCSI web client, see: [OOCSI Guide](OOCSI.md)
+
+---
+
+## 4. Local AI JS Library
+
+Data Foundry provides a Local AI JS library that allows you to easily integrate AI capabilities like text generation, image generation, and text-to-speech directly into your web prototypes.
+
+For detailed instructions and code examples, see: [Local AI Guide](Local-AI.md)

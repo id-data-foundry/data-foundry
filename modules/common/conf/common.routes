@@ -520,6 +520,11 @@ GET			/qr/:key/*url										controllers.tools.QRCode.qrCode(request: Request, k
 # tools: Translate
 GET			/tools/translate									controllers.tools.TranslateController.index(request: Request)
 
+# tools: Coding Agent
+GET			/tools/codingagent									controllers.tools.CodingAgentController.index(request: Request)
+GET			/tools/codingagent/:id								controllers.tools.CodingAgentController.view(request: Request, id: Long, fileId: Long ?= -1L)
+GET			/tools/codingagent/:id/ws							controllers.tools.CodingAgentController.ws(id: Long)
+
 # list of AI models
 GET			/tools/models										controllers.api2.UnmanagedAIApiController.modelsPage(request: Request)			
 

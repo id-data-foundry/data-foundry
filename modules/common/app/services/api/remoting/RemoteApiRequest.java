@@ -221,6 +221,7 @@ public class RemoteApiRequest extends ApiRequest<String> implements ApiServiceCo
 			break;
 		case REQUEST_TASK_MODELS:
 			setPath("/models");
+			setModel("no model");
 			break;
 		case REQUEST_TASK_IMAGE_GENERATION:
 			setPath("/images/generations");

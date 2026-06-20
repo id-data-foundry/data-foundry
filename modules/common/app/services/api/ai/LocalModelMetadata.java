@@ -40,17 +40,37 @@ public class LocalModelMetadata {
 		logger.info("Cleared all models.");
 	}
 
-	public boolean isTextToTextAvailable() { return textToTextAvailable; }
-	public void setTextToTextAvailable(boolean available) { this.textToTextAvailable = available; }
+	public boolean isTextToTextAvailable() {
+		return textToTextAvailable;
+	}
 
-	public boolean isTextToImageAvailable() { return textToImageAvailable; }
-	public void setTextToImageAvailable(boolean available) { this.textToImageAvailable = available; }
+	public void setTextToTextAvailable(boolean available) {
+		this.textToTextAvailable = available;
+	}
 
-	public boolean isSpeechToTextAvailable() { return speechToTextAvailable; }
-	public void setSpeechToTextAvailable(boolean available) { this.speechToTextAvailable = available; }
+	public boolean isTextToImageAvailable() {
+		return textToImageAvailable;
+	}
 
-	public boolean isTextToSpeechAvailable() { return textToSpeechAvailable; }
-	public void setTextToSpeechAvailable(boolean available) { this.textToSpeechAvailable = available; }
+	public void setTextToImageAvailable(boolean available) {
+		this.textToImageAvailable = available;
+	}
+
+	public boolean isSpeechToTextAvailable() {
+		return speechToTextAvailable;
+	}
+
+	public void setSpeechToTextAvailable(boolean available) {
+		this.speechToTextAvailable = available;
+	}
+
+	public boolean isTextToSpeechAvailable() {
+		return textToSpeechAvailable;
+	}
+
+	public void setTextToSpeechAvailable(boolean available) {
+		this.textToSpeechAvailable = available;
+	}
 
 	/**
 	 * map the given model id (from request) to actual model id; this will resolve models also via the alias
@@ -81,7 +101,7 @@ public class LocalModelMetadata {
 	 */
 	public List<ModelMetadata> getModels() {
 		return modelmapper.values().stream().distinct().sorted((a, b) -> a.id().compareTo(b.id()))
-		        .collect(Collectors.toUnmodifiableList());
+				.collect(Collectors.toUnmodifiableList());
 	}
 
 	/**
@@ -91,7 +111,7 @@ public class LocalModelMetadata {
 	 */
 	public List<Tuple<String, String>> getModelNames() {
 		return modelmapper.values().stream().distinct().map(e -> new Tuple<>(e.id(), e.name() + " " + e.type()))
-		        .sorted((a, b) -> a._2.compareToIgnoreCase(b._2)).collect(Collectors.toList());
+				.sorted((a, b) -> a._2.compareToIgnoreCase(b._2)).collect(Collectors.toList());
 	}
 
 	/**
@@ -134,8 +154,9 @@ public class LocalModelMetadata {
 
 		// Atomically replace the map
 		this.modelmapper = newModelMapper;
-		logger.info("Successfully synced 🧪" + models.size() + " models.");
+//		logger.info("Successfully synced 🧪" + models.size() + " models.");
 	}
+
 	/**
 	 * convert JSON String to list of ModelMetaData objects
 	 * 
@@ -160,14 +181,14 @@ public class LocalModelMetadata {
 	@JsonIgnoreProperties(ignoreUnknown = true)
 	@JsonInclude(JsonInclude.Include.NON_NULL)
 	public record ModelMetadata( //
-	        String id, //
-	        String name, //
-	        String type, //
-	        String description, //
-	        String link, //
-	        String comment, //
-	        List<String> tags, //
-	        List<String> alias //
+			String id, //
+			String name, //
+			String type, //
+			String description, //
+			String link, //
+			String comment, //
+			List<String> tags, //
+			List<String> alias //
 	) {
 
 		/**

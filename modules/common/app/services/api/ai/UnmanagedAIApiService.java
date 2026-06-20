@@ -95,8 +95,6 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 		}
 
 		// start request to discover available models
-		logger.info("Requesting model JSON to update models.");
-
 		try {
 			RemoteApiRequest internalAPIRequest = new RemoteApiRequest(REQUEST_TASK_MODELS,
 					ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, "", "", -1L);
@@ -306,7 +304,7 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 
 	private void runApiRequest(StreamingRemoteApiRequest request) {
 		wsClient.url(aiBaseUrl + request.getPath()).setRequestTimeout(Duration.ofMillis(request.getMsTimeout()))
-				.setMethod("POST").setBody(request.getParams()).addHeader("X-API-Model", nss(request.getModel()))
+				.setMethod("POST").setBody(request.getParams()).addHeader(ApiServiceConstants.X_API_MODEL, nss(request.getModel()))
 				.stream().thenAccept((res) -> {
 					res.getBody(WSBodyReadables.instance.source()).map(bs -> {
 						String decodeString = bs.decodeString(StandardCharsets.UTF_8);
@@ -382,7 +380,7 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 		// run request
 		try {
 			requestCompletionStage.thenCompose(res -> {
-				logger.trace("AI API request: " + aiBaseUrl + request.getPath() + " ["
+				logger.trace("AI API request: " + aiBaseUrl + request.getPath() + " -> " + request.getModel() + " ["
 						+ (System.currentTimeMillis() - start) + "ms]");
 
 				// 1. Check for non-200 status codes
@@ -439,9 +437,8 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 	}
 
 	private WSRequest prepareWSRemoteAPIRequest(RemoteApiRequest request) {
-		return wsClient.url(aiBaseUrl + request.getPath())
-				.setRequestTimeout(Duration.ofMillis(request.getMsTimeout()))
-				.addHeader("X-API-Model", nss(request.getModel()));
+		return wsClient.url(aiBaseUrl + request.getPath()).setRequestTimeout(Duration.ofMillis(request.getMsTimeout()))
+				.addHeader(ApiServiceConstants.X_API_MODEL, nss(request.getModel()));
 	}
 
 	public List<List<Double>> dispatchEmbeddingRequest(String username, List<String> contentToEmbed) {

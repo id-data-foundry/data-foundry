@@ -1,6 +1,5 @@
 package services.api.remoting;
 
-import java.util.Date;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -46,8 +45,8 @@ public class RemoteRequestsExecutionService {
 		realtimeNofifications.notifyRemoteApiRequest(rw.request);
 
 		// log start
-		logger.trace("Queueing request " + formatRequestId(rw.request.id) + " with TTL "
-		        + new Date(rw.request.getValidUntil()));
+//		logger.trace("Queueing request " + formatRequestId(rw.request.id) + " with TTL "
+//		        + new Date(rw.request.getValidUntil()));
 		rw.request.setState("queued");
 
 		// then wait until it's perhaps done
@@ -70,14 +69,14 @@ public class RemoteRequestsExecutionService {
 			}
 
 			// if there is still time
-			logger.trace("Starting request " + formatRequestId(rw.request.id) + " with TTL "
-			        + new Date(rw.request.getValidUntil()));
+//			logger.trace("Starting request " + formatRequestId(rw.request.id) + " with TTL "
+//			        + new Date(rw.request.getValidUntil()));
 			rw.request.setState("starting");
 
 			rw.run();
 
 			// we are done
-			logger.trace("Finished request " + formatRequestId(rw.request.id));
+//			logger.trace("Finished request " + formatRequestId(rw.request.id));
 			rw.request.setState("finished");
 
 			return null;
