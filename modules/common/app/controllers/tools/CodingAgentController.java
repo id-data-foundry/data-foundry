@@ -204,11 +204,7 @@ public class CodingAgentController extends AbstractAsyncController {
 			toolkit.registerTool(new FileTool(cpds, sink, materializer, cache, datasetId, aiAPIService));
 
 			String systemPrompt = ds.configuration(Dataset.CHATBOT_SYSTEM_PROMPT,
-					"""
-									You are a coding agent helping a user with their prototyping. You ask clarifying questions before planning or taking action.
-									You can read, write, edit and list files in the dataset. Always verify the current files before making changes.
-									Since you edit files directly, do not output code or Markdown to the user.
-							""");
+					views.html.tools.codingagent.system_prompt.render().body().trim());
 
 			// Seed knowledge files into workspace
 			File agentscopeDir = new File(cpds.getFolder(), ".agentscope");
@@ -226,6 +222,8 @@ public class CodingAgentController extends AbstractAsyncController {
 						views.html.tools.codingagent.knowledge.iot.render().body(), Charset.defaultCharset());
 				FileUtils.writeStringToFile(new File(knowledgeDir, "DF-entity-dataset.md"),
 						views.html.tools.codingagent.knowledge.entity.render().body(), Charset.defaultCharset());
+				FileUtils.writeStringToFile(new File(knowledgeDir, "DF-media-dataset.md"),
+						views.html.tools.codingagent.knowledge.media.render().body(), Charset.defaultCharset());
 				FileUtils.writeStringToFile(new File(knowledgeDir, "Local-AI.md"),
 						views.html.tools.codingagent.knowledge.local_ai.render().body(), Charset.defaultCharset());
 			} catch (Exception e) {
@@ -340,6 +338,10 @@ public class CodingAgentController extends AbstractAsyncController {
 				// Trigger AgentScope processing
 				CompletableFuture.runAsync(() -> {
 					try {
+						// Send typing: true
+						ObjectNode typingStart = Json.newObject().put("type", "typing").put("active", true);
+						Source.single((JsonNode) typingStart).runWith(context.sink(), materializer);
+
 						Msg input = Msg.builder().role(MsgRole.USER).textContent(message).build();
 						RuntimeContext runtimeCtx = RuntimeContext.builder().userId("global").sessionId(sessionId)
 								.build();
@@ -365,6 +367,10 @@ public class CodingAgentController extends AbstractAsyncController {
 						}
 					} catch (Exception e) {
 						logger.error("Error in agent call", e);
+					} finally {
+						// Send typing: false
+						ObjectNode typingEnd = Json.newObject().put("type", "typing").put("active", false);
+						Source.single((JsonNode) typingEnd).runWith(context.sink(), materializer);
 					}
 				});
 			}

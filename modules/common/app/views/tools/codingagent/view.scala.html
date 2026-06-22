@@ -325,6 +325,7 @@
     let socket;
     let reconnectDelay = 1000;
     const maxReconnectDelay = 30000;
+    let pingInterval = null;
 
     function showTypingIndicator() {
         const indicator = document.getElementById('typing-indicator');
@@ -352,6 +353,11 @@
     }
 
     function connect() {
+        if (pingInterval) {
+            clearInterval(pingInterval);
+            pingInterval = null;
+        }
+
         socket = new WebSocket(wsUrl);
 
         socket.onopen = (event) => {
@@ -372,11 +378,24 @@
                     </div>
                     <article>Hello! I am your coding agent. How can I help you with your dataset files today?</article>
                 </div>`;
+
+            // Heartbeat ping every 20 seconds to keep connection active
+            pingInterval = setInterval(() => {
+                if (socket && socket.readyState === WebSocket.OPEN) {
+                    socket.send(JSON.stringify({ type: 'ping' }));
+                }
+            }, 20000);
         };
 
         socket.onmessage = (event) => {
             const data = JSON.parse(event.data);
-            if (data.type === 'chat') {
+            if (data.type === 'typing') {
+                if (data.active) {
+                    showTypingIndicator();
+                } else {
+                    hideTypingIndicator();
+                }
+            } else if (data.type === 'chat') {
                 if (data.user === 'Agent' || data.user === 'System') {
                     hideTypingIndicator();
                 }
@@ -403,6 +422,10 @@
         };
 
         socket.onclose = (event) => {
+            if (pingInterval) {
+                clearInterval(pingInterval);
+                pingInterval = null;
+            }
             hideTypingIndicator();
             console.log(`WebSocket closed. Reconnecting in ${reconnectDelay}ms...`);
             setTimeout(() => {
@@ -413,11 +436,25 @@
         };
 
         socket.onerror = (error) => {
+            if (pingInterval) {
+                clearInterval(pingInterval);
+                pingInterval = null;
+            }
             hideTypingIndicator();
             console.error("WebSocket error:", error);
             socket.close();
         };
     }
+
+    // Try to reconnect immediately when tab becomes visible if connection is closed
+    document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+            if (!socket || socket.readyState === WebSocket.CLOSED) {
+                console.log("Tab became active. Reconnecting WebSocket...");
+                connect();
+            }
+        }
+    });
 
     connect();
 

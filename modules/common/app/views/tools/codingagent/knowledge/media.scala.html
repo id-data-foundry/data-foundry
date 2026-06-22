@@ -1,0 +1,88 @@
+@()
+# Media Datasets: Your Media Vault
+
+Think of a Media dataset as a **vault for media files**. It is designed for storing images or audio recordings that are part of your research project or application. 
+
+**Important**: For Media datasets, you must send your `api_token` in the **headers** of your request. File uploads must be sent as `multipart/form-data`.
+
+---
+
+## Supported Media Formats
+File types are validated by content structure:
+*   **Images**: `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`, `.bmp`, `.svg`, `.avif`
+*   **Audio**: `.mp3`, `.ogg`, `.wav`, `.m4a`, `.webm`
+
+---
+
+## Available Actions
+All actions use this base URL: `/api/v1/datasets/media/{dataset_id}`
+
+*   **Upload/Add media**: `POST` (requires files in multipart form-data)
+*   **Download/Read media**: `GET /{filename}`
+*   **Update media metadata/file**: `PUT /{item_id}`
+
+---
+
+## Example: Uploading and Reading Media (JavaScript)
+
+### 1. Upload a Media File
+When uploading, use `FormData` to construct a multipart payload. You can optionally link the upload to a specific participant or provide a caption/description.
+
+```javascript
+const datasetId = 11223;
+const apiToken = 'df-xxxxxxxxxxxxxxxxxxxx';
+const url = `/api/v1/datasets/media/${datasetId}`;
+
+// 1. Gather the file input and configure form data
+const fileInput = document.querySelector('#media-file-input');
+const formData = new FormData();
+
+formData.append('file', fileInput.files[0]);
+formData.append('description', 'User portrait during task'); // optional
+formData.append('participant_id', 'participant-101'); // optional
+
+// Optional: timestamp for the file (the parameter key must match the filename)
+const filename = fileInput.files[0].name;
+formData.append(filename, Date.now().toString());
+
+// 2. Perform the POST upload
+fetch(url, {
+    method: 'POST',
+    headers: {
+        'api_token': apiToken
+        // Note: Do NOT set 'Content-Type' header manually; 
+        // the browser will automatically define it with the boundary string.
+    },
+    body: formData
+})
+.then(response => response.json())
+.then(data => {
+    console.log("Media stored successfully:", data.files); 
+    // Returns array of stored file names, e.g., ["101_1789012345678_photo.jpg"]
+})
+.catch(error => console.error("Upload error:", error));
+```
+
+### 2. Retrieve a Media File
+To download or display a media file, make a authenticated `GET` request using the file's saved name:
+
+```javascript
+const datasetId = 11223;
+const apiToken = 'df-xxxxxxxxxxxxxxxxxxxx';
+const filename = '101_1789012345678_photo.jpg'; // Filename returned by upload or metadata
+const url = `/api/v1/datasets/media/${datasetId}/${filename}`;
+
+fetch(url, {
+    method: 'GET',
+    headers: {
+        'api_token': apiToken
+    }
+})
+.then(response => response.blob())
+.then(blob => {
+    // Generate a temporary browser URL to display the image/audio
+    const mediaUrl = URL.createObjectURL(blob);
+    document.getElementById('display-element').src = mediaUrl;
+})
+.catch(error => console.error("Error fetching media:", error));
+```
