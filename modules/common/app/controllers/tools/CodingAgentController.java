@@ -333,8 +333,9 @@ public class CodingAgentController extends AbstractAsyncController {
 						Msg response = context.agent().call(input, runtimeCtx).block();
 
 						if (response != null) {
+							String messageContent = cleanThinkingTags(response.getTextContent());
 							ObjectNode agentMsg = Json.newObject().put("type", "chat").put("user", "Agent")
-									.put("message", response.getTextContent()).put("timestamp", new Date().getTime())
+									.put("message", messageContent).put("timestamp", new Date().getTime())
 									.put("formattedTime",
 											LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMM d, HH:mm")));
 
@@ -420,6 +421,14 @@ public class CodingAgentController extends AbstractAsyncController {
 		}
 	}
 
+	private static String cleanThinkingTags(String text) {
+		if (text == null) {
+			return "";
+		}
+		// Remove anything between <think> and </think> tags (including the tags themselves)
+		return text.replaceAll("(?s)<think>.*?</think>", "").trim();
+	}
+
 	public static class DatasetContext {
 		private final Sink<JsonNode, ?> sink;
 		private final Source<JsonNode, ?> source;
@@ -429,8 +438,8 @@ public class CodingAgentController extends AbstractAsyncController {
 		private final UncompactedHistory history;
 		private long agentsMdLastModified = -1L;
 
-		public DatasetContext(Sink<JsonNode, ?> sink, Source<JsonNode, ?> source, HarnessAgent agent,
-				Toolkit toolkit, CompleteDS cpds, UncompactedHistory history) {
+		public DatasetContext(Sink<JsonNode, ?> sink, Source<JsonNode, ?> source, HarnessAgent agent, Toolkit toolkit,
+				CompleteDS cpds, UncompactedHistory history) {
 			this.sink = sink;
 			this.source = source;
 			this.agent = agent;
@@ -439,15 +448,41 @@ public class CodingAgentController extends AbstractAsyncController {
 			this.history = history;
 		}
 
-		public Sink<JsonNode, ?> sink() { return sink; }
-		public Source<JsonNode, ?> source() { return source; }
-		public HarnessAgent agent() { return agent; }
-		public void setAgent(HarnessAgent agent) { this.agent = agent; }
-		public Toolkit toolkit() { return toolkit; }
-		public CompleteDS cpds() { return cpds; }
-		public UncompactedHistory history() { return history; }
-		public long getAgentsMdLastModified() { return agentsMdLastModified; }
-		public void setAgentsMdLastModified(long agentsMdLastModified) { this.agentsMdLastModified = agentsMdLastModified; }
+		public Sink<JsonNode, ?> sink() {
+			return sink;
+		}
+
+		public Source<JsonNode, ?> source() {
+			return source;
+		}
+
+		public HarnessAgent agent() {
+			return agent;
+		}
+
+		public void setAgent(HarnessAgent agent) {
+			this.agent = agent;
+		}
+
+		public Toolkit toolkit() {
+			return toolkit;
+		}
+
+		public CompleteDS cpds() {
+			return cpds;
+		}
+
+		public UncompactedHistory history() {
+			return history;
+		}
+
+		public long getAgentsMdLastModified() {
+			return agentsMdLastModified;
+		}
+
+		public void setAgentsMdLastModified(long agentsMdLastModified) {
+			this.agentsMdLastModified = agentsMdLastModified;
+		}
 	}
 
 	public static class UncompactedHistory {
