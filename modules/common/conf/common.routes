@@ -300,7 +300,8 @@ GET			/datasets/ts/add/:id								controllers.api.TimeseriesDSController.add(req
 POST		/datasets/ts/addMe/:id								controllers.api.TimeseriesDSController.addMe(request: Request, id: Long)
 POST		/datasets/ts/editMe/:id								controllers.api.TimeseriesDSController.editMe(request: Request, id: Long)
 GET			/datasets/ts/record/:id								controllers.api.TimeseriesDSController.recordForm(request: Request, id: Long)
-POST		/datasets/ts/record/:id/*dsApiToken					controllers.api.TimeseriesDSController.record(request: Request, id: Long, dsApiToken: String)
+# @deprecated
+POST		/datasets/ts/record/:id/*dsApiToken					controllers.api.TimeseriesDSController.recordDeprecated(request: Request, id: Long, dsApiToken: String)
 POST		/datasets/ts/record/:id								controllers.api.TimeseriesDSController.record(request: Request, id: Long, dsApiToken: String ?= "")
 POST		/datasets/ts/log/:id								controllers.api.TimeseriesDSController.log(request: Request, id: Long, activity: String ?= "")
 POST		/datasets/ts/log/:id/								controllers.api.TimeseriesDSController.log(request: Request, id: Long, activity: String ?= "")
@@ -538,6 +539,7 @@ GET			/tools/models										controllers.api2.UnmanagedAIApiController.modelsPag
 # v1 Dataset API
 
 POST		/api/v1/datasets/ts/:id								controllers.api.TimeseriesDSController.logApi(request: Request, id: Long, activity: String ?= "")
+# @deprecated
 POST		/api/v1/datasets/ts/:id/:dsApiToken					controllers.api.TimeseriesDSController.recordApi(request: Request, id: Long, dsApiToken: String)
 
 POST		/api/v1/datasets/entity/:id							controllers.api.EntityDSController.addItemApi(request: Request, id: Long)

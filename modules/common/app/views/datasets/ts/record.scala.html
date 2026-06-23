@@ -19,7 +19,8 @@
     </div>
 
     <div class="row">      
-      <form class="col s12 m8 offset-m2" id="recordData" action="@api.routes.TimeseriesDSController.record(ds.getId(),ds.getApiToken())" method="POST">
+      <form class="col s12 m8 offset-m2" id="recordData" action="@api.routes.TimeseriesDSController.record(ds.getId())" method="POST">
+        <input name="api_token" value="@ds.getApiToken()" type="hidden">
         <input name="test_form" value="true" type="hidden">
         <div class="row center">
           <div class="input-field col s12">

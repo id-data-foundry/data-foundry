@@ -209,7 +209,15 @@ public class TimeseriesDSController extends AbstractDSController {
 		return ok(views.html.datasets.ts.record.render(ds, deviceSelection));
 	}
 
+	@Deprecated
+	public CompletionStage<Result> recordDeprecated(Request request, final Long id, final String dsApiToken) {
+		logger.warn("Using deprecated URL token endpoint: POST /datasets/ts/record/" + id + "/" + dsApiToken + ". Please use POST /datasets/ts/record/" + id + " instead with 'api_token' in body/form.");
+		return record(request, id, dsApiToken);
+	}
+
+	@Deprecated
 	public CompletionStage<Result> recordApi(Request request, final Long id, final String dsApiToken) {
+		logger.warn("Using deprecated URL token endpoint: POST /api/v1/datasets/ts/" + id + "/" + dsApiToken + ". Please use POST /api/v1/datasets/ts/" + id + " instead with 'api_token' in header.");
 		return record(request, id, dsApiToken);
 	}
 
