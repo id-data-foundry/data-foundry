@@ -192,19 +192,8 @@ public class CodingAgentController extends AbstractAsyncController {
 			Dataset ds = Dataset.find.byId(datasetId);
 			CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
 
-			String modelName = localModelMetadata.mapModelId(ds.configuration(Dataset.CHATBOT_MODEL, CODING_MODEL));
-			GenerateOptions defaultOptions = GenerateOptions.builder()
-					.additionalHeader(ApiServiceConstants.X_API_MODEL, modelName).build();
-
-			OpenAIChatModel model = OpenAIChatModel.builder().modelName(modelName)
-					.apiKey(aiAPIService.getInternalDocumentationAPIKey()).baseUrl(aiAPIService.getAiBaseUrl())
-					.generateOptions(defaultOptions).build();
-
 			Toolkit toolkit = new Toolkit();
 			toolkit.registerTool(new FileTool(cpds, sink, materializer, cache, datasetId, aiAPIService));
-
-			String systemPrompt = ds.configuration(Dataset.CHATBOT_SYSTEM_PROMPT,
-					views.html.tools.codingagent.system_prompt.render().body().trim());
 
 			// Seed knowledge files into workspace
 			File agentscopeDir = new File(cpds.getFolder(), ".agentscope");
@@ -230,18 +219,11 @@ public class CodingAgentController extends AbstractAsyncController {
 				logger.error("Could not seed knowledge files", e);
 			}
 
-			HarnessAgent agent = HarnessAgent.builder() //
-					.name("Agent").model(model) //
-					.toolkit(toolkit).disableShellTool().disableFilesystemTools() //
-					.sysPrompt(systemPrompt) //
-					.compaction(CompactionConfig.builder().triggerMessages(16) // fire at 16 messages
-							.keepMessages(8) // keep last 8 verbatim
-							.build())
-					.workspace(Paths.get(cpds.getFolder().getAbsolutePath(), ".agentscope")).build();
-
 			UncompactedHistory history = new UncompactedHistory(cpds.getFolder(), sessionId);
 
-			return new DatasetContext(sink, source, agent, toolkit, cpds, history);
+			DatasetContext ctx = new DatasetContext(sink, source, null, toolkit, cpds, history);
+			checkAndReloadAgent(ctx, datasetId, sessionId);
+			return ctx;
 		});
 
 		// Fetch and replay history for this session
@@ -338,6 +320,9 @@ public class CodingAgentController extends AbstractAsyncController {
 				// Trigger AgentScope processing
 				CompletableFuture.runAsync(() -> {
 					try {
+						// Dynamically sync and reload workspace rules if they have changed
+						checkAndReloadAgent(context, datasetId, sessionId);
+
 						// Send typing: true
 						ObjectNode typingStart = Json.newObject().put("type", "typing").put("active", true);
 						Source.single((JsonNode) typingStart).runWith(context.sink(), materializer);
@@ -377,8 +362,92 @@ public class CodingAgentController extends AbstractAsyncController {
 		}), historySource.concat(context.source()));
 	}
 
-	private record DatasetContext(Sink<JsonNode, ?> sink, Source<JsonNode, ?> source, HarnessAgent agent,
-			Toolkit toolkit, CompleteDS cpds, UncompactedHistory history) {
+	private synchronized void checkAndReloadAgent(DatasetContext context, Long datasetId, String sessionId) {
+		Optional<File> sourceAgentsMdOpt = context.cpds().getFile("AGENTS.md");
+		if (sourceAgentsMdOpt.isEmpty()) {
+			sourceAgentsMdOpt = context.cpds().getFile(".agents/AGENTS.md");
+		}
+
+		long currentLastModified = sourceAgentsMdOpt.map(File::lastModified).orElse(0L);
+
+		if (context.agent() == null || currentLastModified != context.getAgentsMdLastModified()) {
+			context.setAgentsMdLastModified(currentLastModified);
+
+			File agentscopeDir = new File(context.cpds().getFolder(), ".agentscope");
+			File targetAgentsMd = new File(agentscopeDir, "AGENTS.md");
+
+			if (sourceAgentsMdOpt.isPresent()) {
+				try {
+					FileUtils.copyFile(sourceAgentsMdOpt.get(), targetAgentsMd);
+					logger.info("Synced updated AGENTS.md to agent workspace.");
+				} catch (Exception e) {
+					logger.error("Could not sync AGENTS.md to agent workspace", e);
+				}
+			} else {
+				if (targetAgentsMd.exists()) {
+					targetAgentsMd.delete();
+					logger.info("Deleted AGENTS.md from agent workspace as it was removed from dataset.");
+				}
+			}
+
+			try {
+				Dataset ds = Dataset.find.byId(datasetId);
+				String modelName = localModelMetadata.mapModelId(ds.configuration(Dataset.CHATBOT_MODEL, CODING_MODEL));
+				GenerateOptions defaultOptions = GenerateOptions.builder()
+						.additionalHeader(ApiServiceConstants.X_API_MODEL, modelName).build();
+
+				OpenAIChatModel model = OpenAIChatModel.builder().modelName(modelName)
+						.apiKey(aiAPIService.getInternalDocumentationAPIKey()).baseUrl(aiAPIService.getAiBaseUrl())
+						.generateOptions(defaultOptions).build();
+
+				String systemPrompt = ds.configuration(Dataset.CHATBOT_SYSTEM_PROMPT,
+						views.html.tools.codingagent.system_prompt.render().body().trim());
+
+				HarnessAgent newAgent = HarnessAgent.builder() //
+						.name("Agent").model(model) //
+						.toolkit(context.toolkit()).disableShellTool().disableFilesystemTools() //
+						.sysPrompt(systemPrompt) //
+						.compaction(CompactionConfig.builder().triggerMessages(16) // fire at 16 messages
+								.keepMessages(8) // keep last 8 verbatim
+								.build())
+						.workspace(Paths.get(context.cpds().getFolder().getAbsolutePath(), ".agentscope")).build();
+
+				context.setAgent(newAgent);
+				logger.info("Recreated HarnessAgent instance to load updated conventions.");
+			} catch (Exception e) {
+				logger.error("Error recreating agent after AGENTS.md change", e);
+			}
+		}
+	}
+
+	public static class DatasetContext {
+		private final Sink<JsonNode, ?> sink;
+		private final Source<JsonNode, ?> source;
+		private HarnessAgent agent;
+		private final Toolkit toolkit;
+		private final CompleteDS cpds;
+		private final UncompactedHistory history;
+		private long agentsMdLastModified = -1L;
+
+		public DatasetContext(Sink<JsonNode, ?> sink, Source<JsonNode, ?> source, HarnessAgent agent,
+				Toolkit toolkit, CompleteDS cpds, UncompactedHistory history) {
+			this.sink = sink;
+			this.source = source;
+			this.agent = agent;
+			this.toolkit = toolkit;
+			this.cpds = cpds;
+			this.history = history;
+		}
+
+		public Sink<JsonNode, ?> sink() { return sink; }
+		public Source<JsonNode, ?> source() { return source; }
+		public HarnessAgent agent() { return agent; }
+		public void setAgent(HarnessAgent agent) { this.agent = agent; }
+		public Toolkit toolkit() { return toolkit; }
+		public CompleteDS cpds() { return cpds; }
+		public UncompactedHistory history() { return history; }
+		public long getAgentsMdLastModified() { return agentsMdLastModified; }
+		public void setAgentsMdLastModified(long agentsMdLastModified) { this.agentsMdLastModified = agentsMdLastModified; }
 	}
 
 	public static class UncompactedHistory {
