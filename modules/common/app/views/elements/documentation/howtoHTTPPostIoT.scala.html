@@ -5,8 +5,12 @@
 		<div class="collapsible-header">JavaScript</div>
 		<div class="collapsible-body">
 			<pre class="language-js"><code class="language-js">
-var data = { ... your data goes here ... }
-fetch('@api.routes.TimeseriesDSController.logApi(dataset.getId(), "ACTIVITY").absoluteURL(true, request.host())', {
+var data = { 
+    activity: 'ACTIVITY', // optional activity name
+    parameter1: 2,
+    parameter2: 5
+}
+fetch('@api.routes.TimeseriesDSController.logApi(dataset.getId(), "").absoluteURL(true, request.host())', {
     method: 'POST',
     mode: 'cors',
     cache: 'no-cache',
@@ -20,7 +24,7 @@ fetch('@api.routes.TimeseriesDSController.logApi(dataset.getId(), "ACTIVITY").ab
     body: JSON.stringify(data)
 });</code></pre>
 			<p>
-				Replace DEVICE_ID by the refId attribute of any device in the project. Use any ACTIVITY or leave empty. Provide <code>data</code> in JSON format, such as <code>{"parameter1": 2, "parameter2": 5}</code>
+				Replace DEVICE_ID by the refId attribute of any device in the project. Use the optional <code>activity</code> parameter in the JSON body (or as an <code>activity</code> HTTP header) to specify the activity, or leave it out. Provide other data in JSON format, such as <code>{"parameter1": 2, "parameter2": 5}</code>
 			</p>
 		</div>
 	</li>
@@ -29,10 +33,10 @@ fetch('@api.routes.TimeseriesDSController.logApi(dataset.getId(), "ACTIVITY").ab
 		<div class="collapsible-body">
 			<pre class="language-bash">
 				  <code class="language-bash">
-curl -X POST -H "Content-Type: application/json" -H "api_token: @dataset.configuration(Dataset.API_TOKEN, "TOKEN")" -H "source_id: DEVICE_ID" -d '{"parameter1": 2, "parameter2": 5}' @api.routes.TimeseriesDSController.logApi(dataset.getId(), "ACTIVITY").absoluteURL(true, request.host())</code>
+curl -X POST -H "Content-Type: application/json" -H "api_token: @dataset.configuration(Dataset.API_TOKEN, "TOKEN")" -H "source_id: DEVICE_ID" -d '{"activity": "ACTIVITY", "parameter1": 2, "parameter2": 5}' @api.routes.TimeseriesDSController.logApi(dataset.getId(), "").absoluteURL(true, request.host())</code>
 			</pre>
 			<p>
-				Use this in a terminal with the <code>curl</code> tool (Win10/Win11/macOS/Linux should work directly). Replace DEVICE_ID by the refId attribute of any device in the project. Use any ACTIVITY or leave empty. Provide DATA in JSON format, such as <code>{"parameter1": 2, "parameter2": 5}</code>
+				Use this in a terminal with the <code>curl</code> tool (Win10/Win11/macOS/Linux should work directly). Replace DEVICE_ID by the refId attribute of any device in the project. Use the optional <code>activity</code> parameter in the JSON body (or as an <code>activity</code> HTTP header) to specify the activity, or leave it out. Provide DATA in JSON format, such as <code>{"parameter1": 2, "parameter2": 5}</code>
 			</p>
 		</div>
 	</li>
@@ -44,9 +48,11 @@ curl -X POST -H "Content-Type: application/json" -H "api_token: @dataset.configu
 # import requests library
 import requests
 
-# your actual data
+# your actual data (including optional activity)
 data = {
-    # ... your data goes here ...
+    "activity": "ACTIVITY",
+    "parameter1": 2,
+    "parameter2": 5
 }
 
 # request headers
@@ -56,9 +62,9 @@ headers = {
 }
 
 # post request 
-response = requests.post("@api.routes.TimeseriesDSController.logApi(dataset.getId(), "ACTIVITY").absoluteURL(true, request.host())", headers=headers, json=data)</code></pre>
+response = requests.post("@api.routes.TimeseriesDSController.logApi(dataset.getId(), "").absoluteURL(true, request.host())", headers=headers, json=data)</code></pre>
 			<p>
-				Replace DEVICE_ID by the refId attribute of any device in the project. Use any ACTIVITY or leave empty. Provide DATA in JSON format, such as <code>{"parameter1": 2, "parameter2": 5}</code>
+				Replace DEVICE_ID by the refId attribute of any device in the project. Use the optional <code>activity</code> parameter in the JSON body (or as an <code>activity</code> HTTP header) to specify the activity, or leave it out. Provide DATA in JSON format, such as <code>{"parameter1": 2, "parameter2": 5}</code>
 			</p>
 		</div>
 	</li>

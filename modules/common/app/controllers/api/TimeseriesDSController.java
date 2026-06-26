@@ -400,16 +400,13 @@ public class TimeseriesDSController extends AbstractDSController {
 			}
 
 			final JsonNode jn = request.body().asJson();
-			if (jn == null || !jn.isObject()) {
+			if (jn == null || (!jn.isObject() && !jn.isArray())) {
 				// notify the diagnostics
 				cache.set("DatasetsController_httpPostDiagnostics_" + id, "❌ Empty data submitted at " + new Date(),
 				        300);
 
-				return badRequest("No data (object) given.");
+				return badRequest("No data (object or array) given.");
 			}
-
-			// retrieve object node
-			ObjectNode on = (ObjectNode) jn;
 
 			// record the information in the database for this data set
 			final TimeseriesDS tssc = (TimeseriesDS) datasetConnector.getDatasetDS(ds);
@@ -426,34 +423,67 @@ public class TimeseriesDSController extends AbstractDSController {
 
 					// open device id not permitted
 					return notFound("Source device not registered");
-				} else {
-					// submission with textual device id
-					tssc.addRecord(refId, new Date(), activity, on);
-
+				}
+			} else {
+				// device id is given and in the project?
+				Device device = opt.get();
+				if (!ds.isOpenParticipation() && !ds.getProject().getId().equals(device.getProject().getId())) {
 					// notify the diagnostics
 					cache.set("DatasetsController_httpPostDiagnostics_" + id,
-					        "Device " + refId + " uploaded 1 record at " + new Date(), 300);
+					        "❌ Device not allowed in update at " + new Date(), 300);
 
-					return ok();
+					return forbidden("Source device not permitted");
 				}
 			}
 
-			// device id is given and in the project?
-			Device device = opt.get();
-			if (!ds.isOpenParticipation() && !ds.getProject().getId().equals(device.getProject().getId())) {
-				// notify the diagnostics
-				cache.set("DatasetsController_httpPostDiagnostics_" + id,
-				        "❌ Device not allowed in update at " + new Date(), 300);
-
-				return forbidden("Source device not permitted");
+			final List<ObjectNode> records = new LinkedList<>();
+			if (jn.isObject()) {
+				records.add((ObjectNode) jn);
+			} else if (jn.isArray()) {
+				for (JsonNode node : jn) {
+					if (node.isObject()) {
+						records.add((ObjectNode) node);
+					}
+				}
 			}
 
-			// submit
-			tssc.addRecord(device, new Date(), activity, on);
+			if (records.isEmpty()) {
+				// notify the diagnostics
+				cache.set("DatasetsController_httpPostDiagnostics_" + id,
+				        "❌ Empty data array submitted at " + new Date(), 300);
+
+				return badRequest("No valid data (object) given.");
+			}
+
+			final Device device = opt.orElse(null);
+
+			for (ObjectNode on : records) {
+				// determine activity (can be URL parameter, HTTP header, or JSON body)
+				String activityVal = activity;
+				if (activityVal == null || activityVal.isEmpty()) {
+					activityVal = request.header("activity").orElse("");
+				}
+				if (activityVal == null || activityVal.isEmpty()) {
+					if (on.has("activity")) {
+						activityVal = on.get("activity").asText("");
+						on.remove("activity");
+					}
+				}
+
+				// submit
+				if (device == null) {
+					// submission with textual device id
+					tssc.addRecord(refId, new Date(), activityVal, on);
+				} else {
+					tssc.addRecord(device, new Date(), activityVal, on);
+				}
+			}
 
 			// notify the diagnostics
 			cache.set("DatasetsController_httpPostDiagnostics_" + id,
-			        "Device " + refId + " uploaded 1 record at " + new Date(), 300);
+			        "Device " + refId + " uploaded " + records.size() + " "
+			                + StringUtils.pluralize("record", records.size()) + " at " + new Date(),
+			        300);
 
 			return ok();
 		});
