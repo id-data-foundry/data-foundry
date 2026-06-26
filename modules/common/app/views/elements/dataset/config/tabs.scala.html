@@ -4,7 +4,8 @@
       <ul class="tabs">
         @if((dataset.getDsType().equals(DatasetType.IOT)
             || dataset.getDsType().equals(DatasetType.ENTITY) 
-            || dataset.getDsType().equals(DatasetType.MEDIA)) 
+            || dataset.getDsType().equals(DatasetType.MEDIA)
+            || dataset.getDsType().equals(DatasetType.COMPLETE)) 
             && (dataset.editableBy(user))) {
         <li class="tab col s3"><a id="postTab" href="#post">@elements.icon("cloud_upload") HTTP data upload</a></li>
         }

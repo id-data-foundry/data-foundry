@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
@@ -28,6 +29,7 @@ import com.opencsv.CSVReader;
 import com.opencsv.CSVReaderBuilder;
 import com.opencsv.exceptions.CsvValidationException;
 
+import controllers.auth.DatasetApiAuth;
 import controllers.auth.UserAuth;
 import datasets.DatasetConnector;
 import io.jsonwebtoken.lang.Strings;
@@ -782,6 +784,10 @@ public class CompleteDSController extends AbstractDSController {
 		try {
 			// save file contents
 			org.apache.commons.io.FileUtils.write(requestedFile, content, Charset.defaultCharset());
+
+			// invalidate cache
+			cache.remove(CACHE_FILES + id);
+
 			return ok();
 		} catch (Exception e) {
 			return badRequest("Problem saving the file.");
@@ -971,6 +977,81 @@ public class CompleteDSController extends AbstractDSController {
 		return createStream().mapMaterializedValue(sourceActor -> {
 			CompletableFuture.runAsync(() -> cpds.export(sourceActor, linkMapper, limit, start, end));
 			return sourceActor;
+		});
+	}
+
+	@Authenticated(DatasetApiAuth.class)
+	public CompletionStage<Result> addItemApi(Request request, Long id) {
+		return addItem(request, id);
+	}
+
+	public CompletionStage<Result> addItem(Request request, Long id) {
+		return CompletableFuture.supplyAsync(() -> {
+			Dataset ds = Dataset.find.byId(id);
+			if (ds == null) {
+				return notFound(Json.newObject().put("error", "Dataset not found."));
+			} else if (!ds.canAppend()) {
+				return forbidden(
+						Json.newObject().put("error", "Dataset is closed (adjust start and end dates to open)."));
+			}
+
+			try {
+				Http.MultipartFormData<TemporaryFile> body = request.body().asMultipartFormData();
+				if (body == null) {
+					return badRequest(Json.newObject().put("error", "Body malformed."));
+				}
+
+				DynamicForm df = formFactory.form().bindFromRequest(request);
+				if (df == null) {
+					return badRequest(Json.newObject().put("error", "Data malformed."));
+				}
+
+				List<Http.MultipartFormData.FilePart<TemporaryFile>> fileParts = body.getFiles();
+				if (!fileParts.isEmpty()) {
+					final CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
+
+					List<String> savedFiles = new ArrayList<>();
+
+					for (int i = 0; i < fileParts.size(); i++) {
+						FilePart<TemporaryFile> filePart = fileParts.get(i);
+						TemporaryFile tempfile = filePart.getRef();
+						String fileName = nss(filePart.getFilename());
+
+						// filename-based quick check
+						if (FileTypeUtils.looksLikeExecutableFile(fileName)) {
+							logger.error("API upload attempt blocked due to executable-like filename: " + fileName);
+							continue;
+						}
+
+						// content-based validation
+						if (!FileTypeUtils.validateAndLog(filePart, FileTypeUtils.FileCategory.ANY)) {
+							continue;
+						}
+
+						// store file, add record
+						Optional<String> storeFile = cpds.storeFile(tempfile.path().toFile(), fileName);
+						if (storeFile.isPresent()) {
+							String description = nss(df.get("description"));
+							savedFiles.add(storeFile.get());
+							cpds.addRecord(storeFile.get(), description, new Date());
+						}
+					}
+
+					LabNotesEntry.log(CompleteDSController.class, LabNotesEntryType.DATA,
+							"Files uploaded to dataset: " + ds.getName(), ds.getProject());
+
+					ObjectNode result = Json.newObject();
+					result.set("files", Json.toJson(savedFiles));
+					return ok(result).as("application/json");
+				}
+			} catch (Exception e) {
+				logger.error("Error in uploading dataset file to CompleteDS via API", e);
+			}
+
+			return badRequest(Json.newObject().put("error", "Missing files.")).as("application/json");
+		}).exceptionally(e -> {
+			logger.error("Complete dataset file upload api problem", e);
+			return badRequest();
 		});
 	}
 

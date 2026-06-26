@@ -13,6 +13,7 @@
 
   @if(dataset.editableBy(user)) {
     @if(dataset.getDsType().equals(DatasetType.COMPLETE)) {
+      @elements.dataset.config.inletCompleteHTTP(dataset, user)
       @elements.dataset.config.outletWebAccess(dataset, user)
     }
     @elements.dataset.config.outletOOCSI(dataset, user)

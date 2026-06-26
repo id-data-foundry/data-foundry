@@ -1,4 +1,4 @@
-@(userId : String, projectId: Long, token: String, profile: String)(implicit request: Http.Request)
+@(userId : String, projectId: Long, token: String, profile: String, completeDsId: Long)(implicit request: Http.Request)
 var DF = {
 	user: {
 		id: "@userId",
@@ -17,5 +17,21 @@ var DF = {
 				'Content-Type': 'application/json'
 			}
 		})
+	},
+	uploadFile: function(file, description = "") {
+		if (@completeDsId === -1) {
+			console.error("No existing/complete dataset available for file upload in this project.");
+			return Promise.reject("No existing/complete dataset available");
+		}
+		let formData = new FormData();
+		formData.append("file", file);
+		formData.append("description", description);
+		return fetch('/@JavaScript(api.js.routes.UserApiController.uploadFile(projectId, token).relativeTo("/"))', {
+			method: 'POST',
+			body: formData
+		}).then(res => {
+			if (!res.ok) throw new Error("Upload failed");
+			return res.json();
+		});
 	}
 }		

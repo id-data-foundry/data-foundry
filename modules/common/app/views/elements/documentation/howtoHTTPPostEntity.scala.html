@@ -4,97 +4,73 @@
 </p>
 <ul class="collapsible">
   <li class="">
-    <div class="collapsible-header">Javascript (with jQuery)</div>
+    <div class="collapsible-header">Javascript</div>
     <div class="collapsible-body">
       <b>Add a data item to the dataset</b>
       <pre class="language-javascript">
           <code class="language-javascript">
-$.ajax(
-  {
-    url: '@api.routes.EntityDSController.addItemApi(id).absoluteURL(request, true)',
-    headers: {
-      'api_token': '@token',
-      'resource_id': 'some_identifier',
-      'token': 'token_for_identifier'
-    },
-    type: 'POST',
-    contentType: 'application/json',
-    data: JSON.stringify({parameter1: 'hello world!', parameter2: 1.2}),
-    success: function(data) {
-      console.log(data)
-    },
-    error: function(e) {
-      console.log(e)
-    }
-  }
-);</code>
+fetch('@api.routes.EntityDSController.addItemApi(id).absoluteURL(request, true)', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'api_token': '@token',
+    'resource_id': 'some_identifier',
+    'token': 'token_for_identifier'
+  },
+  body: JSON.stringify({parameter1: 'hello world!', parameter2: 1.2})
+})
+.then(response => response.json())
+.then(data => console.log(data))
+.catch(error => console.log(error));</code>
       </pre>
       <b>Get a data item from the dataset</b>
       <pre class="language-javascript">
           <code class="language-javascript">
-$.ajax(
-  {
-    url: '@api.routes.EntityDSController.getItemApi(id).absoluteURL(request, true)',
-    headers: {
-      'api_token': '@token',
-      'resource_id': 'some_identifier',
-      'token': 'token_for_identifier'
-    },
-    type: 'GET',
-    contentType: 'application/json',
-    success: function(data) {
-      console.log(data)
-    },
-    error: function(e) {
-      console.log(e)
-    }
+fetch('@api.routes.EntityDSController.getItemApi(id).absoluteURL(request, true)', {
+  method: 'GET',
+  headers: {
+    'Content-Type': 'application/json',
+    'api_token': '@token',
+    'resource_id': 'some_identifier',
+    'token': 'token_for_identifier'
   }
-);</code>
+})
+.then(response => response.json())
+.then(data => console.log(data))
+.catch(error => console.log(error));</code>
       </pre>
       <b>Update a data item in the dataset</b>
       <pre class="language-javascript">
           <code class="language-javascript">
-$.ajax(
-  {
-    url: '@api.routes.EntityDSController.updateItemApi(id).absoluteURL(request, true)',
-    headers: {
-      'api_token': '@token',
-      'resource_id': 'some_identifier',
-      'token': 'token_for_identifier'
-    },
-    type: 'PUT',
-    contentType: 'application/json',
-    data: JSON.stringify({parameter1: 'helloworld!', parameter2: 1.2}),
-    success: function(data) {
-      console.log(data)
-    },
-    error: function(e) {
-      console.log(e)
-    }
-  }
-);</code>
+fetch('@api.routes.EntityDSController.updateItemApi(id).absoluteURL(request, true)', {
+  method: 'PUT',
+  headers: {
+    'Content-Type': 'application/json',
+    'api_token': '@token',
+    'resource_id': 'some_identifier',
+    'token': 'token_for_identifier'
+  },
+  body: JSON.stringify({parameter1: 'helloworld!', parameter2: 1.2})
+})
+.then(response => response.json())
+.then(data => console.log(data))
+.catch(error => console.log(error));</code>
       </pre>
       <b>Delete a data item from the dataset</b>
       <pre class="language-javascript">
           <code class="language-javascript">
-$.ajax(
-  {
-    url: '@api.routes.EntityDSController.deleteItemApi(id).absoluteURL(request, true)',
-    headers: {
-      'api_token': '@token',
-      'resource_id': 'some_identifier',
-      'token': 'token_for_identifier'
-    },
-    type: 'DELETE',
-    contentType: 'application/json',
-    success: function(data) {
-      console.log(data)
-    },
-    error: function(e) {
-      console.log(e)
-    }
+fetch('@api.routes.EntityDSController.deleteItemApi(id).absoluteURL(request, true)', {
+  method: 'DELETE',
+  headers: {
+    'Content-Type': 'application/json',
+    'api_token': '@token',
+    'resource_id': 'some_identifier',
+    'token': 'token_for_identifier'
   }
-);</code>
+})
+.then(response => response.json())
+.then(data => console.log(data))
+.catch(error => console.log(error));</code>
       </pre>
       With the exception of the DELETE request, all requests return the current state of the object as JSON or a String.
     </div>

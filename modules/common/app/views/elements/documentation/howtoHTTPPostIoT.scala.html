@@ -1,7 +1,7 @@
 @(dataset : Dataset)(implicit request: Http.Request)
 
 <ul class="collapsible">
-	<li class="active">
+	<li>
 		<div class="collapsible-header">JavaScript</div>
 		<div class="collapsible-body">
 			<pre class="language-js"><code class="language-js">
@@ -96,6 +96,76 @@ iot.data("temperature", 32).data("door", "closed").log();</code>
 			</pre>
 			<p>
 				Replace DEVICE_ID by the refId attribute of any device in the project. Use any ACTIVITY or leave empty. Add data as needed. Don't forget to send everything to Data Foundry with <code>log()</code> at the end. You can then reuse the DFDataset object (here: iot) to send more events or data items.
+			</p>
+		</div>
+	</li>
+</ul>
+
+<p style="margin-top: 3em;">
+	<b>Batch Data Upload (JSON)</b>
+</p>
+<p>
+	You can upload multiple data points at once by sending a JSON array of objects to the same <code>logApi</code> endpoint. Each object in the array can have its own optional <code>activity</code> attribute.
+</p>
+<ul class="collapsible">
+	<li>
+		<div class="collapsible-header">JavaScript</div>
+		<div class="collapsible-body">
+			<pre class="language-js"><code class="language-js">
+var bulkData = [
+  { activity: 'WALKING', parameter1: 2, parameter2: 5 },
+  { activity: 'RUNNING', parameter1: 3, parameter2: 4 }
+];
+fetch('@api.routes.TimeseriesDSController.logApi(dataset.getId(), "").absoluteURL(true, request.host())', {
+    method: 'POST',
+    mode: 'cors',
+    cache: 'no-cache',
+    headers: {
+            'Content-Type': 'application/json',
+            'api_token': '@dataset.configuration(Dataset.API_TOKEN, "TOKEN")',
+            'source_id': 'DEVICE_ID'
+    },
+    redirect: 'follow',
+    referrerPolicy: 'no-referrer',
+    body: JSON.stringify(bulkData)
+});</code></pre>
+			<p>
+				Replace DEVICE_ID by the refId attribute of any device in the project. The <code>api_token</code> must be provided in the header. Each object in the array represents a separate data point.
+			</p>
+		</div>
+	</li>
+	<li>
+		<div class="collapsible-header">cURL</div>
+		<div class="collapsible-body">
+			<pre class="language-bash">
+				  <code class="language-bash">
+curl -X POST -H "Content-Type: application/json" -H "api_token: @dataset.configuration(Dataset.API_TOKEN, "TOKEN")" -H "source_id: DEVICE_ID" -d '[{"activity": "WALKING", "parameter1": 2, "parameter2": 5}, {"activity": "RUNNING", "parameter1": 3, "parameter2": 4}]' @api.routes.TimeseriesDSController.logApi(dataset.getId(), "").absoluteURL(true, request.host())</code>
+			</pre>
+			<p>
+				Replace DEVICE_ID by the refId attribute of any device in the project.
+			</p>
+		</div>
+	</li>
+	<li>
+		<div class="collapsible-header">Python</div>
+		<div class="collapsible-body">
+			<pre class="language-python">
+				  <code class="language-python">
+import requests
+
+bulk_data = [
+    {"activity": "WALKING", "parameter1": 2, "parameter2": 5},
+    {"activity": "RUNNING", "parameter1": 3, "parameter2": 4}
+]
+
+headers = {
+    "api_token": "@dataset.configuration(Dataset.API_TOKEN, "TOKEN")",
+    "source_id": "DEVICE_ID"
+}
+
+response = requests.post("@api.routes.TimeseriesDSController.logApi(dataset.getId(), "").absoluteURL(true, request.host())", headers=headers, json=bulk_data)</code></pre>
+			<p>
+				Replace DEVICE_ID by the refId attribute of any device in the project. This script sends the JSON array of objects directly in the post body.
 			</p>
 		</div>
 	</li>

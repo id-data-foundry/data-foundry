@@ -548,6 +548,7 @@ PUT			/api/v1/datasets/entity/:id							controllers.api.EntityDSController.updat
 DELETE		/api/v1/datasets/entity/:id							controllers.api.EntityDSController.deleteItemApi(request: Request, id: Long)
 
 POST		/api/v1/datasets/media/:id							controllers.api.MediaDSController.addItemApi(request: Request, id: Long)
+POST		/api/v1/datasets/existing/:id						controllers.api.CompleteDSController.addItemApi(request: Request, id: Long)
 PUT			/api/v1/datasets/media/:id/:itemId					controllers.api.MediaDSController.updateItemApi(request: Request, id: Long, itemId: Long)
 GET			/api/v1/datasets/media/:id/:filename					controllers.api.MediaDSController.getItemApi(request: Request, id: Long, filename: String)
 
@@ -581,6 +582,7 @@ GET 		/api/v1/researcher/getData/:id.json					controllers.api.js.ResearcherApiCo
 GET 		/api/v1/:id/user										controllers.api.js.UserApiController.jsAPI(request: Request, id: Long)
 GET 		/api/v1/:id/user.js									controllers.api.js.UserApiController.jsAPI(request: Request, id: Long)
 POST 		/api/v1/:id/user/profile/*token						controllers.api.js.UserApiController.setItem(request: Request, id: Long, token: String)
+POST 		/api/v1/:id/user/upload/*token						controllers.api.js.UserApiController.uploadFile(request: Request, id: Long, token: String)
 
 # -------------------------------------------------------------------------------------------------------------------------
 

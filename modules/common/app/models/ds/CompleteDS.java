@@ -448,9 +448,6 @@ public class CompleteDS extends LinkedDS {
 	 * @return
 	 */
 	public List<TimedMedia> getFiles(Optional<String> pattern) {
-		final String fullpath = UPLOAD_DIR_PARENT + UPLOADS_DATASETS + dataset.getProject().getRefId() + "__"
-				+ dataset.getRefId() + "/";
-
 		List<TimedMedia> result = new LinkedList<TimedMedia>();
 		try (Transaction transaction = DB.beginTransaction();
 				Connection connection = transaction.connection();
@@ -473,15 +470,8 @@ public class CompleteDS extends LinkedDS {
 
 					// add to result list of file exists
 					if (fileOpt.isPresent()) {
-						TimedMedia tm = new TimedMedia(id, timestamp, filename, "", rs.getString("description"), null);
-
-						// retrieve on-disk timestamp for file
-						File timestampedFile = new File(
-								fullpath + timestamp.getTime() + "_" + filename.replace("..", ""));
-						if (timestampedFile.exists()) {
-							tm.timestamp = new Date(timestampedFile.lastModified());
-						}
-
+						TimedMedia tm = new TimedMedia(id, new Date(fileOpt.get().lastModified()), filename, "",
+								rs.getString("description"), null);
 						result.add(tm);
 					}
 				}

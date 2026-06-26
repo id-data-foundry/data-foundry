@@ -1,0 +1,97 @@
+@(dataset : Dataset)(implicit request: Http.Request)
+
+<ul class="collapsible">
+  <li>
+    <div class="collapsible-header">Javascript</div>
+    <div class="collapsible-body">
+
+      <b>Upload a file to the dataset</b>
+
+      <pre class="language-javascript"><code class="language-javascript">// upload function
+const uploadFile = async () => {
+  const myform = document.querySelector('#myform');
+  const formData = new FormData(myform);
+
+  const response = await fetch('@api.routes.CompleteDSController.addItemApi(dataset.getId()).absoluteURL(request, request.secure())', {
+    method: 'POST',
+    headers: {
+      'api_token': '@dataset.configuration(Dataset.API_TOKEN, "TOKEN")'
+    },
+    body: formData
+  });
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  
+  const result = await response.json();
+  console.log("Uploaded successfully:", result);
+};</code></pre>
+
+      <b>Download a file from the dataset</b>
+      <p>
+        To download the latest version of a file directly using the dataset ID:
+      </p>
+      <pre class="language-javascript"><code class="language-javascript">const fileUrl = '@api.routes.CompleteDSController.downloadLatestFile(dataset.getId(), "FILENAME").absoluteURL(request, request.secure())';
+// Note: Requires user session/cookies</code></pre>
+    </div>
+  </li>
+  <li>
+    <div class="collapsible-header">cURL</div>
+    <div class="collapsible-body">
+
+      <b>Upload a file to the dataset</b>
+
+      <pre class="language-bash"><code class="language-bash">curl -X POST \
+  -H "api_token: @dataset.configuration(Dataset.API_TOKEN, "TOKEN")" \
+  -F "files=@@/path/to/your/file.json" \
+  -F "description=My file upload" \
+  '@api.routes.CompleteDSController.addItemApi(dataset.getId()).absoluteURL(request, request.secure())'</code></pre>
+
+      <b>Download a file from the dataset</b>
+
+      <pre class="language-bash"><code class="language-bash">curl -O -J \
+  -b cookies.txt \
+  '@api.routes.CompleteDSController.downloadLatestFile(dataset.getId(), "FILENAME").absoluteURL(request, request.secure())'</code></pre>
+    </div>
+  </li>
+  <li>
+    <div class="collapsible-header">Python</div>
+    <div class="collapsible-body">
+
+      <b>Upload a file to the dataset</b>
+
+      <pre class="language-python"><code class="language-python">import requests
+
+url = '@api.routes.CompleteDSController.addItemApi(dataset.getId()).absoluteURL(request, request.secure())'
+headers = {
+    'api_token': '@dataset.configuration(Dataset.API_TOKEN, "TOKEN")'
+}
+files = {'files': open('/path/to/your/file.json', 'rb')}
+data = {'description': 'My file upload'}
+
+response = requests.post(url, headers=headers, files=files, data=data)
+if response.status_code == 200:
+    print("Upload successful!", response.json())
+else:
+    print(f"Failed to upload. Status code: {response.status_code}")</code></pre>
+
+      <b>Download a file from the dataset</b>
+
+      <pre class="language-python"><code class="language-python">import requests
+import shutil
+
+url = '@api.routes.CompleteDSController.downloadLatestFile(dataset.getId(), "FILENAME").absoluteURL(request, request.secure())'
+# Must provide session/cookies if authentication is required
+session_cookies = {'PLAY_SESSION': 'YOUR_SESSION_VALUE'}
+
+response = requests.get(url, cookies=session_cookies, stream=True)
+if response.status_code == 200:
+    with open('FILENAME', 'wb') as f:
+        response.raw.decode_content = True
+        shutil.copyfileobj(response.raw, f)
+else:
+    print(f"Failed to download. Status code: {response.status_code}")</code></pre>
+    </div>
+  </li>
+</ul>
