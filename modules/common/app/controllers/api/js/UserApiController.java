@@ -73,7 +73,7 @@ public class UserApiController extends AbstractApiController {
 		}
 
 		// compute user id
-		String user_id = tokenResolverUtil.getParticipationToken(projectId, user.getId());
+		String user_id = tokenResolverUtil.getStableParticipationToken(projectId, user.getId());
 
 		// check project to acquire the user profile
 		Project project = Project.find.byId(projectId);
