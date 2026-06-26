@@ -10,7 +10,7 @@ import com.google.common.html.HtmlEscapers;
 
 public class StringUtils {
 
-	public static final String VERSION = "0.9.25";
+	public static final String VERSION = "0.9.26";
 
 	/**
 	 * null safe string
