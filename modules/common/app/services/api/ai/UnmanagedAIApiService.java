@@ -98,7 +98,6 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 		try {
 			RemoteApiRequest internalAPIRequest = new RemoteApiRequest(REQUEST_TASK_MODELS,
 					ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, "", "", -1L);
-//			internalAPIRequest.setPath("/v1/models");
 			internalAPIRequest.setUserApiKey(getInternalDocumentationAPIKey());
 
 			// submit and wait for timeout
@@ -304,8 +303,8 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 
 	private void runApiRequest(StreamingRemoteApiRequest request) {
 		wsClient.url(aiBaseUrl + request.getPath()).setRequestTimeout(Duration.ofMillis(request.getMsTimeout()))
-				.setMethod("POST").setBody(request.getParams()).addHeader(ApiServiceConstants.X_API_MODEL, nss(request.getModel()))
-				.stream().thenAccept((res) -> {
+				.setMethod("POST").setBody(request.getParams())
+				.addHeader(ApiServiceConstants.X_API_MODEL, nss(request.getModel())).stream().thenAccept((res) -> {
 					res.getBody(WSBodyReadables.instance.source()).map(bs -> {
 						String decodeString = bs.decodeString(StandardCharsets.UTF_8);
 						if (decodeString.contains("[DONE]")) {
