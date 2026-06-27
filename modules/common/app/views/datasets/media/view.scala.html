@@ -284,7 +284,7 @@
                 <b>What it is</b>: This is a place to store files like pictures, sound clips, and videos.
               </p>
               <p>
-                <b>How it works</b>: Files are uploaded through the <b>Web UI</b> or via <b>HTTP requests (API)</b>. Data Foundry keeps your files safe and remembers extra details like who uploaded them and when.
+                <b>How it works</b>: Files are uploaded through the <b>Web UI</b>, via <b>HTTP requests (API)</b>, or sent directly by participants using the <b>Telegram Bot</b> (photos, videos, audio, voice messages). Data Foundry keeps your files safe and remembers extra details like who uploaded them and when.
               </p>
               <p>
                 <b>What you can do</b>: You can have the system notify an <b>OOCSI channel</b> when a new file arrives or export the list of files and metadata as a <b>CSV spreadsheet</b>.
@@ -294,6 +294,7 @@
               sequenceDiagram
                 participant U as Web UI / Browser
                 participant A as API / HTTP
+                participant TG as Telegram Bot
                 participant DS as Media Dataset
                 participant OUT as OOCSI
                 participant CSV as CSV Export
@@ -302,6 +303,8 @@
                     U->>DS: Upload via Web UI
                 else
                     A->>DS: Upload via HTTP Request
+                else
+                    TG->>DS: Send photo, video, audio, voice
                 end
 
                 rect rgb(245, 245, 245)
