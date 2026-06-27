@@ -1,0 +1,10 @@
+{
+  "data": [
+    {
+      "id": "openai/gpt-oss-20b",
+      "object": "model",
+      "owned_by": "organization_owner"
+    }
+  ],
+  "object": "list"
+}

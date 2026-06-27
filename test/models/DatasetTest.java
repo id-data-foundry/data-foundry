@@ -52,6 +52,9 @@ public class DatasetTest extends WithApplication {
 		tsds.internalAddRecord("device1", "pp1", "pp2", "pp3", new Date(), "activity1", play.libs.Json.newObject());
 		tsds.internalAddRecord("device1", "pp1", "pp2", "pp3", new Date(), "activity2", play.libs.Json.newObject());
 
+		// flush queues
+		TimeseriesDS.flushQueue();
+
 		assertEquals(2, ds.getItemCount());
 	}
 }

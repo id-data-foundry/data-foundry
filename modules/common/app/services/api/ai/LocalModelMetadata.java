@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.core.JsonParser.Feature;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -162,17 +163,110 @@ public class LocalModelMetadata {
 	 * @param modelJson
 	 * @return
 	 */
+	@SuppressWarnings("deprecation")
 	private List<ModelMetadata> json2ModelList(String modelJson) {
 		final ObjectMapper objectMapper = new ObjectMapper();
+		// Configure Jackson to tolerate trailing commas, comments, etc.
+		objectMapper.configure(Feature.ALLOW_TRAILING_COMMA, true);
+		objectMapper.configure(Feature.ALLOW_SINGLE_QUOTES, true);
+		objectMapper.configure(Feature.ALLOW_UNQUOTED_FIELD_NAMES, true);
+		objectMapper.configure(Feature.ALLOW_COMMENTS, true);
 
-		List<ModelMetadata> list = null;
 		try {
-			list = objectMapper.readValue(modelJson, new TypeReference<List<ModelMetadata>>() {
-			});
+			com.fasterxml.jackson.databind.JsonNode rootNode = objectMapper.readTree(modelJson);
+			if (rootNode.isArray()) {
+				// Existing format: JSON Array of ModelMetadata objects
+				return objectMapper.readValue(modelJson, new TypeReference<List<ModelMetadata>>() {
+				});
+			} else if (rootNode.isObject()) {
+				// LiteLLM / OpenAI format: JSON Object with a "data" array
+				com.fasterxml.jackson.databind.JsonNode dataNode = rootNode.get("data");
+				if (dataNode != null && dataNode.isArray()) {
+					java.util.ArrayList<ModelMetadata> list = new java.util.ArrayList<>();
+					for (com.fasterxml.jackson.databind.JsonNode item : dataNode) {
+						String id = null;
+						String name = null;
+						String type = null;
+						String description = null;
+						String link = null;
+						String comment = null;
+						List<String> tags = null;
+						List<String> alias = null;
+
+						if (item.has("id")) {
+							id = item.get("id").asText();
+							name = item.has("name") ? item.get("name").asText() : id;
+							type = item.has("type") ? item.get("type").asText() : null;
+							description = item.has("description") ? item.get("description").asText() : null;
+							link = item.has("link") ? item.get("link").asText() : null;
+							comment = item.has("comment") ? item.get("comment").asText() : null;
+							if (item.has("tags") && item.get("tags").isArray()) {
+								tags = objectMapper.convertValue(item.get("tags"), new TypeReference<List<String>>() {
+								});
+							}
+							if (item.has("alias") && item.get("alias").isArray()) {
+								alias = objectMapper.convertValue(item.get("alias"), new TypeReference<List<String>>() {
+								});
+							}
+						} else if (item.has("model_name")) {
+							// LiteLLM model/info format
+							id = item.get("model_name").asText();
+							name = id;
+
+							java.util.ArrayList<String> aliasList = new java.util.ArrayList<>();
+							if (item.has("model_info")) {
+								com.fasterxml.jackson.databind.JsonNode info = item.get("model_info");
+								if (info.has("id")) {
+									String infoId = info.get("id").asText();
+									if (!infoId.equals(id)) {
+										aliasList.add(infoId);
+									}
+								}
+								if (info.has("name")) {
+									name = info.get("name").asText();
+								} else if (info.has("model_name")) {
+									name = info.get("model_name").asText();
+								}
+								if (info.has("type")) {
+									type = info.get("type").asText();
+								}
+								if (info.has("description")) {
+									description = info.get("description").asText();
+								}
+								if (info.has("link")) {
+									link = info.get("link").asText();
+								}
+								if (info.has("comment")) {
+									comment = info.get("comment").asText();
+								}
+								if (info.has("tags") && info.get("tags").isArray()) {
+									tags = objectMapper.convertValue(info.get("tags"),
+											new TypeReference<List<String>>() {
+											});
+								}
+								if (info.has("alias") && info.get("alias").isArray()) {
+									List<String> jsonAliases = objectMapper.convertValue(info.get("alias"),
+											new TypeReference<List<String>>() {
+											});
+									aliasList.addAll(jsonAliases);
+								}
+							}
+							if (!aliasList.isEmpty()) {
+								alias = aliasList;
+							}
+						}
+
+						if (id != null) {
+							list.add(new ModelMetadata(id, name, type, description, link, comment, tags, alias));
+						}
+					}
+					return list;
+				}
+			}
 		} catch (Exception e) {
-			logger.error("❌ Model update failed, JSON invalid.");
+			logger.error("❌ Model update failed, JSON invalid: " + e.getMessage());
 		}
-		return list != null ? list : List.of();
+		return List.of();
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
