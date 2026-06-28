@@ -39,7 +39,7 @@ With DataFoundry, we aim to ease data collection and processing, making it extre
 *   **Build Tool:** sbt (Simple Build Tool)
 *   **Database:** H2 (in-memory for dev), Ebean ORM, PostgreSQL (for production)
 *   **Containerization:** Docker, Docker Compose, Podman
-*   **Frontend:** HTMX, jQuery, SASS
+*   **Frontend:** HTMX, jQuery, MaterializeCSS, PicoCSS, SASS
 *   **Documentation:** Jekyll
 
 ## Architecture
