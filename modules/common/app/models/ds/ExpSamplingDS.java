@@ -231,7 +231,7 @@ public class ExpSamplingDS extends LinkedDS {
 		try (Transaction transaction = DB.beginTransaction();
 				Connection connection = transaction.connection();
 				PreparedStatement stmt = connection.prepareStatement(
-						"DELETE FROM " + dataTableName + "; DELETE FROM " + dataTableNameRawFiles + ";");) {
+						"TRUNCATE TABLE " + dataTableName + "; TRUNCATE TABLE " + dataTableNameRawFiles + ";");) {
 			stmt.execute();
 			transaction.commit();
 		} catch (SQLException e) {

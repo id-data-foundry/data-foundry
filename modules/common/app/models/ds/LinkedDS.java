@@ -353,7 +353,7 @@ public abstract class LinkedDS {
 	public void resetDataset() {
 		try (Transaction transaction = DB.beginTransaction();
 				Connection connection = transaction.connection();
-				PreparedStatement stmt = connection.prepareStatement("DELETE FROM " + dataTableName + ";");) {
+				PreparedStatement stmt = connection.prepareStatement("TRUNCATE TABLE " + dataTableName + ";");) {
 			stmt.execute();
 			transaction.commit();
 		} catch (SQLException e) {
