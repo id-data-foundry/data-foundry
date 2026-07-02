@@ -186,7 +186,7 @@ public abstract class LinkedDS {
 	 * @param end
 	 */
 	abstract public void export(SourceQueueWithComplete<ByteString> queue, Cluster cluster, long limit, long start,
-	        long end);
+			long end);
 
 	/**
 	 * retrieve a data for the dataset activity to allows for a timeseries visualisation
@@ -201,32 +201,44 @@ public abstract class LinkedDS {
 			if (dataset.getCreation().toInstant().plus(30, ChronoUnit.DAYS).isBefore(Instant.now())) {
 				// use day resolution for timeseries output
 				PreparedStatement stmt = connection
-				        .prepareStatement("SELECT TRUNCATE(ts) AS day, count(*) as events FROM " + dataTableName
-				                + " GROUP BY day ORDER BY day ASC;");
+						.prepareStatement("SELECT TRUNCATE(ts) AS day, count(*) as events FROM " + dataTableName
+								+ " GROUP BY day ORDER BY day ASC;");
 				ResultSet rs = stmt.executeQuery();
-				queue.offer(ByteString.fromString("day,events,\n")).toCompletableFuture().get();
+				if (!QueueOfferResult.enqueued()
+						.equals(queue.offer(ByteString.fromString("day,events,\n")).toCompletableFuture().get())) {
+					return;
+				}
 				while (rs.next()) {
 					StringBuffer sb = new StringBuffer();
 					sb.append(rs.getTimestamp(1).toString().substring(0, 10) + ",");
 					sb.append(rs.getLong(2) + ",");
 					sb.append("\n");
 
-					queue.offer(ByteString.fromString(sb.toString())).toCompletableFuture().get();
+					if (!QueueOfferResult.enqueued()
+							.equals(queue.offer(ByteString.fromString(sb.toString())).toCompletableFuture().get())) {
+						break;
+					}
 				}
 			} else {
 				// use hour resolution for timeseries output
 				PreparedStatement stmt = connection.prepareStatement(
-				        "SELECT PARSEDATETIME(FORMATDATETIME(ts, 'yyyy-MM-dd HH'), 'yyyy-MM-dd HH') AS day, count(*) as events FROM "
-				                + dataTableName + " GROUP BY day ORDER BY day ASC LIMIT 200;");
+						"SELECT PARSEDATETIME(FORMATDATETIME(ts, 'yyyy-MM-dd HH'), 'yyyy-MM-dd HH') AS day, count(*) as events FROM "
+								+ dataTableName + " GROUP BY day ORDER BY day ASC LIMIT 200;");
 				ResultSet rs = stmt.executeQuery();
-				queue.offer(ByteString.fromString("day,events,\n")).toCompletableFuture().get();
+				if (!QueueOfferResult.enqueued()
+						.equals(queue.offer(ByteString.fromString("day,events,\n")).toCompletableFuture().get())) {
+					return;
+				}
 				while (rs.next()) {
 					StringBuffer sb = new StringBuffer();
 					sb.append(tsExportFormatter.format(rs.getTimestamp(1)) + ",");
 					sb.append(rs.getLong(2) + ",");
 					sb.append("\n");
 
-					queue.offer(ByteString.fromString(sb.toString())).toCompletableFuture().get();
+					if (!QueueOfferResult.enqueued()
+							.equals(queue.offer(ByteString.fromString(sb.toString())).toCompletableFuture().get())) {
+						break;
+					}
 				}
 			}
 
@@ -273,10 +285,10 @@ public abstract class LinkedDS {
 		if (dataTableName != null && dataset.getRefId() != null) {
 			// all items
 			try (Transaction transaction = DB.beginTransaction();
-			        Connection connection = transaction.connection();
-			        PreparedStatement stmt = connection
-			                .prepareStatement("SELECT count(*) as items FROM " + dataTableName + ";");
-			        ResultSet rs = stmt.executeQuery();) {
+					Connection connection = transaction.connection();
+					PreparedStatement stmt = connection
+							.prepareStatement("SELECT count(*) as items FROM " + dataTableName + ";");
+					ResultSet rs = stmt.executeQuery();) {
 
 				if (rs.next()) {
 					totalItemCount = rs.getLong(1);
@@ -289,9 +301,9 @@ public abstract class LinkedDS {
 
 			// last week items
 			try (Transaction transaction = DB.beginTransaction();
-			        Connection connection = transaction.connection();
-			        PreparedStatement stmt = connection.prepareStatement(
-			                "SELECT count(*) as items FROM " + dataTableName + " WHERE ts >= ? AND ts < ?;");) {
+					Connection connection = transaction.connection();
+					PreparedStatement stmt = connection.prepareStatement(
+							"SELECT count(*) as items FROM " + dataTableName + " WHERE ts >= ? AND ts < ?;");) {
 				stmt.setTimestamp(1, new Timestamp(DateUtils.moveDays(new Date(), -14).getTime()));
 				stmt.setTimestamp(2, new Timestamp(DateUtils.moveDays(new Date(), -7).getTime()));
 				ResultSet rs = stmt.executeQuery();
@@ -306,9 +318,9 @@ public abstract class LinkedDS {
 
 			// this week items
 			try (Transaction transaction = DB.beginTransaction();
-			        Connection connection = transaction.connection();
-			        PreparedStatement stmt = connection.prepareStatement(
-			                "SELECT MAX(ts) AS ts, count(*) as items FROM " + dataTableName + " WHERE ts >= ?;");) {
+					Connection connection = transaction.connection();
+					PreparedStatement stmt = connection.prepareStatement(
+							"SELECT MAX(ts) AS ts, count(*) as items FROM " + dataTableName + " WHERE ts >= ?;");) {
 				stmt.setTimestamp(1, new Timestamp(DateUtils.moveDays(new Date(), -7).getTime()));
 				ResultSet rs = stmt.executeQuery();
 				if (rs.next()) {
@@ -340,8 +352,8 @@ public abstract class LinkedDS {
 	 */
 	public void resetDataset() {
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("DELETE FROM " + dataTableName + ";");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("DELETE FROM " + dataTableName + ";");) {
 			stmt.execute();
 			transaction.commit();
 		} catch (SQLException e) {
@@ -376,9 +388,9 @@ public abstract class LinkedDS {
 		}
 
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection
-		                .prepareStatement("DELETE FROM " + dataTableName + " WHERE " + columnName + " = ?;");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("DELETE FROM " + dataTableName + " WHERE " + columnName + " = ?;");) {
 			stmt.setString(1, value);
 			int rows = stmt.executeUpdate();
 			transaction.commit();
@@ -408,9 +420,9 @@ public abstract class LinkedDS {
 		}
 
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection
-		                .prepareStatement("DELETE FROM " + dataTableName + whereClause + ";");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("DELETE FROM " + dataTableName + whereClause + ";");) {
 			int rows = stmt.executeUpdate();
 			transaction.commit();
 			return rows;
@@ -441,7 +453,7 @@ public abstract class LinkedDS {
 
 	private final String tlsf(long epochMillis) {
 		return "PARSEDATETIME('" + sqlDateTimeParsingFormat.format(new Date(epochMillis)) + "','"
-		        + sqlDateTimeParsingFormat.toPattern() + "')";
+				+ sqlDateTimeParsingFormat.toPattern() + "')";
 	}
 
 	/**
@@ -490,10 +502,10 @@ public abstract class LinkedDS {
 		}
 
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("SELECT " + resourceColumnName + ", MAX(ts) FROM "
-		                + dataTableName + " GROUP BY " + resourceColumnName + ";");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("SELECT " + resourceColumnName + ", MAX(ts) FROM "
+						+ dataTableName + " GROUP BY " + resourceColumnName + ";");
+				ResultSet rs = stmt.executeQuery();) {
 			while (rs.next()) {
 				Long source_id = rs.getLong(1);
 				if (sourceUpdates.containsKey(source_id)) {

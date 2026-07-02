@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.stream.Collectors;
 
+import org.apache.pekko.stream.QueueOfferResult;
 import org.apache.pekko.stream.javadsl.SourceQueueWithComplete;
 import org.apache.pekko.util.ByteString;
 
@@ -326,8 +327,11 @@ public class TimeseriesDS extends LinkedDS {
 								+ dataTableName + whereClause + " ORDER BY ts ASC " + limitExpression(limit) + ";");
 				ResultSet rs = stmt.executeQuery();) {
 
-			destinationQueue.offer(ByteString.fromString("id,device_id,ts,activity,pp1,pp2,pp3,data\n"))
-					.toCompletableFuture().get();
+			if (!QueueOfferResult.enqueued()
+					.equals(destinationQueue.offer(ByteString.fromString("id,device_id,ts,activity,pp1,pp2,pp3,data\n"))
+							.toCompletableFuture().get())) {
+				return;
+			}
 			while (rs.next()) {
 				StringBuffer sb = new StringBuffer();
 				sb.append(rs.getLong(1) + ",");
@@ -340,7 +344,10 @@ public class TimeseriesDS extends LinkedDS {
 				sb.append(rs.getString(8));
 				sb.append("\n");
 
-				destinationQueue.offer(ByteString.fromString(sb.toString())).toCompletableFuture().get();
+				if (!QueueOfferResult.enqueued().equals(
+						destinationQueue.offer(ByteString.fromString(sb.toString())).toCompletableFuture().get())) {
+					break;
+				}
 			}
 
 			transaction.commit();
@@ -385,10 +392,13 @@ public class TimeseriesDS extends LinkedDS {
 				ResultSet rs = stmt.executeQuery();) {
 
 			// sourceActor.tell(ByteString.fromString("# dataset export created on " + new Date() + "\n"), null);
-			destinationQueue
-					.offer(ByteString
-							.fromString("id,device_id,ts,activity,pp1,pp2,pp3," + String.join(",", projection) + "\n"))
-					.toCompletableFuture().get();
+			if (!QueueOfferResult.enqueued()
+					.equals(destinationQueue
+							.offer(ByteString.fromString(
+									"id,device_id,ts,activity,pp1,pp2,pp3," + String.join(",", projection) + "\n"))
+							.toCompletableFuture().get())) {
+				return;
+			}
 
 			while (rs.next()) {
 				StringBuffer sb = new StringBuffer();
@@ -428,7 +438,10 @@ public class TimeseriesDS extends LinkedDS {
 					sb.append("\n");
 				}
 
-				destinationQueue.offer(ByteString.fromString(sb.toString())).toCompletableFuture().get();
+				if (!QueueOfferResult.enqueued().equals(
+						destinationQueue.offer(ByteString.fromString(sb.toString())).toCompletableFuture().get())) {
+					break;
+				}
 			}
 			transaction.commit();
 		} catch (Exception e) {
