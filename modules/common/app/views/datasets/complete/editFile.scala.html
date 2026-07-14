@@ -1,6 +1,7 @@
 @(dataset: Dataset, fileId : Long, fileName : String, fileType : String, fileContent : String, fileLists : List[vm.TimedMedia], csrfToken : String)
 @main("Editing " + fileName, "profile", "collapsed-layout") {
 <script src='@routes.Assets.versioned("javascripts/codeflask.min.js")' type="text/javascript"></script>
+<link rel="stylesheet" media="screen" href="@routes.Assets.versioned("stylesheets/prism.css")">
 <script src="@routes.DatasetsController.jsRoutes()" type="text/javascript"></script>
 <style type="text/css">
   .container {
@@ -158,6 +159,15 @@
       language: '@fileType',
       lineNumbers: true
     });
+
+    // Copy global Prism language configurations (like markdown/md/python) to CodeFlask
+    if (window.Prism && window.Prism.languages) {
+        for (let lang in window.Prism.languages) {
+            if (window.Prism.languages[lang] && typeof window.Prism.languages[lang] === 'object') {
+                flask.addLanguage(lang, window.Prism.languages[lang]);
+            }
+        }
+    }
 
     // download file contents and insert into editor
     fetch("@controllers.api.routes.CompleteDSController.downloadFile(dataset.getId(), fileId)")

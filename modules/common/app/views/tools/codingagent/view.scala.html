@@ -246,7 +246,7 @@
       @if(!fileType.equalsIgnoreCase("gg")) {
         <button class="btn disabled" id="saveBtn">Save</button>
       }
-      <a class="btn blue white-text" href="@if(!fileName.isEmpty){@routes.DatasetsController.web(dataset.getId(), fileName)}else{@routes.DatasetsController.webRedirect(dataset.getId())}" target="_blank">Open App</a>
+      <a class="btn blue white-text @if(!fileType.equalsIgnoreCase("html") && !fileType.equalsIgnoreCase("htm")){disabled}" href="@if((fileType.equalsIgnoreCase("html") || fileType.equalsIgnoreCase("htm")) && !fileName.isEmpty){@routes.DatasetsController.web(dataset.getId(), fileName)}else{#!}" target="_blank">Open App</a>
     </div>
     <div style="height: 100%;">
       @if(fileType.equalsIgnoreCase("gg")) {
