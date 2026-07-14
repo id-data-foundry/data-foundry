@@ -3,6 +3,7 @@
 <script src='@routes.Assets.versioned("javascripts/codeflask.min.js")' type="text/javascript"></script>
 <script src='@routes.Assets.versioned("javascripts/marked.min.js")' type="text/javascript"></script>
 <script src="@routes.DatasetsController.jsRoutes()" type="text/javascript"></script>
+<link rel="stylesheet" media="screen" href="@routes.Assets.versioned("stylesheets/prism.css")">
 <style type="text/css">
   .container {
     height: 100vh;
@@ -242,11 +243,79 @@
         }
         </select>
       </form>
-      <button class="btn disabled" id="saveBtn">Save</button>
+      @if(!fileType.equalsIgnoreCase("gg")) {
+        <button class="btn disabled" id="saveBtn">Save</button>
+      }
       <a class="btn blue white-text" href="@if(!fileName.isEmpty){@routes.DatasetsController.web(dataset.getId(), fileName)}else{@routes.DatasetsController.webRedirect(dataset.getId())}" target="_blank">Open App</a>
     </div>
     <div style="height: 100%;">
-      <div id="editor_contents" class="editor_contents">@if(fileId == -1L) { Select a file to start editing } else { loading file contents ... }</div>
+      @if(fileType.equalsIgnoreCase("gg")) {
+        <div class="starboard-container" style="
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          height: 100%;
+          border: 1px solid rgba(224, 224, 224, 0.5);
+          border-radius: 12px;
+          background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);
+          box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.04);
+          backdrop-filter: blur(4px);
+          -webkit-backdrop-filter: blur(4px);
+          padding: 3rem 2rem;
+          text-align: center;
+          box-sizing: border-box;
+          transition: all 0.3s ease;
+        ">
+          <div style="
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(135deg, #9c27b0 0%, #673ab7 100%);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 10px 20px rgba(103, 58, 183, 0.2);
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+          " class="starboard-icon-container">
+            <svg style="width: 48px; height: 48px; fill: white;" viewBox="0 0 24 24">
+              <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+            </svg>
+          </div>
+          <h4 style="
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #4a148c;
+            margin: 0 0 0.5rem 0;
+            background: linear-gradient(45deg, #5e35b1, #9c27b0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+          ">Starboard Notebook</h4>
+          <p style="
+            font-size: 1rem;
+            color: #7e57c2;
+            max-width: 420px;
+            margin: 0 auto 2rem;
+            line-height: 1.6;
+          ">This file contains a rich interactive Starboard notebook. Open it in the dedicated Starboard editor to view charts, write code, and run cells.</p>
+          <a class="btn starboard-btn" href="@controllers.api.routes.CompleteDSController.editFile(dataset.getId(), fileId)" target="_blank" 
+          		style="background: linear-gradient(45deg, #5e35b1, #9c27b0);">
+            <span style="font-size: 1.1rem;">Open Starboard Editor</span>
+          </a>
+        </div>
+        <style>
+          .starboard-container:hover {
+            border-color: rgba(124, 58, 237, 0.3);
+            box-shadow: 0 12px 40px rgba(124, 58, 237, 0.08);
+          }
+          .starboard-container:hover .starboard-icon-container {
+            transform: scale(1.08) rotate(5deg);
+          }
+        </style>
+      } else {
+        <div id="editor_contents" class="editor_contents">@if(fileId == -1L) { Select a file to start editing } else { loading file contents ... }</div>
+      }
     </div>
   </div>
   
@@ -284,6 +353,7 @@
     const datasetId = @dataset.getId();
     const currentFileId = @fileId;
     const currentUser = "@username";
+    const isStarboardFile = @fileType.equalsIgnoreCase("gg");
     let totalTokensUsed = 0;
 
     // auto-load first file if none is selected
@@ -297,11 +367,20 @@
 
     // init code editor
     let flask = null;
-    if (currentFileId !== -1) {
+    if (currentFileId !== -1 && !isStarboardFile) {
         flask = new CodeFlask('#editor_contents', {
           language: '@fileType',
           lineNumbers: true
         });
+
+        // Copy global Prism language configurations (like markdown/md/python) to CodeFlask
+        if (window.Prism && window.Prism.languages) {
+            for (let lang in window.Prism.languages) {
+                if (window.Prism.languages[lang] && typeof window.Prism.languages[lang] === 'object') {
+                    flask.addLanguage(lang, window.Prism.languages[lang]);
+                }
+            }
+        }
         
         // Fetch file content instead of embedding it in JS
         fetch("@controllers.api.routes.CompleteDSController.downloadFile(dataset.getId(), fileId)")
@@ -411,13 +490,17 @@
                 }
             } else if (data.type === 'file-sync') {
                 if (data.fileId === currentFileId) {
-                    // Reload file content
-                    fetch(`@controllers.api.routes.CompleteDSController.downloadFile(dataset.getId(), fileId)`)
-                        .then(r => r.text())
-                        .then(code => {
-                            flask.updateCode(code);
-                            pushNotification('Agent updated the file.', 'blue');
-                        });
+                    if (isStarboardFile) {
+                        pushNotification('Agent updated the notebook. Refresh the Starboard editor to see updates.', 'blue');
+                    } else {
+                        // Reload file content
+                        fetch(`@controllers.api.routes.CompleteDSController.downloadFile(dataset.getId(), fileId)`)
+                            .then(r => r.text())
+                            .then(code => {
+                                flask.updateCode(code);
+                                pushNotification('Agent updated the file.', 'blue');
+                            });
+                    }
                 }
             }
         };
@@ -541,27 +624,30 @@
     });
 
     // Save functionality
-    document.getElementById('saveBtn').addEventListener('click', function(e) {
-        if (this.classList.contains('disabled')) return;
-        
-        let content = flask.getCode();
-        fetch('@controllers.api.routes.CompleteDSController.saveFile(dataset.getId(), fileId)', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'text/plain; charset=UTF-8',
-                'Csrf-Token': '@csrfToken'
-            },
-            body: content
-        })
-        .then(response => {
-            if (response.ok) {
-                document.getElementById('saveBtn').classList.add('disabled');
-                pushNotification('File saved.', 'green');
-            } else {
-                pushNotification('Problem saving file changes.', 'red');
-            }
+    const saveBtn = document.getElementById('saveBtn');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', function(e) {
+            if (this.classList.contains('disabled')) return;
+            
+            let content = flask.getCode();
+            fetch('@controllers.api.routes.CompleteDSController.saveFile(dataset.getId(), fileId)', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'text/plain; charset=UTF-8',
+                    'Csrf-Token': '@csrfToken'
+                },
+                body: content
+            })
+            .then(response => {
+                if (response.ok) {
+                    saveBtn.classList.add('disabled');
+                    pushNotification('File saved.', 'green');
+                } else {
+                    pushNotification('Problem saving file changes.', 'red');
+                }
+            });
         });
-    });
+    }
 
     document.querySelector('#fileSelector select').addEventListener('change', function(e) {
       window.location.href = this.value;

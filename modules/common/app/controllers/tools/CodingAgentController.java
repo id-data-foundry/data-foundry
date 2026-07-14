@@ -134,7 +134,7 @@ public class CodingAgentController extends AbstractAsyncController {
 		}
 
 		final CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
-		final List<TimedMedia> fileList = cpds.getFiles().stream().filter(tl -> FileTypeUtils.lookLikeTextFile(tl.link))
+		final List<TimedMedia> fileList = cpds.getFiles().stream().filter(tl -> FileTypeUtils.looksLikeEditableFile(tl.link))
 				.collect(Collectors.toList());
 
 		String fileName = "";
