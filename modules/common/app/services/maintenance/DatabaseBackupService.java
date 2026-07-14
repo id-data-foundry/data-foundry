@@ -62,6 +62,35 @@ public class DatabaseBackupService implements ScheduledService {
 		performDatabaseStats(sdfhm.format(new Date()) + "_admin");
 	}
 
+	public void adminShutdownCompact() {
+		logger.info("Executing on-demand DB shutdown compact for admin...");
+		performShutdownCompact();
+	}
+
+	private void performShutdownCompact() {
+		try {
+			if (backupSemaphore.tryAcquire()) {
+				try (Transaction t = DB.beginTransaction(); Connection conn = t.connection();) {
+					String url = conn.getMetaData().getURL();
+					if (url != null && url.contains(":mem:")) {
+						logger.warn("Database is in-memory (" + url + "). Running SHUTDOWN COMPACT will destroy all database contents!");
+					}
+					try (CallableStatement cs = conn.prepareCall("SHUTDOWN COMPACT;")) {
+						cs.execute();
+					}
+					t.commit();
+					logger.info("Database shutdown compact executed successfully.");
+				} catch (SQLException e) {
+					logger.error("Database shutdown compact failed.", e);
+				}
+			}
+		} catch (Exception e) {
+			logger.error("Problem with admin shutdown compact", e);
+		} finally {
+			backupSemaphore.release();
+		}
+	}
+
 	private void performBackup(String dateString) {
 		try {
 			if (backupSemaphore.tryAcquire()) {

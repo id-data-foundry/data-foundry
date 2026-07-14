@@ -2,10 +2,14 @@
 @administrator("Database management", "database") {
 <div class="row">
 	<div class="col s12">
-		<h4>Database backup</h4>
+		<h4>Database backup & maintenance</h4>
 		<p>
 			<b>Make a database backup</b>
 			@elements.csrfLink(routes.AdminController.backupDB(), "Create DB Backup", csrfToken, "")
+		</p>
+		<p>
+			<b>Compact database (Shutdown Compact)</b>
+			@elements.csrfLink(routes.AdminController.shutdownCompactDB(), "Shutdown Compact DB", csrfToken, "orange white-text")
 		</p>
 		<br><br>
 		<hr>

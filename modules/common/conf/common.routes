@@ -62,6 +62,7 @@ POST 		/admin/resetPW										controllers.AdminController.resetPasswordTokenLin
 GET 		/admin/projects/stats								controllers.AdminController.allStats(request: Request)
 POST 		/admin/projects/stats								controllers.AdminController.generateStats(request: Request)
 GET 		/admin/backupDB										controllers.AdminController.backupDB(request: Request)
+GET 		/admin/shutdownCompactDB							controllers.AdminController.shutdownCompactDB(request: Request)
 POST		/admin/searchEntity									controllers.AdminController.searchEntity(request: Request)
 GET			/admin/actionableProjects							controllers.AdminController.actionableProjects(request: Request, filter: String ?= "")
 POST		/admin/actionableProjects/full						controllers.AdminController.runFullRetentionChecks(request: Request)

@@ -263,6 +263,23 @@ public class AdminController extends AbstractAsyncController {
 		return redirect(routes.AdminController.index()).addingToSession(request, "message", "DB backup scheduled.");
 	}
 
+	@RequireCSRFCheck
+	public Result shutdownCompactDB(Request request) {
+		// check permissions
+		if (!isAdmin(request)) {
+			return redirect(routes.HomeController.index());
+		}
+
+		// trigger shutdown compact
+		actorSystem.dispatcher().execute(() -> {
+			backupService.adminShutdownCompact();
+		});
+
+		// return to admin database view
+		return redirect(routes.AdminController.database()).addingToSession(request, "message", "DB shutdown compact scheduled.");
+	}
+
+
 	/**
 	 * generate statistics
 	 * 
