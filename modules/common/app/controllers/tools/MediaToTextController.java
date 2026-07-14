@@ -152,7 +152,7 @@ public class MediaToTextController extends AbstractAsyncController implements Ap
 	private CompletionStage<Result> processAV(Request request, String lang, String type, Person user,
 			String publicToken) {
 
-		final int timeoutMs = 600000; // 10 minutes timeout for audio transcriptions
+		final int timeoutMs = 1800000; // 30 minutes timeout for audio transcriptions
 
 		// create request with empty parameters; they will be set differently later on
 		RemoteApiRequest internalAPIRequest = new RemoteApiRequest(REQUEST_TASK_AUDIO_TRANSCRIPTION, timeoutMs, "",

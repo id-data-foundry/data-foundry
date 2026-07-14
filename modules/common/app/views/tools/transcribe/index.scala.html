@@ -2,6 +2,7 @@
 @main("Media Transcription", "tools") {
 	<script src="@routes.Assets.versioned("javascripts/mediabunny.js")"></script>
 	<script src="@routes.Assets.versioned("javascripts/mediabunny-mp3-encoder.js")"></script>
+	<script src="@routes.Assets.versioned("javascripts/docx.iife.min.js")"></script>
 	<style type="text/css">
 		
 		.upload-area {
@@ -127,9 +128,9 @@
 			<div class="col s12">
 				<h5>Input</h5>
 				<p>
-					To process audio data in a media file or to extract text from a PDF, drag and drop a media file (wav, mp3, m4a, mov, mp4, pdf) into the grey area below. By using this transcription service you acknowledge that you are aware and accept the conditions of the disclaimer below.
+					To process audio data in a media file drag and drop a media file (wav, mp3, m4a, mov, mp4) into the grey area below. By using this transcription service you acknowledge that you are aware and accept the conditions of the disclaimer below.
 					<br>
-					<b>DO NOT CLOSE OR RELOAD THE WINDOW once processing starts, as it takes time.</b>
+					<b>DO NOT CLOSE OR RELOAD THE WINDOW once processing starts, it takes time.</b>
 				</p>
 			</div>
 		</div>
@@ -167,7 +168,7 @@
 		</div>
 		<div class="row">
 			<div class="col s12">
-				<input type="file" name="file" id="file" accept=".png, .jpg, .jpeg, .gif, .mp4, .mov, .mp3, .wav, .pdf">
+				<input type="file" name="file" id="file" accept=".mp4, .m4a, .mov, .mp3, .wav">
 				<div class="upload-area" id="uploadfile">
 					<div>
 						drag and drop file here
@@ -199,11 +200,12 @@
 					Once you are satisfied, click "Download Result" to save your corrected transcript.
 				</p>
 				<div id="output-segments"></div>
-				<button id="download-btn" class="btn" style="margin-top: 10px; display: none;">Download Result</button>
+				<button id="download-btn" class="btn" style="margin-top: 10px; display: none;">Download SRT file</button>
+				<button id="download-word-btn" class="btn" style="margin-top: 10px; display: none; margin-left: 10px;">Download as Word (.docx) file</button>
 			</div>
 			<div>
 				<p>
-					If you have a big file and would like to run it overnight, copy the address below to retrieve the results later (valid for 12 hours):
+					If you would like to run transcription overnight, copy the address below to retrieve the results later (the link is valid for 12 hours):
 				</p>
 				<blockquote id="retrievalLink"></blockquote>
 			</div>
@@ -229,7 +231,6 @@
 				We are using open-source technology to provide this service. 
 				For speech-to-text functionality, we use either the <a href="https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3" target="_blank">Parakeet v3</a> 
 				or the <a href="https://huggingface.co/CohereLabs/cohere-transcribe-03-2026" target="_blank">Cohere Transcribe</a> automatic speech recognition (ASR) models.
-				For PDF processing, we use <a href="https://opendataloader.org" target="_blank">OpenDataLoader</a>.
 			</p>
 		</div>
 	</div>
@@ -305,6 +306,7 @@
 			const statusText = document.getElementById('status-text');
 			const transcribeBtn = document.getElementById('transcribe-btn');
 			const downloadBtn = document.getElementById('download-btn');
+			const downloadWordBtn = document.getElementById('download-word-btn');
 			const outputHelpText = document.getElementById('output-help-text');
 			const diarizationWarning = document.getElementById('diarization-warning');
 
@@ -584,6 +586,133 @@
 				URL.revokeObjectURL(url);
 			});
 
+			downloadWordBtn.addEventListener('click', async () => {
+				if (!window.docx) {
+					console.error("docx library not loaded.");
+					return;
+				}
+				const { Document, Packer, Paragraph, TextRun } = window.docx;
+
+				const docChildren = [];
+
+				// Title
+				docChildren.push(new Paragraph({
+					children: [
+						new TextRun({
+							text: "Media Transcription",
+							bold: true,
+							size: 32, // 16pt
+						})
+					],
+					spacing: { after: 240 }, // 12pt
+				}));
+
+				// Metadata
+				const dateString = new Date().toLocaleString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+				let modelText = "";
+				const selectedModelId = modelSelect.value;
+				const selectedModel = modelsConfig.find(m => m.id === selectedModelId);
+				if (selectedModel) {
+					modelText = `Model: ${selectedModel.name} (${selectedModel.url})\n`;
+				}
+				
+				docChildren.push(new Paragraph({
+					children: [
+						new TextRun({
+							text: `Exported on: ${dateString}\n`,
+							italics: true,
+							size: 20, // 10pt
+						}),
+						new TextRun({
+							text: modelText,
+							italics: true,
+							size: 20,
+						}),
+						new TextRun({
+							text: "This transcription was generated using an AI model. Please verify correctness.",
+							italics: true,
+							size: 20,
+						})
+					],
+					spacing: { after: 480 }, // 24pt
+				}));
+
+				// Segments
+				const rows = outputSegments.querySelectorAll('.transcription-row');
+				rows.forEach(row => {
+					const textSpan = row.querySelector('.transcription-text');
+					if (!textSpan) return;
+
+					const lineContent = textSpan.textContent.trim();
+					const prefixSpan = row.querySelector('.transcription-prefix');
+					const prefixContent = prefixSpan ? prefixSpan.textContent.trim() : '';
+
+					const runs = [];
+
+					// Speaker
+					if (prefixContent) {
+						runs.push(new TextRun({
+							text: prefixContent + " ",
+							bold: true,
+							color: "2E7D32", // Professional green
+						}));
+					}
+
+					// Timestamp
+					if (row.dataset.startTime && row.dataset.endTime) {
+						runs.push(new TextRun({
+							text: `[${row.dataset.startTime} - ${row.dataset.endTime}] `,
+							color: "666666",
+							size: 18, // 9pt
+						}));
+					}
+
+					// Content
+					runs.push(new TextRun({
+						text: lineContent,
+						size: 22, // 11pt
+					}));
+
+					docChildren.push(new Paragraph({
+						children: runs,
+						spacing: { after: 120 }, // 6pt space between paragraphs
+					}));
+				});
+
+				const doc = new Document({
+					sections: [{
+						properties: {},
+						children: docChildren,
+					}],
+				});
+
+				try {
+					const blob = await Packer.toBlob(doc);
+					
+					// Determine filename
+					let filename = "transcription.docx";
+					if (selectedFile && selectedFile.name) {
+						const dotIndex = selectedFile.name.lastIndexOf('.');
+						if (dotIndex !== -1) {
+							filename = selectedFile.name.substring(0, dotIndex) + ".docx";
+						} else {
+							filename = selectedFile.name + ".docx";
+						}
+					}
+
+					const url = URL.createObjectURL(blob);
+					const a = document.createElement('a');
+					a.href = url;
+					a.download = filename;
+					document.body.appendChild(a);
+					a.click();
+					document.body.removeChild(a);
+					URL.revokeObjectURL(url);
+				} catch (err) {
+					console.error("Failed to generate docx:", err);
+				}
+			});
+
 			let token = '';
 			let responseLength = 0;
 
@@ -722,6 +851,7 @@
 						statusText.textContent = "Transcription completed.";
 						transcribeBtn.classList.remove('disabled');
 						downloadBtn.style.display = 'inline-block';
+						downloadWordBtn.style.display = 'inline-block';
 						outputHelpText.style.display = 'block';
 					} else {
 						pollTimeout = setTimeout(getResults, 8000);
@@ -748,6 +878,7 @@
 				determinateBar.style.width = '0%';
 				outputSegments.innerHTML = ""; // Keep empty during processing
 				downloadBtn.style.display = 'none';
+				downloadWordBtn.style.display = 'none';
 				outputHelpText.style.display = 'none';
 
 				let fileToUpload = file;
