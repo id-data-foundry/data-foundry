@@ -387,7 +387,7 @@ public final class FileTypeUtils {
 	 * @return
 	 */
 	public static boolean looksLikeDocumentFile(String fileName) {
-		String[] documentFileExtensions = { "pdf", "txt", "rtf", "md" };
+		String[] documentFileExtensions = { "pdf", "txt", "rtf", "md", "markdown" };
 
 		String extension = FileTypeUtils.getExtension(fileName).toLowerCase();
 		return Arrays.stream(documentFileExtensions).anyMatch(ext -> extension.equalsIgnoreCase(ext));
@@ -468,7 +468,7 @@ public final class FileTypeUtils {
 	 * @return
 	 */
 	public static boolean lookLikeTextFile(String fileName) {
-		String[] documentFileExtensions = { "txt", "md", "html", "css", "js", "json" };
+		String[] documentFileExtensions = { "txt", "md", "markdown", "html", "css", "js", "json" };
 
 		String extension = FileTypeUtils.getExtension(fileName).toLowerCase();
 		return Arrays.stream(documentFileExtensions).anyMatch(ext -> extension.equalsIgnoreCase(ext));
