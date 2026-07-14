@@ -24,7 +24,6 @@ import com.typesafe.config.Config;
 
 import controllers.Assets.Asset;
 import controllers.auth.UserAuth;
-import models.Dataset;
 import models.Person;
 import models.Project;
 import play.Environment;
@@ -111,22 +110,15 @@ public class HomeController extends AbstractAsyncController {
 			}
 		}
 
-		// GUEST users...
-
-		// retrieve simple project / dataset metrics that are cached for 120 seconds
-		long projects = cache.getOrElseUpdate("df_total_project_count", () -> Project.find.query().findCount(), 120);
-		long publicProjects = cache.getOrElseUpdate("df_total_public_project_count",
-				() -> Project.find.query().where().eq("publicProject", true).findCount(), 120);
-		long datasets = cache.getOrElseUpdate("df_total_dataset_count", () -> Dataset.find.query().findCount(), 120);
+		String organization = ConfigurationUtils.configure(configuration, ConfigurationUtils.DF_LINKS_ORGANIZATION, "");
 
 		// inject announcement into the session
 		String announcement = getAnnouncement();
 		if (announcement != null && !announcement.isEmpty()) {
-			return ok(views.html.home.index.render(projects, publicProjects, datasets, request))
-					.addingToSession(request, "announcement", announcement);
+			return ok(views.html.home.index.render(organization, request)).addingToSession(request, "announcement",
+					announcement);
 		} else {
-			return ok(views.html.home.index.render(projects, publicProjects, datasets, request))
-					.removingFromSession(request, "announcement");
+			return ok(views.html.home.index.render(organization, request)).removingFromSession(request, "announcement");
 		}
 	}
 
