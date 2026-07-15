@@ -242,6 +242,11 @@ public class CodingAgentController extends AbstractAsyncController {
 			}).collect(Collectors.toList());
 		}
 
+		if (context.isThinking()) {
+			ObjectNode typingStart = Json.newObject().put("type", "typing").put("active", true);
+			historyNodes.add(typingStart);
+		}
+
 		Source<JsonNode, ?> historySource = Source.from(historyNodes);
 
 		return Flow.fromSinkAndSource(Sink.foreach(json -> {
@@ -319,6 +324,7 @@ public class CodingAgentController extends AbstractAsyncController {
 
 				// Trigger AgentScope processing
 				CompletableFuture.runAsync(() -> {
+					context.setThinking(true);
 					try {
 						// Dynamically sync and reload workspace rules if they have changed
 						checkAndReloadAgent(context, datasetId, sessionId);
@@ -354,6 +360,7 @@ public class CodingAgentController extends AbstractAsyncController {
 					} catch (Exception e) {
 						logger.error("Error in agent call", e);
 					} finally {
+						context.setThinking(false);
 						// Send typing: false
 						ObjectNode typingEnd = Json.newObject().put("type", "typing").put("active", false);
 						Source.single((JsonNode) typingEnd).runWith(context.sink(), materializer);
@@ -437,6 +444,7 @@ public class CodingAgentController extends AbstractAsyncController {
 		private final CompleteDS cpds;
 		private final UncompactedHistory history;
 		private long agentsMdLastModified = -1L;
+		private volatile boolean isThinking = false;
 
 		public DatasetContext(Sink<JsonNode, ?> sink, Source<JsonNode, ?> source, HarnessAgent agent, Toolkit toolkit,
 				CompleteDS cpds, UncompactedHistory history) {
@@ -482,6 +490,14 @@ public class CodingAgentController extends AbstractAsyncController {
 
 		public void setAgentsMdLastModified(long agentsMdLastModified) {
 			this.agentsMdLastModified = agentsMdLastModified;
+		}
+
+		public boolean isThinking() {
+			return isThinking;
+		}
+
+		public void setThinking(boolean thinking) {
+			this.isThinking = thinking;
 		}
 	}
 
