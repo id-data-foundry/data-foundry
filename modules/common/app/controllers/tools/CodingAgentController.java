@@ -159,6 +159,28 @@ public class CodingAgentController extends AbstractAsyncController {
 				fileList, csrfToken(request), request));
 	}
 
+	@Authenticated(UserAuth.class)
+	public Result getFileList(Request request, Long id) {
+		String username = request.attrs().get(play.mvc.Security.USERNAME);
+		Dataset ds = Dataset.find.byId(id);
+		if (ds == null || !ds.visibleFor(username)) {
+			return forbidden("Dataset not accessible");
+		}
+
+		final CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
+		final List<TimedMedia> fileList = cpds.getFiles().stream().filter(tl -> FileTypeUtils.looksLikeEditableFile(tl.link))
+				.collect(Collectors.toList());
+
+		ArrayNode array = Json.newArray();
+		for (TimedMedia tm : fileList) {
+			ObjectNode item = Json.newObject();
+			item.put("id", tm.getId());
+			item.put("filename", tm.link);
+			array.add(item);
+		}
+		return ok(array);
+	}
+
 	public WebSocket ws(Long id) {
 		return WebSocket.Json.accept(request -> {
 			Optional<Person> userOpt = getAuthenticatedUser(request);
@@ -626,6 +648,7 @@ public class CodingAgentController extends AbstractAsyncController {
 				Optional<Long> latestFileVersionId = cpds.getLatestFileVersionId(finalFileName);
 				if (latestFileVersionId.isEmpty() || latestFileVersionId.get() == 0) {
 					cpds.addRecord(finalFileName, "Created by Coding Agent", new Date());
+					latestFileVersionId = cpds.getLatestFileVersionId(finalFileName);
 				}
 
 				// Invalidate cache

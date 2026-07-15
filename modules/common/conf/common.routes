@@ -525,6 +525,7 @@ GET			/tools/translate									controllers.tools.TranslateController.index(reque
 # tools: Coding Agent
 GET			/tools/codingagent									controllers.tools.CodingAgentController.index(request: Request)
 GET			/tools/codingagent/:id								controllers.tools.CodingAgentController.view(request: Request, id: Long, fileId: Long ?= -1L)
+GET			/tools/codingagent/:id/files							controllers.tools.CodingAgentController.getFileList(request: Request, id: Long)
 GET			/tools/codingagent/:id/ws							controllers.tools.CodingAgentController.ws(id: Long)
 
 # list of AI models

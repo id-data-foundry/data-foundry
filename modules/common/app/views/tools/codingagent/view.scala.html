@@ -438,6 +438,38 @@
         }, 10000);
     }
 
+    function reloadFileSelector(syncFileId, syncFilename) {
+        const select = document.querySelector('#fileSelector select');
+        if (!select) return;
+
+        // Check if this file is already in the select options
+        let isNewFile = true;
+        if (syncFileId) {
+            const options = Array.from(select.options);
+            isNewFile = !options.some(opt => opt.value.endsWith(`?fileId=${syncFileId}`) || opt.value.endsWith(`&fileId=${syncFileId}`));
+        }
+
+        fetch(`/tools/codingagent/${datasetId}/files`)
+            .then(response => response.json())
+            .then(files => {
+                select.innerHTML = '';
+                files.forEach(file => {
+                    const option = document.createElement('option');
+                    option.value = `/tools/codingagent/${datasetId}?fileId=${file.id}`;
+                    option.textContent = file.filename;
+                    if (file.id == currentFileId) {
+                        option.selected = true;
+                    }
+                    select.appendChild(option);
+                });
+
+                if (isNewFile && syncFilename) {
+                    pushNotification(`Agent created a new file: ${syncFilename}`, 'green');
+                }
+            })
+            .catch(error => console.error('Error reloading file selector:', error));
+    }
+
     function connect() {
         if (pingInterval) {
             clearInterval(pingInterval);
@@ -495,6 +527,7 @@
                     appendMessage(data.user, data.message, data.user === 'Agent' ? 'agent' : (data.user === currentUser ? 'user' : 'other'), data.timestamp, data.formattedTime);
                 }
             } else if (data.type === 'file-sync') {
+                reloadFileSelector(data.fileId, data.filename);
                 if (data.fileId === currentFileId) {
                     if (isStarboardFile) {
                         pushNotification('Agent updated the notebook. Refresh the Starboard editor to see updates.', 'blue');
