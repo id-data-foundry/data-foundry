@@ -76,6 +76,11 @@ public class ConfigurationUtils {
 	public static final String DF_AI_BASEURL = "df.processing.ai.baseurl";
 	public static final String DF_AI_API_KEY = "df.processing.ai.key";
 
+	public static final String DF_AI_MODEL_DEFAULT = "df.processing.ai.models.default";
+	public static final String DF_AI_MODEL_CODING = "df.processing.ai.models.coding";
+	public static final String DF_AI_MODEL_TEXT = "df.processing.ai.models.text";
+	public static final String DF_AI_MODEL_TRANSLATE = "df.processing.ai.models.translate";
+
 	// ----------------------------------------------------------------------------------------------------------------
 
 	public static final String DF_FEEDBACK_LINK = "df.feedback_link";

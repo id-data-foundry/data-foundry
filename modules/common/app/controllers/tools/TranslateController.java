@@ -17,6 +17,7 @@ public class TranslateController extends AbstractAsyncController {
 
 	private final UnmanagedAIApiService aiService;
 	private final String AI_SERVICE_BASE_URL;
+	private final String TRANSLATE_MODEL;
 
 	@Inject
 	public TranslateController(Config config, UnmanagedAIApiService aiService) {
@@ -28,12 +29,21 @@ public class TranslateController extends AbstractAsyncController {
 		} else {
 			AI_SERVICE_BASE_URL = "";
 		}
+
+		// translate model
+		if (config.hasPath(ConfigurationUtils.DF_AI_MODEL_TRANSLATE) && !config.getString(ConfigurationUtils.DF_AI_MODEL_TRANSLATE).isEmpty()) {
+			TRANSLATE_MODEL = config.getString(ConfigurationUtils.DF_AI_MODEL_TRANSLATE);
+		} else if (config.hasPath(ConfigurationUtils.DF_AI_MODEL_DEFAULT) && !config.getString(ConfigurationUtils.DF_AI_MODEL_DEFAULT).isEmpty()) {
+			TRANSLATE_MODEL = config.getString(ConfigurationUtils.DF_AI_MODEL_DEFAULT);
+		} else {
+			TRANSLATE_MODEL = "apertus-8b";
+		}
 	}
 
 	@AddCSRFToken
 	public Result index(Request request) {
 		String documentationAPIKey = aiService.getInternalDocumentationAPIKey();
 		return ok(
-				views.html.tools.translate.index.render(AI_SERVICE_BASE_URL, documentationAPIKey, csrfToken(request)));
+				views.html.tools.translate.index.render(AI_SERVICE_BASE_URL, documentationAPIKey, csrfToken(request), TRANSLATE_MODEL));
 	}
 }

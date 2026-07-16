@@ -35,6 +35,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
+import com.typesafe.config.Config;
+import utils.conf.ConfigurationUtils;
+
 import controllers.AbstractAsyncController;
 import controllers.api.CompleteDSController;
 import controllers.auth.UserAuth;
@@ -85,6 +88,7 @@ public class CodingAgentController extends AbstractAsyncController {
 	private final Materializer materializer;
 	private final SyncCacheApi cache;
 	private final LocalModelMetadata localModelMetadata;
+	private final Config config;
 
 	// Shared WebSocket flows per dataset
 	private final Map<Long, DatasetContext> datasetContexts = new HashMap<>();
@@ -92,12 +96,13 @@ public class CodingAgentController extends AbstractAsyncController {
 	@Inject
 	public CodingAgentController(DatasetConnector datasetConnector, UnmanagedAIApiService aiAPIService,
 			SyncCacheApi cache, ActorSystem actorSystem, Materializer materializer,
-			LocalModelMetadata localModelMetadata) {
+			LocalModelMetadata localModelMetadata, Config config) {
 		this.datasetConnector = datasetConnector;
 		this.aiAPIService = aiAPIService;
 		this.cache = cache;
 		this.materializer = materializer;
 		this.localModelMetadata = localModelMetadata;
+		this.config = config;
 	}
 
 	@Authenticated(UserAuth.class)
@@ -422,7 +427,13 @@ public class CodingAgentController extends AbstractAsyncController {
 
 			try {
 				Dataset ds = Dataset.find.byId(datasetId);
-				String modelName = localModelMetadata.mapModelId(ds.configuration(Dataset.CHATBOT_MODEL, CODING_MODEL));
+				String defaultCodingModel = "qwen/qwen3.6-27b";
+				if (config.hasPath(ConfigurationUtils.DF_AI_MODEL_CODING) && !config.getString(ConfigurationUtils.DF_AI_MODEL_CODING).isEmpty()) {
+					defaultCodingModel = config.getString(ConfigurationUtils.DF_AI_MODEL_CODING);
+				} else if (config.hasPath(ConfigurationUtils.DF_AI_MODEL_DEFAULT) && !config.getString(ConfigurationUtils.DF_AI_MODEL_DEFAULT).isEmpty()) {
+					defaultCodingModel = config.getString(ConfigurationUtils.DF_AI_MODEL_DEFAULT);
+				}
+				String modelName = localModelMetadata.mapModelId(ds.configuration(Dataset.CHATBOT_MODEL, defaultCodingModel));
 				GenerateOptions defaultOptions = GenerateOptions.builder()
 						.additionalHeader(ApiServiceConstants.X_API_MODEL, modelName).build();
 

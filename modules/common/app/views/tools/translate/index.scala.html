@@ -1,4 +1,4 @@
-@(baseUrl: String, apiKey: String, csrfToken: String)
+@(baseUrl: String, apiKey: String, csrfToken: String, translateModel: String)
 
 @main("Translate", "tools") {
     <div class="row">
@@ -169,7 +169,7 @@
                     const result = await foundry.textToText({
                         api_token: '@apiKey',
                         server: '@baseUrl',
-                        model: 'apertus-8b',
+                        model: '@translateModel',
                         messages: [
                             { role: 'system', content: systemPrompt },
                             { role: 'user', content: userPrompt }
