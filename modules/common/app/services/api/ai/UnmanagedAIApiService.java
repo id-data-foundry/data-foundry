@@ -55,6 +55,7 @@ import utils.conf.ConfigurationUtils;
 public class UnmanagedAIApiService extends AbstractAIApiService implements ApiServiceConstants, ScheduledService {
 
 	private static final Logger.ALogger logger = Logger.of(UnmanagedAIApiService.class);
+	private static final java.util.regex.Pattern TOTAL_TOKENS_PATTERN = java.util.regex.Pattern.compile("\"total_tokens\"\\s*:\\s*(\\d+)");
 
 	private final Config configuration;
 	private final RemoteRequestsExecutionService executionService;
@@ -302,14 +303,42 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 	}
 
 	private void runApiRequest(StreamingRemoteApiRequest request) {
+		long start = System.currentTimeMillis();
+		java.util.concurrent.atomic.AtomicInteger tokens = new java.util.concurrent.atomic.AtomicInteger(0);
+
+		// Inject stream_options to guarantee total_tokens in SSE final chunk
+		ObjectNode params = request.getParams();
+		if (params != null) {
+			if (!params.has("stream_options")) {
+				ObjectNode streamOptions = play.libs.Json.newObject();
+				streamOptions.put("include_usage", true);
+				params.set("stream_options", streamOptions);
+			}
+		}
+
 		wsClient.url(aiBaseUrl + request.getPath()).setRequestTimeout(Duration.ofMillis(request.getMsTimeout()))
 				.setMethod("POST").setBody(request.getParams())
 				.addHeader(ApiServiceConstants.X_API_MODEL, nss(request.getModel())).stream().thenAccept((res) -> {
 					res.getBody(WSBodyReadables.instance.source()).map(bs -> {
 						String decodeString = bs.decodeString(StandardCharsets.UTF_8);
+
+						int totalTokensVal = extractTokensFromChunk(decodeString);
+						if (totalTokensVal > 0) {
+							tokens.set(totalTokensVal);
+						} else if (decodeString.contains("\"content\"")) {
+							tokens.incrementAndGet();
+						}
+
 						if (decodeString.contains("[DONE]")) {
 							request.appendResult(decodeString);
 							request.finish();
+							int finalTokens = tokens.get();
+							if (finalTokens == 0) {
+								finalTokens = request.getRequestedTokens();
+							} else if (totalTokensVal == 0) {
+								finalTokens += estimatePromptTokens(request.getParams());
+							}
+							logModelInvocation(request.getUserApiKey(), request.getModel(), mapTaskToType(request.getType()), finalTokens, true, null, System.currentTimeMillis() - start);
 						} else {
 							request.appendResult(decodeString);
 						}
@@ -317,6 +346,7 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 					}).runWith(Sink.ignore(), materializer);
 				}).exceptionally((e) -> {
 					request.setResult(Optional.empty());
+					logModelInvocation(request.getUserApiKey(), request.getModel(), mapTaskToType(request.getType()), request.getRequestedTokens(), false, e.getLocalizedMessage(), System.currentTimeMillis() - start);
 					return null;
 				});
 	}
@@ -387,6 +417,9 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 					String errorMsg = res.getBody();
 					request.setResult(Optional.of(request
 							.errorMessage("API returned status " + res.getStatus() + ": " + errorMsg).toString()));
+					if (!request.isModelsRequest()) {
+						logModelInvocation(request.getUserApiKey(), request.getModel(), mapTaskToType(request.getType()), request.getRequestedTokens(), false, "API returned status " + res.getStatus(), System.currentTimeMillis() - start);
+					}
 					return CompletableFuture.completedFuture(null);
 				}
 
@@ -405,6 +438,9 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 								request.setResult(Optional.of(Json.newObject().put("image_id", token)
 										.put("prompt", request.getParams().path(REQUEST_PROMPT).asText(""))
 										.toString()));
+								if (!request.isModelsRequest()) {
+									logModelInvocation(request.getUserApiKey(), request.getModel(), mapTaskToType(request.getType()), request.getRequestedTokens(), true, null, System.currentTimeMillis() - start);
+								}
 							});
 				} else if (request.getType().equals(REQUEST_TASK_SPEECH_GENERATION)) {
 					TemporaryFile tif = play.libs.Files.singletonTemporaryFileCreator().create("generatedSpeech",
@@ -414,11 +450,29 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 					return res.getBody(WSBodyReadables.instance.source())
 							.runWith(FileIO.toPath(tempSpeechFile.toPath()), materializer).thenAccept(ioResult -> {
 								request.setResult(Optional.of(tempSpeechFile.getAbsolutePath()));
+								if (!request.isModelsRequest()) {
+									logModelInvocation(request.getUserApiKey(), request.getModel(), mapTaskToType(request.getType()), request.getRequestedTokens(), true, null, System.currentTimeMillis() - start);
+								}
 							});
 				}
 				// Handle textual responses directly in memory
 				else {
-					request.setResult(Optional.of(res.getBody()));
+					String responseBody = res.getBody();
+					request.setResult(Optional.of(responseBody));
+					if (!request.isModelsRequest()) {
+						int actualTokens = 1;
+						try {
+							JsonNode responseJson = Json.parse(responseBody);
+							if (responseJson.has("usage") && responseJson.get("usage").has("total_tokens")) {
+								actualTokens = responseJson.get("usage").path("total_tokens").asInt(1);
+							} else {
+								actualTokens = estimatePromptTokens(request.getParams()) + estimateResponseTokens(responseJson);
+							}
+						} catch (Exception e) {
+							actualTokens = request.getRequestedTokens();
+						}
+						logModelInvocation(request.getUserApiKey(), request.getModel(), mapTaskToType(request.getType()), actualTokens, true, null, System.currentTimeMillis() - start);
+					}
 					return CompletableFuture.completedFuture(null);
 				}
 			}).exceptionally((e) -> {
@@ -426,12 +480,18 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 						request.errorMessage("API request execution problem: " + e.getLocalizedMessage()).toString()));
 				logger.error("AI API request: " + aiBaseUrl + request.getPath() + " ["
 						+ (System.currentTimeMillis() - start) + "ms]: " + e.getLocalizedMessage());
+				if (!request.isModelsRequest()) {
+					logModelInvocation(request.getUserApiKey(), request.getModel(), mapTaskToType(request.getType()), request.getRequestedTokens(), false, e.getLocalizedMessage(), System.currentTimeMillis() - start);
+				}
 				// don't issue an exception
 				return null;
 			}).toCompletableFuture().get();
 		} catch (InterruptedException | ExecutionException e) {
 			logger.error("AI API request: " + aiBaseUrl + request.getPath() + " ["
 					+ (System.currentTimeMillis() - start) + "ms]: " + e.getLocalizedMessage());
+			if (!request.isModelsRequest()) {
+				logModelInvocation(request.getUserApiKey(), request.getModel(), mapTaskToType(request.getType()), request.getRequestedTokens(), false, e.getLocalizedMessage(), System.currentTimeMillis() - start);
+			}
 		}
 	}
 
@@ -441,9 +501,10 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 	}
 
 	public List<List<Double>> dispatchEmbeddingRequest(String username, List<String> contentToEmbed) {
+		long start = System.currentTimeMillis();
 		// create request
 		ObjectNode jsonPayload = Json.newObject();
-		jsonPayload.put("model", "text-embedding-nomic-embed-text-v2-moe");
+		jsonPayload.put("model", LOCALAI_EMBEDDING_MODEL_DEFAULT);
 		jsonPayload.set("input", Json.toJson(contentToEmbed));
 
 		try {
@@ -455,6 +516,14 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 			if (res.getStatus() == Http.Status.OK) {
 				JsonNode responseJson = res.asJson();
 				if (responseJson.has("data") && responseJson.get("data").isArray()) {
+					int embeddingTokens = 1;
+					if (responseJson.has("usage") && responseJson.get("usage").has("total_tokens")) {
+						embeddingTokens = responseJson.get("usage").path("total_tokens").asInt(1);
+					} else {
+						int charCount = contentToEmbed.stream().mapToInt(String::length).sum();
+						embeddingTokens = Math.max(1, charCount / 4);
+					}
+					logModelInvocation("SYSTEM", LOCALAI_EMBEDDING_MODEL_DEFAULT, "embeddings", embeddingTokens, true, null, System.currentTimeMillis() - start);
 					return StreamSupport.stream(responseJson.get("data").spliterator(), false).map(item -> {
 						JsonNode embeddingNode = item.get("embedding");
 						return StreamSupport.stream(embeddingNode.spliterator(), false).map(JsonNode::asDouble)
@@ -462,8 +531,10 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 					}).collect(Collectors.toList());
 				}
 			}
+			logModelInvocation("SYSTEM", LOCALAI_EMBEDDING_MODEL_DEFAULT, "embeddings", 1, false, "Status code: " + res.getStatus(), System.currentTimeMillis() - start);
 		} catch (Exception e) {
 			logger.error("❌ Failed to fetch embeddings from AI backend: " + e.getMessage());
+			logModelInvocation("SYSTEM", LOCALAI_EMBEDDING_MODEL_DEFAULT, "embeddings", 1, false, e.getMessage(), System.currentTimeMillis() - start);
 		}
 
 		return new LinkedList<>();
@@ -514,6 +585,148 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 			result.put(RESPONSE_ERROR, "Failed to parse AI response: " + e.getMessage());
 		}
 		return result;
+	}
+
+	private String mapTaskToType(String task) {
+		if (task == null) {
+			return "unknown";
+		}
+		switch (task) {
+			case REQUEST_TASK_CHAT_COMPLETION:
+			case REQUEST_TASK_COMPLETION:
+				return "t2t";
+			case REQUEST_TASK_IMAGE_GENERATION:
+				return "tti";
+			case REQUEST_TASK_SPEECH_GENERATION:
+				return "tts";
+			case REQUEST_TASK_AUDIO_TRANSCRIPTION:
+				return "stt";
+			case REQUEST_TASK_EMBEDDING:
+				return "embeddings";
+			default:
+				return task;
+		}
+	}
+
+	public void logModelInvocation(String apiKey, String model, String modelType, int requestedTokens, boolean success, String errorMessage, long durationMs) {
+		try {
+			initDatastoreIfNeeded();
+			if (localAiUsageStore == null) {
+				return;
+			}
+			
+			String username = "SYSTEM";
+			String email = "system@df";
+			long projectId = -1L;
+			
+			if (apiKey != null && !apiKey.isEmpty() && !apiKey.equals("SYSTEM")) {
+				ApiKeyDetails details = getApiKeyDetails(apiKey);
+				if (details != null) {
+					username = details.username();
+					email = details.email();
+					projectId = details.projectId();
+				} else if (apiKey.equals(getInternalDocumentationAPIKey())) {
+					username = "SYSTEM";
+					email = "system@df";
+				} else {
+					username = "UNKNOWN";
+					email = apiKey;
+				}
+			} else if ("SYSTEM".equals(apiKey)) {
+				username = "SYSTEM";
+				email = "system@df";
+			}
+			
+			ObjectNode dataNode = Json.newObject();
+			dataNode.put("success", success);
+			dataNode.put("tokens", requestedTokens);
+			dataNode.put("duration", durationMs);
+			dataNode.put("projectId", projectId);
+			dataNode.put("email", email);
+			if (errorMessage != null && !errorMessage.isEmpty()) {
+				dataNode.put("error", errorMessage);
+			}
+			
+			String pp3Value = success ? "success" : "error";
+			
+			localAiUsageStore.internalAddRecord(
+				"local_ai_service",
+				username,
+				modelType,
+				pp3Value,
+				new java.util.Date(),
+				model != null ? model : "unknown",
+				dataNode
+			);
+		} catch (Exception e) {
+			logger.error("Failed to log model invocation: ", e);
+		}
+	}
+
+	/**
+	 * Extracts total_tokens from an SSE stream chunk using pattern matching.
+	 *
+	 * @param chunk the Server-Sent Event stream chunk
+	 * @return the total tokens value if present, otherwise 0
+	 */
+	private int extractTokensFromChunk(String chunk) {
+		if (chunk == null) {
+			return 0;
+		}
+		try {
+			java.util.regex.Matcher m = TOTAL_TOKENS_PATTERN.matcher(chunk);
+			if (m.find()) {
+				return Integer.parseInt(m.group(1));
+			}
+		} catch (Exception e) {
+			// ignore
+		}
+		return 0;
+	}
+
+	/**
+	 * Estimates the number of prompt tokens from request parameters based on character count
+	 * as a fallback for legacy or non-compliant backends (Option A fallback).
+	 *
+	 * @param params the JSON parameters of the request
+	 * @return estimated prompt token count (approx. 1 token per 4 characters)
+	 */
+	private int estimatePromptTokens(JsonNode params) {
+		if (params == null) {
+			return 0;
+		}
+		int charCount = 0;
+		if (params.has("messages") && params.get("messages").isArray()) {
+			for (JsonNode msg : params.get("messages")) {
+				charCount += msg.path("content").asText("").length();
+			}
+		} else if (params.has("prompt")) {
+			charCount += params.get("prompt").asText("").length();
+		}
+		return Math.max(1, charCount / 4);
+	}
+
+	/**
+	 * Estimates the number of response tokens from a JSON response payload based on character count
+	 * as a fallback for legacy or non-compliant backends (Option A fallback).
+	 *
+	 * @param responseJson the JSON response returned by the backend
+	 * @return estimated response token count (approx. 1 token per 4 characters)
+	 */
+	private int estimateResponseTokens(JsonNode responseJson) {
+		if (responseJson == null) {
+			return 0;
+		}
+		int charCount = 0;
+		if (responseJson.has("choices") && responseJson.get("choices").isArray() && responseJson.get("choices").size() > 0) {
+			JsonNode choice = responseJson.get("choices").get(0);
+			if (choice.has("message")) {
+				charCount += choice.get("message").path("content").asText("").length();
+			} else if (choice.has("text")) {
+				charCount += choice.get("text").asText("").length();
+			}
+		}
+		return Math.max(1, charCount / 4);
 	}
 
 }

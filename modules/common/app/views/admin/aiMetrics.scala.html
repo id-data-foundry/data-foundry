@@ -1,0 +1,382 @@
+@(aiUsageDatasetId: Long, csrfToken: String)
+@administrator("AI usage metrics", "ai_metrics") {
+
+<!-- Vega dependencies -->
+<script src="@routes.Assets.versioned("javascripts/vega_5.min.js")" type="text/javascript"></script>
+<script src="@routes.DatasetsController.jsRoutes()" type="text/javascript"></script>
+
+<style type="text/css">
+    .metrics-card {
+        background: rgba(255, 255, 255, 0.7);
+        backdrop-filter: blur(10px);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        margin-bottom: 20px;
+        transition: transform 0.2s ease;
+    }
+    .metrics-card:hover {
+        transform: translateY(-2px);
+    }
+    .metrics-card h5 {
+        margin: 0;
+        font-size: 0.9rem;
+        color: #777;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .metrics-card .value {
+        font-size: 2.2rem;
+        font-weight: 700;
+        color: #1a237e;
+        margin-top: 10px;
+    }
+    .filter-section {
+        background: rgba(245, 245, 245, 0.8);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+    #vis {
+        width: 100%;
+        background: white;
+        border-radius: 12px;
+        padding: 15px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    }
+</style>
+
+<div class="row" style="margin-top: 20px;">
+    <div class="col s12">
+        <h4 style="color: #1a237e; font-weight: 700;">AI Invocation Insights</h4>
+        <p class="grey-text">Real-time usage metrics and model execution performance across DataFoundry services.</p>
+    </div>
+</div>
+
+<!-- Key Performance Indicators -->
+<div class="row">
+    <div class="col s12 m3">
+        <div class="metrics-card">
+            <h5>Total Requests</h5>
+            <div class="value" id="stat-total">0</div>
+        </div>
+    </div>
+    <div class="col s12 m3">
+        <div class="metrics-card">
+            <h5>Success Rate</h5>
+            <div class="value" id="stat-success-rate" style="color: #2e7d32;">0%</div>
+        </div>
+    </div>
+    <div class="col s12 m3">
+        <div class="metrics-card">
+            <h5>Avg Latency</h5>
+            <div class="value" id="stat-latency" style="color: #e65100;">0ms</div>
+        </div>
+    </div>
+    <div class="col s12 m3">
+        <div class="metrics-card">
+            <h5>Total Tokens</h5>
+            <div class="value" id="stat-tokens" style="color: #006064;">0</div>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="row filter-section">
+    <div class="col s12 m2">
+        <label for="time-filter" style="font-weight: 600;">Time Frame</label>
+        <select id="time-filter" class="browser-default" onchange="loadData()">
+            <option value="24h" selected>Last 24 Hours</option>
+            <option value="7d">Last 7 Days</option>
+            <option value="30d">Last 30 Days</option>
+            <option value="all">All Time</option>
+        </select>
+    </div>
+    <div class="col s12 m2">
+        <label for="user-filter" style="font-weight: 600;">User</label>
+        <select id="user-filter" class="browser-default" onchange="filterAndRenderChart()">
+            <option value="all">All Users</option>
+        </select>
+    </div>
+    <div class="col s12 m3">
+        <label for="model-type-filter" style="font-weight: 600;">Model Type</label>
+        <select id="model-type-filter" class="browser-default" onchange="filterAndRenderChart()">
+            <option value="all">All Model Types</option>
+        </select>
+    </div>
+    <div class="col s12 m2">
+        <label for="status-filter" style="font-weight: 600;">Status</label>
+        <select id="status-filter" class="browser-default" onchange="filterAndRenderChart()">
+            <option value="all">All Statuses</option>
+            <option value="success">Success</option>
+            <option value="error">Error</option>
+        </select>
+    </div>
+    <div class="col s12 m3">
+        <label for="metric-y-filter" style="font-weight: 600;">Metric (Y-Axis)</label>
+        <select id="metric-y-filter" class="browser-default" onchange="filterAndRenderChart()">
+            <option value="invocations" selected>Invocations Count</option>
+            <option value="tokens">Total Tokens</option>
+            <option value="latency">Average Latency (ms)</option>
+        </select>
+    </div>
+</div>
+
+<!-- Timeline Visualization -->
+<div class="row">
+    <div class="col s12">
+        <div id="vis">
+            <p class="center-align grey-text" style="padding: 100px 0;">Loading chart data...</p>
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript">
+    let rawData = [];
+
+    async function loadData() {
+        const timeFrame = document.getElementById('time-filter').value;
+        const now = new Date().getTime();
+        let startTime = now - (24 * 60 * 60 * 1000); // Default 24h
+        if (timeFrame === '7d') {
+            startTime = now - (7 * 24 * 60 * 60 * 1000);
+        } else if (timeFrame === '30d') {
+            startTime = now - (30 * 24 * 60 * 60 * 1000);
+        } else if (timeFrame === 'all') {
+            startTime = 0;
+        }
+
+        document.getElementById('vis').innerHTML = '<p class="center-align grey-text" style="padding: 100px 0;">Loading timeline data...</p>';
+
+        try {
+            // Fetch binned metrics data via the secure admin data action
+            const response = await $.getJSON('/admin/aiMetrics/data', {
+                limit: 5000,
+                start: startTime,
+                end: now
+            });
+            rawData = response || [];
+            
+            populateFilters();
+            filterAndRenderChart();
+        } catch (e) {
+            console.error(e);
+            document.getElementById('vis').innerHTML = '<p class="center-align red-text" style="padding: 100px 0;">Failed to load metric data.</p>';
+        }
+    }
+
+    function populateFilters() {
+        const userFilter = document.getElementById('user-filter');
+        const modelTypeFilter = document.getElementById('model-type-filter');
+
+        const currentUser = userFilter.value;
+        const currentType = modelTypeFilter.value;
+
+        userFilter.innerHTML = '<option value="all">All Users</option>';
+        modelTypeFilter.innerHTML = '<option value="all">All Model Types</option>';
+
+        const uniqueUsers = [...new Set(rawData.map(d => d.pp1).filter(Boolean))].sort();
+        const uniqueModelTypes = [...new Set(rawData.map(d => d.pp2).filter(Boolean))].sort();
+
+        uniqueUsers.forEach(user => {
+            const opt = document.createElement('option');
+            opt.value = user;
+            opt.textContent = user;
+            userFilter.appendChild(opt);
+        });
+
+        uniqueModelTypes.forEach(type => {
+            const opt = document.createElement('option');
+            opt.value = type;
+            opt.textContent = type;
+            modelTypeFilter.appendChild(opt);
+        });
+
+        userFilter.value = uniqueUsers.includes(currentUser) ? currentUser : 'all';
+        modelTypeFilter.value = uniqueModelTypes.includes(currentType) ? currentType : 'all';
+    }
+
+    function calculateStats(data) {
+        const total = data.length;
+        const successCount = data.filter(d => d.pp3 === 'success').length;
+        const successRate = total > 0 ? Math.round((successCount / total) * 100) : 0;
+        
+        let totalDuration = 0;
+        let totalTokens = 0;
+        data.forEach(d => {
+            totalDuration += (d.duration || 0);
+            totalTokens += (d.tokens || 0);
+        });
+        const avgDuration = total > 0 ? Math.round(totalDuration / total) : 0;
+
+        document.getElementById('stat-total').textContent = total.toLocaleString();
+        document.getElementById('stat-success-rate').textContent = successRate + '%';
+        document.getElementById('stat-latency').textContent = avgDuration + 'ms';
+        document.getElementById('stat-tokens').textContent = totalTokens.toLocaleString();
+    }
+
+    function filterAndRenderChart() {
+        const selectedUser = document.getElementById('user-filter').value;
+        const selectedModelType = document.getElementById('model-type-filter').value;
+        const selectedStatus = document.getElementById('status-filter').value;
+
+        const filtered = rawData.filter(d => {
+            if (selectedUser !== 'all' && d.pp1 !== selectedUser) return false;
+            if (selectedModelType !== 'all' && d.pp2 !== selectedModelType) return false;
+            if (selectedStatus !== 'all' && d.pp3 !== selectedStatus) return false;
+            return true;
+        });
+
+        calculateStats(filtered);
+
+        if (filtered.length === 0) {
+            document.getElementById('vis').innerHTML = '<p class="center-align grey-text" style="padding: 100px 0;">No matching records found.</p>';
+            return;
+        }
+
+        renderChart(filtered);
+    }
+
+    function renderChart(data) {
+        const metricY = document.getElementById('metric-y-filter').value;
+        const yAxisSpec = {};
+        const tooltipSpec = [
+            {
+                "field": "time_bin",
+                "type": "temporal",
+                "title": "Time Bin",
+                "format": "%Y-%m-%d %H:%M"
+            },
+            {
+                "field": "activity",
+                "type": "nominal",
+                "title": "Model Name"
+            }
+        ];
+
+        if (metricY === 'tokens') {
+            yAxisSpec.aggregate = "sum";
+            yAxisSpec.field = "tokens";
+            yAxisSpec.type = "quantitative";
+            yAxisSpec.title = "Total Tokens";
+            
+            tooltipSpec.push({
+                "field": "tokens",
+                "aggregate": "sum",
+                "type": "quantitative",
+                "title": "Tokens"
+            });
+        } else if (metricY === 'latency') {
+            yAxisSpec.aggregate = "mean";
+            yAxisSpec.field = "duration";
+            yAxisSpec.type = "quantitative";
+            yAxisSpec.title = "Average Latency (ms)";
+            
+            tooltipSpec.push({
+                "field": "duration",
+                "aggregate": "mean",
+                "type": "quantitative",
+                "title": "Avg Latency (ms)",
+                "format": ".0f"
+            });
+        } else {
+            yAxisSpec.aggregate = "count";
+            yAxisSpec.type = "quantitative";
+            yAxisSpec.title = "Invocations Count";
+
+            tooltipSpec.push({
+                "aggregate": "count",
+                "type": "quantitative",
+                "title": "Invocations"
+            });
+        }
+
+        const vegaLiteSpec = {
+            "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+            "description": "AI Invocations Timeline",
+            "data": { "values": data },
+            "params": [
+                {
+                    "name": "legendHighlight",
+                    "select": {
+                        "type": "point",
+                        "fields": ["activity"],
+                        "on": "mouseover",
+                        "clear": "mouseout"
+                    },
+                    "bind": "legend"
+                }
+            ],
+            "transform": [
+                {
+                    "calculate": "toDate(datum.ts)",
+                    "as": "timestamp"
+                },
+                {
+                    "calculate": "datetime(year(datum.timestamp), month(datum.timestamp), date(datum.timestamp), hours(datum.timestamp), floor(minutes(datum.timestamp)/10)*10, 0, 0)",
+                    "as": "time_bin"
+                }
+            ],
+            "width": "container",
+            "height": 380,
+            "mark": {
+                "type": "area",
+                "interpolate": "monotone"
+            },
+            "encoding": {
+                "x": {
+                    "field": "time_bin",
+                    "type": "temporal",
+                    "title": "Time (10 min bins)",
+                    "axis": {
+                        "format": "%b %d, %H:%M",
+                        "grid": true,
+                        "labelAngle": -35
+                    }
+                },
+                "y": yAxisSpec,
+                "color": {
+                    "field": "activity",
+                    "type": "nominal",
+                    "title": "Model ID",
+                    "scale": { "scheme": "category10" },
+                    "legend": {
+                        "orient": "bottom",
+                        "columns": 3,
+                        "symbolType": "square",
+                        "titleFontWeight": "bold"
+                    }
+                },
+                "opacity": {
+                    "condition": {
+                        "param": "legendHighlight",
+                        "value": 0.85
+                    },
+                    "value": 0.15
+                },
+                "tooltip": tooltipSpec
+            },
+            "config": {
+                "axis": {
+                    "labelFont": "Outfit, Inter, sans-serif",
+                    "titleFont": "Outfit, Inter, sans-serif",
+                    "titleFontSize": 12,
+                    "labelFontSize": 10
+                },
+                "legend": {
+                    "labelFont": "Outfit, Inter, sans-serif",
+                    "titleFont": "Outfit, Inter, sans-serif"
+                }
+            }
+        };
+
+        vegaEmbed('#vis', vegaLiteSpec, { actions: false });
+    }
+
+    $(document).ready(function() {
+        loadData();
+    });
+</script>
+}

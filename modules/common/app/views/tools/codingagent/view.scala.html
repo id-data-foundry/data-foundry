@@ -219,6 +219,41 @@
     0%, 60%, 100% { transform: translateY(0); }
     30% { transform: translateY(-4px); }
   }
+  
+  /* System message and Collapsible Thought Process styles */
+  .message.system {
+    align-self: center;
+    background: #f5f5f5;
+    border: 1px dashed #ccc;
+    max-width: 90%;
+    font-size: 0.9rem;
+    color: #555;
+    text-align: center;
+  }
+  details.thought-process {
+    margin: 0.5rem 0;
+    padding: 0.5rem 0.75rem;
+    background: #f7f9fa;
+    border: 1px solid #e1e8ed;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    text-align: left;
+  }
+  details.thought-process summary {
+    cursor: pointer;
+    font-weight: 600;
+    color: #555;
+    outline: none;
+    user-select: none;
+  }
+  details.thought-process .thought-content {
+    margin-top: 0.5rem;
+    color: #666;
+    font-style: italic;
+    white-space: pre-wrap;
+    border-top: 1px solid #e1e8ed;
+    padding-top: 0.5rem;
+  }
 </style>
 
 <nav class="">
@@ -254,8 +289,72 @@
       }
       <a class="btn blue white-text @if(!fileType.equalsIgnoreCase("html") && !fileType.equalsIgnoreCase("htm")){disabled}" href="@if((fileType.equalsIgnoreCase("html") || fileType.equalsIgnoreCase("htm")) && !fileName.isEmpty){@routes.DatasetsController.web(dataset.getId(), fileName)}else{#!}" target="_blank">Open App</a>
     </div>
-    <div style="height: 100%;">
-      @if(fileType.equalsIgnoreCase("gg")) {
+    <div style="height: 100%; min-height: 0; display: flex; flex-direction: column;">
+      @if(fileName != null && fileName.startsWith("session_export") && fileType.equalsIgnoreCase("json")) {
+        <div id="session_chat_container" style="
+          display: flex;
+          flex-direction: column;
+          flex: 1;
+          min-height: 0;
+          border: 1px solid rgba(224, 224, 224, 0.7);
+          border-radius: 12px;
+          background: #ffffff;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+          overflow: hidden;
+          margin: 0.5rem 0;
+        ">
+          <!-- Header -->
+          <div style="
+            padding: 1rem 1.5rem;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          ">
+            <div>
+              <h5 style="margin: 0; font-weight: 600; font-size: 1.25rem; color: white;">Session Export History</h5>
+              <span style="font-size: 0.8rem; opacity: 0.9;" id="session-export-date">@fileName</span>
+            </div>
+          </div>
+          
+          <!-- Statistics Panel -->
+          <div style="
+            display: flex;
+            gap: 2rem;
+            padding: 0.75rem 1.5rem;
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            font-size: 0.85rem;
+            color: #495057;
+          ">
+            <div><strong>Messages:</strong> <span id="stat-messages-count">0</span></div>
+            <div><strong>Participants:</strong> <span id="stat-participants">-</span></div>
+          </div>
+
+          <!-- Messages scroll container -->
+          <div id="session_chat_messages" style="
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            background: #fdfdfd;
+          ">
+            <div style="text-align: center; color: #888; margin-top: 2rem;">
+              <div class="preloader-wrapper small active">
+                <div class="spinner-layer spinner-blue-only">
+                  <div class="circle-clipper left"><div class="circle"></div></div>
+                  <div class="gap-patch"><div class="circle"></div></div>
+                  <div class="circle-clipper right"><div class="circle"></div></div>
+                </div>
+              </div>
+              <p>Loading session transcript...</p>
+            </div>
+          </div>
+        </div>
+      } else if(fileType.equalsIgnoreCase("gg")) {
         <div class="starboard-container" style="
           display: flex;
           flex-direction: column;
@@ -360,6 +459,7 @@
     const currentFileId = @fileId;
     const currentUser = "@username";
     const isStarboardFile = @fileType.equalsIgnoreCase("gg");
+    const isSessionExport = @(fileName != null && fileName.startsWith("session_export") && fileType.equalsIgnoreCase("json"));
     let totalTokensUsed = 0;
 
     // auto-load first file if none is selected
@@ -373,7 +473,7 @@
 
     // init code editor
     let flask = null;
-    if (currentFileId !== -1 && !isStarboardFile) {
+    if (currentFileId !== -1 && !isStarboardFile && !isSessionExport) {
         flask = new CodeFlask('#editor_contents', {
           language: '@fileType',
           lineNumbers: true
@@ -403,6 +503,88 @@
             console.error('Error loading file:', error);
             flask.updateCode('Error loading file content.');
           });
+    }
+
+    if (isSessionExport) {
+        const messageContainer = document.getElementById('session_chat_messages');
+        
+        fetch("@controllers.api.routes.CompleteDSController.downloadFile(dataset.getId(), fileId)")
+            .then(response => response.json())
+            .then(data => {
+                messageContainer.innerHTML = '';
+                
+                if (!Array.isArray(data) || data.length === 0) {
+                    messageContainer.innerHTML = '<div style="text-align: center; color: #888; margin-top: 2rem;">No messages in this session history.</div>';
+                    return;
+                }
+                
+                let messageCount = 0;
+                const participantsSet = new Set();
+                
+                data.forEach(msg => {
+                    // Skip typing indicators or empty messages
+                    if (msg.type === 'typing' || !msg.message || msg.message.trim() === '') {
+                        return;
+                    }
+                    
+                    messageCount++;
+                    if (msg.user) {
+                        participantsSet.add(msg.user);
+                    }
+                    
+                    const msgDiv = document.createElement('div');
+                    msgDiv.className = `message ${msg.user === 'Agent' ? 'agent' : (msg.user === 'System' ? 'system' : (msg.user === currentUser ? 'user' : 'other'))}`;
+                    
+                    if (msg.user !== 'Agent' && msg.user !== 'System') {
+                        msgDiv.style.backgroundColor = getColor(msg.user);
+                    }
+                    
+                    const headerDiv = document.createElement('div');
+                    headerDiv.className = 'message-header';
+                    
+                    const senderSpan = document.createElement('span');
+                    senderSpan.className = 'sender';
+                    senderSpan.innerText = formatName(msg.user);
+                    
+                    const timeSpan = document.createElement('span');
+                    timeSpan.className = 'timestamp';
+                    if (msg.formattedTime) {
+                        timeSpan.innerText = msg.formattedTime;
+                    } else {
+                        const date = msg.timestamp ? new Date(msg.timestamp) : new Date();
+                        timeSpan.innerText = date.toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                    }
+                    
+                    headerDiv.appendChild(senderSpan);
+                    headerDiv.appendChild(timeSpan);
+                    
+                    const textP = document.createElement('article');
+                    
+                    // Parse <think>...</think> blocks dynamically
+                    let msgContent = msg.message;
+                    msgContent = msgContent.replace(/<think>([\s\S]*?)<\/think>/g, '<details class="thought-process"><summary>Agent thought process</summary><div class="thought-content">$1</div></details>');
+                    
+                    textP.innerHTML = marked.parse(msgContent);
+                    
+                    msgDiv.appendChild(headerDiv);
+                    msgDiv.appendChild(textP);
+                    
+                    messageContainer.appendChild(msgDiv);
+                });
+                
+                // Update stats
+                document.getElementById('stat-messages-count').innerText = messageCount;
+                document.getElementById('stat-participants').innerText = Array.from(participantsSet).map(formatName).join(', ');
+                
+                // Highlight syntax
+                if (window.Prism) {
+                    Prism.highlightAllUnder(messageContainer);
+                }
+            })
+            .catch(error => {
+                console.error('Error loading session export:', error);
+                messageContainer.innerHTML = '<div style="text-align: center; color: #f44336; margin-top: 2rem;">Error loading session history.</div>';
+            });
     }
 
     // WebSocket setup

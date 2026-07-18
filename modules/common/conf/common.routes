@@ -56,6 +56,8 @@ GET			/admin/configuration									controllers.AdminController.configuration(req
 GET			/admin/publicDatasets									controllers.AdminController.publicDatasets(request: Request, type: String ?= "", page: Int ?= 0)
 GET			/admin/publicWebsites									controllers.AdminController.publicWebsites(request: Request, page: Int ?= 0)
 GET			/admin/chatbots											controllers.AdminController.chatbots(request: Request)
+GET			/admin/aiMetrics										controllers.AdminController.aiMetrics(request: Request)
+GET			/admin/aiMetrics/data									controllers.AdminController.aiMetricsData(request: Request, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
 
 POST		/admin/users/role									controllers.AdminController.userRole(request: Request)
 POST 		/admin/resetPW										controllers.AdminController.resetPasswordTokenLink(request: Request)

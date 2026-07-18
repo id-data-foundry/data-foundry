@@ -64,6 +64,11 @@
                     API management
                 </a>
             </li>
+            <li @if(route.equals("ai_metrics")){class="active"}>
+                <a href="@routes.AdminController.aiMetrics()" hx-boost="true">
+                    AI usage metrics
+                </a>
+            </li>
             <li @if(route.equals("config")){class="active"}>
                 <a href="@routes.AdminController.configuration()" hx-boost="true">
                     Configuration

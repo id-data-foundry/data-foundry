@@ -1,20 +1,28 @@
 package services.api;
 
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
 import javax.inject.Inject;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.typesafe.config.Config;
 
 import datasets.DatasetConnector;
+import io.ebean.DB;
+import io.ebean.Transaction;
 import models.Dataset;
 import models.DatasetType;
 import models.Person;
 import models.Project;
 import models.ds.EntityDS;
 import models.ds.LinkedDS;
+import models.ds.TimeseriesDS;
 import play.Logger;
 import play.libs.Json;
 import utils.admin.AdminUtils;
@@ -23,6 +31,7 @@ import utils.auth.TokenResolverUtil;
 abstract public class GenericApiService implements ApiServiceConstants {
 
 	public static final String SYSTEM_OPEN_AI_API_SERVICE = "SYSTEM_OPEN_AI_API_SERVICE";
+	public static final String SYSTEM_LOCAL_AI_USAGE = "SYSTEM_LOCAL_AI_USAGE";
 
 	private static final int DEFAULT_STARTING_CREDITS = 2000;
 
@@ -40,6 +49,14 @@ abstract public class GenericApiService implements ApiServiceConstants {
 	protected long datastoreDSId = -1L;
 	protected EntityDS datastore;
 
+	protected long localAiUsageDSId = -1L;
+	protected TimeseriesDS localAiUsageStore;
+
+	protected static final Map<String, ApiKeyDetails> apiKeyCache = new java.util.concurrent.ConcurrentHashMap<>();
+
+	public record ApiKeyDetails(String username, String email, long projectId) {
+	}
+
 	@Inject
 	protected ThrottlingService throttlingService;
 
@@ -52,8 +69,8 @@ abstract public class GenericApiService implements ApiServiceConstants {
 		this.tokenResolver = tokenResolver;
 	}
 
-	private synchronized void initDatastoreIfNeeded() {
-		if (datastore != null) {
+	protected synchronized void initDatastoreIfNeeded() {
+		if (datastore != null && localAiUsageStore != null) {
 			return;
 		}
 
@@ -120,6 +137,115 @@ abstract public class GenericApiService implements ApiServiceConstants {
 
 		// store instance of datastore
 		datastore = datasetConnector.getTypedDatasetDS(datastoreDataset);
+
+		// Initialize SYSTEM_LOCAL_AI_USAGE dataset if needed
+		final Dataset localAiUsageDataset;
+		Optional<Dataset> laOpt = Dataset.find.query().where().eq("refId", SYSTEM_LOCAL_AI_USAGE).findOneOrEmpty();
+		if (laOpt.isEmpty()) {
+			if (adminUtils.getFirstAdminUser().isPresent()) {
+				Optional<Project> systemProjectOpt = Project.find.query().where().eq("refId", AdminUtils.SYSTEM_PROJECT)
+						.findOneOrEmpty();
+
+				Project systemProject;
+				if (systemProjectOpt.isEmpty()) {
+					systemProject = Project.create(AdminUtils.SYSTEM_PROJECT, adminUtils.getFirstAdminUser().get(), "",
+							false, false);
+					systemProject.setRefId(AdminUtils.SYSTEM_PROJECT);
+					systemProject.save();
+					logger.info("Created system project.");
+				} else {
+					systemProject = systemProjectOpt.get();
+				}
+
+				final Dataset tempDataset = new Dataset();
+				tempDataset.setName(SYSTEM_LOCAL_AI_USAGE);
+				tempDataset.setDsType(DatasetType.IOT);
+				tempDataset.setRefId(SYSTEM_LOCAL_AI_USAGE);
+				tempDataset.setApiToken(UUID.randomUUID().toString());
+				tempDataset.setProject(systemProject);
+				tempDataset.setDescription("Central IoT dataset to track local AI model invocations.");
+				tempDataset.setTargetObject("");
+				tempDataset.setOpenParticipation(false);
+				tempDataset.start();
+				tempDataset.end();
+				tempDataset.save();
+
+				LinkedDS lds = datasetConnector.getDatasetDS(tempDataset);
+				lds.createInstance();
+
+				systemProject.getDatasets().add(tempDataset);
+				systemProject.update();
+
+				tempDataset.refresh();
+				localAiUsageDataset = tempDataset;
+				logger.info("Created IOT table for the Local AI usage tracking.");
+			} else {
+				localAiUsageDataset = null;
+			}
+		} else {
+			localAiUsageDataset = laOpt.get();
+		}
+
+		if (localAiUsageDataset != null) {
+			localAiUsageDSId = localAiUsageDataset.getId();
+			localAiUsageStore = datasetConnector.getTypedDatasetDS(localAiUsageDataset);
+		}
+	}
+
+	public ApiKeyDetails getApiKeyDetails(String apiKey) {
+		if (apiKey == null || apiKey.isEmpty()) {
+			return null;
+		}
+
+		// 1. Check cache first
+		ApiKeyDetails cached = apiKeyCache.get(apiKey);
+		if (cached != null) {
+			return cached;
+		}
+
+		initDatastoreIfNeeded();
+		if (datastore == null || datastore.getDataTableName() == null) {
+			return null;
+		}
+		String sql = "SELECT data FROM " + datastore.getDataTableName() + " WHERE data LIKE ? ORDER BY id DESC LIMIT 1";
+		try (Transaction transaction = DB.beginTransaction();
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement(sql)) {
+			stmt.setString(1, "%\"currentToken\":\"" + apiKey + "\"%");
+			ResultSet rs = stmt.executeQuery();
+			if (rs.next()) {
+				String data = rs.getString("data");
+				JsonNode jn = Json.parse(data);
+				if (jn.isObject()) {
+					ObjectNode on = (ObjectNode) jn;
+					long userId = on.path("user").asLong(-1L);
+					long projectId = on.path("project").asLong(-1L);
+					String email = on.path("email").asText("");
+					String username = "";
+					if (userId != -1L) {
+						Person p = Person.find.byId(userId);
+						if (p != null) {
+							username = p.getUser_id();
+						}
+					}
+					transaction.commit();
+
+					// 2. Cache result on success
+					ApiKeyDetails details = new ApiKeyDetails(username, email, projectId);
+					apiKeyCache.put(apiKey, details);
+					return details;
+				}
+			}
+			transaction.commit();
+		} catch (Exception e) {
+			logger.error("Error retrieving API key details: ", e);
+		}
+		return null;
+	}
+
+	public long getLocalAiUsageDatasetId() {
+		initDatastoreIfNeeded();
+		return localAiUsageDSId;
 	}
 
 	/**
@@ -313,6 +439,7 @@ abstract public class GenericApiService implements ApiServiceConstants {
 
 		// migrate api key and metrics
 		datastore.deleteItem(oldApiKey, Optional.empty());
+		apiKeyCache.remove(oldApiKey);
 		return updateApiKey(user, project, userProjectKey, tokensUsed, tokensMax);
 	}
 

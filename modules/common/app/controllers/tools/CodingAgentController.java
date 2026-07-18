@@ -34,9 +34,7 @@ import org.apache.pekko.stream.javadsl.Source;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-
 import com.typesafe.config.Config;
-import utils.conf.ConfigurationUtils;
 
 import controllers.AbstractAsyncController;
 import controllers.api.CompleteDSController;
@@ -54,6 +52,7 @@ import io.agentscope.core.tool.ToolParam;
 import io.agentscope.core.tool.Toolkit;
 import io.agentscope.harness.agent.HarnessAgent;
 import io.agentscope.harness.agent.memory.compaction.CompactionConfig;
+import io.agentscope.harness.agent.memory.compaction.CompactionConfig.TruncateArgsConfig;
 import models.Dataset;
 import models.Person;
 import models.Project;
@@ -74,12 +73,11 @@ import services.api.ApiServiceConstants;
 import services.api.GenericApiService.ProjectAPIInfo;
 import services.api.ai.LocalModelMetadata;
 import services.api.ai.UnmanagedAIApiService;
+import utils.conf.ConfigurationUtils;
 import utils.validators.FileTypeUtils;
 
 @Singleton
 public class CodingAgentController extends AbstractAsyncController {
-
-	private static final String CODING_MODEL = "qwen/qwen3.6-27b"; // "openai/gpt-oss-20b";
 
 	private static final Logger.ALogger logger = Logger.of(CodingAgentController.class);
 
@@ -139,8 +137,8 @@ public class CodingAgentController extends AbstractAsyncController {
 		}
 
 		final CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
-		final List<TimedMedia> fileList = cpds.getFiles().stream().filter(tl -> FileTypeUtils.looksLikeEditableFile(tl.link))
-				.collect(Collectors.toList());
+		final List<TimedMedia> fileList = cpds.getFiles().stream()
+				.filter(tl -> FileTypeUtils.looksLikeEditableFile(tl.link)).collect(Collectors.toList());
 
 		String fileName = "";
 		String fileType = "";
@@ -173,8 +171,8 @@ public class CodingAgentController extends AbstractAsyncController {
 		}
 
 		final CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
-		final List<TimedMedia> fileList = cpds.getFiles().stream().filter(tl -> FileTypeUtils.looksLikeEditableFile(tl.link))
-				.collect(Collectors.toList());
+		final List<TimedMedia> fileList = cpds.getFiles().stream()
+				.filter(tl -> FileTypeUtils.looksLikeEditableFile(tl.link)).collect(Collectors.toList());
 
 		ArrayNode array = Json.newArray();
 		for (TimedMedia tm : fileList) {
@@ -202,11 +200,12 @@ public class CodingAgentController extends AbstractAsyncController {
 			}
 
 			String username = user.getFirstname() + " " + user.getLastname().toUpperCase().charAt(0);
-			return getDatasetFlow(id, username);
+			return getDatasetFlow(request, id, username);
 		});
 	}
 
-	private synchronized Flow<JsonNode, JsonNode, ?> getDatasetFlow(Long datasetId, String username) {
+	private synchronized Flow<JsonNode, JsonNode, ?> getDatasetFlow(play.mvc.Http.RequestHeader request, Long datasetId,
+			String username) {
 		final String sessionId = datasetId + "-session";
 		DatasetContext context = datasetContexts.computeIfAbsent(datasetId, id -> {
 			// Hub for broadcasting messages to all users in this dataset
@@ -249,9 +248,14 @@ public class CodingAgentController extends AbstractAsyncController {
 			UncompactedHistory history = new UncompactedHistory(cpds.getFolder(), sessionId);
 
 			DatasetContext ctx = new DatasetContext(sink, source, null, toolkit, cpds, history);
+			ctx.setLocalProxyHost(request.host());
+			ctx.setLocalProxySecure(request.secure());
 			checkAndReloadAgent(ctx, datasetId, sessionId);
 			return ctx;
 		});
+
+		context.setLocalProxyHost(request.host());
+		context.setLocalProxySecure(request.secure());
 
 		// Fetch and replay history for this session
 		List<JsonNode> historyNodes = context.history().load();
@@ -428,17 +432,38 @@ public class CodingAgentController extends AbstractAsyncController {
 			try {
 				Dataset ds = Dataset.find.byId(datasetId);
 				String defaultCodingModel = "qwen/qwen3.6-27b";
-				if (config.hasPath(ConfigurationUtils.DF_AI_MODEL_CODING) && !config.getString(ConfigurationUtils.DF_AI_MODEL_CODING).isEmpty()) {
+				if (config.hasPath(ConfigurationUtils.DF_AI_MODEL_CODING)
+						&& !config.getString(ConfigurationUtils.DF_AI_MODEL_CODING).isEmpty()) {
 					defaultCodingModel = config.getString(ConfigurationUtils.DF_AI_MODEL_CODING);
-				} else if (config.hasPath(ConfigurationUtils.DF_AI_MODEL_DEFAULT) && !config.getString(ConfigurationUtils.DF_AI_MODEL_DEFAULT).isEmpty()) {
+				} else if (config.hasPath(ConfigurationUtils.DF_AI_MODEL_DEFAULT)
+						&& !config.getString(ConfigurationUtils.DF_AI_MODEL_DEFAULT).isEmpty()) {
 					defaultCodingModel = config.getString(ConfigurationUtils.DF_AI_MODEL_DEFAULT);
 				}
-				String modelName = localModelMetadata.mapModelId(ds.configuration(Dataset.CHATBOT_MODEL, defaultCodingModel));
+				String modelName = localModelMetadata
+						.mapModelId(ds.configuration(Dataset.CHATBOT_MODEL, defaultCodingModel));
 				GenerateOptions defaultOptions = GenerateOptions.builder()
 						.additionalHeader(ApiServiceConstants.X_API_MODEL, modelName).build();
 
+				String chatCompletionsPath = controllers.api2.routes.UnmanagedAIApiController.chatCompletion().url();
+				String basePath = chatCompletionsPath.replace("/chat/completions", "");
+
+				String scheme = context.isLocalProxySecure() ? "https://" : "http://";
+				String host = context.getLocalProxyHost();
+				if (host == null || host.isEmpty()) {
+					if (config.hasPath(ConfigurationUtils.DF_BASEURL)
+							&& !config.getString(ConfigurationUtils.DF_BASEURL).isEmpty()) {
+						String baseUrl = config.getString(ConfigurationUtils.DF_BASEURL);
+						scheme = baseUrl.startsWith("https://") ? "https://" : "http://";
+						host = baseUrl.replace("http://", "").replace("https://", "");
+					} else {
+						host = "localhost:9000";
+						scheme = "http://";
+					}
+				}
+				String localProxyUrl = scheme + host + basePath;
+
 				OpenAIChatModel model = OpenAIChatModel.builder().modelName(modelName)
-						.apiKey(aiAPIService.getInternalDocumentationAPIKey()).baseUrl(aiAPIService.getAiBaseUrl())
+						.apiKey(aiAPIService.getInternalDocumentationAPIKey()).baseUrl(localProxyUrl)
 						.generateOptions(defaultOptions).build();
 
 				String systemPrompt = ds.configuration(Dataset.CHATBOT_SYSTEM_PROMPT,
@@ -448,8 +473,13 @@ public class CodingAgentController extends AbstractAsyncController {
 						.name("Agent").model(model) //
 						.toolkit(context.toolkit()).disableShellTool().disableFilesystemTools() //
 						.sysPrompt(systemPrompt) //
-						.compaction(CompactionConfig.builder().triggerMessages(16) // fire at 16 messages
-								.keepMessages(8) // keep last 8 verbatim
+						.compaction(CompactionConfig.builder().triggerTokens(50_000) // fire at 50k tokens
+								.triggerMessages(10) // fire at 10 messages
+								.keepMessages(5) // keep last 5 verbatim
+								.truncateArgs(TruncateArgsConfig.builder().triggerTokens(20_000) // fire at 20k tokens
+										.triggerMessages(6) // fire at 6 messages
+										.maxArgLength(2000) //
+										.build()) //
 								.build())
 						.workspace(Paths.get(context.cpds().getFolder().getAbsolutePath(), ".agentscope")).build();
 
@@ -478,6 +508,8 @@ public class CodingAgentController extends AbstractAsyncController {
 		private final UncompactedHistory history;
 		private long agentsMdLastModified = -1L;
 		private volatile boolean isThinking = false;
+		private String localProxyHost;
+		private boolean localProxySecure;
 
 		public DatasetContext(Sink<JsonNode, ?> sink, Source<JsonNode, ?> source, HarnessAgent agent, Toolkit toolkit,
 				CompleteDS cpds, UncompactedHistory history) {
@@ -531,6 +563,22 @@ public class CodingAgentController extends AbstractAsyncController {
 
 		public void setThinking(boolean thinking) {
 			this.isThinking = thinking;
+		}
+
+		public String getLocalProxyHost() {
+			return localProxyHost;
+		}
+
+		public void setLocalProxyHost(String localProxyHost) {
+			this.localProxyHost = localProxyHost;
+		}
+
+		public boolean isLocalProxySecure() {
+			return localProxySecure;
+		}
+
+		public void setLocalProxySecure(boolean localProxySecure) {
+			this.localProxySecure = localProxySecure;
 		}
 	}
 

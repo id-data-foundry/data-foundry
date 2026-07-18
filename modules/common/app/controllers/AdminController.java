@@ -18,6 +18,7 @@ import com.google.inject.Inject;
 import com.typesafe.config.Config;
 
 import controllers.auth.UserAuth;
+import datasets.DatasetConnector;
 import io.ebean.ExpressionList;
 import io.ebean.PagedList;
 import models.Dataset;
@@ -60,12 +61,13 @@ public class AdminController extends AbstractAsyncController {
 	private final FormFactory formFactory;
 	private final ActorSystem actorSystem;
 	private final ProjectLifecycleService lifeCycleService;
+	private final DatasetConnector datasetConnector;
 
 	@Inject
 	public AdminController(SyncCacheApi cache, Config config, Configurator configurator, AdminUtils adminUtils,
 			ActorSystem actorSystem, TokenResolverUtil tokenResolverUtil, DatabaseBackupService backupService,
 			UnmanagedAIApiService managedAIApiService, FormFactory formFactory,
-			ProjectLifecycleService lifeCycleService) {
+			ProjectLifecycleService lifeCycleService, DatasetConnector datasetConnector) {
 		this.cache = cache;
 		this.configurator = configurator;
 		this.adminUtils = adminUtils;
@@ -75,6 +77,7 @@ public class AdminController extends AbstractAsyncController {
 		this.formFactory = formFactory;
 		this.actorSystem = actorSystem;
 		this.lifeCycleService = lifeCycleService;
+		this.datasetConnector = datasetConnector;
 	}
 
 	@AddCSRFToken
@@ -276,9 +279,9 @@ public class AdminController extends AbstractAsyncController {
 		});
 
 		// return to admin database view
-		return redirect(routes.AdminController.database()).addingToSession(request, "message", "DB shutdown compact scheduled.");
+		return redirect(routes.AdminController.database()).addingToSession(request, "message",
+				"DB shutdown compact scheduled.");
 	}
-
 
 	/**
 	 * generate statistics
@@ -649,6 +652,31 @@ public class AdminController extends AbstractAsyncController {
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	@AddCSRFToken
+	public Result aiMetrics(Request request) {
+		if (!isAdmin(request)) {
+			return redirect(routes.HomeController.index());
+		}
+		long aiUsageDatasetId = aiApiService.getLocalAiUsageDatasetId();
+		return ok(views.html.admin.aiMetrics.render(aiUsageDatasetId, csrfToken(request)));
+	}
+
+	public Result aiMetricsData(Request request, long limit, long start, long end) {
+		if (!isAdmin(request)) {
+			return forbidden();
+		}
+		long aiUsageDatasetId = aiApiService.getLocalAiUsageDatasetId();
+		Dataset ds = Dataset.find.byId(aiUsageDatasetId);
+		if (ds == null) {
+			return ok(Json.newArray());
+		}
+		Cluster cluster = new Cluster("data");
+		cluster.setId(-1l);
+		com.fasterxml.jackson.databind.node.ArrayNode data = datasetConnector.getDatasetDS(ds)
+				.retrieveProjected(cluster, limit, start, end);
+		return ok(data);
+	}
 
 	/**
 	 * is the current request issued by a user who is also administrator?

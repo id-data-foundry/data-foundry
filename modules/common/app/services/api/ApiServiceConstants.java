@@ -8,6 +8,7 @@ public interface ApiServiceConstants {
 	String LOCALAI_APIKEY = "LocalAI";
 	String LOCALAI_MODEL_PREFIX = "local-";
 	String LOCALAI_MODEL_DEFAULT = "hermes-2-pro-llama-3-8b";
+	String LOCALAI_EMBEDDING_MODEL_DEFAULT = "text-embedding-nomic-embed-text-v2-moe";
 
 	String REQUEST_METHOD_POST = "POST";
 	String REQUEST_METHOD_GET = "GET";
