@@ -71,6 +71,7 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 
 			// check whether we have a documentation API key
 			final String apiKey = checkDocumentationAPIKey(request, authorization);
+			final String username = request.header(ApiServiceConstants.X_API_USER).orElse("");
 
 			// add authorization to request parameters
 			if (json.isObject()) {
@@ -90,7 +91,7 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 						.mapMaterializedValue(sourceActor -> {
 							ChunkedWriter writer = new ChunkedWriter(sourceActor);
 							StreamingRemoteApiRequest internalAPIRequest = new StreamingRemoteApiRequest(REQUEST_TASK_CHAT_COMPLETION,
-									ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, "",
+									ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, username,
 									apiKey, -1L, (ObjectNode) json, writer);
 							aiApiService.submitApiRequest(internalAPIRequest);
 							return NotUsed.getInstance();
@@ -99,7 +100,7 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 			} else {
 				// buffered request
 				RemoteApiRequest internalAPIRequest = new RemoteApiRequest(REQUEST_TASK_CHAT_COMPLETION,
-						ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, "", apiKey, -1L, (ObjectNode) json);
+						ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, username, apiKey, -1L, (ObjectNode) json);
 
 				try {
 					// submit and wait for timeout
@@ -135,10 +136,11 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 
 			// check whether we have a documentation API key
 			final String apiKey = checkDocumentationAPIKey(request, authorization);
+			final String username = request.header(ApiServiceConstants.X_API_USER).orElse("");
 
 			// create request
 			RemoteApiRequest internalAPIRequest = new RemoteApiRequest(REQUEST_TASK_AUDIO_TRANSCRIPTION,
-					ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, "", apiKey, -1L, Json.newObject());
+					ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, username, apiKey, -1L, Json.newObject());
 
 			// set file in request
 			internalAPIRequest.setMultipartFormData(mpfd);
@@ -170,11 +172,12 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 
 			// check whether we have a documentation API key
 			final String apiKey = checkDocumentationAPIKey(request, authorization);
+			final String username = request.header(ApiServiceConstants.X_API_USER).orElse("");
 
 			// create request
 			ObjectNode requestParams = (ObjectNode) request.body().asJson();
 			RemoteApiRequest internalAPIRequest = new RemoteApiRequest(REQUEST_TASK_IMAGE_GENERATION,
-					ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS * 5, "", apiKey, -1L, requestParams);
+					ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS * 5, username, apiKey, -1L, requestParams);
 
 			try {
 				// submit and wait for timeout
@@ -220,11 +223,12 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 
 			// check whether we have a documentation API key
 			final String apiKey = checkDocumentationAPIKey(request, authorization);
+			final String username = request.header(ApiServiceConstants.X_API_USER).orElse("");
 
 			// create request
 			ObjectNode requestParams = (ObjectNode) request.body().asJson();
 			RemoteApiRequest internalAPIRequest = new RemoteApiRequest(REQUEST_TASK_SPEECH_GENERATION,
-					ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS / 2, "", apiKey, -1L, requestParams);
+					ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS / 2, username, apiKey, -1L, requestParams);
 
 			try {
 				// submit and wait for timeout

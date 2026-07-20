@@ -200,12 +200,13 @@ public class CodingAgentController extends AbstractAsyncController {
 			}
 
 			String username = user.getFirstname() + " " + user.getLastname().toUpperCase().charAt(0);
-			return getDatasetFlow(request, id, username);
+			String userEmail = user.getEmail();
+			return getDatasetFlow(request, id, username, userEmail);
 		});
 	}
 
 	private synchronized Flow<JsonNode, JsonNode, ?> getDatasetFlow(play.mvc.Http.RequestHeader request, Long datasetId,
-			String username) {
+			String username, String userEmail) {
 		final String sessionId = datasetId + "-session";
 		DatasetContext context = datasetContexts.computeIfAbsent(datasetId, id -> {
 			// Hub for broadcasting messages to all users in this dataset
@@ -250,7 +251,7 @@ public class CodingAgentController extends AbstractAsyncController {
 			DatasetContext ctx = new DatasetContext(sink, source, null, toolkit, cpds, history);
 			ctx.setLocalProxyHost(request.host());
 			ctx.setLocalProxySecure(request.secure());
-			checkAndReloadAgent(ctx, datasetId, sessionId);
+			checkAndReloadAgent(ctx, datasetId, sessionId, userEmail);
 			return ctx;
 		});
 
@@ -358,7 +359,7 @@ public class CodingAgentController extends AbstractAsyncController {
 					context.setThinking(true);
 					try {
 						// Dynamically sync and reload workspace rules if they have changed
-						checkAndReloadAgent(context, datasetId, sessionId);
+						checkAndReloadAgent(context, datasetId, sessionId, userEmail);
 
 						// Send typing: true
 						ObjectNode typingStart = Json.newObject().put("type", "typing").put("active", true);
@@ -401,7 +402,7 @@ public class CodingAgentController extends AbstractAsyncController {
 		}), historySource.concat(context.source()));
 	}
 
-	private synchronized void checkAndReloadAgent(DatasetContext context, Long datasetId, String sessionId) {
+	private synchronized void checkAndReloadAgent(DatasetContext context, Long datasetId, String sessionId, String userEmail) {
 		Optional<File> sourceAgentsMdOpt = context.cpds().getFile("AGENTS.md");
 		if (sourceAgentsMdOpt.isEmpty()) {
 			sourceAgentsMdOpt = context.cpds().getFile(".agents/AGENTS.md");
@@ -442,7 +443,9 @@ public class CodingAgentController extends AbstractAsyncController {
 				String modelName = localModelMetadata
 						.mapModelId(ds.configuration(Dataset.CHATBOT_MODEL, defaultCodingModel));
 				GenerateOptions defaultOptions = GenerateOptions.builder()
-						.additionalHeader(ApiServiceConstants.X_API_MODEL, modelName).build();
+						.additionalBodyParam("preserve_thinking", true)
+						.additionalHeader(ApiServiceConstants.X_API_MODEL, modelName)
+						.additionalHeader(ApiServiceConstants.X_API_USER, userEmail != null ? userEmail : "").build();
 
 				String chatCompletionsPath = controllers.api2.routes.UnmanagedAIApiController.chatCompletion().url();
 				String basePath = chatCompletionsPath.replace("/chat/completions", "");

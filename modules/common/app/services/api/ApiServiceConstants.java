@@ -50,5 +50,6 @@ public interface ApiServiceConstants {
 	int API_REQUEST_JS_TIMEOUT_MS = 5 * 1000;
 
 	public String X_API_MODEL = "X-API-Model";
+	public String X_API_USER = "X-API-User";
 
 }
