@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 import javax.inject.Inject;
@@ -45,14 +46,12 @@ import io.agentscope.core.message.Msg;
 import io.agentscope.core.message.MsgRole;
 import io.agentscope.core.model.ChatUsage;
 import io.agentscope.core.model.GenerateOptions;
-import io.agentscope.extensions.model.openai.OpenAIChatModel;
 import io.agentscope.core.state.AgentState;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.agentscope.core.tool.Toolkit;
+import io.agentscope.extensions.model.openai.OpenAIChatModel;
 import io.agentscope.harness.agent.HarnessAgent;
-import io.agentscope.harness.agent.memory.compaction.CompactionConfig;
-import io.agentscope.harness.agent.memory.compaction.CompactionConfig.TruncateArgsConfig;
 import models.Dataset;
 import models.Person;
 import models.Project;
@@ -245,7 +244,8 @@ public class CodingAgentController extends AbstractAsyncController {
 
 			UncompactedHistory history = new UncompactedHistory(cpds.getFolder(), sessionId);
 
-			DatasetContext ctx = new DatasetContext(sink, source, materializer, null, null, new Toolkit(), cpds, history);
+			DatasetContext ctx = new DatasetContext(sink, source, materializer, null, null, new Toolkit(), cpds,
+					history);
 			ctx.setLocalProxyHost(request.host());
 			ctx.setLocalProxySecure(request.secure());
 			checkAndReloadAgent(ctx, datasetId, sessionId, userEmail);
@@ -334,7 +334,8 @@ public class CodingAgentController extends AbstractAsyncController {
 
 					try {
 						if (context.subAgent() != null) {
-							AgentState subState = context.subAgent().getDelegate().getAgentState("global", sessionId + "-subagent");
+							AgentState subState = context.subAgent().getDelegate().getAgentState("global",
+									sessionId + "-subagent");
 							if (subState != null && subState.contextMutable() != null) {
 								subState.contextMutable().clear();
 							}
@@ -414,7 +415,8 @@ public class CodingAgentController extends AbstractAsyncController {
 		}), historySource.concat(context.source()));
 	}
 
-	private synchronized void checkAndReloadAgent(DatasetContext context, Long datasetId, String sessionId, String userEmail) {
+	private synchronized void checkAndReloadAgent(DatasetContext context, Long datasetId, String sessionId,
+			String userEmail) {
 		Optional<File> sourceAgentsMdOpt = context.cpds().getFile("AGENTS.md");
 		if (sourceAgentsMdOpt.isEmpty()) {
 			sourceAgentsMdOpt = context.cpds().getFile(".agents/AGENTS.md");
@@ -455,7 +457,7 @@ public class CodingAgentController extends AbstractAsyncController {
 				String modelName = localModelMetadata
 						.mapModelId(ds.configuration(Dataset.CHATBOT_MODEL, defaultCodingModel));
 				GenerateOptions defaultOptions = GenerateOptions.builder()
-						.additionalBodyParam("preserve_thinking", true)
+//						.additionalBodyParam("preserve_thinking", true)
 						.additionalHeader(ApiServiceConstants.X_API_MODEL, modelName)
 						.additionalHeader(ApiServiceConstants.X_API_USER, userEmail != null ? userEmail : "").build();
 
@@ -483,7 +485,8 @@ public class CodingAgentController extends AbstractAsyncController {
 
 				// Build shared read-only tool and sub-agent mutation tool
 				ReadOnlyFileTool readOnlyTool = new ReadOnlyFileTool(context.cpds(), datasetId, aiAPIService);
-				FileMutationTool mutationTool = new FileMutationTool(context.cpds(), context.sink(), context.materializer(), cache, datasetId);
+				FileMutationTool mutationTool = new FileMutationTool(context.cpds(), context.sink(),
+						context.materializer(), cache, datasetId);
 
 				// Build Coding Sub-Agent Toolkit & Agent
 				Toolkit subAgentToolkit = new Toolkit();
@@ -495,14 +498,14 @@ public class CodingAgentController extends AbstractAsyncController {
 						.name("CodingSubAgent").model(model) //
 						.toolkit(subAgentToolkit).disableShellTool().disableFilesystemTools() //
 						.sysPrompt(subAgentSysPrompt) //
-						.compaction(CompactionConfig.builder().triggerTokens(50_000) // fire at 50k tokens
-								.triggerMessages(10) // fire at 10 messages
-								.keepMessages(5) // keep last 5 verbatim
-								.truncateArgs(TruncateArgsConfig.builder().triggerTokens(20_000) // fire at 20k tokens
-										.triggerMessages(6) // fire at 6 messages
-										.maxArgLength(2000) //
-										.build()) //
-								.build())
+//						.compaction(CompactionConfig.builder().triggerTokens(50_000) // fire at 50k tokens
+//								.triggerMessages(10) // fire at 10 messages
+//								.keepMessages(5) // keep last 5 verbatim
+//								.truncateArgs(TruncateArgsConfig.builder().triggerTokens(20_000) // fire at 20k tokens
+//										.triggerMessages(6) // fire at 6 messages
+//										.maxArgLength(2000) //
+//										.build()) //
+//								.build())
 						.workspace(Paths.get(context.cpds().getFolder().getAbsolutePath(), ".agentscope")).build();
 
 				context.setSubAgent(subAgent);
@@ -511,6 +514,7 @@ public class CodingAgentController extends AbstractAsyncController {
 				SubAgentDelegationTool delegationTool = new SubAgentDelegationTool(context, sessionId);
 				Toolkit mainToolkit = new Toolkit();
 				mainToolkit.registerTool(readOnlyTool);
+//				mainToolkit.registerTool(mutationTool);
 				mainToolkit.registerTool(delegationTool);
 
 				String mainSysPrompt = ds.configuration(Dataset.CHATBOT_SYSTEM_PROMPT,
@@ -520,14 +524,14 @@ public class CodingAgentController extends AbstractAsyncController {
 						.name("Agent").model(model) //
 						.toolkit(mainToolkit).disableShellTool().disableFilesystemTools() //
 						.sysPrompt(mainSysPrompt) //
-						.compaction(CompactionConfig.builder().triggerTokens(50_000) // fire at 50k tokens
-								.triggerMessages(10) // fire at 10 messages
-								.keepMessages(5) // keep last 5 verbatim
-								.truncateArgs(TruncateArgsConfig.builder().triggerTokens(20_000) // fire at 20k tokens
-										.triggerMessages(6) // fire at 6 messages
-										.maxArgLength(2000) //
-										.build()) //
-								.build())
+//						.compaction(CompactionConfig.builder().triggerTokens(50_000) // fire at 50k tokens
+//								.triggerMessages(10) // fire at 10 messages
+//								.keepMessages(5) // keep last 5 verbatim
+//								.truncateArgs(TruncateArgsConfig.builder().triggerTokens(20_000) // fire at 20k tokens
+//										.triggerMessages(6) // fire at 6 messages
+//										.maxArgLength(2000) //
+//										.build()) //
+//								.build())
 						.workspace(Paths.get(context.cpds().getFolder().getAbsolutePath(), ".agentscope")).build();
 
 				context.setAgent(mainAgent);
@@ -560,8 +564,9 @@ public class CodingAgentController extends AbstractAsyncController {
 		private String localProxyHost;
 		private boolean localProxySecure;
 
-		public DatasetContext(Sink<JsonNode, ?> sink, Source<JsonNode, ?> source, Materializer materializer, HarnessAgent agent,
-				HarnessAgent subAgent, Toolkit toolkit, CompleteDS cpds, UncompactedHistory history) {
+		public DatasetContext(Sink<JsonNode, ?> sink, Source<JsonNode, ?> source, Materializer materializer,
+				HarnessAgent agent, HarnessAgent subAgent, Toolkit toolkit, CompleteDS cpds,
+				UncompactedHistory history) {
 			this.sink = sink;
 			this.source = source;
 			this.materializer = materializer;
@@ -808,8 +813,8 @@ public class CodingAgentController extends AbstractAsyncController {
 		private final SyncCacheApi cache;
 		private final Long datasetId;
 
-		public FileMutationTool(CompleteDS cpds, Sink<JsonNode, ?> broadcastSink, Materializer materializer, SyncCacheApi cache,
-				Long datasetId) {
+		public FileMutationTool(CompleteDS cpds, Sink<JsonNode, ?> broadcastSink, Materializer materializer,
+				SyncCacheApi cache, Long datasetId) {
 			this.cpds = cpds;
 			this.broadcastSink = broadcastSink;
 			this.materializer = materializer;
@@ -909,6 +914,32 @@ public class CodingAgentController extends AbstractAsyncController {
 		private final DatasetContext context;
 		private final String sessionId;
 
+		private static final String[] START_MESSAGES = {
+				"🤖 Coding Apprentica is rolling up their sleeves to build your changes... 🚀",
+				"⚙️ Handing over to Coding Apprentica to work on your files... 🛠️",
+				"💻 Coding Apprentica is diving into the codebase to implement your request... ✨",
+				"🚀 Coding Apprentica activated! Writing and refining code... ⚡",
+				"🛠️ Coding Apprentica is on it! Modifying files now... 🎨",
+				"🔍 Coding Apprentica is crafting changes in the workspace... Hang tight! 🔨"
+		};
+
+		private static final String[] COMPLETION_MESSAGES = {
+				"✨ Coding Apprentica finished updating your files!",
+				"🎉 All done! Coding Apprentica has completed the requested updates. 🚀",
+				"✅ Coding Apprentica finished executing the task successfully! 💻",
+				"🙌 Changes applied! Coding Apprentica handed control back to the agent. 🛠️",
+				"🎯 Implementation complete! Coding Apprentica updated your files. ✨",
+				"⚡ Workspace updated successfully by Coding Apprentica!"
+		};
+
+		private static String getRandomStartMessage() {
+			return START_MESSAGES[ThreadLocalRandom.current().nextInt(START_MESSAGES.length)];
+		}
+
+		private static String getRandomCompletionMessage() {
+			return COMPLETION_MESSAGES[ThreadLocalRandom.current().nextInt(COMPLETION_MESSAGES.length)];
+		}
+
 		public SubAgentDelegationTool(DatasetContext context, String sessionId) {
 			this.context = context;
 			this.sessionId = sessionId;
@@ -924,7 +955,7 @@ public class CodingAgentController extends AbstractAsyncController {
 
 			// Broadcast playful, friendly system start notification
 			ObjectNode startMsg = Json.newObject().put("type", "chat").put("user", "System")
-					.put("message", "🤖 Coding helper is rolling up their sleeves to build your changes... 🚀")
+					.put("message", getRandomStartMessage())
 					.put("timestamp", new Date().getTime())
 					.put("formattedTime", LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMM d, HH:mm")));
 			Source.single((JsonNode) startMsg).runWith(context.sink(), context.materializer());
@@ -938,7 +969,7 @@ public class CodingAgentController extends AbstractAsyncController {
 
 				// Broadcast playful completion notification
 				ObjectNode endMsg = Json.newObject().put("type", "chat").put("user", "System")
-						.put("message", "✨ Coding helper finished updating your files!")
+						.put("message", getRandomCompletionMessage())
 						.put("timestamp", new Date().getTime())
 						.put("formattedTime", LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMM d, HH:mm")));
 				Source.single((JsonNode) endMsg).runWith(context.sink(), context.materializer());
