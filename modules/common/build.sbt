@@ -109,12 +109,17 @@ libraryDependencies ++= Seq(
   "org.apache.tika" % "tika-core" % "3.2.3",
 
   // AgentScope for coding agent
-  "io.agentscope" % "agentscope" % "2.0.0-RC3" excludeAll(
+  "io.agentscope" % "agentscope" % "2.0.1" excludeAll(
     ExclusionRule(organization = "com.fasterxml.jackson.core"),
     ExclusionRule(organization = "com.fasterxml.jackson.module"),
     ExclusionRule(organization = "com.fasterxml.jackson.datatype")
   ),
-  "io.agentscope" % "agentscope-harness" % "2.0.0-RC3" excludeAll(
+  "io.agentscope" % "agentscope-harness" % "2.0.1" excludeAll(
+    ExclusionRule(organization = "com.fasterxml.jackson.core"),
+    ExclusionRule(organization = "com.fasterxml.jackson.module"),
+    ExclusionRule(organization = "com.fasterxml.jackson.datatype")
+  ),
+  "io.agentscope" % "agentscope-extensions-model-openai" % "2.0.1" excludeAll(
     ExclusionRule(organization = "com.fasterxml.jackson.core"),
     ExclusionRule(organization = "com.fasterxml.jackson.module"),
     ExclusionRule(organization = "com.fasterxml.jackson.datatype")

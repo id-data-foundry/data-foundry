@@ -45,7 +45,7 @@ import io.agentscope.core.message.Msg;
 import io.agentscope.core.message.MsgRole;
 import io.agentscope.core.model.ChatUsage;
 import io.agentscope.core.model.GenerateOptions;
-import io.agentscope.core.model.OpenAIChatModel;
+import io.agentscope.extensions.model.openai.OpenAIChatModel;
 import io.agentscope.core.state.AgentState;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
@@ -219,9 +219,6 @@ public class CodingAgentController extends AbstractAsyncController {
 			Dataset ds = Dataset.find.byId(datasetId);
 			CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
 
-			Toolkit toolkit = new Toolkit();
-			toolkit.registerTool(new FileTool(cpds, sink, materializer, cache, datasetId, aiAPIService));
-
 			// Seed knowledge files into workspace
 			File agentscopeDir = new File(cpds.getFolder(), ".agentscope");
 			File knowledgeDir = new File(agentscopeDir, "knowledge");
@@ -248,7 +245,7 @@ public class CodingAgentController extends AbstractAsyncController {
 
 			UncompactedHistory history = new UncompactedHistory(cpds.getFolder(), sessionId);
 
-			DatasetContext ctx = new DatasetContext(sink, source, null, toolkit, cpds, history);
+			DatasetContext ctx = new DatasetContext(sink, source, materializer, null, null, new Toolkit(), cpds, history);
 			ctx.setLocalProxyHost(request.host());
 			ctx.setLocalProxySecure(request.secure());
 			checkAndReloadAgent(ctx, datasetId, sessionId, userEmail);
@@ -333,6 +330,21 @@ public class CodingAgentController extends AbstractAsyncController {
 						}
 					} catch (Exception e) {
 						logger.error("Error clearing agent state", e);
+					}
+
+					try {
+						if (context.subAgent() != null) {
+							AgentState subState = context.subAgent().getDelegate().getAgentState("global", sessionId + "-subagent");
+							if (subState != null && subState.contextMutable() != null) {
+								subState.contextMutable().clear();
+							}
+							io.agentscope.core.state.AgentStateStore subStore = context.subAgent().getStateStore();
+							if (subStore != null) {
+								subStore.delete("global", sessionId + "-subagent");
+							}
+						}
+					} catch (Exception e) {
+						logger.error("Error clearing sub agent state", e);
 					}
 
 					// Broadcast reset message
@@ -469,13 +481,20 @@ public class CodingAgentController extends AbstractAsyncController {
 						.apiKey(aiAPIService.getInternalDocumentationAPIKey()).baseUrl(localProxyUrl)
 						.generateOptions(defaultOptions).build();
 
-				String systemPrompt = ds.configuration(Dataset.CHATBOT_SYSTEM_PROMPT,
-						views.html.tools.codingagent.system_prompt.render().body().trim());
+				// Build shared read-only tool and sub-agent mutation tool
+				ReadOnlyFileTool readOnlyTool = new ReadOnlyFileTool(context.cpds(), datasetId, aiAPIService);
+				FileMutationTool mutationTool = new FileMutationTool(context.cpds(), context.sink(), context.materializer(), cache, datasetId);
 
-				HarnessAgent newAgent = HarnessAgent.builder() //
-						.name("Agent").model(model) //
-						.toolkit(context.toolkit()).disableShellTool().disableFilesystemTools() //
-						.sysPrompt(systemPrompt) //
+				// Build Coding Sub-Agent Toolkit & Agent
+				Toolkit subAgentToolkit = new Toolkit();
+				subAgentToolkit.registerTool(readOnlyTool);
+				subAgentToolkit.registerTool(mutationTool);
+
+				String subAgentSysPrompt = views.html.tools.codingagent.subagent_system_prompt.render().body().trim();
+				HarnessAgent subAgent = HarnessAgent.builder() //
+						.name("CodingSubAgent").model(model) //
+						.toolkit(subAgentToolkit).disableShellTool().disableFilesystemTools() //
+						.sysPrompt(subAgentSysPrompt) //
 						.compaction(CompactionConfig.builder().triggerTokens(50_000) // fire at 50k tokens
 								.triggerMessages(10) // fire at 10 messages
 								.keepMessages(5) // keep last 5 verbatim
@@ -486,8 +505,33 @@ public class CodingAgentController extends AbstractAsyncController {
 								.build())
 						.workspace(Paths.get(context.cpds().getFolder().getAbsolutePath(), ".agentscope")).build();
 
-				context.setAgent(newAgent);
-				logger.info("Recreated HarnessAgent instance to load updated conventions.");
+				context.setSubAgent(subAgent);
+
+				// Build Main Agent Toolkit & Agent
+				SubAgentDelegationTool delegationTool = new SubAgentDelegationTool(context, sessionId);
+				Toolkit mainToolkit = new Toolkit();
+				mainToolkit.registerTool(readOnlyTool);
+				mainToolkit.registerTool(delegationTool);
+
+				String mainSysPrompt = ds.configuration(Dataset.CHATBOT_SYSTEM_PROMPT,
+						views.html.tools.codingagent.system_prompt.render().body().trim());
+
+				HarnessAgent mainAgent = HarnessAgent.builder() //
+						.name("Agent").model(model) //
+						.toolkit(mainToolkit).disableShellTool().disableFilesystemTools() //
+						.sysPrompt(mainSysPrompt) //
+						.compaction(CompactionConfig.builder().triggerTokens(50_000) // fire at 50k tokens
+								.triggerMessages(10) // fire at 10 messages
+								.keepMessages(5) // keep last 5 verbatim
+								.truncateArgs(TruncateArgsConfig.builder().triggerTokens(20_000) // fire at 20k tokens
+										.triggerMessages(6) // fire at 6 messages
+										.maxArgLength(2000) //
+										.build()) //
+								.build())
+						.workspace(Paths.get(context.cpds().getFolder().getAbsolutePath(), ".agentscope")).build();
+
+				context.setAgent(mainAgent);
+				logger.info("Recreated Main HarnessAgent and CodingSubAgent instances.");
 			} catch (Exception e) {
 				logger.error("Error recreating agent after AGENTS.md change", e);
 			}
@@ -505,7 +549,9 @@ public class CodingAgentController extends AbstractAsyncController {
 	public static class DatasetContext {
 		private final Sink<JsonNode, ?> sink;
 		private final Source<JsonNode, ?> source;
+		private final Materializer materializer;
 		private HarnessAgent agent;
+		private HarnessAgent subAgent;
 		private final Toolkit toolkit;
 		private final CompleteDS cpds;
 		private final UncompactedHistory history;
@@ -514,11 +560,13 @@ public class CodingAgentController extends AbstractAsyncController {
 		private String localProxyHost;
 		private boolean localProxySecure;
 
-		public DatasetContext(Sink<JsonNode, ?> sink, Source<JsonNode, ?> source, HarnessAgent agent, Toolkit toolkit,
-				CompleteDS cpds, UncompactedHistory history) {
+		public DatasetContext(Sink<JsonNode, ?> sink, Source<JsonNode, ?> source, Materializer materializer, HarnessAgent agent,
+				HarnessAgent subAgent, Toolkit toolkit, CompleteDS cpds, UncompactedHistory history) {
 			this.sink = sink;
 			this.source = source;
+			this.materializer = materializer;
 			this.agent = agent;
+			this.subAgent = subAgent;
 			this.toolkit = toolkit;
 			this.cpds = cpds;
 			this.history = history;
@@ -532,12 +580,24 @@ public class CodingAgentController extends AbstractAsyncController {
 			return source;
 		}
 
+		public Materializer materializer() {
+			return materializer;
+		}
+
 		public HarnessAgent agent() {
 			return agent;
 		}
 
 		public void setAgent(HarnessAgent agent) {
 			this.agent = agent;
+		}
+
+		public HarnessAgent subAgent() {
+			return subAgent;
+		}
+
+		public void setSubAgent(HarnessAgent subAgent) {
+			this.subAgent = subAgent;
 		}
 
 		public Toolkit toolkit() {
@@ -638,20 +698,13 @@ public class CodingAgentController extends AbstractAsyncController {
 		}
 	}
 
-	public static class FileTool {
+	public static class ReadOnlyFileTool {
 		private final CompleteDS cpds;
-		private final Sink<JsonNode, ?> broadcastSink;
-		private final Materializer materializer;
-		private final SyncCacheApi cache;
 		private final Long datasetId;
 		private final UnmanagedAIApiService aiAPIService;
 
-		public FileTool(CompleteDS cpds, Sink<JsonNode, ?> broadcastSink, Materializer materializer, SyncCacheApi cache,
-				Long datasetId, UnmanagedAIApiService aiAPIService) {
+		public ReadOnlyFileTool(CompleteDS cpds, Long datasetId, UnmanagedAIApiService aiAPIService) {
 			this.cpds = cpds;
-			this.broadcastSink = broadcastSink;
-			this.materializer = materializer;
-			this.cache = cache;
 			this.datasetId = datasetId;
 			this.aiAPIService = aiAPIService;
 		}
@@ -680,93 +733,6 @@ public class CodingAgentController extends AbstractAsyncController {
 			}
 
 			return "Error: File not found";
-		}
-
-		@Tool(description = "Write or overwrite a file in the dataset. Note: The dataset only supports a flat file structure; do not use subdirectories.")
-		public String write_file(
-				@ToolParam(name = "filename", description = "The name of the file to write (no subdirectories)") String filename,
-				@ToolParam(name = "content", description = "The content to write to the file") String content)
-				throws IOException {
-
-			// Enforce flat structure: reject any filename containing path separators
-			if (filename.contains("/") || filename.contains("\\")) {
-				return "Error: Subdirectories are not supported. Please use a flat filename.";
-			}
-
-			// Create temporary file
-			File tempFile = File.createTempFile("codingagent-", ".tmp");
-			try {
-				FileUtils.writeStringToFile(tempFile, content, Charset.defaultCharset());
-
-				// Official store method
-				Optional<String> storedFileOpt = cpds.storeFile(tempFile, filename);
-				if (storedFileOpt.isEmpty()) {
-					return "Error: Failed to store file in dataset.";
-				}
-
-				String finalFileName = storedFileOpt.get();
-
-				// Add record to dataset if it's a new file
-				Optional<Long> latestFileVersionId = cpds.getLatestFileVersionId(finalFileName);
-				if (latestFileVersionId.isEmpty() || latestFileVersionId.get() == 0) {
-					cpds.addRecord(finalFileName, "Created by Coding Agent", new Date());
-					latestFileVersionId = cpds.getLatestFileVersionId(finalFileName);
-				}
-
-				// Invalidate cache
-				cache.remove(CompleteDSController.CACHE_FILES + datasetId);
-
-				// Broadcast file-sync event
-				Optional<Long> fileIdOpt = latestFileVersionId;
-				if (fileIdOpt.isPresent()) {
-					ObjectNode syncMsg = Json.newObject().put("type", "file-sync").put("fileId", fileIdOpt.get())
-							.put("filename", finalFileName);
-					Source.single((JsonNode) syncMsg).runWith(broadcastSink, materializer);
-				}
-
-				return "Success: File '" + finalFileName + "' written";
-			} finally {
-				tempFile.delete();
-			}
-		}
-
-		@Tool(description = "Surgically edit a file by replacing a specific string. Note: Only flat filenames are supported.")
-		public String edit_file(
-				@ToolParam(name = "filename", description = "The name of the file to edit (no subdirectories)") String filename,
-				@ToolParam(name = "old_string", description = "The exact string to be replaced") String oldString,
-				@ToolParam(name = "new_string", description = "The new string to insert") String newString)
-				throws IOException {
-
-			// Enforce flat structure
-			if (filename.contains("/") || filename.contains("\\")) {
-				return "Error: Subdirectories are not supported.";
-			}
-
-			Optional<File> fOpt = cpds.getFile(filename);
-			if (fOpt.isEmpty())
-				return "Error: File not found";
-			File f = fOpt.get();
-
-			String content = FileUtils.readFileToString(f, Charset.defaultCharset());
-			if (!content.contains(oldString)) {
-				return "Error: 'old_string' not found in file";
-			}
-
-			String newContent = content.replace(oldString, newString);
-			FileUtils.writeStringToFile(f, newContent, Charset.defaultCharset());
-
-			// Invalidate cache
-			cache.remove(CompleteDSController.CACHE_FILES + datasetId);
-
-			// Broadcast file-sync event
-			Optional<Long> fileIdOpt = cpds.getLatestFileVersionId(f.getName());
-			if (fileIdOpt.isPresent()) {
-				ObjectNode syncMsg = Json.newObject().put("type", "file-sync").put("fileId", fileIdOpt.get())
-						.put("filename", f.getName());
-				Source.single((JsonNode) syncMsg).runWith(broadcastSink, materializer);
-			}
-
-			return "Success: File '" + f.getName() + "' edited";
 		}
 
 		@Tool(description = "Retrieve project metadata including datasets, their API keys, and resources like devices, wearables, and participants.")
@@ -832,6 +798,159 @@ public class CodingAgentController extends AbstractAsyncController {
 		@Tool(description = "List all files in the dataset")
 		public String list_files() {
 			return cpds.getFiles().stream().map(TimedMedia::getLink).collect(Collectors.joining(", "));
+		}
+	}
+
+	public static class FileMutationTool {
+		private final CompleteDS cpds;
+		private final Sink<JsonNode, ?> broadcastSink;
+		private final Materializer materializer;
+		private final SyncCacheApi cache;
+		private final Long datasetId;
+
+		public FileMutationTool(CompleteDS cpds, Sink<JsonNode, ?> broadcastSink, Materializer materializer, SyncCacheApi cache,
+				Long datasetId) {
+			this.cpds = cpds;
+			this.broadcastSink = broadcastSink;
+			this.materializer = materializer;
+			this.cache = cache;
+			this.datasetId = datasetId;
+		}
+
+		@Tool(description = "Write or overwrite a file in the dataset. Note: The dataset only supports a flat file structure; do not use subdirectories.")
+		public String write_file(
+				@ToolParam(name = "filename", description = "The name of the file to write (no subdirectories)") String filename,
+				@ToolParam(name = "content", description = "The content to write to the file") String content)
+				throws IOException {
+
+			// Enforce flat structure: reject any filename containing path separators
+			if (filename.contains("/") || filename.contains("\\")) {
+				return "Error: Subdirectories are not supported. Please use a flat filename.";
+			}
+
+			// Create temporary file
+			File tempFile = File.createTempFile("codingagent-", ".tmp");
+			try {
+				FileUtils.writeStringToFile(tempFile, content, Charset.defaultCharset());
+
+				// Official store method
+				Optional<String> storedFileOpt = cpds.storeFile(tempFile, filename);
+				if (storedFileOpt.isEmpty()) {
+					return "Error: Failed to store file in dataset.";
+				}
+
+				String finalFileName = storedFileOpt.get();
+
+				// Add record to dataset if it's a new file
+				Optional<Long> latestFileVersionId = cpds.getLatestFileVersionId(finalFileName);
+				if (latestFileVersionId.isEmpty() || latestFileVersionId.get() == 0) {
+					cpds.addRecord(finalFileName, "Created by Coding Agent Subagent", new Date());
+					latestFileVersionId = cpds.getLatestFileVersionId(finalFileName);
+				}
+
+				// Invalidate cache
+				cache.remove(CompleteDSController.CACHE_FILES + datasetId);
+
+				// Broadcast file-sync event
+				Optional<Long> fileIdOpt = latestFileVersionId;
+				if (fileIdOpt.isPresent()) {
+					ObjectNode syncMsg = Json.newObject().put("type", "file-sync").put("fileId", fileIdOpt.get())
+							.put("filename", finalFileName);
+					Source.single((JsonNode) syncMsg).runWith(broadcastSink, materializer);
+				}
+
+				return "Success: File '" + finalFileName + "' written";
+			} finally {
+				tempFile.delete();
+			}
+		}
+
+		@Tool(description = "Surgically edit a file by replacing a specific string. Note: Only flat filenames are supported.")
+		public String edit_file(
+				@ToolParam(name = "filename", description = "The name of the file to edit (no subdirectories)") String filename,
+				@ToolParam(name = "old_string", description = "The exact string to be replaced") String oldString,
+				@ToolParam(name = "new_string", description = "The new string to insert") String newString)
+				throws IOException {
+
+			// Enforce flat structure
+			if (filename.contains("/") || filename.contains("\\")) {
+				return "Error: Subdirectories are not supported.";
+			}
+
+			Optional<File> fOpt = cpds.getFile(filename);
+			if (fOpt.isEmpty())
+				return "Error: File not found";
+			File f = fOpt.get();
+
+			String content = FileUtils.readFileToString(f, Charset.defaultCharset());
+			if (!content.contains(oldString)) {
+				return "Error: 'old_string' not found in file";
+			}
+
+			String newContent = content.replace(oldString, newString);
+			FileUtils.writeStringToFile(f, newContent, Charset.defaultCharset());
+
+			// Invalidate cache
+			cache.remove(CompleteDSController.CACHE_FILES + datasetId);
+
+			// Broadcast file-sync event
+			Optional<Long> fileIdOpt = cpds.getLatestFileVersionId(f.getName());
+			if (fileIdOpt.isPresent()) {
+				ObjectNode syncMsg = Json.newObject().put("type", "file-sync").put("fileId", fileIdOpt.get())
+						.put("filename", f.getName());
+				Source.single((JsonNode) syncMsg).runWith(broadcastSink, materializer);
+			}
+
+			return "Success: File '" + f.getName() + "' edited";
+		}
+	}
+
+	public static class SubAgentDelegationTool {
+		private final DatasetContext context;
+		private final String sessionId;
+
+		public SubAgentDelegationTool(DatasetContext context, String sessionId) {
+			this.context = context;
+			this.sessionId = sessionId;
+		}
+
+		@Tool(description = "Delegate a concrete coding, code generation, or file modification task to the Coding Sub-Agent. Use this tool whenever code needs to be generated or files need to be created/edited.")
+		public String execute_coding_task(
+				@ToolParam(name = "task_description", description = "Detailed description of the coding or file implementation task to be performed by the coding sub-agent") String taskDescription) {
+
+			if (context.subAgent() == null) {
+				return "Error: Coding sub-agent is not initialized.";
+			}
+
+			// Broadcast playful, friendly system start notification
+			ObjectNode startMsg = Json.newObject().put("type", "chat").put("user", "System")
+					.put("message", "🤖 Coding helper is rolling up their sleeves to build your changes... 🚀")
+					.put("timestamp", new Date().getTime())
+					.put("formattedTime", LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMM d, HH:mm")));
+			Source.single((JsonNode) startMsg).runWith(context.sink(), context.materializer());
+
+			try {
+				Msg subInput = Msg.builder().role(MsgRole.USER).textContent(taskDescription).build();
+				RuntimeContext subRuntimeCtx = RuntimeContext.builder().userId("global")
+						.sessionId(sessionId + "-subagent").build();
+
+				Msg subResponse = context.subAgent().call(subInput, subRuntimeCtx).block();
+
+				// Broadcast playful completion notification
+				ObjectNode endMsg = Json.newObject().put("type", "chat").put("user", "System")
+						.put("message", "✨ Coding helper finished updating your files!")
+						.put("timestamp", new Date().getTime())
+						.put("formattedTime", LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMM d, HH:mm")));
+				Source.single((JsonNode) endMsg).runWith(context.sink(), context.materializer());
+
+				if (subResponse != null && subResponse.getTextContent() != null) {
+					return cleanThinkingTags(subResponse.getTextContent());
+				}
+				return "Task completed by sub-agent.";
+			} catch (Exception e) {
+				logger.error("Error executing sub-agent coding task", e);
+				return "Error executing sub-agent coding task: " + e.getMessage();
+			}
 		}
 	}
 }
