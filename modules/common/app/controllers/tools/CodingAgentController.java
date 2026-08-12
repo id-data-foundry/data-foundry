@@ -382,7 +382,6 @@ public class CodingAgentController extends AbstractAsyncController {
 						RuntimeContext runtimeCtx = RuntimeContext.builder().userId("global").sessionId(sessionId)
 								.build();
 						Msg response = context.agent().call(input, runtimeCtx).block();
-
 						if (response != null) {
 							String messageContent = cleanThinkingTags(response.getTextContent());
 							ObjectNode agentMsg = Json.newObject().put("type", "chat").put("user", "Agent")
@@ -546,8 +545,17 @@ public class CodingAgentController extends AbstractAsyncController {
 		if (text == null) {
 			return "";
 		}
-		// Remove anything between <think> and </think> tags (including the tags themselves)
-		return text.replaceAll("(?s)<think>.*?</think>", "").trim();
+		String cleaned = text;
+		if (cleaned.contains("<think>")) {
+			// Remove complete <think>...</think> blocks
+			cleaned = cleaned.replaceAll("(?s)<think>.*?</think>", "");
+			// Remove unclosed <think>... to end of string
+			cleaned = cleaned.replaceAll("(?s)<think>.*$", "");
+		} else if (cleaned.contains("</think>")) {
+			// Model omitted opening <think> tag, remove thinking trace from start of string to first </think>
+			cleaned = cleaned.replaceAll("(?s)^.*?</think>", "");
+		}
+		return cleaned.trim();
 	}
 
 	public static class DatasetContext {
@@ -915,22 +923,19 @@ public class CodingAgentController extends AbstractAsyncController {
 		private final String sessionId;
 
 		private static final String[] START_MESSAGES = {
-				"🤖 Coding Apprentica is rolling up their sleeves to build your changes... 🚀",
-				"⚙️ Handing over to Coding Apprentica to work on your files... 🛠️",
-				"💻 Coding Apprentica is diving into the codebase to implement your request... ✨",
-				"🚀 Coding Apprentica activated! Writing and refining code... ⚡",
-				"🛠️ Coding Apprentica is on it! Modifying files now... 🎨",
-				"🔍 Coding Apprentica is crafting changes in the workspace... Hang tight! 🔨"
-		};
+				"🤖 Coding Apprentice is rolling up their sleeves to build your changes... 🚀",
+				"⚙️ Handing over to Coding Apprentice to work on your files... 🛠️",
+				"💻 Coding Apprentice is diving into the codebase to implement your request... ✨",
+				"🚀 Coding Apprentice activated! Writing and refining code... ⚡",
+				"🛠️ Coding Apprentice is on it! Modifying files now... 🎨",
+				"🔍 Coding Apprentice is crafting changes in the workspace... Hang tight! 🔨" };
 
-		private static final String[] COMPLETION_MESSAGES = {
-				"✨ Coding Apprentica finished updating your files!",
-				"🎉 All done! Coding Apprentica has completed the requested updates. 🚀",
-				"✅ Coding Apprentica finished executing the task successfully! 💻",
-				"🙌 Changes applied! Coding Apprentica handed control back to the agent. 🛠️",
-				"🎯 Implementation complete! Coding Apprentica updated your files. ✨",
-				"⚡ Workspace updated successfully by Coding Apprentica!"
-		};
+		private static final String[] COMPLETION_MESSAGES = { "✨ Coding Apprentice finished updating your files!",
+				"🎉 All done! Coding Apprentice has completed the requested updates. 🚀",
+				"✅ Coding Apprentice finished executing the task successfully! 💻",
+				"🙌 Changes applied! Coding Apprentice handed control back to the agent. 🛠️",
+				"🎯 Implementation complete! Coding Apprentice updated your files. ✨",
+				"⚡ Workspace updated successfully by Coding Apprentice!" };
 
 		private static String getRandomStartMessage() {
 			return START_MESSAGES[ThreadLocalRandom.current().nextInt(START_MESSAGES.length)];
@@ -955,8 +960,7 @@ public class CodingAgentController extends AbstractAsyncController {
 
 			// Broadcast playful, friendly system start notification
 			ObjectNode startMsg = Json.newObject().put("type", "chat").put("user", "System")
-					.put("message", getRandomStartMessage())
-					.put("timestamp", new Date().getTime())
+					.put("message", getRandomStartMessage()).put("timestamp", new Date().getTime())
 					.put("formattedTime", LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMM d, HH:mm")));
 			Source.single((JsonNode) startMsg).runWith(context.sink(), context.materializer());
 
@@ -969,8 +973,7 @@ public class CodingAgentController extends AbstractAsyncController {
 
 				// Broadcast playful completion notification
 				ObjectNode endMsg = Json.newObject().put("type", "chat").put("user", "System")
-						.put("message", getRandomCompletionMessage())
-						.put("timestamp", new Date().getTime())
+						.put("message", getRandomCompletionMessage()).put("timestamp", new Date().getTime())
 						.put("formattedTime", LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMM d, HH:mm")));
 				Source.single((JsonNode) endMsg).runWith(context.sink(), context.materializer());
 
