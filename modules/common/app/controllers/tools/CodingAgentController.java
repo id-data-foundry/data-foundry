@@ -140,6 +140,10 @@ public class CodingAgentController extends AbstractAsyncController {
 		final List<TimedMedia> fileList = cpds.getFiles().stream()
 				.filter(tl -> FileTypeUtils.looksLikeEditableFile(tl.link)).collect(Collectors.toList());
 
+		if (fileId == -1L && !fileList.isEmpty()) {
+			fileId = fileList.get(0).getId();
+		}
+
 		String fileName = "";
 		String fileType = "";
 		String fileContent = "";
@@ -720,22 +724,47 @@ public class CodingAgentController extends AbstractAsyncController {
 		public String read_file(
 				@ToolParam(name = "filename", description = "The name of the file to read") String filename)
 				throws IOException {
-			Optional<File> fOpt = cpds.getFile(filename);
-			if (fOpt.isPresent()) {
-				return FileUtils.readFileToString(fOpt.get(), Charset.defaultCharset());
+			if (filename == null || filename.trim().isEmpty()) {
+				return "Error: Invalid filename";
 			}
 
-			// Fallback: check in agent's workspace knowledge directory strictly
+			// Reject directory traversal attempts
+			if (filename.contains("..")) {
+				return "Error: Subdirectories are not supported. Please use a flat filename.";
+			}
+
+			// Check in agent's workspace knowledge directory strictly
 			if (filename.startsWith("knowledge/")) {
-				File workspaceFile = new File(new File(cpds.getFolder(), ".agentscope"), filename);
+				File knowledgeFolder = new File(new File(cpds.getFolder(), ".agentscope"), "knowledge");
+				File workspaceFile = new File(knowledgeFolder, filename.substring("knowledge/".length()));
 				try {
-					File knowledgeFolder = new File(new File(cpds.getFolder(), ".agentscope"), "knowledge");
-					if (workspaceFile.exists()
-							&& workspaceFile.getCanonicalPath().startsWith(knowledgeFolder.getCanonicalPath())) {
+					if (workspaceFile.exists() && workspaceFile.getCanonicalPath()
+							.startsWith(knowledgeFolder.getCanonicalPath() + File.separator)) {
 						return FileUtils.readFileToString(workspaceFile, Charset.defaultCharset());
 					}
 				} catch (IOException e) {
 					// Ignore and fall through
+				}
+				return "Error: File not found";
+			}
+
+			// Enforce flat structure for dataset files: reject any subdirectories or path separators
+			if (filename.contains("/") || filename.contains("\\")) {
+				return "Error: Subdirectories are not supported. Please use a flat filename.";
+			}
+
+			Optional<File> fOpt = cpds.getFile(filename);
+			if (fOpt.isPresent()) {
+				File f = fOpt.get();
+				// Ensure file is strictly contained within dataset folder
+				try {
+					String datasetCanonical = cpds.getFolder().getCanonicalPath();
+					String fileCanonical = f.getCanonicalPath();
+					if (fileCanonical.startsWith(datasetCanonical + File.separator)) {
+						return FileUtils.readFileToString(f, Charset.defaultCharset());
+					}
+				} catch (IOException e) {
+					// Fall through to error
 				}
 			}
 
@@ -830,8 +859,8 @@ public class CodingAgentController extends AbstractAsyncController {
 				@ToolParam(name = "content", description = "The content to write to the file") String content)
 				throws IOException {
 
-			// Enforce flat structure: reject any filename containing path separators
-			if (filename.contains("/") || filename.contains("\\")) {
+			// Enforce flat structure: reject any filename containing path separators or traversal
+			if (filename.contains("/") || filename.contains("\\") || filename.contains("..")) {
 				return "Error: Subdirectories are not supported. Please use a flat filename.";
 			}
 
@@ -879,8 +908,8 @@ public class CodingAgentController extends AbstractAsyncController {
 				@ToolParam(name = "new_string", description = "The new string to insert") String newString)
 				throws IOException {
 
-			// Enforce flat structure
-			if (filename.contains("/") || filename.contains("\\")) {
+			// Enforce flat structure: reject any filename containing path separators or traversal
+			if (filename.contains("/") || filename.contains("\\") || filename.contains("..")) {
 				return "Error: Subdirectories are not supported.";
 			}
 

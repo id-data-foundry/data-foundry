@@ -829,14 +829,12 @@ public class CompleteDSController extends AbstractDSController {
 		final CompleteDS cpds = datasetConnector.getTypedDatasetDS(ds);
 		Optional<File> requestedFileOpt = cpds.getFile(fileId);
 		if (!requestedFileOpt.isPresent()) {
-			return cs(() -> redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request,
-					"error", "No file found: " + fileId));
+			return cs(() -> notFound("No file found: " + fileId));
 		}
 
 		File requestedFile = requestedFileOpt.get();
 		if (!requestedFile.exists()) {
-			return cs(() -> redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request,
-					"error", "No file found: " + fileId));
+			return cs(() -> notFound("No file found: " + fileId));
 		}
 
 		LabNotesEntry.log(CompleteDSController.class, LabNotesEntryType.DOWNLOAD, "Dataset downloaded: " + ds.getName(),

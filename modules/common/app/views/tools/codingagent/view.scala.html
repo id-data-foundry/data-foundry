@@ -428,7 +428,7 @@
           }
         </style>
       } else {
-        <div id="editor_contents" class="editor_contents">@if(fileId == -1L) { Select a file to start editing } else { loading file contents ... }</div>
+        <div id="editor_contents" class="editor_contents">@if(fileId == -1L) { No files in this dataset yet. Ask the Coding Agent to generate code or create files. } else { loading file contents ... }</div>
       }
     </div>
   </div>
@@ -482,7 +482,7 @@
 
     // init code editor
     let flask = null;
-    if (currentFileId !== -1 && !isStarboardFile && !isSessionExport) {
+    if (currentFileId > 0 && !isStarboardFile && !isSessionExport) {
         flask = new CodeFlask('#editor_contents', {
           language: '@fileType',
           lineNumbers: true
@@ -499,7 +499,12 @@
         
         // Fetch file content instead of embedding it in JS
         fetch("@controllers.api.routes.CompleteDSController.downloadFile(dataset.getId(), fileId)")
-          .then(response => response.text())
+          .then(response => {
+            if (!response.ok || response.redirected) {
+                throw new Error('File not found or redirected');
+            }
+            return response.text();
+          })
           .then(data => {
             flask.updateCode(data);
             setTimeout(() => {
@@ -510,15 +515,20 @@
           })
           .catch(error => {
             console.error('Error loading file:', error);
-            flask.updateCode('Error loading file content.');
+            flask.updateCode('');
           });
     }
 
-    if (isSessionExport) {
+    if (currentFileId > 0 && isSessionExport) {
         const messageContainer = document.getElementById('session_chat_messages');
         
         fetch("@controllers.api.routes.CompleteDSController.downloadFile(dataset.getId(), fileId)")
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok || response.redirected) {
+                    throw new Error('File not found or redirected');
+                }
+                return response.json();
+            })
             .then(data => {
                 messageContainer.innerHTML = '';
                 
@@ -597,8 +607,7 @@
     }
 
     // WebSocket setup
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/tools/codingagent/${datasetId}/ws`;
+    const wsUrl = "@controllers.tools.routes.CodingAgentController.ws(dataset.getId()).webSocketURL(request)";
     let socket;
     let reconnectDelay = 1000;
     const maxReconnectDelay = 30000;
@@ -640,13 +649,13 @@
             isNewFile = !options.some(opt => opt.value.endsWith(`?fileId=${syncFileId}`) || opt.value.endsWith(`&fileId=${syncFileId}`));
         }
 
-        fetch(`/tools/codingagent/${datasetId}/files`)
+        fetch("@controllers.tools.routes.CodingAgentController.getFileList(dataset.getId())")
             .then(response => response.json())
             .then(files => {
                 select.innerHTML = '';
                 files.forEach(file => {
                     const option = document.createElement('option');
-                    option.value = `/tools/codingagent/${datasetId}?fileId=${file.id}`;
+                    option.value = "@controllers.tools.routes.CodingAgentController.view(dataset.getId())?fileId=" + file.id;
                     option.textContent = file.filename;
                     if (file.id == currentFileId) {
                         option.selected = true;
@@ -719,17 +728,27 @@
                 }
             } else if (data.type === 'file-sync') {
                 reloadFileSelector(data.fileId, data.filename);
-                if (data.fileId === currentFileId) {
+                if (currentFileId === -1 && data.fileId) {
+                    // Navigate to first created file in previously empty dataset
+                    window.location.href = "@controllers.tools.routes.CodingAgentController.view(dataset.getId())?fileId=" + data.fileId;
+                } else if (data.fileId === currentFileId && flask) {
                     if (isStarboardFile) {
                         pushNotification('Agent updated the notebook. Refresh the Starboard editor to see updates.', 'blue');
                     } else {
                         // Reload file content
-                        fetch(`@controllers.api.routes.CompleteDSController.downloadFile(dataset.getId(), fileId)`)
-                            .then(r => r.text())
+                        const downloadUrl = "@controllers.api.routes.CompleteDSController.downloadFile(dataset.getId(), 0)".replace('/0', '/' + data.fileId);
+                        fetch(downloadUrl)
+                            .then(r => {
+                                if (!r.ok || r.redirected) {
+                                    throw new Error('Download failed');
+                                }
+                                return r.text();
+                            })
                             .then(code => {
                                 flask.updateCode(code);
                                 pushNotification('Agent updated the file.', 'blue');
-                            });
+                            })
+                            .catch(err => console.error('Error reloading file content:', err));
                     }
                 }
             }
