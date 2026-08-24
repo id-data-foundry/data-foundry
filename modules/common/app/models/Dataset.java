@@ -24,6 +24,7 @@ import io.ebean.DB;
 import io.ebean.Finder;
 import io.ebean.Model;
 import io.ebean.Transaction;
+import io.ebean.annotation.Cache;
 import io.ebean.annotation.DbJsonB;
 import io.ebean.annotation.WhenCreated;
 import jakarta.persistence.ElementCollection;
@@ -36,6 +37,7 @@ import play.libs.Json;
 import utils.DataUtils;
 import utils.DateUtils;
 
+@Cache(enableBeanCache = true, naturalKey = { "refId" })
 @Entity
 public class Dataset extends Model {
 

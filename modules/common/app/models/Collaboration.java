@@ -4,10 +4,12 @@ import java.util.Date;
 
 import io.ebean.Finder;
 import io.ebean.Model;
+import io.ebean.annotation.Cache;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
 
+@Cache(enableBeanCache = true)
 @Entity
 public class Collaboration extends Model {
 	@Id

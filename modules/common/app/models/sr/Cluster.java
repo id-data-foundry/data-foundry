@@ -9,6 +9,7 @@ import com.google.common.collect.ImmutableList;
 
 import io.ebean.Finder;
 import io.ebean.Model;
+import io.ebean.annotation.Cache;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -20,6 +21,7 @@ import models.Project;
 import play.Logger;
 import utils.DataUtils;
 
+@Cache(enableBeanCache = true, naturalKey = { "refId" })
 @Entity
 public class Cluster extends Model {
 

@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 
 import io.ebean.Finder;
+import io.ebean.annotation.Cache;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.ManyToMany;
@@ -12,6 +13,7 @@ import models.LabNotesEntry;
 import models.LabNotesEntry.LabNotesEntryType;
 import play.Logger;
 
+@Cache(enableBeanCache = true, naturalKey = { "refId" })
 @Entity
 public class Device extends DataResource {
 

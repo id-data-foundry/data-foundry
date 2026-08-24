@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.UUID;
 
 import io.ebean.Finder;
+import io.ebean.annotation.Cache;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.ManyToMany;
@@ -16,6 +17,7 @@ import models.Project;
 import play.Logger;
 import utils.DataUtils;
 
+@Cache(enableBeanCache = true, naturalKey = { "refId" })
 @Entity
 public class Wearable extends DataResource {
 

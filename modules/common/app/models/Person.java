@@ -13,6 +13,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import datasets.DatasetConnector;
 import io.ebean.Finder;
 import io.ebean.Model;
+import io.ebean.annotation.Cache;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.OneToMany;
@@ -28,6 +29,7 @@ import utils.auth.Hash;
 import utils.auth.Roles;
 import utils.components.OnboardingSupport;
 
+@Cache(enableBeanCache = true, naturalKey = { "email" })
 @Entity
 public class Person extends Model {
 

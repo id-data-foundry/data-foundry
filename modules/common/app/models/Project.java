@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import io.ebean.Finder;
 import io.ebean.Model;
+import io.ebean.annotation.Cache;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -34,6 +35,7 @@ import utils.DataUtils;
 import utils.DateUtils;
 import utils.rendering.TimeAgo;
 
+@Cache(enableBeanCache = true, naturalKey = { "refId" })
 @Entity
 public class Project extends Model {
 

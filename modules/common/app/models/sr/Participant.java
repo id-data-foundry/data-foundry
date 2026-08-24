@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 import com.vdurmont.emoji.EmojiParser;
 
 import io.ebean.Finder;
+import io.ebean.annotation.Cache;
 import jakarta.persistence.CascadeType;
 import jakarta.persistence.Entity;
 import jakarta.persistence.ManyToMany;
@@ -22,6 +23,7 @@ import play.data.format.Formats;
 import play.libs.Json;
 import utils.DateUtils;
 
+@Cache(enableBeanCache = true, naturalKey = { "refId" })
 @Entity
 public class Participant extends DataResource {
 
