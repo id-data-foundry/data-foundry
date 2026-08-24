@@ -5,12 +5,83 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.regex.Pattern;
 
 import play.Logger;
 
 public class CodingAgentUtils {
 
 	private static final Logger.ALogger logger = Logger.of(CodingAgentUtils.class);
+
+	public static final String BOT_NAME = "boter";
+	public static final String BOT_SUMMON_TAG = "@" + BOT_NAME;
+	public static final String BOT_DISPLAY_NAME = "@" + BOT_NAME + " 🧈";
+
+	public static final String SUBAGENT_NAME = "comrade roomboter";
+
+	private static final String[] SUBAGENT_START_MESSAGES = {
+			"🤖 " + SUBAGENT_NAME + " is rolling up their sleeves to build your changes... 🚀",
+			"⚙️ Handing over to " + SUBAGENT_NAME + " to work on your files... 🛠️",
+			"💻 " + SUBAGENT_NAME + " is diving into the codebase to implement your request... ✨",
+			"🚀 " + SUBAGENT_NAME + " activated! Writing and refining code... ⚡",
+			"🛠️ " + SUBAGENT_NAME + " is on it! Modifying files now... 🎨",
+			"🔍 " + SUBAGENT_NAME + " is crafting changes in the workspace... Hang tight! 🔨" };
+
+	private static final String[] SUBAGENT_COMPLETION_MESSAGES = {
+			"✨ " + SUBAGENT_NAME + " finished updating your files!",
+			"🎉 All done! " + SUBAGENT_NAME + " has completed the requested updates. 🚀",
+			"✅ " + SUBAGENT_NAME + " finished executing the task successfully! 💻",
+			"🙌 Changes applied! " + SUBAGENT_NAME + " handed control back to the agent. 🛠️",
+			"🎯 Implementation complete! " + SUBAGENT_NAME + " updated your files. ✨",
+			"⚡ Workspace updated successfully by " + SUBAGENT_NAME + "!" };
+
+	/**
+	 * Get a random start notification message for the sub-agent.
+	 *
+	 * @return randomized start notification
+	 */
+	public static String getRandomSubAgentStartMessage() {
+		return SUBAGENT_START_MESSAGES[ThreadLocalRandom.current().nextInt(SUBAGENT_START_MESSAGES.length)];
+	}
+
+	/**
+	 * Get a random completion notification message for the sub-agent.
+	 *
+	 * @return randomized completion notification
+	 */
+	public static String getRandomSubAgentCompletionMessage() {
+		return SUBAGENT_COMPLETION_MESSAGES[ThreadLocalRandom.current().nextInt(SUBAGENT_COMPLETION_MESSAGES.length)];
+	}
+
+	/**
+	 * Check whether a message contains a summoning tag for the agent (e.g. "@bot").
+	 *
+	 * @param message the chat message to inspect
+	 * @return true if the agent is summoned, false otherwise
+	 */
+	public static boolean isAgentSummoned(String message) {
+		if (message == null || message.trim().isEmpty()) {
+			return false;
+		}
+		String tag = BOT_SUMMON_TAG.toLowerCase();
+		return Pattern.compile("(?i)(^|\\s)" + Pattern.quote(tag) + "\\b").matcher(message).find()
+				|| message.toLowerCase().contains(tag);
+	}
+
+	/**
+	 * Format a user message with the sender's username for multi-user chat context in the agent memory.
+	 *
+	 * @param username the username of the sender
+	 * @param message  the text message
+	 * @return formatted string including sender identity
+	 */
+	public static String formatUserMessageForAgent(String username, String message) {
+		if (username == null || username.trim().isEmpty()) {
+			return message != null ? message : "";
+		}
+		return username + ": " + (message != null ? message : "");
+	}
 
 	/**
 	 * Remove <think>...</think> tags and unclosed thinking traces from LLM output.

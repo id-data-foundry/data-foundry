@@ -439,18 +439,18 @@
         <div id="chat-messages">
             <div class="message agent">
                 <div class="message-header">
-                  <span class="sender">Agent</span>
+                  <span class="sender">@@boter 🧈</span>
                   <span class="timestamp">@java.time.ZonedDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("MMM d, HH:mm"))</span>
                 </div>
-                <article>Hello! I am your coding agent. How can I help you with your dataset files today?</article>
+                <article>Hello! I am @@boter 🧈. Let's have a chat about design prototyping together with your team. Tag me with @@boter if you want me to help you with something. Cheers!</article>
             </div>
         </div>
         <div id="typing-indicator" class="typing-indicator">
-            Agent is thinking <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+            @@boter 🧈 is thinking <span class="dot"></span><span class="dot"></span><span class="dot"></span>
         </div>
         <form id="chat-form">
             <div id="chat-input-container">
-                <input type="text" id="chat-input" placeholder="Type a message..." autocomplete="off">
+                <input type="text" id="chat-input" placeholder="Type a message (mention @@boter to ask the agent)..." autocomplete="off">
 	            <div style="width: 80px; display: flex; flex-direction: column;">
 	                <button type="submit" class="btn-floating btn-small blue" style="width: 100%; margin: 0 0 0.5rem;">Submit</button>
 	                <span id="token-counter" style="font-size: 0.7rem; color: #888;">Tokens: 0</span>
@@ -551,10 +551,11 @@
                         participantsSet.add(msg.user);
                     }
                     
+                    const isAgentMsg = msg.user === 'Agent' || msg.user === '@@boter 🧈' || msg.user === 'boter';
                     const msgDiv = document.createElement('div');
-                    msgDiv.className = `message ${msg.user === 'Agent' ? 'agent' : (msg.user === 'System' ? 'system' : (msg.user === currentUser ? 'user' : 'other'))}`;
+                    msgDiv.className = `message ${isAgentMsg ? 'agent' : (msg.user === 'System' ? 'system' : (msg.user === currentUser ? 'user' : 'other'))}`;
                     
-                    if (msg.user !== 'Agent' && msg.user !== 'System') {
+                    if (!isAgentMsg && msg.user !== 'System') {
                         msgDiv.style.backgroundColor = getColor(msg.user);
                     }
                     
@@ -681,7 +682,7 @@
         socket.onopen = (event) => {
             console.log("WebSocket connected");
             reconnectDelay = 1000; // Reset delay on successful connection
-            pushNotification('Connected to Agent', 'green');
+            pushNotification('Connected to @@boter 🧈', 'green');
             totalTokensUsed = 0;
             document.getElementById('token-counter').innerText = 'Tokens: 0';
 
@@ -691,10 +692,10 @@
             document.getElementById('chat-messages').innerHTML = `
                 <div class="message agent">
                     <div class="message-header">
-                        <span class="sender">Agent</span>
+                        <span class="sender">@@boter 🧈</span>
                         <span class="timestamp">${timeStr}</span>
                     </div>
-                    <article>Hello! I am your coding agent. How can I help you with your dataset files today?</article>
+                    <article>Hello! I am @@boter 🧈. Let's have a chat about design prototyping together with your team. Tag me with @@boter if you want me to help you with something. Cheers!</article>
                 </div>`;
 
             // Heartbeat ping every 20 seconds to keep connection active
@@ -707,6 +708,7 @@
 
         socket.onmessage = (event) => {
             const data = JSON.parse(event.data);
+            const isAgentData = data.user === 'Agent' || data.user === '@@boter 🧈' || data.user === 'boter';
             if (data.type === 'typing') {
                 if (data.active) {
                     showTypingIndicator();
@@ -714,17 +716,17 @@
                     hideTypingIndicator();
                 }
             } else if (data.type === 'chat') {
-                if (data.user === 'Agent' || data.user === 'System') {
+                if (isAgentData || data.user === 'System') {
                     hideTypingIndicator();
                 }
-                if (data.user === 'Agent') {
+                if (isAgentData) {
                     if (data.totalTokens) {
                         totalTokensUsed += data.totalTokens;
                         document.getElementById('token-counter').innerText = 'Tokens: ' + totalTokensUsed;
                     }
                 }
                 if (data.message && data.message.trim() !== '') {
-                    appendMessage(data.user, data.message, data.user === 'Agent' ? 'agent' : (data.user === 'System' ? 'system' : (data.user === currentUser ? 'user' : 'other')), data.timestamp, data.formattedTime);
+                    appendMessage(data.user, data.message, isAgentData ? 'agent' : (data.user === 'System' ? 'system' : (data.user === currentUser ? 'user' : 'other')), data.timestamp, data.formattedTime);
                 }
             } else if (data.type === 'file-sync') {
                 reloadFileSelector(data.fileId, data.filename);
@@ -804,7 +806,7 @@
     }
 
     function formatName(name) {
-        if (name === 'Agent') return name;
+        if (name === 'Agent' || name === '@@boter 🧈' || name === 'boter' || name.startsWith('@@')) return name;
         const parts = name.trim().split(/\s+/);
         if (parts.length > 1) {
             return parts[0] + ' ' + parts[parts.length - 1][0] + '.';
@@ -815,7 +817,7 @@
     function appendMessage(sender, text, type, timestamp, formattedTime) {
         if (!type || type === 'other') {
             if (sender === 'System') type = 'system';
-            else if (sender === 'Agent') type = 'agent';
+            else if (sender === 'Agent' || sender === '@@boter 🧈' || sender === 'boter') type = 'agent';
             else if (sender === currentUser) type = 'user';
         }
         const msgDiv = document.createElement('div');
@@ -864,10 +866,11 @@
         const val = input.value.trim();
         if (val && socket.readyState === WebSocket.OPEN) {
             const isReset = val.toLowerCase() === '/reset' || val.toLowerCase() === '/clear';
-            if (isReset) {
-                hideTypingIndicator();
-            } else {
+            const isBotSummoned = !isReset && (val.toLowerCase().includes('@@boter') || val.toLowerCase().includes('@@bot'));
+            if (isBotSummoned) {
                 showTypingIndicator();
+            } else {
+                hideTypingIndicator();
             }
             socket.send(JSON.stringify({
                 type: 'chat',

@@ -272,7 +272,7 @@ public class CodingAgentController extends AbstractAsyncController {
 					text = CodingAgentUtils.filterDatasetPath(text, context.cpds().getFolder());
 				}
 				ObjectNode node = Json.newObject().put("type", "chat")
-						.put("user", msg.getRole() == MsgRole.USER ? username : "Agent")
+						.put("user", msg.getRole() == MsgRole.USER ? username : CodingAgentUtils.BOT_DISPLAY_NAME)
 						.put("message", text).put("timestamp", new Date().getTime())
 						.put("formattedTime", LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMM d, HH:mm")));
 				context.history().append(node);
@@ -376,51 +376,71 @@ public class CodingAgentController extends AbstractAsyncController {
 				context.history().append(userMsg);
 				Source.single((JsonNode) userMsg).runWith(context.sink(), materializer);
 
-				// Trigger AgentScope processing
-				CompletableFuture.runAsync(() -> {
-					context.setThinking(true);
-					try {
-						// Dynamically sync and reload workspace rules if they have changed
-						checkAndReloadAgent(context, datasetId, sessionId, userEmail);
+				if (CodingAgentUtils.isAgentSummoned(message)) {
+					// Trigger AgentScope processing when @bot is summoned
+					CompletableFuture.runAsync(() -> {
+						context.setThinking(true);
+						try {
+							// Dynamically sync and reload workspace rules if they have changed
+							checkAndReloadAgent(context, datasetId, sessionId, userEmail);
 
-						// Send typing: true
-						ObjectNode typingStart = Json.newObject().put("type", "typing").put("active", true);
-						Source.single((JsonNode) typingStart).runWith(context.sink(), materializer);
+							// Send typing: true
+							ObjectNode typingStart = Json.newObject().put("type", "typing").put("active", true);
+							Source.single((JsonNode) typingStart).runWith(context.sink(), materializer);
 
-						Msg input = Msg.builder().role(MsgRole.USER).textContent(message).build();
-						RuntimeContext runtimeCtx = RuntimeContext.builder().userId("global").sessionId(sessionId)
-								.build();
-						Msg response = context.agent().call(input, runtimeCtx).block();
-						if (response != null) {
-							String messageContent = CodingAgentUtils.cleanThinkingTags(response.getTextContent());
-							messageContent = CodingAgentUtils.filterDatasetPath(messageContent,
-									context.cpds().getFolder());
-							ObjectNode agentMsg = Json.newObject().put("type", "chat").put("user", "Agent")
-									.put("message", messageContent).put("timestamp", new Date().getTime())
-									.put("formattedTime",
-											LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMM d, HH:mm")));
+							String agentPrompt = CodingAgentUtils.formatUserMessageForAgent(username, message);
+							Msg input = Msg.builder().role(MsgRole.USER).name(username).textContent(agentPrompt).build();
+							RuntimeContext runtimeCtx = RuntimeContext.builder().userId("global").sessionId(sessionId)
+									.build();
+							Msg response = context.agent().call(input, runtimeCtx).block();
+							if (response != null) {
+								String messageContent = CodingAgentUtils.cleanThinkingTags(response.getTextContent());
+								messageContent = CodingAgentUtils.filterDatasetPath(messageContent,
+										context.cpds().getFolder());
+								ObjectNode agentMsg = Json.newObject().put("type", "chat")
+										.put("user", CodingAgentUtils.BOT_DISPLAY_NAME)
+										.put("message", messageContent).put("timestamp", new Date().getTime())
+										.put("formattedTime",
+												LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMM d, HH:mm")));
 
-							// Extract token usage
-							ChatUsage usage = response.getChatUsage();
-							if (usage != null) {
-								agentMsg.put("inputTokens", usage.getInputTokens());
-								agentMsg.put("outputTokens", usage.getOutputTokens());
-								agentMsg.put("totalTokens", usage.getTotalTokens());
-								agentMsg.put("generationTime", usage.getTime());
+								// Extract token usage
+								ChatUsage usage = response.getChatUsage();
+								if (usage != null) {
+									agentMsg.put("inputTokens", usage.getInputTokens());
+									agentMsg.put("outputTokens", usage.getOutputTokens());
+									agentMsg.put("totalTokens", usage.getTotalTokens());
+									agentMsg.put("generationTime", usage.getTime());
+								}
+
+								context.history().append(agentMsg);
+								Source.single((JsonNode) agentMsg).runWith(context.sink(), materializer);
 							}
-
-							context.history().append(agentMsg);
-							Source.single((JsonNode) agentMsg).runWith(context.sink(), materializer);
+						} catch (Exception e) {
+							logger.error("Error in agent call", e);
+						} finally {
+							context.setThinking(false);
+							// Send typing: false
+							ObjectNode typingEnd = Json.newObject().put("type", "typing").put("active", false);
+							Source.single((JsonNode) typingEnd).runWith(context.sink(), materializer);
+						}
+					});
+				} else {
+					// Record team discussion into Agent state memory without triggering LLM generation
+					try {
+						if (context.agent() != null) {
+							AgentState state = context.agent().getDelegate().getAgentState("global", sessionId);
+							if (state != null && state.contextMutable() != null) {
+								String formattedMsg = CodingAgentUtils.formatUserMessageForAgent(username, message);
+								Msg userContextMsg = Msg.builder().role(MsgRole.USER).name(username)
+										.textContent(formattedMsg).build();
+								state.contextMutable().add(userContextMsg);
+								context.agent().getDelegate().saveAgentState("global", sessionId);
+							}
 						}
 					} catch (Exception e) {
-						logger.error("Error in agent call", e);
-					} finally {
-						context.setThinking(false);
-						// Send typing: false
-						ObjectNode typingEnd = Json.newObject().put("type", "typing").put("active", false);
-						Source.single((JsonNode) typingEnd).runWith(context.sink(), materializer);
+						logger.error("Error recording user message into agent state", e);
 					}
-				});
+				}
 			}
 		}), historySource.concat(context.source()));
 	}
@@ -945,27 +965,12 @@ public class CodingAgentController extends AbstractAsyncController {
 		private final DatasetContext context;
 		private final String sessionId;
 
-		private static final String[] START_MESSAGES = {
-				"🤖 Coding Apprentice is rolling up their sleeves to build your changes... 🚀",
-				"⚙️ Handing over to Coding Apprentice to work on your files... 🛠️",
-				"💻 Coding Apprentice is diving into the codebase to implement your request... ✨",
-				"🚀 Coding Apprentice activated! Writing and refining code... ⚡",
-				"🛠️ Coding Apprentice is on it! Modifying files now... 🎨",
-				"🔍 Coding Apprentice is crafting changes in the workspace... Hang tight! 🔨" };
-
-		private static final String[] COMPLETION_MESSAGES = { "✨ Coding Apprentice finished updating your files!",
-				"🎉 All done! Coding Apprentice has completed the requested updates. 🚀",
-				"✅ Coding Apprentice finished executing the task successfully! 💻",
-				"🙌 Changes applied! Coding Apprentice handed control back to the agent. 🛠️",
-				"🎯 Implementation complete! Coding Apprentice updated your files. ✨",
-				"⚡ Workspace updated successfully by Coding Apprentice!" };
-
 		private static String getRandomStartMessage() {
-			return START_MESSAGES[ThreadLocalRandom.current().nextInt(START_MESSAGES.length)];
+			return CodingAgentUtils.getRandomSubAgentStartMessage();
 		}
 
 		private static String getRandomCompletionMessage() {
-			return COMPLETION_MESSAGES[ThreadLocalRandom.current().nextInt(COMPLETION_MESSAGES.length)];
+			return CodingAgentUtils.getRandomSubAgentCompletionMessage();
 		}
 
 		public SubAgentDelegationTool(DatasetContext context, String sessionId) {

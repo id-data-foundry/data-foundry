@@ -69,4 +69,55 @@ public class CodingAgentUtilsTest {
 			assertEquals("Look at PATH/build.sbt", CodingAgentUtils.filterDatasetPath(textWithNullDataset, null));
 		}
 	}
+
+	@Test
+	public void testBotConstantsAndSummoning() {
+		// Constants
+		assertEquals("boter", CodingAgentUtils.BOT_NAME);
+		assertEquals("@boter", CodingAgentUtils.BOT_SUMMON_TAG);
+		assertEquals("@boter 🧈", CodingAgentUtils.BOT_DISPLAY_NAME);
+
+		// Direct summoning
+		org.junit.Assert.assertTrue(CodingAgentUtils.isAgentSummoned("@boter"));
+		org.junit.Assert.assertTrue(CodingAgentUtils.isAgentSummoned("@boter please help"));
+		org.junit.Assert.assertTrue(CodingAgentUtils.isAgentSummoned("Hello @boter, what is this?"));
+		org.junit.Assert.assertTrue(CodingAgentUtils.isAgentSummoned("Can you check this @boter?"));
+		org.junit.Assert.assertTrue(CodingAgentUtils.isAgentSummoned("@boter: create an index.html"));
+
+		// Case-insensitive summoning
+		org.junit.Assert.assertTrue(CodingAgentUtils.isAgentSummoned("@Boter can you help?"));
+		org.junit.Assert.assertTrue(CodingAgentUtils.isAgentSummoned("@BOTER status report"));
+		org.junit.Assert.assertTrue(CodingAgentUtils.isAgentSummoned("Hey @BoTeR!"));
+
+		// Non-summoning human chat
+		org.junit.Assert.assertFalse(CodingAgentUtils.isAgentSummoned("Hello team!"));
+		org.junit.Assert.assertFalse(CodingAgentUtils.isAgentSummoned("Hey Bob, what do you think?"));
+		org.junit.Assert.assertFalse(CodingAgentUtils.isAgentSummoned("The robotics club meets tomorrow"));
+		org.junit.Assert.assertFalse(CodingAgentUtils.isAgentSummoned("Pass the water bottle"));
+		org.junit.Assert.assertFalse(CodingAgentUtils.isAgentSummoned(""));
+		org.junit.Assert.assertFalse(CodingAgentUtils.isAgentSummoned(null));
+	}
+
+	@Test
+	public void testFormatUserMessageForAgent() {
+		assertEquals("Alice S.: Hello everyone", CodingAgentUtils.formatUserMessageForAgent("Alice S.", "Hello everyone"));
+		assertEquals("Bob K.: @bot please edit index.html",
+				CodingAgentUtils.formatUserMessageForAgent("Bob K.", "@bot please edit index.html"));
+		assertEquals("Hello world", CodingAgentUtils.formatUserMessageForAgent(null, "Hello world"));
+		assertEquals("Hello world", CodingAgentUtils.formatUserMessageForAgent("", "Hello world"));
+		assertEquals("Alice S.: ", CodingAgentUtils.formatUserMessageForAgent("Alice S.", null));
+	}
+
+	@Test
+	public void testSubAgentConstantsAndMessages() {
+		assertEquals("comrade roomboter", CodingAgentUtils.SUBAGENT_NAME);
+
+		String startMsg = CodingAgentUtils.getRandomSubAgentStartMessage();
+		org.junit.Assert.assertNotNull(startMsg);
+		org.junit.Assert.assertTrue(startMsg.contains(CodingAgentUtils.SUBAGENT_NAME));
+
+		String completionMsg = CodingAgentUtils.getRandomSubAgentCompletionMessage();
+		org.junit.Assert.assertNotNull(completionMsg);
+		org.junit.Assert.assertTrue(completionMsg.contains(CodingAgentUtils.SUBAGENT_NAME));
+	}
 }
