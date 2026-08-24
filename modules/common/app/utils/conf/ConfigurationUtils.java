@@ -78,6 +78,7 @@ public class ConfigurationUtils {
 
 	public static final String DF_AI_MODEL_DEFAULT = "df.processing.ai.models.default";
 	public static final String DF_AI_MODEL_CODING = "df.processing.ai.models.coding";
+	public static final String DF_AI_MODEL_CODING_SUBAGENT = "df.processing.ai.models.coding_subagent";
 	public static final String DF_AI_MODEL_TEXT = "df.processing.ai.models.text";
 	public static final String DF_AI_MODEL_TRANSLATE = "df.processing.ai.models.translate";
 

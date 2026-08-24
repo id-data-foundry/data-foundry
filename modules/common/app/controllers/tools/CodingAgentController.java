@@ -484,11 +484,30 @@ public class CodingAgentController extends AbstractAsyncController {
 						&& !config.getString(ConfigurationUtils.DF_AI_MODEL_DEFAULT).isEmpty()) {
 					defaultCodingModel = config.getString(ConfigurationUtils.DF_AI_MODEL_DEFAULT);
 				}
-				String modelName = localModelMetadata
+				String mainModelName = localModelMetadata
 						.mapModelId(ds.configuration(Dataset.CHATBOT_MODEL, defaultCodingModel));
-				GenerateOptions defaultOptions = GenerateOptions.builder()
+
+				String defaultCodingSubAgentModel = "qwen/qwen3.6-27b";
+				if (config.hasPath(ConfigurationUtils.DF_AI_MODEL_CODING_SUBAGENT)
+						&& !config.getString(ConfigurationUtils.DF_AI_MODEL_CODING_SUBAGENT).isEmpty()) {
+					defaultCodingSubAgentModel = config.getString(ConfigurationUtils.DF_AI_MODEL_CODING_SUBAGENT);
+				} else if (config.hasPath(ConfigurationUtils.DF_AI_MODEL_CODING)
+						&& !config.getString(ConfigurationUtils.DF_AI_MODEL_CODING).isEmpty()) {
+					defaultCodingSubAgentModel = config.getString(ConfigurationUtils.DF_AI_MODEL_CODING);
+				} else if (config.hasPath(ConfigurationUtils.DF_AI_MODEL_DEFAULT)
+						&& !config.getString(ConfigurationUtils.DF_AI_MODEL_DEFAULT).isEmpty()) {
+					defaultCodingSubAgentModel = config.getString(ConfigurationUtils.DF_AI_MODEL_DEFAULT);
+				}
+				String subAgentModelName = localModelMetadata.mapModelId(defaultCodingSubAgentModel);
+
+				GenerateOptions mainOptions = GenerateOptions.builder()
 //						.additionalBodyParam("preserve_thinking", true)
-						.additionalHeader(ApiServiceConstants.X_API_MODEL, modelName)
+						.additionalHeader(ApiServiceConstants.X_API_MODEL, mainModelName)
+						.additionalHeader(ApiServiceConstants.X_API_USER, userEmail != null ? userEmail : "").build();
+
+				GenerateOptions subAgentOptions = GenerateOptions.builder()
+//						.additionalBodyParam("preserve_thinking", true)
+						.additionalHeader(ApiServiceConstants.X_API_MODEL, subAgentModelName)
 						.additionalHeader(ApiServiceConstants.X_API_USER, userEmail != null ? userEmail : "").build();
 
 				String chatCompletionsPath = controllers.api2.routes.UnmanagedAIApiController.chatCompletion().url();
@@ -509,9 +528,13 @@ public class CodingAgentController extends AbstractAsyncController {
 				}
 				String localProxyUrl = scheme + host + basePath;
 
-				OpenAIChatModel model = OpenAIChatModel.builder().modelName(modelName)
+				OpenAIChatModel mainModel = OpenAIChatModel.builder().modelName(mainModelName)
 						.apiKey(aiAPIService.getInternalDocumentationAPIKey()).baseUrl(localProxyUrl)
-						.generateOptions(defaultOptions).build();
+						.generateOptions(mainOptions).build();
+
+				OpenAIChatModel subAgentModel = OpenAIChatModel.builder().modelName(subAgentModelName)
+						.apiKey(aiAPIService.getInternalDocumentationAPIKey()).baseUrl(localProxyUrl)
+						.generateOptions(subAgentOptions).build();
 
 				// Build shared read-only tool and sub-agent mutation tool
 				ReadOnlyFileTool readOnlyTool = new ReadOnlyFileTool(context.cpds(), datasetId, aiAPIService);
@@ -525,7 +548,7 @@ public class CodingAgentController extends AbstractAsyncController {
 
 				String subAgentSysPrompt = views.html.tools.codingagent.subagent_system_prompt.render().body().trim();
 				HarnessAgent subAgent = HarnessAgent.builder() //
-						.name("CodingSubAgent").model(model) //
+						.name("CodingSubAgent").model(subAgentModel) //
 						.toolkit(subAgentToolkit).disableShellTool().disableFilesystemTools() //
 						.sysPrompt(subAgentSysPrompt) //
 //						.compaction(CompactionConfig.builder().triggerTokens(50_000) // fire at 50k tokens
@@ -551,7 +574,7 @@ public class CodingAgentController extends AbstractAsyncController {
 						views.html.tools.codingagent.system_prompt.render().body().trim());
 
 				HarnessAgent mainAgent = HarnessAgent.builder() //
-						.name("Agent").model(model) //
+						.name("Agent").model(mainModel) //
 						.toolkit(mainToolkit).disableShellTool().disableFilesystemTools() //
 						.sysPrompt(mainSysPrompt) //
 //						.compaction(CompactionConfig.builder().triggerTokens(50_000) // fire at 50k tokens
@@ -565,7 +588,8 @@ public class CodingAgentController extends AbstractAsyncController {
 						.workspace(Paths.get(context.cpds().getFolder().getAbsolutePath(), ".agentscope")).build();
 
 				context.setAgent(mainAgent);
-				logger.info("Recreated Main HarnessAgent and CodingSubAgent instances.");
+				logger.info("Recreated Main HarnessAgent (model: {}) and CodingSubAgent (model: {}) instances.",
+						mainModelName, subAgentModelName);
 			} catch (Exception e) {
 				logger.error("Error recreating agent after AGENTS.md change", e);
 			}
