@@ -73,6 +73,7 @@ import services.api.GenericApiService.ProjectAPIInfo;
 import services.api.ai.LocalModelMetadata;
 import services.api.ai.UnmanagedAIApiService;
 import utils.conf.ConfigurationUtils;
+import utils.tools.CodingAgentUtils;
 import utils.validators.FileTypeUtils;
 
 @Singleton
@@ -262,9 +263,13 @@ public class CodingAgentController extends AbstractAsyncController {
 			AgentState state = context.agent().getDelegate().getAgentState("global", sessionId);
 			List<Msg> history = state.getContext();
 			historyNodes = history.stream().map(msg -> {
+				String text = CodingAgentUtils.cleanThinkingTags(msg.getTextContent());
+				if (msg.getRole() != MsgRole.USER) {
+					text = CodingAgentUtils.filterDatasetPath(text, context.cpds().getFolder());
+				}
 				ObjectNode node = Json.newObject().put("type", "chat")
 						.put("user", msg.getRole() == MsgRole.USER ? username : "Agent")
-						.put("message", msg.getTextContent()).put("timestamp", new Date().getTime())
+						.put("message", text).put("timestamp", new Date().getTime())
 						.put("formattedTime", LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMM d, HH:mm")));
 				context.history().append(node);
 				return (JsonNode) node;
@@ -383,7 +388,9 @@ public class CodingAgentController extends AbstractAsyncController {
 								.build();
 						Msg response = context.agent().call(input, runtimeCtx).block();
 						if (response != null) {
-							String messageContent = cleanThinkingTags(response.getTextContent());
+							String messageContent = CodingAgentUtils.cleanThinkingTags(response.getTextContent());
+							messageContent = CodingAgentUtils.filterDatasetPath(messageContent,
+									context.cpds().getFolder());
 							ObjectNode agentMsg = Json.newObject().put("type", "chat").put("user", "Agent")
 									.put("message", messageContent).put("timestamp", new Date().getTime())
 									.put("formattedTime",
@@ -542,20 +549,7 @@ public class CodingAgentController extends AbstractAsyncController {
 	}
 
 	private static String cleanThinkingTags(String text) {
-		if (text == null) {
-			return "";
-		}
-		String cleaned = text;
-		if (cleaned.contains("<think>")) {
-			// Remove complete <think>...</think> blocks
-			cleaned = cleaned.replaceAll("(?s)<think>.*?</think>", "");
-			// Remove unclosed <think>... to end of string
-			cleaned = cleaned.replaceAll("(?s)<think>.*$", "");
-		} else if (cleaned.contains("</think>")) {
-			// Model omitted opening <think> tag, remove thinking trace from start of string to first </think>
-			cleaned = cleaned.replaceAll("(?s)^.*?</think>", "");
-		}
-		return cleaned.trim();
+		return CodingAgentUtils.cleanThinkingTags(text);
 	}
 
 	public static class DatasetContext {
@@ -978,12 +972,14 @@ public class CodingAgentController extends AbstractAsyncController {
 				Source.single((JsonNode) endMsg).runWith(context.sink(), context.materializer());
 
 				if (subResponse != null && subResponse.getTextContent() != null) {
-					return cleanThinkingTags(subResponse.getTextContent());
+					String subMsg = CodingAgentUtils.cleanThinkingTags(subResponse.getTextContent());
+					return CodingAgentUtils.filterDatasetPath(subMsg, context.cpds().getFolder());
 				}
 				return "Task completed by sub-agent.";
 			} catch (Exception e) {
 				logger.error("Error executing sub-agent coding task", e);
-				return "Error executing sub-agent coding task: " + e.getMessage();
+				String errorMsg = "Error executing sub-agent coding task: " + e.getMessage();
+				return CodingAgentUtils.filterDatasetPath(errorMsg, context.cpds().getFolder());
 			}
 		}
 	}
