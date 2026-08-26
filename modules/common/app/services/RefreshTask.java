@@ -15,6 +15,9 @@ import javax.inject.Singleton;
 import org.apache.pekko.actor.ActorSystem;
 import org.apache.pekko.actor.Cancellable;
 
+import datasets.DatasetConnector;
+import datasets.DatasetUpdateQueue;
+import models.Dataset;
 import play.Application;
 import play.Logger;
 import play.api.db.evolutions.ApplicationEvolutions;
@@ -37,7 +40,6 @@ import services.processing.AnalyticsService;
 import services.search.SearchService;
 import services.slack.Slack;
 import services.telegrambot.TelegramBotService;
-import datasets.DatasetConnector;
 import utils.conf.Configurator;
 
 /**
@@ -52,26 +54,32 @@ public class RefreshTask {
 	private final ExecutionContext executionContext;
 	private final List<Cancellable> tasks = new ArrayList<Cancellable>();
 	private final List<ScheduledService> services = new ArrayList<ScheduledService>();
+	private final OOCSIService oocsiService;
+	private final JSExecutorService jsExecutorService;
+	private final DatasetUpdateQueue datasetUpdateQueue;
 
 	private static final Logger.ALogger logger = Logger.of(RefreshTask.class);
 
 	@Inject
 	public RefreshTask(Application application, ActorSystem actorSystem, ExecutionContext executionContext,
-	        SyncCacheApi cache, ApplicationLifecycle lc, ApplicationEvolutions evolutions, Configurator configurator,
-	        OOCSIService oocsiService, OOCSIStreamOutService oocsiOutletService, FitBitService fbService,
-	        GoogleFitService gfService, DatabaseBackupService dbBackup, TelegramBotService telegramBotService,
-	        JSExecutorService jsExecutorService, ProjectLifecycleService projectLifecycleService,
-	        AnalyticsService analytics, SearchService searchService, UnmanagedAIApiService unmanagedAIService,
-	        DatasetConnector datasetConnector) {
+			SyncCacheApi cache, ApplicationLifecycle lc, ApplicationEvolutions evolutions, Configurator configurator,
+			OOCSIService oocsiService, OOCSIStreamOutService oocsiOutletService, FitBitService fbService,
+			GoogleFitService gfService, DatabaseBackupService dbBackup, TelegramBotService telegramBotService,
+			JSExecutorService jsExecutorService, ProjectLifecycleService projectLifecycleService,
+			AnalyticsService analytics, SearchService searchService, UnmanagedAIApiService unmanagedAIService,
+			DatasetConnector datasetConnector, DatasetUpdateQueue datasetUpdateQueue) {
 
 		this.actorSystem = actorSystem;
 		this.executionContext = executionContext;
+		this.oocsiService = oocsiService;
+		this.jsExecutorService = jsExecutorService;
+		this.datasetUpdateQueue = datasetUpdateQueue;
 
 		// test cache
 		long curTime = System.currentTimeMillis();
 		cache.set("cache_test_" + curTime, curTime, 1000);
 		if (!cache.get("cache_test_" + curTime).isPresent()
-		        || !cache.get("cache_test_" + curTime).get().equals(curTime)) {
+				|| !cache.get("cache_test_" + curTime).get().equals(curTime)) {
 			logger.error("Cache seems to be not working.");
 		}
 
@@ -116,8 +124,8 @@ public class RefreshTask {
 
 		// schedule all refresh tasks
 		tasks.add(this.actorSystem.scheduler().scheduleWithFixedDelay(Duration.create(10, TimeUnit.SECONDS), // initialDelay
-		        Duration.create(10, TimeUnit.SECONDS), // interval
-		        () -> refresh(), this.executionContext));
+				Duration.create(10, TimeUnit.SECONDS), // interval
+				() -> refresh(), this.executionContext));
 
 		logger.info("Refresh task scheduled with " + 10 + " secs period");
 
@@ -129,8 +137,8 @@ public class RefreshTask {
 			Date nextTime = ce.getNextValidTimeAfter(new Date());
 			long intervalMS = nextTime.getTime() - new Date().getTime();
 			tasks.add(
-			        this.actorSystem.scheduler().scheduleAtFixedRate(Duration.create(intervalMS, TimeUnit.MILLISECONDS),
-			                ONE_DAY, () -> projectLifecycleService.refresh(), this.executionContext));
+					this.actorSystem.scheduler().scheduleAtFixedRate(Duration.create(intervalMS, TimeUnit.MILLISECONDS),
+							ONE_DAY, () -> projectLifecycleService.refresh(), this.executionContext));
 			logger.info("Next project lifecycle check scheduled for " + nextTime);
 		} catch (ParseException e) {
 			logger.error("Error in initializing the Cron tasks.", e);
@@ -143,8 +151,8 @@ public class RefreshTask {
 				Date nextTime = ce.getNextValidTimeAfter(new Date());
 				long intervalMS = nextTime.getTime() - new Date().getTime();
 				tasks.add(this.actorSystem.scheduler().scheduleAtFixedRate(
-				        Duration.create(intervalMS, TimeUnit.MILLISECONDS), ONE_DAY, () -> fbService.refresh(),
-				        this.executionContext));
+						Duration.create(intervalMS, TimeUnit.MILLISECONDS), ONE_DAY, () -> fbService.refresh(),
+						this.executionContext));
 				logger.info("Next FitBit sync scheduled for " + nextTime);
 			} catch (ParseException e) {
 				logger.error("Error in initializing the Cron tasks.", e);
@@ -158,8 +166,8 @@ public class RefreshTask {
 				Date nextTime = ce.getNextValidTimeAfter(new Date());
 				long intervalMS = nextTime.getTime() - new Date().getTime();
 				tasks.add(this.actorSystem.scheduler().scheduleAtFixedRate(
-				        Duration.create(intervalMS, TimeUnit.MILLISECONDS), ONE_DAY, () -> gfService.refresh(),
-				        this.executionContext));
+						Duration.create(intervalMS, TimeUnit.MILLISECONDS), ONE_DAY, () -> gfService.refresh(),
+						this.executionContext));
 				logger.info("Next GoogleFit sync scheduled for " + nextTime);
 			} catch (ParseException e) {
 				logger.error("Error in initializing the Cron tasks.", e);
@@ -171,7 +179,7 @@ public class RefreshTask {
 			CronExpression ce = new CronExpression("1 1 1 * * ? *");
 			Date nextTime = ce.getNextValidTimeAfter(new Date());
 			FiniteDuration timeTillNextRun = Duration.create(nextTime.getTime() - System.currentTimeMillis(),
-			        TimeUnit.MILLISECONDS);
+					TimeUnit.MILLISECONDS);
 			tasks.add(this.actorSystem.scheduler().scheduleAtFixedRate(timeTillNextRun, ONE_DAY, () -> {
 				dbBackup.refresh();
 			}, this.executionContext));
@@ -182,16 +190,34 @@ public class RefreshTask {
 
 		// schedule model retrieval from AI backend, first run after 15 seconds, then every 1 minute
 		final FiniteDuration ONE_MINUTE = Duration.create(1, TimeUnit.MINUTES);
-		tasks.add(this.actorSystem.scheduler().scheduleAtFixedRate(Duration.create(15, TimeUnit.SECONDS),
-		        ONE_MINUTE, () -> unmanagedAIService.refresh(), this.executionContext));
+		tasks.add(this.actorSystem.scheduler().scheduleAtFixedRate(Duration.create(15, TimeUnit.SECONDS), ONE_MINUTE,
+				() -> unmanagedAIService.refresh(), this.executionContext));
 
 		// schedule search indexing, first run after 5 seconds, then every 5 minutes
 		final FiniteDuration TEN_MINUTES = Duration.create(5, TimeUnit.MINUTES);
 		tasks.add(this.actorSystem.scheduler().scheduleAtFixedRate(Duration.create(5, TimeUnit.SECONDS), TEN_MINUTES,
-		        () -> searchService.refresh(), this.executionContext));
+				() -> searchService.refresh(), this.executionContext));
 	}
 
 	private void refresh() {
+		// check for pending dataset updates
+		if (datasetUpdateQueue != null && !datasetUpdateQueue.isEmpty()) {
+			java.util.Set<Long> changedIds = datasetUpdateQueue.drain();
+			if (!changedIds.isEmpty()) {
+				try {
+					List<Dataset> changedDatasets = Dataset.find.query().where().idIn(changedIds).findList();
+					if (oocsiService != null) {
+						oocsiService.updateDatasets(changedDatasets, changedIds);
+					}
+					if (jsExecutorService != null) {
+						jsExecutorService.updateDatasets(changedDatasets, changedIds);
+					}
+				} catch (Exception e) {
+					logger.error("Error processing dataset updates in refresh task", e);
+				}
+			}
+		}
+
 		synchronized (services) {
 			for (ScheduledService service : services) {
 				if (service != null) {

@@ -12,6 +12,7 @@ import com.google.inject.Inject;
 import controllers.AbstractAsyncController;
 import controllers.auth.UserAuth;
 import datasets.DatasetConnector;
+import datasets.DatasetUpdateQueue;
 import models.Dataset;
 import models.DatasetType;
 import models.Person;
@@ -38,13 +39,15 @@ public class ActorController extends AbstractAsyncController {
 	private final JSExecutorService jsExecService;
 	private final FormFactory formFactory;
 	private final DatasetConnector datasetConnector;
+	private final DatasetUpdateQueue datasetUpdateQueue;
 
 	@Inject
-	public ActorController(JSExecutorService jsExecService, FormFactory formFactory,
-			DatasetConnector datasetConnector) {
+	public ActorController(JSExecutorService jsExecService, FormFactory formFactory, DatasetConnector datasetConnector,
+			DatasetUpdateQueue datasetUpdateQueue) {
 		this.jsExecService = jsExecService;
 		this.formFactory = formFactory;
 		this.datasetConnector = datasetConnector;
+		this.datasetUpdateQueue = datasetUpdateQueue;
 	}
 
 	@AddCSRFToken
@@ -88,6 +91,7 @@ public class ActorController extends AbstractAsyncController {
 				"Data Foundry scripting", null, df.get("license"));
 		ds.setCollectorType(Dataset.ACTOR);
 		ds.save();
+		datasetUpdateQueue.enqueue(ds);
 
 		// create actor
 		jsExecService.addActor(ds);
@@ -146,6 +150,7 @@ public class ActorController extends AbstractAsyncController {
 		// update dataset
 		ds.getConfiguration().put(Dataset.ACTOR_CODE, code);
 		ds.update();
+		datasetUpdateQueue.enqueue(ds);
 
 		// check actor
 		JSActor actor = jsExecService.getActor(ds.getId());
@@ -211,6 +216,7 @@ public class ActorController extends AbstractAsyncController {
 		ds.getConfiguration().put(Dataset.ACTOR_CHANNEL, channelName);
 		ds.getConfiguration().put(Dataset.ACTOR_CODE, code);
 		ds.update();
+		datasetUpdateQueue.enqueue(ds);
 
 		// check actor
 		JSActor actor = jsExecService.getActor(ds.getId());

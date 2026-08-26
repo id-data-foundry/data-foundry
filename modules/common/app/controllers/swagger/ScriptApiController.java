@@ -10,6 +10,7 @@ import com.google.inject.Inject;
 
 import controllers.auth.V2UserApiAuth;
 import datasets.DatasetConnector;
+import datasets.DatasetUpdateQueue;
 import jakarta.inject.Singleton;
 import models.Dataset;
 import models.DatasetType;
@@ -31,12 +32,15 @@ import utils.export.MetaDataUtils;
 public class ScriptApiController extends AbstractApiController {
 
 	private final JSExecutorService jsExecService;
+	private final DatasetUpdateQueue datasetUpdateQueue;
 
 	@Inject
 	public ScriptApiController(FormFactory formFactory, DatasetConnector datasetConnector,
-			TokenResolverUtil tokenResolverUtil, JSExecutorService jsExecService) {
+			TokenResolverUtil tokenResolverUtil, JSExecutorService jsExecService,
+			DatasetUpdateQueue datasetUpdateQueue) {
 		super(formFactory, datasetConnector, tokenResolverUtil);
 		this.jsExecService = jsExecService;
+		this.datasetUpdateQueue = datasetUpdateQueue;
 	}
 
 	@Authenticated(V2UserApiAuth.class)
@@ -102,6 +106,7 @@ public class ScriptApiController extends AbstractApiController {
 				df.get("target_object"), openParticipation, df.get("license"));
 		ds.setCollectorType(Dataset.ACTOR);
 		ds.save();
+		datasetUpdateQueue.enqueue(ds);
 
 		// create actor
 		jsExecService.addActor(ds);
@@ -260,6 +265,7 @@ public class ScriptApiController extends AbstractApiController {
 		// update dataset
 		ds.getConfiguration().put(Dataset.ACTOR_CODE, code);
 		ds.update();
+		datasetUpdateQueue.enqueue(ds);
 
 		// check actor
 		JSActor actor = jsExecService.getActor(ds.getId());
@@ -307,6 +313,7 @@ public class ScriptApiController extends AbstractApiController {
 		ds.getConfiguration().put(Dataset.ACTOR_CHANNEL, channelName);
 		// ds.configuration.put(Dataset.ACTOR_CODE, code);
 		ds.update();
+		datasetUpdateQueue.enqueue(ds);
 
 		// check actor
 		JSActor actor = jsExecService.getActor(ds.getId());

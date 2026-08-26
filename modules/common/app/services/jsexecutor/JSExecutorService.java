@@ -112,42 +112,123 @@ public class JSExecutorService implements ScheduledService {
 		return actor;
 	}
 
+	private boolean initialized = false;
+
 	@Override
 	public void refresh() {
-		refreshDatasetSubscriptions();
+		if (!initialized) {
+			initializeSubscriptions();
+		}
+		checkCronTimers();
 	}
 
 	@Override
 	public void stop() {
 		oocsiClientUtil.stopAll();
 		actors.clear();
+		subscriptions.clear();
+		timerNextRuns.clear();
 	}
 
-	private synchronized void refreshDatasetSubscriptions() {
+	/**
+	 * initialize active actor datasets on startup
+	 */
+	public synchronized void initializeSubscriptions() {
+		long start = System.currentTimeMillis();
+		try {
+			List<Dataset> actorDatasets = Dataset.find.query().where().eq("dsType", DatasetType.COMPLETE)
+					.eq("collectorType", Dataset.ACTOR).findList().stream()
+					.filter(ds -> ds.isActive() && ds.getProject().isActive()).collect(Collectors.toList());
 
-		// refresh channels from IoT datasets
-		List<Dataset> actorDatasets = Dataset.find.query().where().eq("dsType", DatasetType.COMPLETE)
-				.eq("collectorType", Dataset.ACTOR).findList().stream()
-				.filter(ds -> ds.isActive() && ds.getProject().isActive()).collect(Collectors.toList());
-
-		List<Long> actorDatasetIds = actorDatasets.stream().map(ds -> ds.getId()).collect(Collectors.toList());
-
-		// disconnect actors that are not active anymore
-		List<Long> inactiveActors = actors.keySet().stream().filter(id -> !actorDatasetIds.contains(id))
-				.collect(Collectors.toList());
-		inactiveActors.forEach(id -> {
-			JSActor actor = actors.get(id);
-			if (actor != null) {
-				logger.info("Removing actor of inactive dataset " + actor.getName());
-				unsubscribe(id, actor);
-				actors.remove(id);
-				timerNextRuns.remove(id);
-				actor.stop();
+			refreshChannels(actorDatasets);
+			initialized = true;
+			if (System.currentTimeMillis() - start > 1000) {
+				logger.info("Initial JS Actors loaded [" + (System.currentTimeMillis() - start) + "ms]");
 			}
-		});
+		} catch (Exception e) {
+			logger.error("Initial JS Actor loading exception", e);
+		}
+	}
 
-		// refresh all active actors
-		refreshChannels(actorDatasets);
+	/**
+	 * check and trigger in-memory cron timers without querying the database
+	 */
+	private void checkCronTimers() {
+		long now = System.currentTimeMillis();
+		java.util.List<Long> actorIds = new java.util.ArrayList<>(timerNextRuns.keySet());
+		for (Long id : actorIds) {
+			Long nextRunTime = timerNextRuns.get(id);
+			if (nextRunTime != null && now >= nextRunTime) {
+				JSActor actor = actors.get(id);
+				if (actor != null && subscriptions.containsKey(id)) {
+					String channelName = subscriptions.get(id);
+					if (channelName != null && channelName.toLowerCase().startsWith("cron:")) {
+						String cronExpression = channelName.substring(5).trim();
+						try {
+							CronExpression ce = new CronExpression(cronExpression);
+							JsonObject jo = new JsonObject();
+							jo.addProperty("event", "timer");
+							jo.addProperty("timestamp", now);
+							actor.update(jo);
+
+							Date nextRun = ce.getNextValidTimeAfter(new Date(now));
+							if (nextRun != null) {
+								timerNextRuns.put(id, nextRun.getTime());
+								logger.trace("Next run scheduled for script " + actor.getName() + " at " + nextRun);
+							} else {
+								timerNextRuns.remove(id);
+							}
+						} catch (Exception e) {
+							logger.error("Error in cron expression for script " + actor.getName(), e);
+						}
+					}
+				}
+			}
+		}
+	}
+
+	/**
+	 * update actor datasets based on changed datasets
+	 * 
+	 * @param changedDatasets
+	 * @param changedIds
+	 */
+	public synchronized void updateDatasets(List<Dataset> changedDatasets, java.util.Set<Long> changedIds) {
+		if (!initialized) {
+			initializeSubscriptions();
+			return;
+		}
+
+		java.util.Set<Long> processedIds = new java.util.HashSet<>();
+
+		for (Dataset ds : changedDatasets) {
+			processedIds.add(ds.getId());
+			if (ds.getDsType() == DatasetType.COMPLETE && Dataset.ACTOR.equals(ds.getCollectorType())) {
+				if (ds.isActive() && ds.getProject().isActive()) {
+					refreshChannels(java.util.Collections.singletonList(ds));
+				} else {
+					removeActor(ds.getId());
+				}
+			} else {
+				removeActor(ds.getId());
+			}
+		}
+
+		for (Long id : changedIds) {
+			if (!processedIds.contains(id)) {
+				removeActor(id);
+			}
+		}
+	}
+
+	private void removeActor(Long id) {
+		JSActor actor = actors.remove(id);
+		if (actor != null) {
+			logger.info("Removing actor of inactive/removed dataset " + actor.getName());
+			unsubscribe(id, actor);
+			timerNextRuns.remove(id);
+			actor.stop();
+		}
 	}
 
 	/**

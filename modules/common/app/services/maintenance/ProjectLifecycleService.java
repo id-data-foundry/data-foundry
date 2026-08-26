@@ -25,6 +25,7 @@ import com.typesafe.config.Config;
 
 import controllers.routes;
 import datasets.DatasetConnector;
+import datasets.DatasetUpdateQueue;
 import models.Dataset;
 import models.DatasetType;
 import models.LabNotesEntry;
@@ -54,8 +55,8 @@ import utils.StringUtils;
 import utils.conf.ConfigurationUtils;
 import utils.export.AssetsHelper;
 import utils.export.MetaDataUtils;
-import utils.export.ZenodoRecord;
 import utils.export.ZenodoPublishingUtil;
+import utils.export.ZenodoRecord;
 
 @Singleton
 public class ProjectLifecycleService implements ScheduledService {
@@ -66,6 +67,7 @@ public class ProjectLifecycleService implements ScheduledService {
 	private final NotificationService notificationService;
 	private final DatasetConnector datasetConnector;
 	private final ZenodoPublishingUtil zenodoPublishingUtil;
+	private final DatasetUpdateQueue datasetUpdateQueue;
 	private String applicationHost = null;
 	private ActorSystem actorSystem;
 	private final SyncCacheApi cache;
@@ -75,14 +77,16 @@ public class ProjectLifecycleService implements ScheduledService {
 
 	@Inject
 	public ProjectLifecycleService(Config config, ActorSystem actorSystem, SyncCacheApi cache,
-	        ExecutionContext executionContext, NotificationService notificationService,
-	        DatasetConnector datasetConnector, ZenodoPublishingUtil zenodoService) {
+			ExecutionContext executionContext, NotificationService notificationService,
+			DatasetConnector datasetConnector, ZenodoPublishingUtil zenodoService,
+			DatasetUpdateQueue datasetUpdateQueue) {
 		this.notificationService = notificationService;
 		this.datasetConnector = datasetConnector;
 		this.actorSystem = actorSystem;
 		this.cache = cache;
 		this.executionContext = executionContext;
 		this.zenodoPublishingUtil = zenodoService;
+		this.datasetUpdateQueue = datasetUpdateQueue;
 
 		// get the base url from configuration
 		if (config.hasPath(ConfigurationUtils.DF_BASEURL)) {
@@ -133,11 +137,11 @@ public class ProjectLifecycleService implements ScheduledService {
 		int sessionDeleteCount = 0;
 		logger.info("Starting Telegram session purge for idle sessions (M16) ... ");
 		List<TelegramSession> outdatedSessions = TelegramSession.find.query().where()
-		        .lt("last_action", DateUtils.moveMonths(new Date(), -24)).findList();
+				.lt("last_action", DateUtils.moveMonths(new Date(), -24)).findList();
 		for (TelegramSession tgs : outdatedSessions) {
 			try {
 				logger.info(
-				        "Delete session " + tgs.getId() + " (last active project: " + tgs.getActiveProjectId() + ")");
+						"Delete session " + tgs.getId() + " (last active project: " + tgs.getActiveProjectId() + ")");
 				tgs.delete();
 			} catch (Exception e) {
 				// do nothing
@@ -148,7 +152,7 @@ public class ProjectLifecycleService implements ScheduledService {
 		// log summary
 		if (deidentifiedCount + frozenCount + sessionDeleteCount > 0) {
 			final String message = "---> Maintenance: " + deidentifiedCount + " project(s) deidentified, " + frozenCount
-			        + " project(s) frozen and " + sessionDeleteCount + " outdated Telegram session(s) cleared.";
+					+ " project(s) frozen and " + sessionDeleteCount + " outdated Telegram session(s) cleared.";
 
 			// log message to stdout and Slack
 			logger.info(message);
@@ -242,7 +246,7 @@ public class ProjectLifecycleService implements ScheduledService {
 			// clear all relevant configuration entries in dataset
 			Map<String, String> configuration = ds.getConfiguration();
 			String[] keysToRemove = new String[] { Dataset.PUBLIC_ACCESS_TOKEN, Dataset.WEB_ACCESS_TOKEN,
-			        Dataset.ACTOR_CHANNEL, Dataset.API_TOKEN, Dataset.WEB_ACCESS_ENTRY };
+					Dataset.ACTOR_CHANNEL, Dataset.API_TOKEN, Dataset.WEB_ACCESS_ENTRY };
 			for (String key : keysToRemove) {
 				configuration.remove(key);
 			}
@@ -253,6 +257,7 @@ public class ProjectLifecycleService implements ScheduledService {
 			ds.setOpenParticipation(false);
 			ds.setTargetObject("");
 			ds.update();
+			datasetUpdateQueue.enqueue(ds);
 
 			// finally drop table
 			lds.dropTable();
@@ -262,8 +267,8 @@ public class ProjectLifecycleService implements ScheduledService {
 
 		// where to store this file now?
 		Dataset tfds = datasetConnector.create(Dataset.PROJECT_DATA_EXPORT, DatasetType.COMPLETE, p,
-		        "This dataset contains the exported data from this entire project.", "", Boolean.FALSE.toString(),
-		        p.getLicense());
+				"This dataset contains the exported data from this entire project.", "", Boolean.FALSE.toString(),
+				p.getLicense());
 		tfds.save();
 		CompleteDS cds = datasetConnector.getTypedDatasetDS(tfds);
 
@@ -286,7 +291,7 @@ public class ProjectLifecycleService implements ScheduledService {
 		p.update();
 
 		logger.info("  Storing export into new dataset: " + cds.getFolder().getAbsolutePath() + File.separator
-		        + storeFile.orElse("project_export.zip"));
+				+ storeFile.orElse("project_export.zip"));
 	}
 
 	/**
@@ -321,47 +326,47 @@ public class ProjectLifecycleService implements ScheduledService {
 		TemporaryFile tf = Files.singletonTemporaryFileCreator().create(zipFileName, ".zip");
 		filesToCleanUp.add(tf);
 		try (FileOutputStream fos = new FileOutputStream(tf.path().toFile());
-		        ZipOutputStream zipOut = new ZipOutputStream(fos);) {
+				ZipOutputStream zipOut = new ZipOutputStream(fos);) {
 
 			// write metadata
 			AssetsHelper.zipString(zipOut, zipFileName + "/metadata.json", getMetaDataNode(project).toString());
 
 			// write license
 			String projectCollaborators = project.getCollaborators().stream().map(c -> c.getCollaborator().getName())
-			        .collect(Collectors.joining(", "));
+					.collect(Collectors.joining(", "));
 			String projectTeam = (projectCollaborators.isEmpty() ? project.getOwner().getName()
-			        : project.getOwner().getName() + ", " + projectCollaborators);
+					: project.getOwner().getName() + ", " + projectCollaborators);
 
 			// collect all licenses
 			String projectLicenseKey = project.getLicense();
 
 			// render all licenses and zip them into a file
 			String licenses = """
-			        Project license
-			        ---------------------------------------------------------------
-			        """ //
-			        + views.html.tools.export.license.render(today.substring(0, 4), projectTeam, projectLicenseKey)
-			                .toString() //
-			        + "\n\n\n"
-			        + datasetsToExport.stream().filter(ds -> !ds.getLicense().equals(projectLicenseKey))
-			                .map(ds -> """
-			                        License for dataset '%s' (different from project license)
-			                        ---------------------------------------------------------------
-			                        """.formatted(ds.getName()) + views.html.tools.export.license
-			                        .render(today.substring(0, 4), projectTeam, ds.getLicense()).toString())
-			                .collect(Collectors.joining("\n\n\n"));
+					Project license
+					---------------------------------------------------------------
+					""" //
+					+ views.html.tools.export.license.render(today.substring(0, 4), projectTeam, projectLicenseKey)
+							.toString() //
+					+ "\n\n\n"
+					+ datasetsToExport.stream().filter(ds -> !ds.getLicense().equals(projectLicenseKey))
+							.map(ds -> """
+									License for dataset '%s' (different from project license)
+									---------------------------------------------------------------
+									""".formatted(ds.getName()) + views.html.tools.export.license
+									.render(today.substring(0, 4), projectTeam, ds.getLicense()).toString())
+							.collect(Collectors.joining("\n\n\n"));
 			AssetsHelper.zipString(zipOut, zipFileName + "/LICENSE", licenses);
 
 			// write readme
 			String projectViewURL;
 			if (request.isPresent()) {
 				projectViewURL = controllers.routes.ProjectsController.view(project.getId()).absoluteURL(request.get(),
-				        true);
+						true);
 			} else {
 				projectViewURL = getProjectViewLink(project);
 			}
 			AssetsHelper.zipString(zipOut, zipFileName + "/README.md",
-			        views.html.tools.export.readme.render(project, datasetsToExport, projectViewURL).toString());
+					views.html.tools.export.readme.render(project, datasetsToExport, projectViewURL).toString());
 
 			// render and store the log book
 			StringBuilder logbook = new StringBuilder();
@@ -452,7 +457,7 @@ public class ProjectLifecycleService implements ScheduledService {
 	}
 
 	public void publish(Optional<Request> request, Project project, List<Dataset> datasetsToExport, String cacheToken,
-	        String zenodoAccessToken) {
+			String zenodoAccessToken) {
 		actorSystem.scheduler().scheduleOnce(Duration.ofSeconds(1), () -> {
 			try {
 				cache.set(cacheToken, "🚀 Starting project export...");
@@ -460,19 +465,19 @@ public class ProjectLifecycleService implements ScheduledService {
 
 				cache.set(cacheToken, "✅ Export complete.<br>🚀 Uploading to Zenodo (this may take a while)...");
 				Optional<ZenodoRecord> record = zenodoPublishingUtil.createRecord(project, zenodoAccessToken,
-				        cacheToken, exportZip);
+						cacheToken, exportZip);
 
 				if (record.isPresent()) {
 					cache.set(cacheToken, """
-					        ✅ Published to Zenodo!<br>
-					        DOI: %s<br>
-					        <a href='%s' class='btn' target='_blank'>View on Zenodo</a>
-					        <a href='%s' class='btn' target='_blank'>Edit on Zenodo</a>
-					        <p>
-					        		<a href="%s" class="btn">back to project</a>
-					        </p>
-					        """.formatted(record.get().getDoi(), record.get().getPreviewUrl(),
-					        record.get().getEditUrl(), routes.ProjectsController.view(project.getId())));
+							✅ Published to Zenodo!<br>
+							DOI: %s<br>
+							<a href='%s' class='btn' target='_blank'>View on Zenodo</a>
+							<a href='%s' class='btn' target='_blank'>Edit on Zenodo</a>
+							<p>
+									<a href="%s" class="btn">back to project</a>
+							</p>
+							""".formatted(record.get().getDoi(), record.get().getPreviewUrl(),
+							record.get().getEditUrl(), routes.ProjectsController.view(project.getId())));
 
 					// explicit cleanup of the export zip after successful upload
 					exportZip.path().toFile().delete();
@@ -509,52 +514,52 @@ public class ProjectLifecycleService implements ScheduledService {
 
 		// send email to participant with invite link
 		Html htmlBody = views.html.emails.invite.render("Ending project notification", String.format("Hi "
-		        + project.getOwner().getName() + "," + "\n\nYour project, " + project.getName()
-		        + ", will end in two weeks, after that, the data in the project "
-		        + "will be read-only. If you need more time to access (read / write) your data, please update the end "
-		        + "date of the project and its datasets. Click to check your project directly."), projectViewLink);
+				+ project.getOwner().getName() + "," + "\n\nYour project, " + project.getName()
+				+ ", will end in two weeks, after that, the data in the project "
+				+ "will be read-only. If you need more time to access (read / write) your data, please update the end "
+				+ "date of the project and its datasets. Click to check your project directly."), projectViewLink);
 		String textBody = "Hello! \n\nWe send you this email for your project in Data Foundry, " + project.getName()
-		        + ", "
-		        + "is goint to end in two weeks. Click the link below to be forwarded to your project page and have a "
-		        + "check, feel free to do some changes you need, i.e., change the end date, or archive the project "
-		        + "right now. \n\n" + projectViewLink + "\n\n";
+				+ ", "
+				+ "is goint to end in two weeks. Click the link below to be forwarded to your project page and have a "
+				+ "check, feel free to do some changes you need, i.e., change the end date, or archive the project "
+				+ "right now. \n\n" + projectViewLink + "\n\n";
 
 		notificationService.sendMail(project.getOwner().getEmail(), textBody, htmlBody, projectViewLink,
-		        "[ID Data Foundry] Notification", "Project page link: " + projectViewLink);
+				"[ID Data Foundry] Notification", "Project page link: " + projectViewLink);
 	}
 
 	private void sendMailBeforeArchive(Project project) {
 		String projectViewLink = getProjectViewLink(project);
 
 		Html htmlBody = views.html.emails.invite.render("Archiving project notification", String.format("Hi "
-		        + project.getOwner().getName() + "," + "\n\nYour project, " + project.getName()
-		        + ", will be archived in two weeks, after that, the whole project "
-		        + "would be archived as a zip file. If you need more time to access(read / write) your data, please "
-		        + "update the end date of related datasets. You can check your project by the link."), projectViewLink);
+				+ project.getOwner().getName() + "," + "\n\nYour project, " + project.getName()
+				+ ", will be archived in two weeks, after that, the whole project "
+				+ "would be archived as a zip file. If you need more time to access(read / write) your data, please "
+				+ "update the end date of related datasets. You can check your project by the link."), projectViewLink);
 		String textBody = "Hello! \n\nWe send you this email for your project, " + project.getName()
-		        + ", is goint to be archived in two weeks. Click the link below to be forwarded to your project page "
-		        + "and have a look, feel free to do some changes you need, i.e., change the end date, or archive "
-		        + "the project right now. \n\n" + projectViewLink + "\n\n";
+				+ ", is goint to be archived in two weeks. Click the link below to be forwarded to your project page "
+				+ "and have a look, feel free to do some changes you need, i.e., change the end date, or archive "
+				+ "the project right now. \n\n" + projectViewLink + "\n\n";
 
 		notificationService.sendMail(project.getOwner().getEmail(), textBody, htmlBody, projectViewLink,
-		        "[ID Data Foundry] Notification", "Project page link: " + projectViewLink);
+				"[ID Data Foundry] Notification", "Project page link: " + projectViewLink);
 	}
 
 	private void sendMailAboutArchiving(Project project) {
 		String projectViewLink = getProjectViewLink(project);
 
 		Html htmlBody = views.html.emails.invite.render("Archived project notification", String.format("Hi "
-		        + project.getOwner().getName() + "," + "\n\nYour project, " + project.getName()
-		        + ", has been archived as a zip file today. If you need more "
-		        + "to use your data, please download the zip file; or if you want to update something for the project "
-		        + "please reopen the project and update the end date for it if necessary. You can check your project "
-		        + "by the link."), projectViewLink);
+				+ project.getOwner().getName() + "," + "\n\nYour project, " + project.getName()
+				+ ", has been archived as a zip file today. If you need more "
+				+ "to use your data, please download the zip file; or if you want to update something for the project "
+				+ "please reopen the project and update the end date for it if necessary. You can check your project "
+				+ "by the link."), projectViewLink);
 		String textBody = "Hello! \n\nWe send you this email for your project in Data Foundry, " + project.getName()
-		        + ", has been archived today. Click the link below to be forwarded to your project page "
-		        + "and have a look. \n\n" + projectViewLink + "\n\n";
+				+ ", has been archived today. Click the link below to be forwarded to your project page "
+				+ "and have a look. \n\n" + projectViewLink + "\n\n";
 
 		notificationService.sendMail(project.getOwner().getEmail(), textBody, htmlBody, projectViewLink,
-		        "[ID Data Foundry] Notification", "Project page link: " + projectViewLink);
+				"[ID Data Foundry] Notification", "Project page link: " + projectViewLink);
 	}
 
 	private String getProjectViewLink(Project project) {

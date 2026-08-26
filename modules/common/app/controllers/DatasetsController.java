@@ -35,6 +35,7 @@ import controllers.auth.UserAuth;
 import controllers.tools.ActorController;
 import controllers.tools.ChatbotController;
 import datasets.DatasetConnector;
+import datasets.DatasetUpdateQueue;
 import models.Dataset;
 import models.DatasetType;
 import models.LabNotesEntry;
@@ -112,6 +113,8 @@ public class DatasetsController extends AbstractAsyncController {
 	OOCSIService oocsiService;
 	@Inject
 	FormFactory formFactory;
+	@Inject
+	DatasetUpdateQueue datasetUpdateQueue;
 
 	private static final Logger.ALogger logger = Logger.of(DatasetsController.class);
 
@@ -259,6 +262,7 @@ public class DatasetsController extends AbstractAsyncController {
 		project.getDatasets().remove(ds);
 		project.update();
 		ds.delete();
+		datasetUpdateQueue.enqueue(id);
 
 		// back to export tool
 		return redirect(controllers.tools.routes.DataExportController.index(-1));
@@ -1701,8 +1705,10 @@ public class DatasetsController extends AbstractAsyncController {
 		int rows = lds.selectiveDeleteByTime(start, end);
 
 		if (rows >= 0) {
-			LabNotesEntry.log(Dataset.class, LabNotesEntryType.DELETE, "Dataset, " + ds.getName()
-					+ ", selective delete by time: start=" + start + ", end=" + end + " (" + rows + " rows).", p);
+			LabNotesEntry.log(
+					Dataset.class, LabNotesEntryType.DELETE, "Dataset, " + ds.getName()
+							+ ", selective delete by time: start=" + start + ", end=" + end + " (" + rows + " rows).",
+					p);
 			return redirect(routes.DatasetsController.view(id)).addingToSession(request, "message",
 					"Successfully deleted " + rows + " rows.");
 		} else {
@@ -1737,6 +1743,7 @@ public class DatasetsController extends AbstractAsyncController {
 		// configure something
 		ds.getConfiguration().put(key, value);
 		ds.update();
+		datasetUpdateQueue.enqueue(ds);
 
 		LabNotesEntry.log(Dataset.class, LabNotesEntryType.CONFIGURE, "Dataset configured", p);
 
@@ -1764,6 +1771,7 @@ public class DatasetsController extends AbstractAsyncController {
 		// configure something
 		ds.getConfiguration().put(key, value);
 		ds.update();
+		datasetUpdateQueue.enqueue(ds);
 
 		LabNotesEntry.log(Dataset.class, LabNotesEntryType.CONFIGURE, "Dataset configured", p);
 
@@ -1788,6 +1796,7 @@ public class DatasetsController extends AbstractAsyncController {
 		// configure the dataset with key and token
 		ds.getConfiguration().put(key, tokenResolverUtil.getDatasetToken(ds.getId()));
 		ds.update();
+		datasetUpdateQueue.enqueue(ds);
 
 		LabNotesEntry.log(Dataset.class, LabNotesEntryType.CONFIGURE, "Dataset configured", p);
 

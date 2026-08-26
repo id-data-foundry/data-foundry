@@ -60,7 +60,7 @@ public class OOCSIService implements ScheduledService {
 
 	@Inject
 	public OOCSIService(DatasetConnector datasetConnector, OOCSIClientUtil oocsiClientUtil,
-	        RealTimeNotificationService realtimeNotifications) {
+			RealTimeNotificationService realtimeNotifications) {
 		this.datasetConnector = datasetConnector;
 		this.realtimeNotifications = realtimeNotifications;
 
@@ -71,7 +71,7 @@ public class OOCSIService implements ScheduledService {
 		oocsi.subscribe("OOCSI_metrics", new Handler() {
 			@Override
 			public void receive(String sender, Map<String, Object> data, long timestamp, String channel,
-			        String recipient) {
+					String recipient) {
 
 				// store the timestamp of the last ping
 				lastOOCSIMetricsPing = timestamp;
@@ -79,19 +79,17 @@ public class OOCSIService implements ScheduledService {
 		});
 	}
 
+	private boolean initialized = false;
+
 	@Override
 	public void refresh() {
-		refreshDatasetSubscriptions();
+		checkConnectionStatus();
+		if (!initialized) {
+			initializeSubscriptions();
+		}
 	}
 
-	/**
-	 * periodically refresh the OOCSI subscriptions
-	 * 
-	 */
-	private synchronized void refreshDatasetSubscriptions() {
-
-		long start = System.currentTimeMillis();
-
+	private void checkConnectionStatus() {
 		// check connection and the last timestamp of the metrics ping, if the latter is longer than 1 min ago, send
 		// offline notification once
 		if (!oocsi.isConnected() || lastOOCSIMetricsPing < System.currentTimeMillis() - (1000 * 60)) {
@@ -109,22 +107,81 @@ public class OOCSIService implements ScheduledService {
 			}
 			offlineNotification = false;
 		}
+	}
 
+	/**
+	 * initialize the OOCSI subscriptions on startup
+	 * 
+	 */
+	public synchronized void initializeSubscriptions() {
+		long start = System.currentTimeMillis();
 		try {
 			// refresh channels from IoT and Entity datasets
 			List<Dataset> oocsiIoTDatasets = Dataset.find.query().where().eq("dsType", DatasetType.IOT).findList()
-			        .stream().filter(ds -> ds.isActive()).collect(Collectors.toList());
+					.stream().filter(ds -> ds.isActive()).collect(Collectors.toList());
 			refreshChannels(oocsiIoTDatasets);
 			List<Dataset> oocsiEntityDatasets = Dataset.find.query().where().eq("dsType", DatasetType.ENTITY).findList()
-			        .stream().filter(ds -> ds.isActive()).collect(Collectors.toList());
+					.stream().filter(ds -> ds.isActive()).collect(Collectors.toList());
 			refreshChannels(oocsiEntityDatasets);
 
-			// report if this takes too long
+			initialized = true;
 			if (System.currentTimeMillis() - start > 1000) {
-				logger.info("Refresh tasks [" + (System.currentTimeMillis() - start) + "ms]");
+				logger.info("Initial OOCSI subscriptions loaded [" + (System.currentTimeMillis() - start) + "ms]");
 			}
 		} catch (Exception e) {
-			logger.error("Refresh task exception [" + (System.currentTimeMillis() - start) + "ms]", e);
+			logger.error("Initial OOCSI subscription loading exception", e);
+		}
+	}
+
+	/**
+	 * update OOCSI subscriptions and services for changed datasets
+	 * 
+	 * @param changedDatasets
+	 * @param changedIds
+	 */
+	public synchronized void updateDatasets(List<Dataset> changedDatasets, java.util.Set<Long> changedIds) {
+		if (!initialized) {
+			initializeSubscriptions();
+			return;
+		}
+
+		java.util.Set<Long> processedIds = new java.util.HashSet<>();
+
+		for (Dataset ds : changedDatasets) {
+			processedIds.add(ds.getId());
+			if (ds.getDsType() == DatasetType.IOT || ds.getDsType() == DatasetType.ENTITY) {
+				if (ds.isActive()) {
+					refreshChannels(java.util.Collections.singletonList(ds));
+				} else {
+					unsubscribeDataset(ds.getId());
+				}
+			} else {
+				unsubscribeDataset(ds.getId());
+			}
+		}
+
+		for (Long id : changedIds) {
+			if (!processedIds.contains(id)) {
+				unsubscribeDataset(id);
+			}
+		}
+	}
+
+	private void unsubscribeDataset(Long datasetId) {
+		if (datasetSubscriptionList.containsKey(datasetId)) {
+			OOCSIServiceEventHandler subscriptionHandler = datasetSubscriptionList.remove(datasetId);
+			if (subscriptionHandler != null) {
+				oocsi.unsubscribe(subscriptionHandler.channelName, subscriptionHandler);
+				logger.info("Unsubscribing dataset " + datasetId + " from " + subscriptionHandler.channelName);
+			}
+		}
+
+		if (datasetServiceList.containsKey(datasetId)) {
+			String subscription = datasetServiceList.remove(datasetId);
+			if (subscription != null && !datasetServiceList.containsValue(subscription)) {
+				oocsi.unsubscribe(subscription);
+				logger.info("OOCSI unregistering service " + subscription);
+			}
 		}
 	}
 
@@ -298,7 +355,7 @@ public class OOCSIService implements ScheduledService {
 	class OOCSIServiceEventHandler extends EventHandler {
 
 		private final List<String> EXCLUSION = new ArrayList<String>(Arrays.asList("resource_id", "token", "device_id",
-		        "activity", "api-token", "_MESSAGE_ID", "_MESSAGE_HANDLE", "query", "timestamp"));
+				"activity", "api-token", "_MESSAGE_ID", "_MESSAGE_HANDLE", "query", "timestamp"));
 
 		private final Long datasetId;
 		private final DatasetType dsType;
@@ -327,7 +384,7 @@ public class OOCSIService implements ScheduledService {
 			float eventRate = inletThrottle.getEventRate();
 			if (eventRate > 2) {
 				diagnostics.eventInletThrottleMessage = "Events are arriving too fast (" + eventRate
-				        + "/s) from channel '" + channelName + "', we can only store up to 2 per second.";
+						+ "/s) from channel '" + channelName + "', we can only store up to 2 per second.";
 			} else {
 				diagnostics.eventInletThrottleMessage = "";
 			}
@@ -454,7 +511,7 @@ public class OOCSIService implements ScheduledService {
 	class OOCSIServiceResponder extends Responder {
 
 		private final List<String> EXCLUSION = new ArrayList<String>(Arrays.asList("resource_id", "token", "api-token",
-		        "_MESSAGE_ID", "_MESSAGE_HANDLE", "query", "timestamp"));
+				"_MESSAGE_ID", "_MESSAGE_HANDLE", "query", "timestamp"));
 
 		private final Long datasetId;
 		private Throttle inletThrottle = new Throttle(500);

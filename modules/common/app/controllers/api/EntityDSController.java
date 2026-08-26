@@ -16,6 +16,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import controllers.auth.DatasetApiAuth;
 import controllers.auth.UserAuth;
 import datasets.DatasetConnector;
+import datasets.DatasetUpdateQueue;
 import models.Dataset;
 import models.DatasetType;
 import models.Project;
@@ -36,11 +37,13 @@ import utils.components.OnboardingSupport;
 public class EntityDSController extends AbstractDSController {
 
 	private static final Logger.ALogger logger = Logger.of(EntityDSController.class);
+	private final DatasetUpdateQueue datasetUpdateQueue;
 
 	@Inject
 	public EntityDSController(FormFactory formFactory, SyncCacheApi cache, DatasetConnector datasetConnector,
-			OnboardingSupport onboardingSupport) {
+			OnboardingSupport onboardingSupport, DatasetUpdateQueue datasetUpdateQueue) {
 		super(formFactory, cache, datasetConnector, onboardingSupport);
+		this.datasetUpdateQueue = datasetUpdateQueue;
 	}
 
 	@Authenticated(UserAuth.class)
@@ -105,6 +108,7 @@ public class EntityDSController extends AbstractDSController {
 		// auto-generate the API token for sending data to the dataset
 		ds.getConfiguration().put(Dataset.API_TOKEN, tokenResolverUtil.getDatasetToken(ds.getId()));
 		ds.update();
+		datasetUpdateQueue.enqueue(ds);
 
 		onboardingSupport.updateAfterDone(username, "new_dataset");
 
@@ -170,6 +174,7 @@ public class EntityDSController extends AbstractDSController {
 		// metadata
 		storeMetadata(ds, df);
 		ds.update();
+		datasetUpdateQueue.enqueue(ds);
 
 		// display the add form page
 		return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "message",

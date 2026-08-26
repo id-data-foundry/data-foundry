@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import controllers.auth.UserAuth;
 import datasets.DatasetConnector;
+import datasets.DatasetUpdateQueue;
 import models.Dataset;
 import models.DatasetType;
 import models.Project;
@@ -45,11 +46,13 @@ import utils.components.OnboardingSupport;
 public class TimeseriesDSController extends AbstractDSController {
 
 	private static final Logger.ALogger logger = Logger.of(TimeseriesDSController.class);
+	private final DatasetUpdateQueue datasetUpdateQueue;
 
 	@Inject
 	public TimeseriesDSController(FormFactory formFactory, SyncCacheApi cache, DatasetConnector datasetConnector,
-	        OnboardingSupport onboardingSupport) {
+			OnboardingSupport onboardingSupport, DatasetUpdateQueue datasetUpdateQueue) {
 		super(formFactory, cache, datasetConnector, onboardingSupport);
+		this.datasetUpdateQueue = datasetUpdateQueue;
 	}
 
 	@Authenticated(UserAuth.class)
@@ -65,7 +68,7 @@ public class TimeseriesDSController extends AbstractDSController {
 		// check permissions
 		if (!ds.visibleFor(username)) {
 			return redirect(PROJECT(ds.getProject().getId())).addingToSession(request, "error",
-			        "Project is not accessible.");
+					"Project is not accessible.");
 		}
 
 		// if no participant/wearable/cluster are in this project, then popup dialog
@@ -81,7 +84,7 @@ public class TimeseriesDSController extends AbstractDSController {
 		Project p = Project.find.byId(id);
 		if (p == null || !p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "Project not valid or you don't have permissions for this action. Need to be the owner or a collaborator of the project.");
+					"Project not valid or you don't have permissions for this action. Need to be the owner or a collaborator of the project.");
 		}
 
 		// display the add form page
@@ -96,7 +99,7 @@ public class TimeseriesDSController extends AbstractDSController {
 		Project p = Project.find.byId(id);
 		if (p == null || !p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "Project not valid or you don't have permissions for this action. Need to be the owner or a collaborator of the project.");
+					"Project not valid or you don't have permissions for this action. Need to be the owner or a collaborator of the project.");
 		}
 
 		DynamicForm df = formFactory.form().bindFromRequest(request);
@@ -107,7 +110,7 @@ public class TimeseriesDSController extends AbstractDSController {
 		Date[] dates = DateUtils.getDates(df.get("start-date"), df.get("end-date"));
 
 		Dataset ds = datasetConnector.create(df.get("dataset_name"), DatasetType.IOT, p, df.get("description"),
-		        df.get("target_object"), df.get("isPublic"), df.get("license"));
+				df.get("target_object"), df.get("isPublic"), df.get("license"));
 		ds.setStart(dates[0]);
 		ds.setEnd(dates[1]);
 		ds.save();
@@ -115,6 +118,7 @@ public class TimeseriesDSController extends AbstractDSController {
 		// auto-generate the API token for sending data to the dataset
 		ds.getConfiguration().put(Dataset.API_TOKEN, tokenResolverUtil.getDatasetToken(ds.getId()));
 		ds.update();
+		datasetUpdateQueue.enqueue(ds);
 
 		onboardingSupport.updateAfterDone(username, "new_dataset");
 
@@ -134,7 +138,7 @@ public class TimeseriesDSController extends AbstractDSController {
 
 		if (!ds.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "You don't have permissions for this action. Need to be the owner or a collaborator of the project.");
+					"You don't have permissions for this action. Need to be the owner or a collaborator of the project.");
 		}
 
 		// display the add form page
@@ -153,13 +157,13 @@ public class TimeseriesDSController extends AbstractDSController {
 
 		if (!ds.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "You don't have permissions for this action. Need to be the owner or a collaborator of the project.");
+					"You don't have permissions for this action. Need to be the owner or a collaborator of the project.");
 		}
 
 		DynamicForm df = formFactory.form().bindFromRequest(request);
 		if (df == null) {
 			return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
-			        "Expecting some data");
+					"Expecting some data");
 		}
 
 		ds.setName(htmlTagEscape(nss(df.get("dataset_name"), 64)));
@@ -174,10 +178,11 @@ public class TimeseriesDSController extends AbstractDSController {
 		// metadata
 		storeMetadata(ds, df);
 		ds.update();
+		datasetUpdateQueue.enqueue(ds);
 
 		// display the add form page
 		return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "message",
-		        "Changes saved.");
+				"Changes saved.");
 	}
 
 	@Authenticated(UserAuth.class)
@@ -189,14 +194,14 @@ public class TimeseriesDSController extends AbstractDSController {
 			return redirect(HOME).addingToSession(request, "error", "We could not find this dataset.");
 		} else if (!ds.canAppend()) {
 			return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
-			        "Dataset is closed (adjust start and end dates to open).");
+					"Dataset is closed (adjust start and end dates to open).");
 		}
 
 		Project project = ds.getProject();
 		project.refresh();
 		if (!project.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
-			        "You need to be either project owner or collaborator to perform this action.");
+					"You need to be either project owner or collaborator to perform this action.");
 		}
 
 		List<Device> deviceSelection = new LinkedList<Device>();
@@ -211,13 +216,15 @@ public class TimeseriesDSController extends AbstractDSController {
 
 	@Deprecated
 	public CompletionStage<Result> recordDeprecated(Request request, final Long id, final String dsApiToken) {
-		logger.warn("Using deprecated URL token endpoint: POST /datasets/ts/record/" + id + "/" + dsApiToken + ". Please use POST /datasets/ts/record/" + id + " instead with 'api_token' in body/form.");
+		logger.warn("Using deprecated URL token endpoint: POST /datasets/ts/record/" + id + "/" + dsApiToken
+				+ ". Please use POST /datasets/ts/record/" + id + " instead with 'api_token' in body/form.");
 		return record(request, id, dsApiToken);
 	}
 
 	@Deprecated
 	public CompletionStage<Result> recordApi(Request request, final Long id, final String dsApiToken) {
-		logger.warn("Using deprecated URL token endpoint: POST /api/v1/datasets/ts/" + id + "/" + dsApiToken + ". Please use POST /api/v1/datasets/ts/" + id + " instead with 'api_token' in header.");
+		logger.warn("Using deprecated URL token endpoint: POST /api/v1/datasets/ts/" + id + "/" + dsApiToken
+				+ ". Please use POST /api/v1/datasets/ts/" + id + " instead with 'api_token' in header.");
 		return record(request, id, dsApiToken);
 	}
 
@@ -241,7 +248,7 @@ public class TimeseriesDSController extends AbstractDSController {
 				return redirect(HOME).addingToSession(request, "error", "We could not find this dataset.");
 			} else if (!ds.canAppend()) {
 				return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request,
-				        "error", "Dataset is closed (adjust start and end dates to open).");
+						"error", "Dataset is closed (adjust start and end dates to open).");
 			}
 
 			final String sourceId, deviceId, activity, data, checkBodyToken;
@@ -282,14 +289,14 @@ public class TimeseriesDSController extends AbstractDSController {
 			if (checkToken == null || (!ds.getApiToken().equals(checkToken) && !checkToken.equals(internalToken))) {
 				if (!ds.getApiToken().equals(checkBodyToken) && !checkBodyToken.equals(internalToken)) {
 					return testing ? redirect(controllers.routes.DatasetsController.view(id))
-					        : forbidden("Api token is not correct");
+							: forbidden("Api token is not correct");
 				}
 			}
 
 			// check both source_id and device_id, just in case
 			if (!ds.isOpenParticipation() && sourceId.isEmpty() && deviceId.isEmpty()) {
 				return testing ? redirect(controllers.routes.DatasetsController.view(id))
-				        : notFound("Source device not found");
+						: notFound("Source device not found");
 			}
 
 			// record the information in the database for this data set
@@ -302,24 +309,24 @@ public class TimeseriesDSController extends AbstractDSController {
 			if (refId.isEmpty() && activity.isEmpty() && data.isEmpty()) {
 				// notify the diagnostics
 				cache.set("DatasetsController_httpPostDiagnostics_" + id, "❌ Empty data submitted at " + new Date(),
-				        300);
+						300);
 				return badRequest("");
 			}
 
 			final Optional<Device> opt = refId.isEmpty() ? Optional.empty()
-			        : Device.find.query().setMaxRows(1).where().eq("refId", refId).findOneOrEmpty();
+					: Device.find.query().setMaxRows(1).where().eq("refId", refId).findOneOrEmpty();
 			if (!opt.isPresent()) {
 				if (!ds.isOpenParticipation()) {
 					// open device id not permitted
 					return testing ? redirect(controllers.routes.DatasetsController.view(id))
-					        : notFound("Source device not registered");
+							: notFound("Source device not registered");
 				} else {
 					// submission with textual device id
 					tssc.addRecord(refId, new Date(), activity, data);
 
 					// notify the diagnostics
 					cache.set("DatasetsController_httpPostDiagnostics_" + id,
-					        "Device " + refId + " uploaded 1 record at " + new Date(), 300);
+							"Device " + refId + " uploaded 1 record at " + new Date(), 300);
 
 					// response
 					return testing ? redirect(controllers.routes.DatasetsController.view(id)) : ok("");
@@ -330,7 +337,7 @@ public class TimeseriesDSController extends AbstractDSController {
 			Device device = opt.get();
 			if (!ds.isOpenParticipation() && !ds.getProject().getId().equals(device.getProject().getId())) {
 				return testing ? redirect(controllers.routes.DatasetsController.view(id))
-				        : forbidden("Source device not permitted");
+						: forbidden("Source device not permitted");
 			}
 
 			// submit
@@ -338,7 +345,7 @@ public class TimeseriesDSController extends AbstractDSController {
 
 			// notify the diagnostics
 			cache.set("DatasetsController_httpPostDiagnostics_" + id,
-			        "Device " + refId + " uploaded 1 record at " + new Date(), 300);
+					"Device " + refId + " uploaded 1 record at " + new Date(), 300);
 
 			// response
 			return testing ? redirect(controllers.routes.DatasetsController.view(id)) : ok("");
@@ -376,7 +383,7 @@ public class TimeseriesDSController extends AbstractDSController {
 				return redirect(HOME).addingToSession(request, "error", "We could not find this dataset.");
 			} else if (!ds.canAppend()) {
 				return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request,
-				        "error", "Dataset is closed (adjust start and end dates to open).");
+						"error", "Dataset is closed (adjust start and end dates to open).");
 			}
 
 			// check all header input
@@ -394,7 +401,7 @@ public class TimeseriesDSController extends AbstractDSController {
 			if (!ds.isOpenParticipation() && sourceId.isEmpty() && deviceId.isEmpty()) {
 				// notify the diagnostics
 				cache.set("DatasetsController_httpPostDiagnostics_" + id, "❌ Missing device in update at " + new Date(),
-				        300);
+						300);
 
 				return notFound("Source device not found");
 			}
@@ -403,7 +410,7 @@ public class TimeseriesDSController extends AbstractDSController {
 			if (jn == null || (!jn.isObject() && !jn.isArray())) {
 				// notify the diagnostics
 				cache.set("DatasetsController_httpPostDiagnostics_" + id, "❌ Empty data submitted at " + new Date(),
-				        300);
+						300);
 
 				return badRequest("No data (object or array) given.");
 			}
@@ -419,7 +426,7 @@ public class TimeseriesDSController extends AbstractDSController {
 				if (!ds.isOpenParticipation()) {
 					// notify the diagnostics
 					cache.set("DatasetsController_httpPostDiagnostics_" + id,
-					        "❌ Missing device in update at " + new Date(), 300);
+							"❌ Missing device in update at " + new Date(), 300);
 
 					// open device id not permitted
 					return notFound("Source device not registered");
@@ -430,7 +437,7 @@ public class TimeseriesDSController extends AbstractDSController {
 				if (!ds.isOpenParticipation() && !ds.getProject().getId().equals(device.getProject().getId())) {
 					// notify the diagnostics
 					cache.set("DatasetsController_httpPostDiagnostics_" + id,
-					        "❌ Device not allowed in update at " + new Date(), 300);
+							"❌ Device not allowed in update at " + new Date(), 300);
 
 					return forbidden("Source device not permitted");
 				}
@@ -450,7 +457,7 @@ public class TimeseriesDSController extends AbstractDSController {
 			if (records.isEmpty()) {
 				// notify the diagnostics
 				cache.set("DatasetsController_httpPostDiagnostics_" + id,
-				        "❌ Empty data array submitted at " + new Date(), 300);
+						"❌ Empty data array submitted at " + new Date(), 300);
 
 				return badRequest("No valid data (object) given.");
 			}
@@ -480,10 +487,8 @@ public class TimeseriesDSController extends AbstractDSController {
 			}
 
 			// notify the diagnostics
-			cache.set("DatasetsController_httpPostDiagnostics_" + id,
-			        "Device " + refId + " uploaded " + records.size() + " "
-			                + StringUtils.pluralize("record", records.size()) + " at " + new Date(),
-			        300);
+			cache.set("DatasetsController_httpPostDiagnostics_" + id, "Device " + refId + " uploaded " + records.size()
+					+ " " + StringUtils.pluralize("record", records.size()) + " at " + new Date(), 300);
 
 			return ok();
 		});
@@ -511,7 +516,7 @@ public class TimeseriesDSController extends AbstractDSController {
 			} else if (!ds.canAppend()) {
 				logger.warn(" - dataset " + id + " not appendable");
 				return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request,
-				        "error", "Dataset is closed (adjust start and end dates to open).");
+						"error", "Dataset is closed (adjust start and end dates to open).");
 			}
 
 			// check all header input
@@ -565,7 +570,7 @@ public class TimeseriesDSController extends AbstractDSController {
 
 			// notify the diagnostics
 			cache.set("DatasetsController_httpPostDiagnostics_" + id,
-			        "Device " + refId + " is uploading data at " + new Date(), 300);
+					"Device " + refId + " is uploading data at " + new Date(), 300);
 
 			AtomicInteger recordInsertedCount = new AtomicInteger();
 			try {
@@ -573,7 +578,7 @@ public class TimeseriesDSController extends AbstractDSController {
 				final String strBody = request.body().asText();
 				logger.info(" - payload " + strBody.length() + " bytes");
 				CSVParser csvp = CSVParser.parse(strBody,
-				        CSVFormat.Builder.create(CSVFormat.RFC4180).setHeader().setSkipHeaderRecord(true).build());
+						CSVFormat.Builder.create(CSVFormat.RFC4180).setHeader().setSkipHeaderRecord(true).build());
 
 				// check CSV header first
 				if (csvp.getHeaderNames().isEmpty()) {
@@ -604,9 +609,9 @@ public class TimeseriesDSController extends AbstractDSController {
 
 				// notify the diagnostics
 				cache.set(
-				        "DatasetsController_httpPostDiagnostics_" + id, "Device " + refId + " uploaded "
-				                + StringUtils.pluralize("record", recordInsertedCount.get()) + " at " + new Date(),
-				        300);
+						"DatasetsController_httpPostDiagnostics_" + id, "Device " + refId + " uploaded "
+								+ StringUtils.pluralize("record", recordInsertedCount.get()) + " at " + new Date(),
+						300);
 
 				logger.info(" - " + recordInsertedCount.get() + " lines inserted");
 				return ok(recordInsertedCount.get() + " lines inserted.");
@@ -623,21 +628,21 @@ public class TimeseriesDSController extends AbstractDSController {
 		// get device ids (if cluster is given)
 		final List<Long> deviceIds = cluster.getDeviceList();
 		return CompletableFuture.supplyAsync(() -> internalExport(ds, deviceIds, limit, start, end))
-		        .thenApplyAsync(chunks -> ok().chunked(chunks)
-		                .withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
-		                .as("text/csv"));
+				.thenApplyAsync(chunks -> ok().chunked(chunks)
+						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
+						.as("text/csv"));
 	}
 
 	public CompletionStage<Result> downloadInternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
 		// get device ids (if cluster is given)
 		final List<Long> deviceIds = cluster.getDeviceList();
 		return CompletableFuture.supplyAsync(() -> internalExport(ds, deviceIds, limit, start, end))
-		        .thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
+				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
 	}
 
 	@Authenticated(UserAuth.class)
 	public CompletionStage<Result> downloadRaw(Request request, Long id, Long cluster_id, long limit, long start,
-	        long end) {
+			long end) {
 		String username = getAuthenticatedUserNameOrReturn(request, redirect(LANDING));
 
 		// check id
@@ -667,13 +672,13 @@ public class TimeseriesDSController extends AbstractDSController {
 		if (acceptLicenseFirst(request, username, project)) {
 			// redirect to accept license first
 			return redirectCS(controllers.routes.ProjectsController.license(project.getId(),
-			        routes.TimeseriesDSController.downloadRaw(id, cluster_id, limit, start, end).relativeTo("/")));
+					routes.TimeseriesDSController.downloadRaw(id, cluster_id, limit, start, end).relativeTo("/")));
 		}
 
 		return CompletableFuture.supplyAsync(() -> internalExportRaw(ds, deviceIds, limit, start, end))
-		        .thenApplyAsync(chunks -> ok().chunked(chunks)
-		                .withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
-		                .as("text/csv"));
+				.thenApplyAsync(chunks -> ok().chunked(chunks)
+						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
+						.as("text/csv"));
 	}
 
 	public CompletionStage<Result> downloadRawPublic(Request request, String token) {
@@ -694,9 +699,9 @@ public class TimeseriesDSController extends AbstractDSController {
 		}
 
 		return CompletableFuture.supplyAsync(() -> internalExportRaw(ds, Collections.<Long>emptyList(), -1, -1, -1))
-		        .thenApplyAsync(chunks -> ok().chunked(chunks)
-		                .withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
-		                .as("text/csv"));
+				.thenApplyAsync(chunks -> ok().chunked(chunks)
+						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
+						.as("text/csv"));
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -722,7 +727,7 @@ public class TimeseriesDSController extends AbstractDSController {
 	 * @return
 	 */
 	private Source<ByteString, ?> internalExportRaw(Dataset ds, List<Long> deviceIds, long limit, long start,
-	        long end) {
+			long end) {
 		TimeseriesDS tssc = (TimeseriesDS) datasetConnector.getDatasetDS(ds);
 		return createStream().mapMaterializedValue(queue -> {
 			CompletableFuture.runAsync(() -> tssc.export(queue, deviceIds, limit, start, end));
