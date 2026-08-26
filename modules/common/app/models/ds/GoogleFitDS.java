@@ -118,24 +118,24 @@ public class GoogleFitDS extends LinkedDS {
 								+ " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);");) {
 			Participant participant = wearable.getClusterParticipant();
 			if (participant != null) {
-				stmt.setString(2, participant.getId() + "");
+				stmt.setString(2, nss(participant.getId() + "", 50));
 				stmt.setString(4,
-						wearable.getPublicParameter1() == null
+						nss(wearable.getPublicParameter1() == null
 								? (participant.getPublicParameter1() == null ? "" : participant.getPublicParameter1())
-								: wearable.getPublicParameter1());
+								: wearable.getPublicParameter1(), 255));
 				stmt.setString(5,
-						wearable.getPublicParameter2() == null
+						nss(wearable.getPublicParameter2() == null
 								? (participant.getPublicParameter2() == null ? "" : participant.getPublicParameter2())
-								: wearable.getPublicParameter2());
+								: wearable.getPublicParameter2(), 255));
 				stmt.setString(6,
-						wearable.getPublicParameter3() == null
+						nss(wearable.getPublicParameter3() == null
 								? (participant.getPublicParameter3() == null ? "" : participant.getPublicParameter3())
-								: wearable.getPublicParameter3());
+								: wearable.getPublicParameter3(), 255));
 			} else {
-				stmt.setString(2, wearable.getUserId());
-				stmt.setString(4, wearable.getPublicParameter1() == null ? "" : wearable.getPublicParameter1());
-				stmt.setString(5, wearable.getPublicParameter2() == null ? "" : wearable.getPublicParameter2());
-				stmt.setString(6, wearable.getPublicParameter3() == null ? "" : wearable.getPublicParameter3());
+				stmt.setString(2, nss(wearable.getUserId(), 50));
+				stmt.setString(4, nss(wearable.getPublicParameter1() == null ? "" : wearable.getPublicParameter1(), 255));
+				stmt.setString(5, nss(wearable.getPublicParameter2() == null ? "" : wearable.getPublicParameter2(), 255));
+				stmt.setString(6, nss(wearable.getPublicParameter3() == null ? "" : wearable.getPublicParameter3(), 255));
 			}
 
 			stmt.setLong(1, wearable.getId());

@@ -122,37 +122,37 @@ public class FitbitDS extends LinkedDS {
 
 			Participant participant = wearable.getClusterParticipant();
 			if (participant != null) {
-				stmt.setString(2, participant.getId() + "");
+				stmt.setString(2, nss(participant.getId() + "", 50));
 				stmt.setString(4,
-				        wearable.getPublicParameter1() == null
+				        nss(wearable.getPublicParameter1() == null
 				                ? (participant.getPublicParameter1() == null ? "" : participant.getPublicParameter1())
-				                : wearable.getPublicParameter1());
+				                : wearable.getPublicParameter1(), 255));
 				stmt.setString(5,
-				        wearable.getPublicParameter2() == null
+				        nss(wearable.getPublicParameter2() == null
 				                ? (participant.getPublicParameter2() == null ? "" : participant.getPublicParameter2())
-				                : wearable.getPublicParameter2());
+				                : wearable.getPublicParameter2(), 255));
 				stmt.setString(6,
-				        wearable.getPublicParameter3() == null
+				        nss(wearable.getPublicParameter3() == null
 				                ? (participant.getPublicParameter3() == null ? "" : participant.getPublicParameter3())
-				                : wearable.getPublicParameter3());
+				                : wearable.getPublicParameter3(), 255));
 			} else {
-				stmt.setString(2, wearable.getUserId());
-				stmt.setString(4, wearable.getPublicParameter1() == null ? "" : wearable.getPublicParameter1());
-				stmt.setString(5, wearable.getPublicParameter2() == null ? "" : wearable.getPublicParameter2());
-				stmt.setString(6, wearable.getPublicParameter3() == null ? "" : wearable.getPublicParameter3());
+				stmt.setString(2, nss(wearable.getUserId(), 50));
+				stmt.setString(4, nss(wearable.getPublicParameter1() == null ? "" : wearable.getPublicParameter1(), 255));
+				stmt.setString(5, nss(wearable.getPublicParameter2() == null ? "" : wearable.getPublicParameter2(), 255));
+				stmt.setString(6, nss(wearable.getPublicParameter3() == null ? "" : wearable.getPublicParameter3(), 255));
 			}
 
 			stmt.setLong(1, wearable.getId());
 			stmt.setTimestamp(3, new Timestamp(new Date().getTime()));
 			stmt.setString(7, Long.toString(dataDate));
 			stmt.setString(8, scope.equals("heartrate") ? jn.get("value").toString() : "0");
-			stmt.setString(9, scope.equals("activity") ? jn.toString() : "");
+			stmt.setString(9, scope.equals("activity") ? nss(jn.toString(), 16383) : "");
 			stmt.setString(10, scope.equals("calories") ? jn.get("value").toString() : "0");
 			stmt.setString(11, scope.equals("steps") ? jn.get("value").toString() : "0");
 			stmt.setString(12, scope.equals("distance") ? jn.get("value").toString() : "0");
 			stmt.setString(13, scope.equals("floors") ? jn.get("value").toString() : "0");
 			stmt.setString(14, scope.equals("elevation") ? jn.get("value").toString() : "0");
-			stmt.setString(15, scope.equals("sleep") ? jn.get("level").toString() : "");
+			stmt.setString(15, scope.equals("sleep") ? (jn.has("level") ? nss(jn.get("level").toString(), 10) : "") : "");
 			stmt.setString(16, scope.equals("weight") ? jn.get("weight").toString() : "0");
 			stmt.setString(17, scope.equals("bmi") ? jn.get("bmi").toString() : "0");
 			stmt.setString(18, scope.equals("fat") ? jn.get("fat").toString() : "0");
@@ -184,37 +184,37 @@ public class FitbitDS extends LinkedDS {
 
 			Participant participant = wearable.getClusterParticipant();
 			if (participant != null) {
-				stmt.setString(2, participant.getId() + "");
+				stmt.setString(2, nss(participant.getId() + "", 50));
 				stmt.setString(4,
-				        wearable.getPublicParameter1() == null
+				        nss(wearable.getPublicParameter1() == null
 				                ? (participant.getPublicParameter1() == null ? "" : participant.getPublicParameter1())
-				                : wearable.getPublicParameter1());
+				                : wearable.getPublicParameter1(), 255));
 				stmt.setString(5,
-				        wearable.getPublicParameter2() == null
+				        nss(wearable.getPublicParameter2() == null
 				                ? (participant.getPublicParameter2() == null ? "" : participant.getPublicParameter2())
-				                : wearable.getPublicParameter2());
+				                : wearable.getPublicParameter2(), 255));
 				stmt.setString(6,
-				        wearable.getPublicParameter3() == null
+				        nss(wearable.getPublicParameter3() == null
 				                ? (participant.getPublicParameter3() == null ? "" : participant.getPublicParameter3())
-				                : wearable.getPublicParameter3());
+				                : wearable.getPublicParameter3(), 255));
 			} else {
-				stmt.setString(2, wearable.getUserId());
-				stmt.setString(4, wearable.getPublicParameter1() == null ? "" : wearable.getPublicParameter1());
-				stmt.setString(5, wearable.getPublicParameter2() == null ? "" : wearable.getPublicParameter2());
-				stmt.setString(6, wearable.getPublicParameter3() == null ? "" : wearable.getPublicParameter3());
+				stmt.setString(2, nss(wearable.getUserId(), 50));
+				stmt.setString(4, nss(wearable.getPublicParameter1() == null ? "" : wearable.getPublicParameter1(), 255));
+				stmt.setString(5, nss(wearable.getPublicParameter2() == null ? "" : wearable.getPublicParameter2(), 255));
+				stmt.setString(6, nss(wearable.getPublicParameter3() == null ? "" : wearable.getPublicParameter3(), 255));
 			}
 
 			stmt.setLong(1, wearable.getId());
 			stmt.setTimestamp(3, new Timestamp(new Date().getTime()));
 			stmt.setString(7, Long.toString(dataDate));
 			stmt.setString(8, scope.equals("heartrate") ? emptyContent : "0");
-			stmt.setString(9, scope.equals("activity") ? emptyContent : "");
+			stmt.setString(9, scope.equals("activity") ? nss(emptyContent, 16383) : "");
 			stmt.setString(10, scope.equals("calories") ? emptyContent : "0");
 			stmt.setString(11, scope.equals("steps") ? emptyContent : "0");
 			stmt.setString(12, scope.equals("distance") ? emptyContent : "0");
 			stmt.setString(13, scope.equals("floors") ? emptyContent : "0");
 			stmt.setString(14, scope.equals("elevation") ? emptyContent : "0");
-			stmt.setString(15, scope.equals("sleep") ? emptyContent : "");
+			stmt.setString(15, scope.equals("sleep") ? nss(emptyContent, 10) : "");
 			stmt.setString(16, scope.equals("weight") ? emptyContent : "0");
 			stmt.setString(17, scope.equals("bmi") ? emptyContent : "0");
 			stmt.setString(18, scope.equals("fat") ? emptyContent : "0");
@@ -263,22 +263,22 @@ public class FitbitDS extends LinkedDS {
 
 			switch (scope) {
 			case "sleep":
-				stmt.setString(1, jn.get("level").toString());
+				stmt.setString(1, jn.has("level") ? nss(jn.get("level").toString(), 10) : "");
 				break;
 			case "activity":
-				stmt.setString(1, jn.toString());
+				stmt.setString(1, nss(jn.toString(), 16383));
 				break;
 			case "weight":
-				stmt.setString(1, jn.get("weight").toString());
+				stmt.setString(1, jn.has("weight") ? jn.get("weight").toString() : "0");
 				break;
 			case "bmi":
-				stmt.setString(1, jn.get("bmi").toString());
+				stmt.setString(1, jn.has("bmi") ? jn.get("bmi").toString() : "0");
 				break;
 			case "fat":
-				stmt.setString(1, jn.get("fat").toString());
+				stmt.setString(1, jn.has("fat") ? jn.get("fat").toString() : "0");
 				break;
 			default:
-				stmt.setString(1, jn.get("value").toString());
+				stmt.setString(1, jn.has("value") ? jn.get("value").toString() : "0");
 			}
 			stmt.setTimestamp(2, new Timestamp(new Date().getTime()));
 			stmt.setLong(3, wearable.getId());
@@ -330,7 +330,13 @@ public class FitbitDS extends LinkedDS {
 		        PreparedStatement stmt = connection.prepareStatement("UPDATE " + dataTableName + " SET " + scope
 		                + " = ?, ts = ? WHERE wearable_id = ? AND data_date = ?;");) {
 
-			stmt.setString(1, emptyContent);
+			if (scope.equals("sleep")) {
+				stmt.setString(1, nss(emptyContent, 10));
+			} else if (scope.equals("activity")) {
+				stmt.setString(1, nss(emptyContent, 16383));
+			} else {
+				stmt.setString(1, emptyContent);
+			}
 			stmt.setTimestamp(2, new Timestamp(new Date().getTime()));
 			stmt.setLong(3, wearable.getId());
 			stmt.setLong(4, dataDate);

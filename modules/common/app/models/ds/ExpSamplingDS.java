@@ -182,10 +182,10 @@ public class ExpSamplingDS extends LinkedDS {
 					stmt.setLong(1, participant.getId());
 					stmt.setTimestamp(2, new Timestamp(d1.getTime()));
 					stmt.setTimestamp(3, new Timestamp(d2.getTime()));
-					stmt.setString(4, participant.getPublicParameter1());
-					stmt.setString(5, participant.getPublicParameter2());
-					stmt.setString(6, participant.getPublicParameter3());
-					stmt.setString(7, rest);
+					stmt.setString(4, nss(participant.getPublicParameter1(), 255));
+					stmt.setString(5, nss(participant.getPublicParameter2(), 255));
+					stmt.setString(6, nss(participant.getPublicParameter3(), 255));
+					stmt.setString(7, nss(rest, 1024));
 					stmt.executeUpdate();
 
 					// update projection

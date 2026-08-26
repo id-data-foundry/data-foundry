@@ -103,13 +103,13 @@ public class CompleteDS extends LinkedDS {
 			stmt.setTimestamp(4, new Timestamp(ts.getTime()));
 			stmt.executeUpdate();
 			transaction.commit();
-		} catch (Exception e) {
-			logger.error("Error in inserting a record in dataset table.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
 
 			// post update on OOCSI
 			oocsiStreaming.datasetUpdate(dataset, OOCSIStreamOutService.map().put("operation", "add")
 					.put("filename", nss(fileName, 255)).put("description", nss(description, 255)).build());
+		} catch (Exception e) {
+			logger.error("Error in inserting a record in dataset table.", e);
+			Slack.call("Exception", e.getLocalizedMessage());
 		}
 	}
 
@@ -121,7 +121,7 @@ public class CompleteDS extends LinkedDS {
 				PreparedStatement stmt = connection
 						.prepareStatement("UPDATE " + dataTableName + " SET description = ? WHERE id = ?;");) {
 
-			stmt.setString(1, description);
+			stmt.setString(1, nss(description, 255));
 			stmt.setLong(2, fileId);
 			stmt.executeUpdate();
 

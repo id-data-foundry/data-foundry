@@ -201,7 +201,7 @@ public class EntityDS extends LinkedDS {
 
 			// update existing data
 			result = internalUpdateItem(resource_id, token, existingData.path("pp1").asText(),
-			        existingData.path("pp2").asText(), existingData.path("pp2").asText(), new Date(), existingData);
+			        existingData.path("pp2").asText(), existingData.path("pp3").asText(), new Date(), existingData);
 		}
 
 		// check whether projection update is necessary
@@ -294,13 +294,13 @@ public class EntityDS extends LinkedDS {
 		        PreparedStatement stmt = connection.prepareStatement("INSERT INTO " + dataTableName
 		                + " (resource_id, token, ts, pp1, pp2, pp3, data )" + " VALUES (?, ?, ?, ?, ?, ?, ?);");) {
 
-			stmt.setString(1, resource_id);
-			stmt.setString(2, token.orElse(""));
+			stmt.setString(1, nss(resource_id, 63));
+			stmt.setString(2, nss(token.orElse(""), 63));
 			stmt.setTimestamp(3, new Timestamp(ts.getTime()));
-			stmt.setString(4, pp1);
-			stmt.setString(5, pp2);
-			stmt.setString(6, pp3);
-			stmt.setString(7, jo == null ? "" : jo.toString());
+			stmt.setString(4, nss(pp1, 255));
+			stmt.setString(5, nss(pp2, 255));
+			stmt.setString(6, nss(pp3, 255));
+			stmt.setString(7, nss(jo == null ? "" : jo.toString()));
 
 			int i = stmt.executeUpdate();
 			logger.trace(i + " records inserted into " + dataTableName);
@@ -328,7 +328,7 @@ public class EntityDS extends LinkedDS {
 		        Connection connection = transaction.connection();
 		        PreparedStatement stmt = connection.prepareStatement(
 		                "SELECT token FROM " + dataTableName + " WHERE resource_id = ? ORDER BY ts DESC LIMIT 1;");) {
-			stmt.setString(1, resource_id);
+			stmt.setString(1, nss(resource_id, 63));
 			ResultSet rs = stmt.executeQuery();
 			if (rs.next()) {
 				result = rs.getString("token");
@@ -354,9 +354,9 @@ public class EntityDS extends LinkedDS {
 		try (Transaction transaction = DB.beginTransaction();
 		        Connection connection = transaction.connection();
 		        PreparedStatement stmt = connection.prepareStatement(sql);) {
-			stmt.setString(1, resource_id);
+			stmt.setString(1, nss(resource_id, 63));
 			if (token.isPresent()) {
-				stmt.setString(2, token.get());
+				stmt.setString(2, nss(token.get(), 63));
 			}
 			ResultSet rs = stmt.executeQuery();
 			if (rs.next()) {
@@ -385,9 +385,9 @@ public class EntityDS extends LinkedDS {
 		try (Transaction transaction = DB.beginTransaction();
 		        Connection connection = transaction.connection();
 		        PreparedStatement stmt = connection.prepareStatement(sql);) {
-			stmt.setString(1, resource_id);
+			stmt.setString(1, nss(resource_id, 63));
 			if (token.isPresent()) {
-				stmt.setString(2, token.get());
+				stmt.setString(2, nss(token.get(), 63));
 			}
 			ResultSet rs = stmt.executeQuery();
 			if (rs.next()) {
@@ -537,7 +537,7 @@ public class EntityDS extends LinkedDS {
 		                        + (token.isPresent() ? " AND token = ?" : "") + " GROUP BY resource_id);");) {
 			stmt.setString(1, resource_id + "%");
 			if (token.isPresent()) {
-				stmt.setString(2, token.get());
+				stmt.setString(2, nss(token.get(), 63));
 			}
 			ResultSet rs = stmt.executeQuery();
 			while (rs.next()) {
@@ -881,11 +881,11 @@ public class EntityDS extends LinkedDS {
 
 				// StringBuffer sb = new StringBuffer();
 				on.put("id", rs.getLong(1));
-				on.put("resource_id", rs.getString(2));
+				on.put("resource_id", nss(rs.getString(2), 63));
 				on.put("ts", tsExportFormatter.format(rs.getTimestamp(3)));
-				on.put("pp1", rs.getString(4));
-				on.put("pp2", rs.getString(5));
-				on.put("pp3", rs.getString(6));
+				on.put("pp1", nss(rs.getString(4), 255));
+				on.put("pp2", nss(rs.getString(5), 255));
+				on.put("pp3", nss(rs.getString(6), 255));
 
 				// parse data as JSON
 				String data = rs.getString(7);
