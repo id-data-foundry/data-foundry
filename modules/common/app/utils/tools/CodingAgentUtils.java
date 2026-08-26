@@ -8,7 +8,11 @@ import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Pattern;
 
+import com.fasterxml.jackson.databind.node.ObjectNode;
+
+import models.DatasetType;
 import play.Logger;
+import play.libs.Json;
 
 public class CodingAgentUtils {
 
@@ -202,5 +206,104 @@ public class CodingAgentUtils {
 			variants.add(p.replace('\\', '/'));
 			variants.add(p.replace('/', '\\'));
 		}
+	}
+
+	/**
+	 * Get the standardized string representation of a dataset type for coding agents and metadata.
+	 * COMPLETE dataset types are named as EXISTING to align with the DataFoundry UI.
+	 *
+	 * @param type the dataset type
+	 * @return string representation of dataset type (e.g. EXISTING, IOT, ENTITY, etc.)
+	 */
+	public static String getDatasetType(DatasetType type) {
+		if (type == null) {
+			return "";
+		}
+		return type.toUIString();
+	}
+
+	/**
+	 * Generate the map of API routes for a dataset based on its type and dataset ID.
+	 *
+	 * @param type      the dataset type
+	 * @param datasetId the dataset ID
+	 * @return ObjectNode mapping operation names to HTTP methods and route paths
+	 */
+	public static ObjectNode getDatasetApiRoutes(DatasetType type, Long datasetId) {
+		ObjectNode routes = Json.newObject();
+		if (type == null || datasetId == null) {
+			return routes;
+		}
+		switch (type) {
+		case IOT:
+		case TIMESERIES:
+			routes.put("log", "POST /api/v1/datasets/ts/" + datasetId);
+			routes.put("downloadJson", "GET /datasets/download/json/" + datasetId);
+			routes.put("downloadCsv", "GET /datasets/download/" + datasetId);
+			break;
+		case ENTITY:
+			routes.put("getItem", "GET /api/v1/datasets/entity/" + datasetId);
+			routes.put("addItem", "POST /api/v1/datasets/entity/" + datasetId);
+			routes.put("updateItem", "PUT /api/v1/datasets/entity/" + datasetId);
+			routes.put("deleteItem", "DELETE /api/v1/datasets/entity/" + datasetId);
+			routes.put("downloadJson", "GET /datasets/download/json/" + datasetId);
+			routes.put("downloadCsv", "GET /datasets/download/" + datasetId);
+			break;
+		case MEDIA:
+			routes.put("uploadMedia", "POST /api/v1/datasets/media/" + datasetId);
+			routes.put("getMedia", "GET /api/v1/datasets/media/" + datasetId + "/{filename}");
+			routes.put("updateMedia", "PUT /api/v1/datasets/media/" + datasetId + "/{itemId}");
+			routes.put("downloadJson", "GET /datasets/download/json/" + datasetId);
+			routes.put("downloadCsv", "GET /datasets/download/" + datasetId);
+			break;
+		case COMPLETE:
+			routes.put("uploadFile", "POST /api/v1/datasets/existing/" + datasetId);
+			routes.put("downloadLatestFile", "GET /datasets/existing/downloadLatest/" + datasetId + "/{fileName}");
+			routes.put("downloadFile", "GET /datasets/existing/download/" + datasetId + "/{fileId}");
+			routes.put("web", "GET /datasets/web/" + datasetId + "/{filepath}");
+			break;
+		case ANNOTATION:
+			routes.put("addRecord", "POST /api/v2/datasets/annotation/" + datasetId);
+			routes.put("downloadJson", "GET /datasets/download/json/" + datasetId);
+			routes.put("downloadCsv", "GET /datasets/download/" + datasetId);
+			break;
+		case DIARY:
+			routes.put("addRecord", "POST /api/v2/datasets/diary/" + datasetId + "/{participant_id}");
+			routes.put("downloadJson", "GET /datasets/download/json/" + datasetId);
+			routes.put("downloadCsv", "GET /datasets/download/" + datasetId);
+			break;
+		case FORM:
+			routes.put("record", "POST /datasets/form/record/" + datasetId);
+			routes.put("downloadCsv", "GET /datasets/form/raw/" + datasetId + ".csv");
+			routes.put("downloadJson", "GET /datasets/download/json/" + datasetId);
+			break;
+		case SURVEY:
+			routes.put("record", "POST /datasets/survey/record/" + datasetId + "/{invite_token}");
+			routes.put("downloadCsv", "GET /datasets/survey/raw/" + datasetId + ".csv");
+			routes.put("downloadJson", "GET /datasets/download/json/" + datasetId);
+			break;
+		case MOVEMENT:
+		case ES:
+			routes.put("uploadFile", "POST /api/v2/datasets/upload/" + datasetId);
+			routes.put("downloadJson", "GET /api/v2/datasets/download/" + datasetId + ".json");
+			routes.put("downloadCsv", "GET /api/v2/datasets/download/" + datasetId + ".csv");
+			break;
+		case FITBIT:
+			routes.put("heartrate", "GET /datasets/fitbit/heartrate/" + datasetId);
+			routes.put("downloadJson", "GET /api/v2/datasets/download/" + datasetId + ".json");
+			routes.put("downloadCsv", "GET /api/v2/datasets/download/" + datasetId + ".csv");
+			break;
+		case GOOGLEFIT:
+			routes.put("heartrate", "GET /datasets/googlefit/heartrate/" + datasetId);
+			routes.put("downloadJson", "GET /api/v2/datasets/download/" + datasetId + ".json");
+			routes.put("downloadCsv", "GET /api/v2/datasets/download/" + datasetId + ".csv");
+			break;
+		case LINKED:
+		default:
+			routes.put("downloadJson", "GET /datasets/download/json/" + datasetId);
+			routes.put("downloadCsv", "GET /datasets/download/" + datasetId);
+			break;
+		}
+		return routes;
 	}
 }

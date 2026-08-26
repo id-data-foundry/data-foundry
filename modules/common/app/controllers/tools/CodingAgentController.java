@@ -837,9 +837,10 @@ public class CodingAgentController extends AbstractAsyncController {
 				ObjectNode dsNode = Json.newObject();
 				dsNode.put("id", dataset.getId());
 				dsNode.put("name", dataset.getName());
-				dsNode.put("type", dataset.getDsType().name());
+				dsNode.put("type", CodingAgentUtils.getDatasetType(dataset.getDsType()));
 				dsNode.put("description", dataset.getDescription());
 				dsNode.put("apiToken", dataset.configuration(Dataset.API_TOKEN, ""));
+				dsNode.set("apiRoutes", CodingAgentUtils.getDatasetApiRoutes(dataset.getDsType(), dataset.getId()));
 				datasetsNode.add(dsNode);
 			}
 
