@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 import javax.inject.Inject;
@@ -389,7 +388,8 @@ public class CodingAgentController extends AbstractAsyncController {
 							Source.single((JsonNode) typingStart).runWith(context.sink(), materializer);
 
 							String agentPrompt = CodingAgentUtils.formatUserMessageForAgent(username, message);
-							Msg input = Msg.builder().role(MsgRole.USER).name(username).textContent(agentPrompt).build();
+							Msg input = Msg.builder().role(MsgRole.USER).name(username).textContent(agentPrompt)
+									.build();
 							RuntimeContext runtimeCtx = RuntimeContext.builder().userId("global").sessionId(sessionId)
 									.build();
 							Msg response = context.agent().call(input, runtimeCtx).block();
@@ -398,10 +398,9 @@ public class CodingAgentController extends AbstractAsyncController {
 								messageContent = CodingAgentUtils.filterDatasetPath(messageContent,
 										context.cpds().getFolder());
 								ObjectNode agentMsg = Json.newObject().put("type", "chat")
-										.put("user", CodingAgentUtils.BOT_DISPLAY_NAME)
-										.put("message", messageContent).put("timestamp", new Date().getTime())
-										.put("formattedTime",
-												LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMM d, HH:mm")));
+										.put("user", CodingAgentUtils.BOT_DISPLAY_NAME).put("message", messageContent)
+										.put("timestamp", new Date().getTime()).put("formattedTime", LocalDateTime.now()
+												.format(DateTimeFormatter.ofPattern("MMM d, HH:mm")));
 
 								// Extract token usage
 								ChatUsage usage = response.getChatUsage();
@@ -594,10 +593,6 @@ public class CodingAgentController extends AbstractAsyncController {
 				logger.error("Error recreating agent after AGENTS.md change", e);
 			}
 		}
-	}
-
-	private static String cleanThinkingTags(String text) {
-		return CodingAgentUtils.cleanThinkingTags(text);
 	}
 
 	public static class DatasetContext {
