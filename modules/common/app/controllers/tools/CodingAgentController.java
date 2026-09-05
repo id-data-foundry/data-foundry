@@ -59,6 +59,7 @@ import models.sr.Device;
 import models.sr.Participant;
 import models.sr.Wearable;
 import models.vm.TimedMedia;
+import play.Environment;
 import play.Logger;
 import play.cache.SyncCacheApi;
 import play.filters.csrf.AddCSRFToken;
@@ -80,6 +81,7 @@ public class CodingAgentController extends AbstractAsyncController {
 
 	private static final Logger.ALogger logger = Logger.of(CodingAgentController.class);
 
+	private final Environment environment;
 	private final DatasetConnector datasetConnector;
 	private final UnmanagedAIApiService aiAPIService;
 	private final Materializer materializer;
@@ -91,9 +93,10 @@ public class CodingAgentController extends AbstractAsyncController {
 	private final Map<Long, DatasetContext> datasetContexts = new HashMap<>();
 
 	@Inject
-	public CodingAgentController(DatasetConnector datasetConnector, UnmanagedAIApiService aiAPIService,
-			SyncCacheApi cache, ActorSystem actorSystem, Materializer materializer,
+	public CodingAgentController(Environment environment, DatasetConnector datasetConnector,
+			UnmanagedAIApiService aiAPIService, SyncCacheApi cache, ActorSystem actorSystem, Materializer materializer,
 			LocalModelMetadata localModelMetadata, Config config) {
+		this.environment = environment;
 		this.datasetConnector = datasetConnector;
 		this.aiAPIService = aiAPIService;
 		this.cache = cache;
@@ -161,8 +164,11 @@ public class CodingAgentController extends AbstractAsyncController {
 			}
 		}
 
+		String wsUrl = controllers.tools.routes.CodingAgentController.ws(id).webSocketURL(request,
+				environment.isProd());
+
 		return ok(views.html.tools.codingagent.view.render(ds, username, fileId, fileName, fileType, fileContent,
-				fileList, csrfToken(request), request));
+				fileList, csrfToken(request), wsUrl));
 	}
 
 	@Authenticated(UserAuth.class)
