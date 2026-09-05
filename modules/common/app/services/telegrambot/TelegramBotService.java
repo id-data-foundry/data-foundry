@@ -18,6 +18,7 @@ import play.Logger;
 import play.cache.SyncCacheApi;
 import services.inlets.ScheduledService;
 import services.jsexecutor.JSExecutorService;
+import services.notifications.SystemNotificationService;
 import utils.auth.TokenResolverUtil;
 import utils.conf.ConfigurationUtils;
 
@@ -33,7 +34,7 @@ public class TelegramBotService implements ScheduledService {
 
 	@Inject
 	public TelegramBotService(Config config, SyncCacheApi cache, DatasetConnector datasetConnector,
-	        TokenResolverUtil tokenResolver) {
+	        TokenResolverUtil tokenResolver, SystemNotificationService systemNotifications) {
 
 		// check the configuration
 		if (!config.hasPath(ConfigurationUtils.DF_TELEGRAM_BOTNAME)
@@ -53,7 +54,7 @@ public class TelegramBotService implements ScheduledService {
 
 			// Register our bot
 			logger.info("Registering bot...");
-			bot = new TelegramBotClient(botUsername, botToken, cache, tokenResolver, datasetConnector);
+			bot = new TelegramBotClient(botUsername, botToken, cache, tokenResolver, datasetConnector, systemNotifications);
 			botSession = botsApi.registerBot(bot);
 			logger.info("Bot registered.");
 		} catch (TelegramApiException e) {

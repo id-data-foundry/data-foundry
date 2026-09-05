@@ -56,7 +56,6 @@ import play.mvc.Http.MultipartFormData.FilePart;
 import play.mvc.Http.Request;
 import play.mvc.Result;
 import play.mvc.Security.Authenticated;
-import services.slack.Slack;
 import utils.CSVLineParserUtil;
 import utils.DataUtils;
 import utils.StringUtils;
@@ -319,7 +318,7 @@ public class CompleteDSController extends AbstractDSController {
 			return redirect(controllers.routes.DatasetsController.view(ds.getId()));
 		} catch (NullPointerException e) {
 			logger.error("Error uploading file to dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			systemNotifications.send("Exception", e.getLocalizedMessage());
 		}
 
 		return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",

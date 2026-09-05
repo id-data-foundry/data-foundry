@@ -44,7 +44,6 @@ import play.mvc.Http.Request;
 import play.mvc.RangeResults;
 import play.mvc.Result;
 import play.mvc.Security.Authenticated;
-import services.slack.Slack;
 import utils.DataUtils;
 import utils.components.OnboardingSupport;
 import utils.rendering.ImageUtil;
@@ -635,7 +634,7 @@ public class MediaDSController extends AbstractDSController {
 			return redirect(controllers.routes.DatasetsController.view(ds.getId()));
 		} catch (NullPointerException e) {
 			logger.error("Error uploading file to dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			systemNotifications.send("Exception", e.getLocalizedMessage());
 		}
 
 		return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",

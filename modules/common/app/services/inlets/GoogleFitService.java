@@ -26,7 +26,7 @@ import play.Logger;
 import play.api.db.evolutions.ApplicationEvolutions;
 import play.libs.ws.WSClient;
 import play.libs.ws.WSResponse;
-import services.slack.Slack;
+import services.notifications.SystemNotificationService;
 import utils.DateUtils;
 import utils.conf.ConfigurationUtils;
 
@@ -46,15 +46,17 @@ public class GoogleFitService implements ScheduledService {
 
 	private final WSClient ws;
 	private final DatasetConnector datasetConnector;
+	private final SystemNotificationService systemNotifications;
 
 	public final String APP_CLIENT_ID;
 	private final String APP_CLIENT_SECRET;
 
 	@Inject
 	public GoogleFitService(WSClient ws, Config config, DatasetConnector datasetConnector,
-	        ApplicationEvolutions evolutions) {
+	        ApplicationEvolutions evolutions, SystemNotificationService systemNotifications) {
 		this.ws = ws;
 		this.datasetConnector = datasetConnector;
+		this.systemNotifications = systemNotifications;
 
 		// configuration
 		if (!config.hasPath(ConfigurationUtils.DF_VENDOR_GOOGLEFIT_ID)
@@ -132,7 +134,7 @@ public class GoogleFitService implements ScheduledService {
 
 		} catch (Exception e) {
 			logger.error("Error GoogleFit refresh.", e);
-			Slack.call("Exception of GoogleFit daily routine. ", e.getLocalizedMessage());
+			systemNotifications.send("Exception of GoogleFit daily routine. ", e.getLocalizedMessage());
 		}
 	}
 
@@ -177,7 +179,7 @@ public class GoogleFitService implements ScheduledService {
 
 		} catch (Exception e) {
 			logger.error("Exception in authorizationTokenReuqest", e);
-			Slack.call("Exception: Authorization fail by wearable: " + wearable.getRefId() + ". ",
+			systemNotifications.send("Exception: Authorization fail by wearable: " + wearable.getRefId() + ". ",
 			        e.getLocalizedMessage());
 		} finally {
 			// refreshAndFetchWearable(wearable);
@@ -227,7 +229,7 @@ public class GoogleFitService implements ScheduledService {
 			}
 		} catch (Exception e) {
 			logger.error("Exception in refreshTokenRequest", e);
-			// Slack.call("Exception", e.getLocalizedMessage());
+			// Notifications.call("Exception", e.getLocalizedMessage());
 			return false;
 		}
 	}

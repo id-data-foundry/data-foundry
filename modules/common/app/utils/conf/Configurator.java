@@ -45,6 +45,26 @@ public class Configurator {
 		return isTelegramAvailable;
 	}
 
+	public boolean isNotificationsEnabled() {
+		return !configuration.hasPath(ConfigurationUtils.DF_NOTIFICATIONS_ENABLED)
+				|| configuration.getBoolean(ConfigurationUtils.DF_NOTIFICATIONS_ENABLED);
+	}
+
+	public boolean isSlackNotificationConfigured() {
+		return configuration.hasPath(ConfigurationUtils.DF_NOTIFICATIONS_SLACK_URL)
+				|| configuration.hasPath(ConfigurationUtils.DF_NOTIFICATIONS_SLACK_KEY)
+				|| configuration.hasPath(ConfigurationUtils.DF_VENDOR_SLACK_CHANNEL);
+	}
+
+	public boolean isNtfyNotificationConfigured() {
+		return configuration.hasPath(ConfigurationUtils.DF_NOTIFICATIONS_NTFY_TOPIC)
+				&& !configuration.getString(ConfigurationUtils.DF_NOTIFICATIONS_NTFY_TOPIC).trim().isEmpty();
+	}
+
+	public List<services.notifications.NotificationRecord> getRecentNotifications() {
+		return services.notifications.Notifications.getRecentNotifications();
+	}
+
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	/**

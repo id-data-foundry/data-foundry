@@ -25,7 +25,7 @@ import play.Logger;
 import play.api.db.evolutions.ApplicationEvolutions;
 import play.libs.ws.WSClient;
 import play.libs.ws.WSResponse;
-import services.slack.Slack;
+import services.notifications.SystemNotificationService;
 import utils.DataUtils;
 import utils.DateUtils;
 import utils.conf.ConfigurationUtils;
@@ -46,15 +46,17 @@ public class FitBitService implements ScheduledService {
 
 	private final WSClient ws;
 	private final DatasetConnector datasetConnector;
+	private final SystemNotificationService systemNotifications;
 
 	public final String APP_CLIENT_ID;
 	private final String APP_CLIENT_SECRET;
 
 	@Inject
 	public FitBitService(WSClient ws, Config config, DatasetConnector datasetConnector,
-			ApplicationEvolutions evolutions) {
+			ApplicationEvolutions evolutions, SystemNotificationService systemNotifications) {
 		this.ws = ws;
 		this.datasetConnector = datasetConnector;
+		this.systemNotifications = systemNotifications;
 
 		// configuration
 		if (!config.hasPath(ConfigurationUtils.DF_VENDOR_FITBIT_ID)
@@ -180,7 +182,7 @@ public class FitBitService implements ScheduledService {
 
 		} catch (Exception e) {
 			logger.error("Error Fitbit refresh.", e);
-			Slack.call("Exception of Fitbit daily routine. ", e.getLocalizedMessage());
+			systemNotifications.send("Exception of Fitbit daily routine. ", e.getLocalizedMessage());
 		}
 	}
 
@@ -229,7 +231,7 @@ public class FitBitService implements ScheduledService {
 
 		} catch (Exception e) {
 			logger.error("Exception in authorizationTokenRequest", e);
-			Slack.call("Exception: Authorization fail by wearable: " + wearable.getRefId() + ". ",
+			systemNotifications.send("Exception: Authorization fail by wearable: " + wearable.getRefId() + ". ",
 					e.getLocalizedMessage());
 		} finally {
 			// refreshAndFetchWearable(wearable);
@@ -271,7 +273,7 @@ public class FitBitService implements ScheduledService {
 			return true;
 		} catch (Exception e) {
 			logger.error("Exception in refreshTokenRequest", e);
-			// Slack.call("Exception: Refreshing tokens of Fitbit wearable: " + wearable.id + ".");
+			// Notifications.call("Exception: Refreshing tokens of Fitbit wearable: " + wearable.id + ".");
 			return false;
 		}
 	}
@@ -561,7 +563,7 @@ public class FitBitService implements ScheduledService {
 			}
 		} catch (Exception e) {
 			logger.error("Exception in dataFetchRequest", e);
-			// Slack.call("Exception: Fetching data from Fitbit wearable: " + wearable.id + ". ",
+			// Notifications.call("Exception: Fetching data from Fitbit wearable: " + wearable.id + ". ",
 			// e.getLocalizedMessage());
 		}
 
@@ -749,7 +751,7 @@ public class FitBitService implements ScheduledService {
 
 		} catch (Exception e) {
 			logger.error("Exception in getSyncTime", e);
-			// Slack.call("Exception: Fetching data from Fitbit wearable: " + wearable.id + ". ",
+			// Notifications.call("Exception: Fetching data from Fitbit wearable: " + wearable.id + ". ",
 			// e.getLocalizedMessage());
 			return -1l;
 		}

@@ -36,7 +36,6 @@ import play.mvc.Http;
 import play.mvc.Http.MultipartFormData.FilePart;
 import play.mvc.Http.Request;
 import play.mvc.Result;
-import services.slack.Slack;
 import utils.DataUtils;
 import utils.auth.TokenResolverUtil;
 import utils.validators.FileTypeUtils;
@@ -403,7 +402,7 @@ public class ParticipationApiController extends AbstractApiController {
 				}
 			} catch (NullPointerException e) {
 				logger.error("Error in uploading dataset file.", e);
-				Slack.call("Exception", e.getLocalizedMessage());
+				systemNotifications.send("Exception", e.getLocalizedMessage());
 
 				return badRequest("File upload failed");
 			}

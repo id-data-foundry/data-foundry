@@ -27,8 +27,8 @@ import models.Dataset;
 import models.sr.Cluster;
 import play.Logger;
 import play.libs.Json;
+import services.notifications.Notifications;
 import services.outlets.OOCSIStreamOutService;
-import services.slack.Slack;
 
 public class FormDS extends LinkedDS {
 
@@ -47,10 +47,10 @@ public class FormDS extends LinkedDS {
 	public void createInstance() {
 		try (Transaction transaction = DB.beginTransaction(); Connection connection = transaction.connection();) {
 			connection.createStatement().execute("CREATE TABLE IF NOT EXISTS " + dataTableName + " ( " //
-			        + "id bigint auto_increment not null," //
-			        + "ts timestamp," //
-			        + "data TEXT," //
-			        + "PRIMARY KEY (id) );");
+					+ "id bigint auto_increment not null," //
+					+ "ts timestamp," //
+					+ "data TEXT," //
+					+ "PRIMARY KEY (id) );");
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in creating dataset table in DB.", e);
@@ -67,7 +67,7 @@ public class FormDS extends LinkedDS {
 				// schema is ok, do nothing
 			} else {
 				connection.createStatement().execute("ALTER TABLE IF EXISTS " + dataTableName + " " //
-				        + "ALTER COLUMN data TEXT;");
+						+ "ALTER COLUMN data TEXT;");
 				logger.info("Dataset table " + dataTableName + " migrated.");
 			}
 			transaction.commit();
@@ -86,9 +86,9 @@ public class FormDS extends LinkedDS {
 
 		// insert record
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection
-		                .prepareStatement("INSERT INTO " + dataTableName + " (ts, data )" + " VALUES (?, ?);");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("INSERT INTO " + dataTableName + " (ts, data )" + " VALUES (?, ?);");) {
 
 			stmt.setTimestamp(1, new Timestamp(ts.getTime()));
 			stmt.setString(2, nss(data));
@@ -98,11 +98,11 @@ public class FormDS extends LinkedDS {
 
 			// post update on OOCSI and log
 			oocsiStreaming.datasetUpdate(dataset,
-			        OOCSIStreamOutService.map().put("operation", "add").put("data", nss(data)).build());
+					OOCSIStreamOutService.map().put("operation", "add").put("data", nss(data)).build());
 			logger.trace(i + " records inserted into " + dataTableName);
 		} catch (SQLException e) {
 			logger.error("Error in inserting record in dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 	}
 
@@ -115,10 +115,10 @@ public class FormDS extends LinkedDS {
 
 		// create the actual database for the data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("SELECT id, ts, data FROM " + dataTableName
-		                + " ORDER BY id ASC " + limitExpression(limit) + ";");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("SELECT id, ts, data FROM " + dataTableName
+						+ " ORDER BY id ASC " + limitExpression(limit) + ";");
+				ResultSet rs = stmt.executeQuery();) {
 
 			// sourceActor.tell(ByteString.fromString("# dataset export created on " + new Date() + "\n"), null);
 			queue.offer(ByteString.fromString("id,ts,data\n")).toCompletableFuture().get();
@@ -134,7 +134,7 @@ public class FormDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		queue.complete();
@@ -154,10 +154,10 @@ public class FormDS extends LinkedDS {
 
 		// create the actual database for the data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("SELECT id, ts, data FROM " + dataTableName
-		                + timeFilterWhereClause(start, end) + " ORDER BY id ASC;");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("SELECT id, ts, data FROM " + dataTableName
+						+ timeFilterWhereClause(start, end) + " ORDER BY id ASC;");
+				ResultSet rs = stmt.executeQuery();) {
 
 			// sourceActor.tell(ByteString.fromString("# dataset export created on " + new Date() + "\n"), null);
 			queue.offer(ByteString.fromString("id,ts," + projectionStr + "\n")).toCompletableFuture().get();
@@ -193,7 +193,7 @@ public class FormDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		queue.complete();
@@ -206,10 +206,10 @@ public class FormDS extends LinkedDS {
 		List<ObjectNode> objects = new LinkedList<ObjectNode>();
 		// export the data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("SELECT id, ts, data FROM " + dataTableName
-		                + timeFilterWhereClause(start, end) + " ORDER BY id DESC LIMIT " + limit + ";");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("SELECT id, ts, data FROM " + dataTableName
+						+ timeFilterWhereClause(start, end) + " ORDER BY id DESC LIMIT " + limit + ";");
+				ResultSet rs = stmt.executeQuery();) {
 
 			while (rs.next()) {
 				// ObjectNode on = result.addObject();
@@ -236,10 +236,10 @@ public class FormDS extends LinkedDS {
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		} catch (Exception e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		ArrayNode result = Json.newArray();

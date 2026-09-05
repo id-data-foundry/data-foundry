@@ -31,7 +31,7 @@ import play.libs.mailer.Email;
 import play.libs.mailer.MailerClient;
 import play.twirl.api.Html;
 import scala.concurrent.duration.Duration;
-import services.slack.Slack;
+import services.notifications.SystemNotificationService;
 import utils.conf.ConfigurationUtils;
 
 @Singleton
@@ -42,12 +42,15 @@ public class NotificationService {
 	private final MailerClient javaMailClient;
 	private final GraphServiceClient<?> msGraphClient;
 	private final String mailFrom;
+	private final SystemNotificationService systemNotifications;
 
 	private static final Logger.ALogger logger = Logger.of(NotificationService.class);
 
 	@Inject
-	public NotificationService(final Config config, MailerClient mailerClient, ActorSystem system) {
+	public NotificationService(final Config config, MailerClient mailerClient, ActorSystem system,
+			SystemNotificationService systemNotifications) {
 		this.system = system;
+		this.systemNotifications = systemNotifications;
 
 		// check config for MS Graph configuration
 		if (ConfigurationUtils.checkConfiguration(config, ConfigurationUtils.DF_MSGRAPH_FROM,
@@ -151,7 +154,7 @@ public class NotificationService {
 			// log the email if successful
 			logger.info(
 			        String.format("[EMAIL] from (%s) to (%s) '%s': %s", senderName, receiver, subject, consoleOutput));
-			Slack.call("Email sent out", String.format("From %s to %s", senderName, receiver));
+			systemNotifications.send("Email sent out", String.format("From %s to %s", senderName, receiver));
 		} catch (Exception ex) {
 			logger.error(ex.getMessage(), ex);
 		}
@@ -180,7 +183,7 @@ public class NotificationService {
 			// log the email if successful
 			logger.info(
 			        String.format("[EMAIL] from (%s) to (%s) '%s': %s", senderName, receiver, subject, consoleOutput));
-			Slack.call("Email sent out", String.format("From %s to %s", senderName, receiver));
+			systemNotifications.send("Email sent out", String.format("From %s to %s", senderName, receiver));
 		} catch (Exception ex) {
 			logger.error(ex.getMessage(), ex);
 		}

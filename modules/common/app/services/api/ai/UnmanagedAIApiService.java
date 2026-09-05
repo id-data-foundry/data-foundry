@@ -12,11 +12,17 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
+
+import services.notifications.NotificationLevel;
+import services.notifications.NotificationMessage;
+import services.notifications.SystemNotificationService;
 
 import org.apache.pekko.stream.Materializer;
 import org.apache.pekko.stream.javadsl.FileIO;
@@ -62,6 +68,13 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 	private final WSClient wsClient;
 	private final SyncCacheApi cache;
 	private final Materializer materializer;
+	private final SystemNotificationService notificationService;
+
+	private final AtomicBoolean isAiOnline = new AtomicBoolean(true);
+	private final AtomicInteger consecutiveFailures = new AtomicInteger(0);
+	private final int failureThreshold;
+	private final boolean alertOnOffline;
+	private final boolean alertOnRecovery;
 
 	// generate an internal API key on every start
 	private final String internalDocumentationAPIKey = "df-internal-"
@@ -71,13 +84,21 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 	protected UnmanagedAIApiService(Config configuration, SyncCacheApi cache, AdminUtils adminUtils,
 			DatasetConnector datasetConnector, TokenResolverUtil tokenResolver,
 			RemoteRequestsExecutionService executionService, WSClient wsClient, Materializer materializer,
-			LocalModelMetadata lmmd) {
+			LocalModelMetadata lmmd, SystemNotificationService notificationService) {
 		super(configuration, adminUtils, datasetConnector, tokenResolver, lmmd);
 		this.configuration = configuration;
 		this.cache = cache;
 		this.executionService = executionService;
 		this.wsClient = wsClient;
 		this.materializer = materializer;
+		this.notificationService = notificationService;
+
+		this.failureThreshold = configuration.hasPath(ConfigurationUtils.DF_NOTIFICATIONS_AI_THRESHOLD)
+				? configuration.getInt(ConfigurationUtils.DF_NOTIFICATIONS_AI_THRESHOLD) : 2;
+		this.alertOnOffline = !configuration.hasPath(ConfigurationUtils.DF_NOTIFICATIONS_AI_OFFLINE)
+				|| configuration.getBoolean(ConfigurationUtils.DF_NOTIFICATIONS_AI_OFFLINE);
+		this.alertOnRecovery = !configuration.hasPath(ConfigurationUtils.DF_NOTIFICATIONS_AI_RECOVERY)
+				|| configuration.getBoolean(ConfigurationUtils.DF_NOTIFICATIONS_AI_RECOVERY);
 
 		// check whether local AI is defined
 		if (ConfigurationUtils.checkConfiguration(configuration, ConfigurationUtils.DF_AI_BASEURL)) {
@@ -85,6 +106,14 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 		} else {
 			logger.info("AI service is not defined.");
 		}
+	}
+
+	public boolean isOnline() {
+		return isAiOnline.get();
+	}
+
+	public int getConsecutiveFailures() {
+		return consecutiveFailures.get();
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -115,9 +144,40 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 			pingEndpoint("/audio/transcriptions").thenAccept(localModelMetadata::setSpeechToTextAvailable);
 			pingEndpoint("/audio/speech").thenAccept(localModelMetadata::setTextToSpeechAvailable);
 
+			// Success! Reset consecutive failure counter and check for recovery transition
+			consecutiveFailures.set(0);
+			if (isAiOnline.compareAndSet(false, true)) {
+				logger.info("✅ AI backend at " + aiBaseUrl + " is back ONLINE");
+				if (alertOnRecovery && notificationService != null) {
+					notificationService.send(NotificationMessage.builder()
+							.title("AI Service Online")
+							.message("AI service at " + aiBaseUrl + " has recovered and is now reachable.")
+							.level(NotificationLevel.INFO)
+							.tag("robot")
+							.tag("white_check_mark")
+							.build());
+				}
+			}
+
 		} catch (Exception e) {
 			logger.error("❌ Failed to fetch models from AI backend: " + e.getMessage());
 			localModelMetadata.clearModels();
+
+			int failures = consecutiveFailures.incrementAndGet();
+			if (failures >= failureThreshold && isAiOnline.compareAndSet(true, false)) {
+				logger.warn("🚨 AI backend at " + aiBaseUrl + " marked OFFLINE after " + failures + " failures");
+				if (alertOnOffline && notificationService != null) {
+					notificationService.send(NotificationMessage.builder()
+							.title("AI Service Offline")
+							.message("AI service at " + aiBaseUrl + " is unreachable (failures: "
+									+ failures + "): " + e.getMessage())
+							.level(NotificationLevel.CRITICAL)
+							.tag("robot")
+							.tag("warning")
+							.tag("plug")
+							.build());
+				}
+			}
 		}
 	}
 
@@ -128,6 +188,9 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 	 * @return
 	 */
 	private CompletableFuture<Boolean> pingEndpoint(String path) {
+		if (wsClient == null) {
+			return CompletableFuture.completedFuture(false);
+		}
 		return wsClient.url(aiBaseUrl + path).setRequestTimeout(Duration.ofSeconds(2)).get().thenApply(res -> {
 			return res.getStatus() != 404;
 		}).exceptionally(e -> {

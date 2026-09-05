@@ -38,7 +38,7 @@ import play.Logger;
 import play.cache.SyncCacheApi;
 import services.jsexecutor.JSActor;
 import services.jsexecutor.JSExecutorService;
-import services.slack.Slack;
+import services.notifications.SystemNotificationService;
 import utils.auth.TokenResolverUtil;
 import utils.telegrambot.TelegramBotUtils;
 
@@ -53,16 +53,18 @@ public class TelegramBotClient extends TelegramLongPollingBot {
 	private final SyncCacheApi cache;
 	private final DatasetConnector datasetConnector;
 	private final TokenResolverUtil tokenResolver;
+	private final SystemNotificationService systemNotifications;
 	private JSExecutorService actorService;
 	private final ExecutorService EXECUTOR = Executors.newWorkStealingPool();
 
 	public TelegramBotClient(String username, String token, SyncCacheApi cache, TokenResolverUtil tokenResolver,
-	        DatasetConnector datasetConnector) {
+	        DatasetConnector datasetConnector, SystemNotificationService systemNotifications) {
 		this.botUsername = username;
 		this.botToken = token;
 		this.cache = cache;
 		this.datasetConnector = datasetConnector;
 		this.tokenResolver = tokenResolver;
+		this.systemNotifications = systemNotifications;
 	}
 
 	@Override
@@ -336,7 +338,7 @@ public class TelegramBotClient extends TelegramLongPollingBot {
 						}
 					}
 				} catch (TelegramApiException e) {
-					Slack.call("Error", "Telegram response sending problem");
+					systemNotifications.send("Error", "Telegram response sending problem");
 					logger.error("Telegram response sending problem", e);
 				}
 			});

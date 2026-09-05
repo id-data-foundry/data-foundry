@@ -37,7 +37,7 @@ import models.vm.TimedMedia;
 import play.Logger;
 import play.libs.Json;
 import services.outlets.OOCSIStreamOutService;
-import services.slack.Slack;
+import services.notifications.Notifications;
 import utils.DataUtils;
 import utils.conf.ConfigurationUtils;
 
@@ -84,7 +84,7 @@ public class ExpSamplingDS extends LinkedDS {
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in creating dataset table in DB.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		// structured data: _mv
@@ -110,7 +110,7 @@ public class ExpSamplingDS extends LinkedDS {
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in creating dataset table in DB.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 	}
 
@@ -141,7 +141,7 @@ public class ExpSamplingDS extends LinkedDS {
 							.put("description", nss(description, 255)).put("participant_id", participantId).build());
 		} catch (SQLException e) {
 			logger.error("Error in inserting record in dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 	}
 
@@ -199,16 +199,16 @@ public class ExpSamplingDS extends LinkedDS {
 				transaction.commit();
 			} catch (Exception e) {
 				logger.error("Error in inserting file record in dataset.", e);
-				Slack.call("Exception", e.getLocalizedMessage());
+				Notifications.call("Exception", e.getLocalizedMessage());
 			}
 
 		} catch (FileNotFoundException e) {
 			logger.error("Error in retrieving uploaded file from request.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 			return false;
 		} catch (IOException e) {
 			logger.error("Error in retrieving uploaded file from request.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 			return false;
 		}
 
@@ -236,7 +236,7 @@ public class ExpSamplingDS extends LinkedDS {
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in resetting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 	}
 
@@ -279,10 +279,10 @@ public class ExpSamplingDS extends LinkedDS {
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in retrieving all files.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		} catch (Exception e) {
 			logger.error("Error in retrieving all files.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		return result;
@@ -318,10 +318,10 @@ public class ExpSamplingDS extends LinkedDS {
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in retrieving participant files.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		} catch (Exception e) {
 			logger.error("Error in retrieving participant files.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		return result;
@@ -388,7 +388,7 @@ public class ExpSamplingDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		queue.complete();
@@ -446,7 +446,7 @@ public class ExpSamplingDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		ArrayNode result = Json.newArray();

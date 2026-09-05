@@ -26,8 +26,8 @@ import models.sr.Participant;
 import models.vm.TimedText;
 import play.Logger;
 import play.libs.Json;
+import services.notifications.Notifications;
 import services.outlets.OOCSIStreamOutService;
-import services.slack.Slack;
 
 public class DiaryDS extends LinkedDS {
 
@@ -46,14 +46,14 @@ public class DiaryDS extends LinkedDS {
 	public void createInstance() {
 		try (Transaction transaction = DB.beginTransaction(); Connection connection = transaction.connection();) {
 			connection.createStatement().execute("CREATE TABLE IF NOT EXISTS " + dataTableName + " ( " //
-			        + "id bigint auto_increment not null," //
-			        + "participant_id bigint," //
-			        + "ts timestamp," //
-			        + "pp1 varchar(255)," //
-			        + "pp2 varchar(255),"//
-			        + "pp3 varchar(255)," //
-			        + "title varchar(255)," //
-			        + "text TEXT," + "PRIMARY KEY (id) );");
+					+ "id bigint auto_increment not null," //
+					+ "participant_id bigint," //
+					+ "ts timestamp," //
+					+ "pp1 varchar(255)," //
+					+ "pp2 varchar(255),"//
+					+ "pp3 varchar(255)," //
+					+ "title varchar(255)," //
+					+ "text TEXT," + "PRIMARY KEY (id) );");
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in creating dataset table in DB.", e);
@@ -73,7 +73,7 @@ public class DiaryDS extends LinkedDS {
 				// scheme is ok, do nothing
 			} else {
 				connection.createStatement().execute("ALTER TABLE " + dataTableName + " " //
-				        + "ALTER COLUMN text TEXT;");
+						+ "ALTER COLUMN text TEXT;");
 				logger.info("Applied db table migration for " + dataTableName + ": extended column 'text'.");
 			}
 			transaction.commit();
@@ -100,9 +100,9 @@ public class DiaryDS extends LinkedDS {
 
 		// insert record
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("INSERT INTO " + dataTableName
-		                + " (participant_id, ts, pp1, pp2, pp3, title, text)" + " VALUES (?, ?, ?, ?, ?, ?, ?);");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("INSERT INTO " + dataTableName
+						+ " (participant_id, ts, pp1, pp2, pp3, title, text)" + " VALUES (?, ?, ?, ?, ?, ?, ?);");) {
 
 			stmt.setLong(1, participant.getId());
 			stmt.setTimestamp(2, new Timestamp(ts.getTime()));
@@ -118,31 +118,31 @@ public class DiaryDS extends LinkedDS {
 
 			// post update on OOCSI
 			oocsiStreaming.datasetUpdate(dataset,
-			        OOCSIStreamOutService.map().put("operation", "add").put("title", nss(title, 255))
-			                .put("text", nss(text, 10000)).put("participant_id", nss(participant.getRefId(), 32))
-			                .build());
+					OOCSIStreamOutService.map().put("operation", "add").put("title", nss(title, 255))
+							.put("text", nss(text, 10000)).put("participant_id", nss(participant.getRefId(), 32))
+							.build());
 		} catch (Exception e) {
 			logger.error("Error in inserting a record in dataset table.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 	}
 
 	public List<TimedText> getDiary() {
 		final List<TimedText> result = new LinkedList<TimedText>();
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement(
-		                "SELECT participant_id, ts, title, text FROM " + dataTableName + " ORDER BY ts DESC;");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement(
+						"SELECT participant_id, ts, title, text FROM " + dataTableName + " ORDER BY ts DESC;");) {
 			ResultSet rs = stmt.executeQuery();
 			while (rs.next()) {
 				TimedText tt = new TimedText(rs.getLong("participant_id"), rs.getTimestamp("ts"), rs.getString("title"),
-				        rs.getString("text"));
+						rs.getString("text"));
 				result.add(tt);
 			}
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in retrieving a diary for a participant.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		return result;
@@ -151,9 +151,9 @@ public class DiaryDS extends LinkedDS {
 	public List<TimedText> getDiaryForParticipant(Long id) {
 		final List<TimedText> result = new LinkedList<TimedText>();
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("SELECT ts, title, text FROM " + dataTableName
-		                + " WHERE participant_id = ? ORDER BY ts DESC;");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("SELECT ts, title, text FROM " + dataTableName
+						+ " WHERE participant_id = ? ORDER BY ts DESC;");) {
 			stmt.setLong(1, id);
 			ResultSet rs = stmt.executeQuery();
 			while (rs.next()) {
@@ -163,7 +163,7 @@ public class DiaryDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in retrieving a diary for a participant.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		return result;
@@ -181,22 +181,22 @@ public class DiaryDS extends LinkedDS {
 			whereClause = timeFilterWhereClause(start, end);
 		} else {
 			whereClause = " WHERE participant_id IN ("
-			        + participantIds.stream().map(l -> l.toString()).collect(Collectors.joining(",")) + ") "
-			        + timeFilterWhereClause(start, end).replace("WHERE", "AND");
+					+ participantIds.stream().map(l -> l.toString()).collect(Collectors.joining(",")) + ") "
+					+ timeFilterWhereClause(start, end).replace("WHERE", "AND");
 		}
 
 		// create the actual database for the data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection
-		                .prepareStatement("SELECT id, participant_id, ts, pp1, pp2, pp3, title, text FROM "
-		                        + dataTableName + whereClause + " ORDER BY id ASC;");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("SELECT id, participant_id, ts, pp1, pp2, pp3, title, text FROM "
+								+ dataTableName + whereClause + " ORDER BY id ASC;");
+				ResultSet rs = stmt.executeQuery();) {
 
 			// header
 			// sourceActor.tell(ByteString.fromString("# dataset export created on " + new Date() + "\n"), null);
 			queue.offer(ByteString.fromString("id,participant_id,ts,pp1,pp2,pp3,title,entry\n")).toCompletableFuture()
-			        .get();
+					.get();
 
 			// data
 			while (rs.next()) {
@@ -216,7 +216,7 @@ public class DiaryDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		queue.complete();
@@ -231,18 +231,18 @@ public class DiaryDS extends LinkedDS {
 			whereClause = timeFilterWhereClause(start, end);
 		} else {
 			whereClause = " WHERE participant_id IN ("
-			        + cluster.getParticipants().stream().map(p -> p.getId().toString()).collect(Collectors.joining(","))
-			        + ") " + timeFilterWhereClause(start, end).replace("WHERE", "AND");
+					+ cluster.getParticipants().stream().map(p -> p.getId().toString()).collect(Collectors.joining(","))
+					+ ") " + timeFilterWhereClause(start, end).replace("WHERE", "AND");
 		}
 
 		List<ObjectNode> objects = new LinkedList<ObjectNode>();
 		// export the data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection
-		                .prepareStatement("SELECT id, participant_id, ts, pp1, pp2, pp3, title, text FROM "
-		                        + dataTableName + whereClause + " ORDER BY id DESC LIMIT " + limit + ";");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("SELECT id, participant_id, ts, pp1, pp2, pp3, title, text FROM "
+								+ dataTableName + whereClause + " ORDER BY id DESC LIMIT " + limit + ";");
+				ResultSet rs = stmt.executeQuery();) {
 
 			while (rs.next()) {
 				// ObjectNode on = result.addObject();
@@ -262,7 +262,7 @@ public class DiaryDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		ArrayNode result = Json.newArray();

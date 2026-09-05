@@ -28,8 +28,8 @@ import models.sr.Cluster;
 import models.sr.Participant;
 import play.Logger;
 import play.libs.Json;
+import services.notifications.Notifications;
 import services.outlets.OOCSIStreamOutService;
-import services.slack.Slack;
 
 public class SurveyDS extends LinkedDS {
 
@@ -48,11 +48,11 @@ public class SurveyDS extends LinkedDS {
 	public void createInstance() {
 		try (Transaction transaction = DB.beginTransaction(); Connection connection = transaction.connection();) {
 			connection.createStatement().execute("CREATE TABLE IF NOT EXISTS " + dataTableName + " ( " //
-			        + "id bigint auto_increment not null," //
-                    + "participant_id bigint," //
-			        + "ts timestamp," //
-			        + "data TEXT," //
-			        + "PRIMARY KEY (id) );");
+					+ "id bigint auto_increment not null," //
+					+ "participant_id bigint," //
+					+ "ts timestamp," //
+					+ "data TEXT," //
+					+ "PRIMARY KEY (id) );");
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in creating dataset table in DB.", e);
@@ -69,7 +69,7 @@ public class SurveyDS extends LinkedDS {
 				// schema is ok, do nothing
 			} else {
 				connection.createStatement().execute("ALTER TABLE IF EXISTS " + dataTableName + " " //
-				        + "ALTER COLUMN data TEXT;");
+						+ "ALTER COLUMN data TEXT;");
 				logger.info("Dataset table " + dataTableName + " migrated.");
 			}
 			transaction.commit();
@@ -88,11 +88,11 @@ public class SurveyDS extends LinkedDS {
 
 		// insert record
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection
-		                .prepareStatement("INSERT INTO " + dataTableName + " (participant_id, ts, data )" + " VALUES (?, ?, ?);");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement(
+						"INSERT INTO " + dataTableName + " (participant_id, ts, data )" + " VALUES (?, ?, ?);");) {
 
-            stmt.setLong(1, participant.getId());
+			stmt.setLong(1, participant.getId());
 			stmt.setTimestamp(2, new Timestamp(ts.getTime()));
 			stmt.setString(3, nss(data));
 
@@ -100,45 +100,46 @@ public class SurveyDS extends LinkedDS {
 			transaction.commit();
 
 			// post update on OOCSI and log
-			oocsiStreaming.datasetUpdate(dataset,
-			        OOCSIStreamOutService.map().put("operation", "add").put("data", nss(data)).put("participant_id", participant.getId()).build());
+			oocsiStreaming.datasetUpdate(dataset, OOCSIStreamOutService.map().put("operation", "add")
+					.put("data", nss(data)).put("participant_id", participant.getId()).build());
 			logger.trace(i + " records inserted into " + dataTableName);
 		} catch (SQLException e) {
 			logger.error("Error in inserting record in dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 	}
 
 	@Override
 	public void export(SourceQueueWithComplete<ByteString> queue, Cluster cluster, long limit, long start, long end) {
-        // export with participant filter
-        exportProjected(queue, cluster.getParticipantList(), limit, start, end);
+		// export with participant filter
+		exportProjected(queue, cluster.getParticipantList(), limit, start, end);
 	}
 
-	public void export(SourceQueueWithComplete<ByteString> queue, List<Long> participantIds, long limit, long start, long end) {
+	public void export(SourceQueueWithComplete<ByteString> queue, List<Long> participantIds, long limit, long start,
+			long end) {
 
-        final String whereClause;
+		final String whereClause;
 		if (participantIds == null || participantIds.isEmpty()) {
 			whereClause = timeFilterWhereClause(start, end);
 		} else {
 			whereClause = " WHERE participant_id IN ("
-			        + participantIds.stream().map(l -> l.toString()).collect(Collectors.joining(",")) + ") "
-			        + timeFilterWhereClause(start, end).replace("WHERE", "AND");
+					+ participantIds.stream().map(l -> l.toString()).collect(Collectors.joining(",")) + ") "
+					+ timeFilterWhereClause(start, end).replace("WHERE", "AND");
 		}
 
 		// create the actual database for the data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("SELECT id, participant_id, ts, data FROM " + dataTableName
-		                + whereClause + " ORDER BY id ASC " + limitExpression(limit) + ";");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("SELECT id, participant_id, ts, data FROM "
+						+ dataTableName + whereClause + " ORDER BY id ASC " + limitExpression(limit) + ";");
+				ResultSet rs = stmt.executeQuery();) {
 
 			// sourceActor.tell(ByteString.fromString("# dataset export created on " + new Date() + "\n"), null);
 			queue.offer(ByteString.fromString("id,participant_id,ts,data\n")).toCompletableFuture().get();
 			while (rs.next()) {
 				StringBuffer sb = new StringBuffer();
 				sb.append(rs.getLong(1) + ",");
-                sb.append(rs.getLong(2) + ",");
+				sb.append(rs.getLong(2) + ",");
 				sb.append(tsExportFormatter.format(rs.getTimestamp(3)) + ",");
 				sb.append("\"" + rs.getString(4) + "\"\n");
 
@@ -148,13 +149,14 @@ public class SurveyDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		queue.complete();
 	}
 
-	public void exportProjected(SourceQueueWithComplete<ByteString> queue, List<Long> participantIds, long limit, long start, long end) {
+	public void exportProjected(SourceQueueWithComplete<ByteString> queue, List<Long> participantIds, long limit,
+			long start, long end) {
 
 		// check whether there is a projection given
 		if (!dataset.getConfiguration().containsKey(Dataset.DATA_PROJECTION)) {
@@ -162,13 +164,13 @@ public class SurveyDS extends LinkedDS {
 			return;
 		}
 
-        final String whereClause;
+		final String whereClause;
 		if (participantIds == null || participantIds.isEmpty()) {
 			whereClause = timeFilterWhereClause(start, end);
 		} else {
 			whereClause = " WHERE participant_id IN ("
-			        + participantIds.stream().map(l -> l.toString()).collect(Collectors.joining(",")) + ") "
-			        + timeFilterWhereClause(start, end).replace("WHERE", "AND");
+					+ participantIds.stream().map(l -> l.toString()).collect(Collectors.joining(",")) + ") "
+					+ timeFilterWhereClause(start, end).replace("WHERE", "AND");
 		}
 
 		// retrieve and process projection
@@ -177,17 +179,18 @@ public class SurveyDS extends LinkedDS {
 
 		// create the actual database for the data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("SELECT id, participant_id, ts, data FROM " + dataTableName
-		                + whereClause + " ORDER BY id ASC;");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("SELECT id, participant_id, ts, data FROM "
+						+ dataTableName + whereClause + " ORDER BY id ASC;");
+				ResultSet rs = stmt.executeQuery();) {
 
 			// sourceActor.tell(ByteString.fromString("# dataset export created on " + new Date() + "\n"), null);
-			queue.offer(ByteString.fromString("id,participant_id,ts," + projectionStr + "\n")).toCompletableFuture().get();
+			queue.offer(ByteString.fromString("id,participant_id,ts," + projectionStr + "\n")).toCompletableFuture()
+					.get();
 			while (rs.next()) {
 				StringBuffer sb = new StringBuffer();
 				sb.append(rs.getLong(1) + ",");
-                sb.append(rs.getLong(2) + ",");
+				sb.append(rs.getLong(2) + ",");
 				sb.append(tsExportFormatter.format(rs.getTimestamp(3)) + ",");
 
 				// parse data as JSON
@@ -217,7 +220,7 @@ public class SurveyDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		queue.complete();
@@ -227,22 +230,22 @@ public class SurveyDS extends LinkedDS {
 
 	public ArrayNode retrieveProjected(Cluster cluster, long limit, long start, long end) {
 
-        final String whereClause;
+		final String whereClause;
 		if (cluster.getParticipants().isEmpty()) {
 			whereClause = timeFilterWhereClause(start, end);
 		} else {
 			whereClause = " WHERE participant_id IN ("
-			        + cluster.getParticipants().stream().map(p -> p.getId().toString()).collect(Collectors.joining(","))
-			        + ") " + timeFilterWhereClause(start, end).replace("WHERE", "AND");
+					+ cluster.getParticipants().stream().map(p -> p.getId().toString()).collect(Collectors.joining(","))
+					+ ") " + timeFilterWhereClause(start, end).replace("WHERE", "AND");
 		}
 
 		List<ObjectNode> objects = new LinkedList<ObjectNode>();
 		// export the data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("SELECT id, participant_id, ts, data FROM " + dataTableName
-		                + whereClause + " ORDER BY id DESC LIMIT " + limit + ";");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("SELECT id, participant_id, ts, data FROM "
+						+ dataTableName + whereClause + " ORDER BY id DESC LIMIT " + limit + ";");
+				ResultSet rs = stmt.executeQuery();) {
 
 			while (rs.next()) {
 				// ObjectNode on = result.addObject();
@@ -251,7 +254,7 @@ public class SurveyDS extends LinkedDS {
 
 				// StringBuffer sb = new StringBuffer();
 				on.put("id", rs.getLong(1));
-                on.put("participant_id", rs.getLong(2));
+				on.put("participant_id", rs.getLong(2));
 				on.put("ts", tsExportFormatter.format(rs.getTimestamp(3)));
 
 				// parse data as JSON
@@ -270,10 +273,10 @@ public class SurveyDS extends LinkedDS {
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		} catch (Exception e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		ArrayNode result = Json.newArray();

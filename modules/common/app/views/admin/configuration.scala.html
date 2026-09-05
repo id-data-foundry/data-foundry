@@ -78,9 +78,30 @@
 		@configOption(ConfigurationUtils.DF_TELEGRAM_BOTNAME)
 		@configOption(ConfigurationUtils.DF_TELEGRAM_BOTTOKEN)
 
-		<b>Slack channel webhook</b>
-		<p class="grey-text" style="margin: 0;">Webhook URL for posting system notifications and error logs to Slack.</p>
-		@configOption(ConfigurationUtils.DF_VENDOR_SLACK_CHANNEL)
+		<br>
+		<h5>System Notifications & Alerts</h5>
+		<p class="grey-text" style="margin: 0;">Multi-provider notification infrastructure (Slack, Ntfy) for system alerts and AI monitoring.</p>
+		@configOption(ConfigurationUtils.DF_NOTIFICATIONS_ENABLED)
+
+		<b>Slack Notifications</b>
+		<p class="grey-text" style="margin: 0;">Webhook URL or token for posting system notifications and error logs to Slack.</p>
+		@configOption(ConfigurationUtils.DF_NOTIFICATIONS_SLACK_URL)
+		@configOption(ConfigurationUtils.DF_NOTIFICATIONS_SLACK_KEY)
+		@if(!config.isDefined(ConfigurationUtils.DF_NOTIFICATIONS_SLACK_URL) && !config.isDefined(ConfigurationUtils.DF_NOTIFICATIONS_SLACK_KEY)) {
+			<small class="grey-text">Legacy fallback: @configOption(ConfigurationUtils.DF_VENDOR_SLACK_CHANNEL)</small>
+		}
+
+		<b>Ntfy Notifications</b>
+		<p class="grey-text" style="margin: 0;">Server, topic, and optional token for Ntfy (ntfy.io or self-hosted).</p>
+		@configOption(ConfigurationUtils.DF_NOTIFICATIONS_NTFY_SERVER)
+		@configOption(ConfigurationUtils.DF_NOTIFICATIONS_NTFY_TOPIC)
+		@configOption(ConfigurationUtils.DF_NOTIFICATIONS_NTFY_TOKEN)
+
+		<b>AI Offline Alerting</b>
+		<p class="grey-text" style="margin: 0;">Alert policies when the AI backend goes offline or recovers.</p>
+		@configOption(ConfigurationUtils.DF_NOTIFICATIONS_AI_OFFLINE)
+		@configOption(ConfigurationUtils.DF_NOTIFICATIONS_AI_RECOVERY)
+		@configOption(ConfigurationUtils.DF_NOTIFICATIONS_AI_THRESHOLD)
 
 		<br>
 		<h5>Branding & Links</h5>
@@ -122,6 +143,66 @@
 		<p class="grey-text" style="margin: 0;">Base URL for DF AI services (e.g., http://localhost:9191/v1).</p>
 		@configOption(ConfigurationUtils.DF_AI_BASEURL)
 
+	</div>
+</div>
+
+<br>
+<div class="card">
+	<div class="card-content">
+		<span class="card-title">Recent System Notifications & Alerts</span>
+		<p class="grey-text">In-memory log of recent system notifications and alerts (last 50).</p>
+		@if(config.getRecentNotifications().isEmpty()) {
+			<p class="grey-text" style="margin-top: 15px;"><i>No notifications recorded in memory yet.</i></p>
+		} else {
+			<table class="striped responsive-table" style="margin-top: 15px;">
+				<thead>
+					<tr>
+						<th>Time</th>
+						<th>Severity</th>
+						<th>Title</th>
+						<th>Message</th>
+						<th>Channels</th>
+						<th>Status</th>
+					</tr>
+				</thead>
+				<tbody>
+				@for(record <- config.getRecentNotifications()) {
+					<tr>
+						<td style="white-space: nowrap;"><small>@record.getFormattedTime()</small></td>
+						<td>
+							@if(record.getLevel() == services.notifications.NotificationLevel.CRITICAL) {
+								<span class="new badge red darken-2" data-badge-caption="CRITICAL"></span>
+							} else { @if(record.getLevel() == services.notifications.NotificationLevel.ERROR) {
+								<span class="new badge red" data-badge-caption="ERROR"></span>
+							} else { @if(record.getLevel() == services.notifications.NotificationLevel.WARNING) {
+								<span class="new badge orange" data-badge-caption="WARN"></span>
+							} else {
+								<span class="new badge blue" data-badge-caption="INFO"></span>
+							}}}
+						</td>
+						<td><b>@record.getTitle()</b></td>
+						<td><small>@record.getMessage()</small></td>
+						<td>
+							@if(record.getTargetChannels().isEmpty()) {
+								<span class="grey-text">none</span>
+							} else {
+								@for(ch <- record.getTargetChannels()) {
+									<span class="badge" data-badge-caption="@ch"></span>
+								}
+							}
+						</td>
+						<td>
+							@if(record.isSuccess()) {
+								<span class="green-text">✅ Delivered</span>
+							} else {
+								<span class="grey-text">⚪ None</span>
+							}
+						</td>
+					</tr>
+				}
+				</tbody>
+			</table>
+		}
 	</div>
 </div>
 

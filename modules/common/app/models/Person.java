@@ -21,7 +21,7 @@ import jakarta.persistence.OrderBy;
 import play.Logger;
 import play.data.format.Formats;
 import play.libs.Json;
-import services.slack.Slack;
+import services.notifications.Notifications;
 import utils.DataUtils;
 import utils.DateUtils;
 import utils.admin.AdminUtils;
@@ -527,7 +527,7 @@ public class Person extends Model {
 			return on;
 		} catch (Exception e) {
 			logger.error("Error in getting identity JSON.", e);
-			Slack.call("Exception - parse state ", e.getLocalizedMessage());
+			Notifications.call("Exception - parse state ", e.getLocalizedMessage());
 		}
 
 		return newIdentity();

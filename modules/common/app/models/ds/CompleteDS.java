@@ -35,7 +35,7 @@ import play.Logger;
 import play.libs.Json;
 import play.mvc.Http.Request;
 import services.outlets.OOCSIStreamOutService;
-import services.slack.Slack;
+import services.notifications.Notifications;
 import utils.conf.ConfigurationUtils;
 import utils.validators.FileTypeUtils;
 
@@ -80,7 +80,7 @@ public class CompleteDS extends LinkedDS {
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in creating the dataset table in DB.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 	}
 
@@ -109,7 +109,7 @@ public class CompleteDS extends LinkedDS {
 					.put("filename", nss(fileName, 255)).put("description", nss(description, 255)).build());
 		} catch (Exception e) {
 			logger.error("Error in inserting a record in dataset table.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 	}
 
@@ -128,7 +128,7 @@ public class CompleteDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in updating a record in dataset table.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 	}
 
@@ -146,7 +146,7 @@ public class CompleteDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in deleting a record from dataset table.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 	}
 
@@ -164,7 +164,7 @@ public class CompleteDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in deleting a record from dataset table.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 	}
 
@@ -190,7 +190,7 @@ public class CompleteDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in retrieving file name by id.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 		return result;
 	}
@@ -400,7 +400,7 @@ public class CompleteDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in retrieving a file.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		return result;
@@ -428,7 +428,7 @@ public class CompleteDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("File access problem", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 		return id;
 	}
@@ -480,7 +480,7 @@ public class CompleteDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in retrieving all files.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		return result;
@@ -531,7 +531,7 @@ public class CompleteDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		queue.complete();
@@ -564,7 +564,7 @@ public class CompleteDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		ArrayNode result = Json.newArray();

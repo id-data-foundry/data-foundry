@@ -36,7 +36,7 @@ import models.vm.TimedMedia;
 import play.Logger;
 import play.libs.Json;
 import services.outlets.OOCSIStreamOutService;
-import services.slack.Slack;
+import services.notifications.Notifications;
 import utils.DataUtils;
 
 public class MovementDS extends CompleteDS {
@@ -74,7 +74,7 @@ public class MovementDS extends CompleteDS {
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in creating dataset table in DB.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		// structured data: _mv
@@ -103,7 +103,7 @@ public class MovementDS extends CompleteDS {
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in creating dataset table in DB.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 	}
 
@@ -135,7 +135,7 @@ public class MovementDS extends CompleteDS {
 							.put("participant_id", nss(participant.getRefId(), 32)).build());
 		} catch (Exception e) {
 			logger.error("Error in inserting record in dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 	}
 
@@ -174,22 +174,22 @@ public class MovementDS extends CompleteDS {
 								stmt.executeUpdate();
 							} catch (SQLException e) {
 								logger.error("Error in importing file line by line.", e);
-								Slack.call("Exception", e.getLocalizedMessage());
+								Notifications.call("Exception", e.getLocalizedMessage());
 							}
 						});
 					} catch (SQLException e) {
 						logger.error("Error in importing movement data into dataset.", e);
-						Slack.call("Exception", e.getLocalizedMessage());
+						Notifications.call("Exception", e.getLocalizedMessage());
 					}
 				});
 				transaction.commit();
 			} catch (SQLException e) {
 				logger.error("Error in important file contents.", e);
-				Slack.call("Exception", e.getLocalizedMessage());
+				Notifications.call("Exception", e.getLocalizedMessage());
 			}
 		} catch (IOException e) {
 			logger.error("Error in important file contents and reading file.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 
 			return false;
 		}
@@ -223,7 +223,7 @@ public class MovementDS extends CompleteDS {
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in add movement to dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 			return false;
 		}
 
@@ -254,7 +254,7 @@ public class MovementDS extends CompleteDS {
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in resetting dataset table.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 	}
 
@@ -284,10 +284,10 @@ public class MovementDS extends CompleteDS {
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in retrieving all files.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		} catch (Exception e) {
 			logger.error("Error in retrieving all files.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		return result;
@@ -329,10 +329,10 @@ public class MovementDS extends CompleteDS {
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in retrieving files by participant.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		} catch (Exception e) {
 			logger.error("Error in retrieving files by participant.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		return result;
@@ -409,10 +409,10 @@ public class MovementDS extends CompleteDS {
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		} catch (Exception e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		queue.complete();
@@ -474,7 +474,7 @@ public class MovementDS extends CompleteDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		ArrayNode result = Json.newArray();

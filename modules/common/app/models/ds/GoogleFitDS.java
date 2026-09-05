@@ -27,7 +27,7 @@ import models.sr.Participant;
 import models.sr.Wearable;
 import play.Logger;
 import play.libs.Json;
-import services.slack.Slack;
+import services.notifications.Notifications;
 import utils.DataUtils;
 
 public class GoogleFitDS extends LinkedDS {
@@ -133,9 +133,12 @@ public class GoogleFitDS extends LinkedDS {
 								: wearable.getPublicParameter3(), 255));
 			} else {
 				stmt.setString(2, nss(wearable.getUserId(), 50));
-				stmt.setString(4, nss(wearable.getPublicParameter1() == null ? "" : wearable.getPublicParameter1(), 255));
-				stmt.setString(5, nss(wearable.getPublicParameter2() == null ? "" : wearable.getPublicParameter2(), 255));
-				stmt.setString(6, nss(wearable.getPublicParameter3() == null ? "" : wearable.getPublicParameter3(), 255));
+				stmt.setString(4,
+						nss(wearable.getPublicParameter1() == null ? "" : wearable.getPublicParameter1(), 255));
+				stmt.setString(5,
+						nss(wearable.getPublicParameter2() == null ? "" : wearable.getPublicParameter2(), 255));
+				stmt.setString(6,
+						nss(wearable.getPublicParameter3() == null ? "" : wearable.getPublicParameter3(), 255));
 			}
 
 			stmt.setLong(1, wearable.getId());
@@ -159,7 +162,7 @@ public class GoogleFitDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in inserting record in dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 	}
 
@@ -190,7 +193,7 @@ public class GoogleFitDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in updating sleep record in dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 
 			// no such record, add a new one
 			if (rs <= 0) {
@@ -237,7 +240,7 @@ public class GoogleFitDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in updating record in dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 
 			if (rs <= 0) {
 				addRecord(wearable, scopeList, ts);
@@ -293,7 +296,7 @@ public class GoogleFitDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		queue.complete();
@@ -346,7 +349,7 @@ public class GoogleFitDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		ArrayNode result = Json.newArray();
@@ -386,7 +389,7 @@ public class GoogleFitDS extends LinkedDS {
 			// return true;
 		} catch (Exception e) {
 			logger.error("Error in checking record in dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		return false;

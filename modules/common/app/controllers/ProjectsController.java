@@ -58,7 +58,6 @@ import services.api.ai.UnmanagedAIApiService;
 import services.email.NotificationService;
 import services.maintenance.ProjectLifecycleService;
 import services.search.SearchService;
-import services.slack.Slack;
 import services.telegrambot.TelegramBotService;
 import utils.DataUtils;
 import utils.DateUtils;
@@ -1477,7 +1476,7 @@ public class ProjectsController extends AbstractAsyncController {
 				}
 			} catch (NullPointerException e) {
 				logger.error("Error in adding a study management file.", e);
-				Slack.call("Exception", e.getLocalizedMessage());
+				systemNotifications.send("Exception", e.getLocalizedMessage());
 			}
 		}
 

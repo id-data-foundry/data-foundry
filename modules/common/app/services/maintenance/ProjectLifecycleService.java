@@ -48,7 +48,7 @@ import play.twirl.api.Html;
 import scala.concurrent.ExecutionContext;
 import services.email.NotificationService;
 import services.inlets.ScheduledService;
-import services.slack.Slack;
+import services.notifications.SystemNotificationService;
 import utils.DatasetUtils;
 import utils.DateUtils;
 import utils.StringUtils;
@@ -72,6 +72,7 @@ public class ProjectLifecycleService implements ScheduledService {
 	private ActorSystem actorSystem;
 	private final SyncCacheApi cache;
 	private ExecutionContext executionContext;
+	private final SystemNotificationService systemNotifications;
 
 	private static final Logger.ALogger logger = Logger.of(ProjectLifecycleService.class);
 
@@ -79,7 +80,7 @@ public class ProjectLifecycleService implements ScheduledService {
 	public ProjectLifecycleService(Config config, ActorSystem actorSystem, SyncCacheApi cache,
 			ExecutionContext executionContext, NotificationService notificationService,
 			DatasetConnector datasetConnector, ZenodoPublishingUtil zenodoService,
-			DatasetUpdateQueue datasetUpdateQueue) {
+			DatasetUpdateQueue datasetUpdateQueue, SystemNotificationService systemNotifications) {
 		this.notificationService = notificationService;
 		this.datasetConnector = datasetConnector;
 		this.actorSystem = actorSystem;
@@ -87,6 +88,7 @@ public class ProjectLifecycleService implements ScheduledService {
 		this.executionContext = executionContext;
 		this.zenodoPublishingUtil = zenodoService;
 		this.datasetUpdateQueue = datasetUpdateQueue;
+		this.systemNotifications = systemNotifications;
 
 		// get the base url from configuration
 		if (config.hasPath(ConfigurationUtils.DF_BASEURL)) {
@@ -156,7 +158,7 @@ public class ProjectLifecycleService implements ScheduledService {
 
 			// log message to stdout and Slack
 			logger.info(message);
-			Slack.call("Project lifecycle", message);
+			systemNotifications.send("Project lifecycle", message);
 		}
 	}
 

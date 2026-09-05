@@ -34,7 +34,7 @@ import models.sr.Device;
 import play.Logger;
 import play.libs.Json;
 import services.outlets.OOCSIStreamOutService;
-import services.slack.Slack;
+import services.notifications.Notifications;
 import utils.StringUtils;
 
 public class TimeseriesDS extends LinkedDS {
@@ -294,7 +294,7 @@ public class TimeseriesDS extends LinkedDS {
 				transaction.commit();
 			} catch (Exception e) {
 				logger.error("Error in inserting record batch in dataset " + tableName, e);
-				Slack.call("Exception",
+				Notifications.call("Exception",
 						"Error in inserting record batch in dataset " + tableName + ": " + e.getLocalizedMessage());
 			}
 		}
@@ -353,10 +353,10 @@ public class TimeseriesDS extends LinkedDS {
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		} catch (Exception e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		destinationQueue.complete();
@@ -446,7 +446,7 @@ public class TimeseriesDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 
 		}
 
@@ -525,7 +525,7 @@ public class TimeseriesDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		try {
@@ -590,7 +590,7 @@ public class TimeseriesDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		ArrayNode result = Json.newArray();
@@ -646,7 +646,7 @@ public class TimeseriesDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("TimeseriesDS getItemsNested general ex: ", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		return result;

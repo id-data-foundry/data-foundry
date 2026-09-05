@@ -28,7 +28,7 @@ import nl.tue.id.oocsi.client.services.Responder;
 import play.Logger;
 import play.libs.Json;
 import services.maintenance.RealTimeNotificationService;
-import services.slack.Slack;
+import services.notifications.SystemNotificationService;
 import utils.flow.EventRateThrottle;
 import utils.flow.Throttle;
 import utils.oocsi.OOCSIClientUtil;
@@ -57,12 +57,14 @@ public class OOCSIService implements ScheduledService {
 	private long lastOOCSIMetricsPing = System.currentTimeMillis();
 	private boolean offlineNotification = false;
 	private final RealTimeNotificationService realtimeNotifications;
+	private final SystemNotificationService systemNotifications;
 
 	@Inject
 	public OOCSIService(DatasetConnector datasetConnector, OOCSIClientUtil oocsiClientUtil,
-			RealTimeNotificationService realtimeNotifications) {
+			RealTimeNotificationService realtimeNotifications, SystemNotificationService systemNotifications) {
 		this.datasetConnector = datasetConnector;
 		this.realtimeNotifications = realtimeNotifications;
+		this.systemNotifications = systemNotifications;
 
 		logger.info("OOCSI input service starting");
 		oocsi = oocsiClientUtil.createOOCSIClient("DF/OOCSI/inlet");
@@ -95,7 +97,7 @@ public class OOCSIService implements ScheduledService {
 		if (!oocsi.isConnected() || lastOOCSIMetricsPing < System.currentTimeMillis() - (1000 * 60)) {
 			if (!offlineNotification) {
 				logger.info("OOCSI inlet connection broken");
-				Slack.call("OOCSI service", "OOCSI service inlet connection is offline.");
+				systemNotifications.send("OOCSI service", "OOCSI service inlet connection is offline.");
 			}
 			offlineNotification = true;
 		}
@@ -103,7 +105,7 @@ public class OOCSIService implements ScheduledService {
 		else {
 			if (offlineNotification) {
 				logger.info("OOCSI inlet connection back online");
-				Slack.call("OOCSI service", "OOCSI service inlet connection is back online.");
+				systemNotifications.send("OOCSI service", "OOCSI service inlet connection is back online.");
 			}
 			offlineNotification = false;
 		}
@@ -497,7 +499,7 @@ public class OOCSIService implements ScheduledService {
 					} catch (Exception e) {
 						diagnostics.eventInletErrorMessage = "Unspecified message handling error.";
 						logger.error("Error in handling timeseries event.", e);
-						Slack.call("Exception", e.getLocalizedMessage());
+						systemNotifications.send("Exception", e.getLocalizedMessage());
 					}
 				}
 			} else {

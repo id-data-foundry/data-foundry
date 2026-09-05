@@ -33,7 +33,7 @@ import play.Logger;
 import play.libs.Json;
 import play.mvc.Http.Request;
 import services.outlets.OOCSIStreamOutService;
-import services.slack.Slack;
+import services.notifications.Notifications;
 import utils.DataUtils;
 
 public class MediaDS extends CompleteDS {
@@ -68,7 +68,7 @@ public class MediaDS extends CompleteDS {
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in creating dataset table in DB.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		// structured data: _md
@@ -95,7 +95,7 @@ public class MediaDS extends CompleteDS {
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in creating dataset table in DB.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 	}
 
@@ -130,7 +130,7 @@ public class MediaDS extends CompleteDS {
 							.put("participant_id", nss(participant.getRefId(), 32)).build());
 		} catch (Exception e) {
 			logger.error("Error in inserting record in dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 	}
 
@@ -156,7 +156,7 @@ public class MediaDS extends CompleteDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in importing file contents.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 	}
 
@@ -184,7 +184,7 @@ public class MediaDS extends CompleteDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in importing file contents.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 	}
 
@@ -208,7 +208,7 @@ public class MediaDS extends CompleteDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in deleting a record from dataset table.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 	}
 
@@ -227,7 +227,7 @@ public class MediaDS extends CompleteDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in deleting a record from dataset table.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 	}
 
@@ -254,7 +254,7 @@ public class MediaDS extends CompleteDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in retrieving file name by id.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 		return result;
 	}
@@ -277,7 +277,7 @@ public class MediaDS extends CompleteDS {
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in resetting dataset table.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 	}
 
@@ -302,10 +302,10 @@ public class MediaDS extends CompleteDS {
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in checking participant by filename.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		} catch (Exception e) {
 			logger.error("Error in checking participant by filename.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		return participantId;
@@ -354,7 +354,7 @@ public class MediaDS extends CompleteDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("File access problem", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 		return id;
 	}
@@ -397,10 +397,10 @@ public class MediaDS extends CompleteDS {
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in retrieving file by id.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		} catch (Exception e) {
 			logger.error("Error in retrieving file by id.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		return result;
@@ -473,7 +473,7 @@ public class MediaDS extends CompleteDS {
 							.put("participant_id", nss(participant != null ? participant.getRefId() : "", 32)).build());
 		} catch (Exception e) {
 			logger.error("Error in updating record in dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 	}
 
@@ -529,10 +529,10 @@ public class MediaDS extends CompleteDS {
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in retrieving files.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		} catch (Exception e) {
 			logger.error("Error in retrieving files.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		return fileList;
@@ -582,10 +582,10 @@ public class MediaDS extends CompleteDS {
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in retrieving files.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		} catch (Exception e) {
 			logger.error("Error in retrieving files.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		return fileList;
@@ -634,10 +634,10 @@ public class MediaDS extends CompleteDS {
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in retrieving files by participant.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		} catch (Exception e) {
 			logger.error("Error in retrieving files by participant.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		return fileList;
@@ -665,7 +665,7 @@ public class MediaDS extends CompleteDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in retrieving media by participant.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		return result;
@@ -730,7 +730,7 @@ public class MediaDS extends CompleteDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		queue.complete();
@@ -783,7 +783,7 @@ public class MediaDS extends CompleteDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		ArrayNode result = Json.newArray();

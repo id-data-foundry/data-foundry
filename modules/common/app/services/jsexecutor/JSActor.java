@@ -47,7 +47,7 @@ import services.api.js.JSDBApiService;
 import services.api.processing.AudioProcessingApiService;
 import services.api.remoting.RemoteApiRequest;
 import services.maintenance.RealTimeNotificationService;
-import services.slack.Slack;
+import services.notifications.SystemNotificationService;
 import services.telegrambot.TelegramBotService;
 import utils.GenericJSONMapDeserializer;
 import utils.oocsi.OOCSIClientUtil;
@@ -80,6 +80,7 @@ public class JSActor implements ApiServiceConstants {
 	private final JSDBApiService jsdbApiService;
 	private final OOCSIClientUtil oocsiClientUtil;
 	private final RealTimeNotificationService realtimeNotifications;
+	private final SystemNotificationService systemNotifications;
 	private final Semaphore compiledExecutionPermission = new Semaphore(1);
 	private final Semaphore trialExecutionPermission = new Semaphore(1);
 	private final String owner;
@@ -115,7 +116,8 @@ public class JSActor implements ApiServiceConstants {
 	public JSActor(Dataset ds, DatasetConnector datasetConnector, JSSandboxFactory sandboxFactory,
 			ExecutorService executorService, OOCSIClientUtil oocsiClientUtil, TelegramBotService botService,
 			UnmanagedAIApiService aiAPIService, AudioProcessingApiService audioProcessing,
-			JSDBApiService jsdbApiService, RealTimeNotificationService realtimeNotifications) {
+			JSDBApiService jsdbApiService, RealTimeNotificationService realtimeNotifications,
+			SystemNotificationService systemNotifications) {
 		this.dsId = ds.getId();
 		this.dsName = ds.getName();
 		this.dsProjectId = ds.getProject().getId();
@@ -133,6 +135,7 @@ public class JSActor implements ApiServiceConstants {
 		this.audioProcessing = audioProcessing;
 		this.jsdbApiService = jsdbApiService;
 		this.realtimeNotifications = realtimeNotifications;
+		this.systemNotifications = systemNotifications;
 		this.owner = ds.getProject().getOwner().getName();
 		this.botService = botService;
 
@@ -213,7 +216,7 @@ public class JSActor implements ApiServiceConstants {
 			this.code = null;
 			compiledProgram = false;
 			// really unexpected stuff is sent to Slack
-			Slack.call("Script problem (setCode)", e.getLocalizedMessage());
+			systemNotifications.send("Script problem (setCode)", e.getLocalizedMessage());
 			logger.error("Unexpected problem (setCode) in script for " + owner + " (" + getDatasetId() + "): "
 					+ e.getLocalizedMessage());
 			return false;
@@ -430,7 +433,7 @@ public class JSActor implements ApiServiceConstants {
 				logger.error("Problem in script for " + owner + " (" + getDatasetId() + ")");
 			} catch (Exception e) {
 				// really unexpected problems are sent to Slack
-				Slack.call("Script problem (runCompiled) for ds " + getDatasetId() + " for " + owner,
+				systemNotifications.send("Script problem (runCompiled) for ds " + getDatasetId() + " for " + owner,
 						e.getLocalizedMessage());
 				logger.error("Unexpected problem (runCompiled) in script " + getDatasetId() + " for " + owner + " ("
 						+ getDatasetId() + "): " + e.getLocalizedMessage());

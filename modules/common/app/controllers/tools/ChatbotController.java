@@ -72,7 +72,6 @@ import services.api.ai.LocalModelMetadata;
 import services.api.ai.UnmanagedAIApiService;
 import services.api.remoting.RemoteApiRequest;
 import services.processing.MediaProcessingService;
-import services.slack.Slack;
 import utils.DataUtils;
 import utils.auth.TokenResolverUtil;
 import utils.rendering.MarkdownRenderer;
@@ -1038,7 +1037,7 @@ public class ChatbotController extends AbstractAsyncController {
 				}
 			} catch (NullPointerException e) {
 				logger.error("Error uploading file to dataset.", e);
-				Slack.call("Exception", e.getLocalizedMessage());
+				systemNotifications.send("Exception", e.getLocalizedMessage());
 			}
 
 			// re-index all documents

@@ -30,8 +30,8 @@ import models.sr.Cluster;
 import models.sr.DataResource;
 import play.Logger;
 import play.libs.Json;
+import services.notifications.Notifications;
 import services.outlets.OOCSIStreamOutService;
-import services.slack.Slack;
 
 public class EntityDS extends LinkedDS {
 
@@ -51,15 +51,15 @@ public class EntityDS extends LinkedDS {
 	public void createInstance() {
 		try (Transaction transaction = DB.beginTransaction(); Connection connection = transaction.connection();) {
 			connection.createStatement().execute("CREATE TABLE IF NOT EXISTS " + dataTableName + " ( " //
-			        + "id bigint auto_increment not null," //
-			        + "resource_id varchar(63)," //
-			        + "token varchar(63)," //
-			        + "ts timestamp," //
-			        + "pp1 varchar(255)," //
-			        + "pp2 varchar(255)," //
-			        + "pp3 varchar(255)," //
-			        + "data TEXT," //
-			        + "PRIMARY KEY (id) );");
+					+ "id bigint auto_increment not null," //
+					+ "resource_id varchar(63)," //
+					+ "token varchar(63)," //
+					+ "ts timestamp," //
+					+ "pp1 varchar(255)," //
+					+ "pp2 varchar(255)," //
+					+ "pp3 varchar(255)," //
+					+ "data TEXT," //
+					+ "PRIMARY KEY (id) );");
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in creating dataset table in DB.", e);
@@ -74,7 +74,7 @@ public class EntityDS extends LinkedDS {
 		// add index for the resource id
 		try (Transaction transaction = DB.beginTransaction(); Connection connection = transaction.connection();) {
 			connection.createStatement().execute("CREATE INDEX IF NOT EXISTS ix_" + dataTableName + "_resource_id on "
-			        + dataTableName + " (resource_id);");
+					+ dataTableName + " (resource_id);");
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("EntityDS add index problem.", e);
@@ -128,7 +128,7 @@ public class EntityDS extends LinkedDS {
 
 		// post update on OOCSI
 		oocsiStreaming.datasetUpdate(dataset,
-		        OOCSIStreamOutService.map().put("operation", "add").put("resource_id", resource_id).build());
+				OOCSIStreamOutService.map().put("operation", "add").put("resource_id", resource_id).build());
 
 		return Optional.of(on);
 	}
@@ -158,7 +158,7 @@ public class EntityDS extends LinkedDS {
 
 			// post update on OOCSI
 			oocsiStreaming.datasetUpdate(dataset,
-			        OOCSIStreamOutService.map().put("operation", "update").put("resource_id", resource_id).build());
+					OOCSIStreamOutService.map().put("operation", "update").put("resource_id", resource_id).build());
 
 			return updateItem(resource_id, token, jn);
 		} catch (Exception e) {
@@ -186,7 +186,7 @@ public class EntityDS extends LinkedDS {
 		// json data given --> check internal data
 		final ObjectNode newData = (ObjectNode) jn;
 		final ObjectNode existingData = internalGetItemWithPublicParameters(resource_id, token)
-		        .orElse(Json.newObject());
+				.orElse(Json.newObject());
 
 		final Optional<ObjectNode> result;
 		// check whether the item does not exist
@@ -201,7 +201,7 @@ public class EntityDS extends LinkedDS {
 
 			// update existing data
 			result = internalUpdateItem(resource_id, token, existingData.path("pp1").asText(),
-			        existingData.path("pp2").asText(), existingData.path("pp3").asText(), new Date(), existingData);
+					existingData.path("pp2").asText(), existingData.path("pp3").asText(), new Date(), existingData);
 		}
 
 		// check whether projection update is necessary
@@ -225,7 +225,7 @@ public class EntityDS extends LinkedDS {
 
 		// post update on OOCSI
 		oocsiStreaming.datasetUpdate(dataset,
-		        OOCSIStreamOutService.map().put("operation", "delete").put("resource_id", resource_id).build());
+				OOCSIStreamOutService.map().put("operation", "delete").put("resource_id", resource_id).build());
 
 		return result;
 	}
@@ -239,7 +239,7 @@ public class EntityDS extends LinkedDS {
 	 */
 	public void addResourceItem(DataResource resource, Date ts, ObjectNode jo) {
 		internalAddItem(resource.getRefId(), Optional.empty(), resource.getPublicParameter1(),
-		        resource.getPublicParameter2(), resource.getPublicParameter3(), ts, jo);
+				resource.getPublicParameter2(), resource.getPublicParameter3(), ts, jo);
 
 		// check whether projection update is necessary
 		updateProjection(dataset, jo);
@@ -262,7 +262,7 @@ public class EntityDS extends LinkedDS {
 	}
 
 	private Optional<ObjectNode> internalUpdateItem(String resource_id, Optional<String> token, String pp1, String pp2,
-	        String pp3, Date ts, ObjectNode jo) {
+			String pp3, Date ts, ObjectNode jo) {
 
 		// check permissions for existing items
 		if (internalGetItem(resource_id, token).isEmpty()) {
@@ -286,13 +286,13 @@ public class EntityDS extends LinkedDS {
 	 * @return
 	 */
 	private Optional<ObjectNode> internalAddItem(String resource_id, Optional<String> token, String pp1, String pp2,
-	        String pp3, Date ts, ObjectNode jo) {
+			String pp3, Date ts, ObjectNode jo) {
 
 		// insert record
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("INSERT INTO " + dataTableName
-		                + " (resource_id, token, ts, pp1, pp2, pp3, data )" + " VALUES (?, ?, ?, ?, ?, ?, ?);");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("INSERT INTO " + dataTableName
+						+ " (resource_id, token, ts, pp1, pp2, pp3, data )" + " VALUES (?, ?, ?, ?, ?, ?, ?);");) {
 
 			stmt.setString(1, nss(resource_id, 63));
 			stmt.setString(2, nss(token.orElse(""), 63));
@@ -308,11 +308,11 @@ public class EntityDS extends LinkedDS {
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("SQL exception", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 			return Optional.empty();
 		} catch (Exception e) {
 			logger.error("General exception", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 			return Optional.empty();
 		}
 
@@ -325,9 +325,9 @@ public class EntityDS extends LinkedDS {
 
 		// insert record
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement(
-		                "SELECT token FROM " + dataTableName + " WHERE resource_id = ? ORDER BY ts DESC LIMIT 1;");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement(
+						"SELECT token FROM " + dataTableName + " WHERE resource_id = ? ORDER BY ts DESC LIMIT 1;");) {
 			stmt.setString(1, nss(resource_id, 63));
 			ResultSet rs = stmt.executeQuery();
 			if (rs.next()) {
@@ -337,7 +337,7 @@ public class EntityDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("EntityDS getItemToken general ex: ", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		return Optional.ofNullable(result);
@@ -349,11 +349,11 @@ public class EntityDS extends LinkedDS {
 
 		// faster SQL for just getting the last item
 		String sql = "SELECT data FROM " + dataTableName + " WHERE id = (SELECT max(id) FROM " + dataTableName
-		        + " WHERE resource_id = ?" + (token.isPresent() ? " AND token = ?" : "") + ");";
+				+ " WHERE resource_id = ?" + (token.isPresent() ? " AND token = ?" : "") + ");";
 
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement(sql);) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement(sql);) {
 			stmt.setString(1, nss(resource_id, 63));
 			if (token.isPresent()) {
 				stmt.setString(2, nss(token.get(), 63));
@@ -366,7 +366,7 @@ public class EntityDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("EntityDS getItem general ex: ", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		JsonNode jn = Json.parse(result);
@@ -380,11 +380,11 @@ public class EntityDS extends LinkedDS {
 
 		// faster SQL for just getting the last item
 		String sql = "SELECT pp1, pp2, pp3, data FROM " + dataTableName + " WHERE id = (SELECT max(id) FROM "
-		        + dataTableName + " WHERE resource_id = ?" + (token.isPresent() ? " AND token = ?" : "") + ");";
+				+ dataTableName + " WHERE resource_id = ?" + (token.isPresent() ? " AND token = ?" : "") + ");";
 
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement(sql);) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement(sql);) {
 			stmt.setString(1, nss(resource_id, 63));
 			if (token.isPresent()) {
 				stmt.setString(2, nss(token.get(), 63));
@@ -400,7 +400,7 @@ public class EntityDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("EntityDS getItem general ex: ", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		JsonNode jn = Json.parse(jsonData);
@@ -429,11 +429,11 @@ public class EntityDS extends LinkedDS {
 
 		// export the data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement(
-		                "SELECT id, resource_id, ts, pp1, pp2, pp3, data FROM " + dataTableName + " WHERE id IN "
-		                        + "(SELECT MAX(id) FROM " + dataTableName + " GROUP BY resource_id) ORDER BY ts ASC;");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement(
+						"SELECT id, resource_id, ts, pp1, pp2, pp3, data FROM " + dataTableName + " WHERE id IN "
+								+ "(SELECT MAX(id) FROM " + dataTableName + " GROUP BY resource_id) ORDER BY ts ASC;");
+				ResultSet rs = stmt.executeQuery();) {
 
 			while (rs.next()) {
 				final ObjectNode item = result.addObject();
@@ -464,7 +464,7 @@ public class EntityDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("EntityDS getItems general ex: ", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		return result;
@@ -481,12 +481,12 @@ public class EntityDS extends LinkedDS {
 
 		// export the data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection
-		                .prepareStatement("SELECT id, resource_id, ts, pp1, pp2, pp3, data FROM " + dataTableName
-		                        + " WHERE id IN " + "(SELECT MAX(id) FROM " + dataTableName
-		                        + " GROUP BY resource_id) ORDER BY ts ASC LIMIT 1000;");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("SELECT id, resource_id, ts, pp1, pp2, pp3, data FROM " + dataTableName
+								+ " WHERE id IN " + "(SELECT MAX(id) FROM " + dataTableName
+								+ " GROUP BY resource_id) ORDER BY ts ASC LIMIT 1000;");
+				ResultSet rs = stmt.executeQuery();) {
 
 			while (rs.next()) {
 				final ObjectNode item = result.addObject();
@@ -510,7 +510,7 @@ public class EntityDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("EntityDS getItemsNested general ex: ", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		return result;
@@ -530,11 +530,11 @@ public class EntityDS extends LinkedDS {
 
 		// faster SQL for just getting the last item
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection
-		                .prepareStatement("SELECT id, resource_id, ts, pp1, pp2, pp3, data FROM " + dataTableName
-		                        + " WHERE id IN (SELECT max(id) FROM " + dataTableName + " WHERE resource_id LIKE ?"
-		                        + (token.isPresent() ? " AND token = ?" : "") + " GROUP BY resource_id);");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("SELECT id, resource_id, ts, pp1, pp2, pp3, data FROM " + dataTableName
+								+ " WHERE id IN (SELECT max(id) FROM " + dataTableName + " WHERE resource_id LIKE ?"
+								+ (token.isPresent() ? " AND token = ?" : "") + " GROUP BY resource_id);");) {
 			stmt.setString(1, resource_id + "%");
 			if (token.isPresent()) {
 				stmt.setString(2, nss(token.get(), 63));
@@ -570,7 +570,7 @@ public class EntityDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("EntityDS getItem general ex: ", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		return result;
@@ -584,10 +584,10 @@ public class EntityDS extends LinkedDS {
 
 		// export the data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("SELECT id, resource_id FROM " + dataTableName
-		                + " WHERE id IN " + "(SELECT MAX(id) FROM " + dataTableName + " GROUP BY resource_id);");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("SELECT id, resource_id FROM " + dataTableName
+						+ " WHERE id IN " + "(SELECT MAX(id) FROM " + dataTableName + " GROUP BY resource_id);");
+				ResultSet rs = stmt.executeQuery();) {
 
 			while (rs.next()) {
 				result.add(nss(rs.getString(2), 63));
@@ -595,7 +595,7 @@ public class EntityDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("EntityDS getItems general ex: ", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		return result;
@@ -607,10 +607,10 @@ public class EntityDS extends LinkedDS {
 
 		// delete record
 		String sql = "DELETE FROM " + dataTableName + " WHERE resource_id = ?"
-		        + (token.isPresent() ? " AND token = ?" : "") + ";";
+				+ (token.isPresent() ? " AND token = ?" : "") + ";";
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement(sql);) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement(sql);) {
 			stmt.setString(1, nss(resource_id, 63));
 			if (token.isPresent()) {
 				stmt.setString(2, nss(token.get(), 63));
@@ -621,7 +621,7 @@ public class EntityDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("EntityDS deleteItems general ex: ", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		return deleteSuccessful ? Optional.of(Json.newObject()) : Optional.empty();
@@ -633,11 +633,11 @@ public class EntityDS extends LinkedDS {
 
 		// delete record
 		String sql = "DELETE FROM " + dataTableName
-		        + " WHERE resource_id = ? AND id < (SELECT MIN(id) FROM (SELECT id FROM " + dataTableName
-		        + " WHERE resource_id = ? ORDER BY id DESC LIMIT 100));";
+				+ " WHERE resource_id = ? AND id < (SELECT MIN(id) FROM (SELECT id FROM " + dataTableName
+				+ " WHERE resource_id = ? ORDER BY id DESC LIMIT 100));";
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement(sql);) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement(sql);) {
 			stmt.setString(1, nss(resource_id, 63));
 			stmt.setString(2, nss(resource_id, 63));
 
@@ -646,13 +646,13 @@ public class EntityDS extends LinkedDS {
 			if (updateCount > 10) {
 				dataset.getProject().refresh();
 				logger.info("Removed " + updateCount + "obsolete items from Entity dataset: " + dataset.getId() + " ("
-				        + dataset.getProject().getOwner().getName() + ")");
+						+ dataset.getProject().getOwner().getName() + ")");
 			}
 
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("EntityDS deleteItems general ex: ", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		return deleteSuccessful;
@@ -667,11 +667,11 @@ public class EntityDS extends LinkedDS {
 
 		// create the actual database for the data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement(
-		                "SELECT id, resource_id, ts, pp1, pp2, pp3, data FROM " + dataTableName + " WHERE id IN "
-		                        + "(SELECT MAX(id) FROM " + dataTableName + " GROUP BY resource_id) ORDER BY ts ASC;");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement(
+						"SELECT id, resource_id, ts, pp1, pp2, pp3, data FROM " + dataTableName + " WHERE id IN "
+								+ "(SELECT MAX(id) FROM " + dataTableName + " GROUP BY resource_id) ORDER BY ts ASC;");
+				ResultSet rs = stmt.executeQuery();) {
 
 			// sourceActor.tell(ByteString.fromString("# dataset export created on " + new Date() + "\n"), null);
 			queue.offer(ByteString.fromString("id,resource_id,ts,pp1,pp2,pp3,data\n")).toCompletableFuture().get();
@@ -692,10 +692,10 @@ public class EntityDS extends LinkedDS {
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		} catch (Exception e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		queue.complete();
@@ -705,11 +705,11 @@ public class EntityDS extends LinkedDS {
 
 		// create the actual database for the data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection
-		                .prepareStatement("SELECT id, resource_id, ts, pp1, pp2, pp3, data FROM " + dataTableName
-		                        + timeFilterWhereClause(start, end) + " ORDER BY id ASC;");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("SELECT id, resource_id, ts, pp1, pp2, pp3, data FROM " + dataTableName
+								+ timeFilterWhereClause(start, end) + " ORDER BY id ASC;");
+				ResultSet rs = stmt.executeQuery();) {
 
 			// sourceActor.tell(ByteString.fromString("# dataset export created on " + new Date() + "\n"), null);
 			queue.offer(ByteString.fromString("id,resource_id,ts,pp1,pp2,pp3,data\n")).toCompletableFuture().get();
@@ -730,10 +730,10 @@ public class EntityDS extends LinkedDS {
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		} catch (Exception e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		queue.complete();
@@ -752,16 +752,16 @@ public class EntityDS extends LinkedDS {
 
 		// export the data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection
-		                .prepareStatement("SELECT id, resource_id, ts, pp1, pp2, pp3, data FROM " + dataTableName
-		                        + " WHERE id IN " + "(SELECT MAX(id) FROM " + dataTableName + " GROUP BY resource_id) "
-		                        + timeFilterWhereClause(start, end).replace("WHERE", "AND") + " ORDER BY ts ASC;");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("SELECT id, resource_id, ts, pp1, pp2, pp3, data FROM " + dataTableName
+								+ " WHERE id IN " + "(SELECT MAX(id) FROM " + dataTableName + " GROUP BY resource_id) "
+								+ timeFilterWhereClause(start, end).replace("WHERE", "AND") + " ORDER BY ts ASC;");
+				ResultSet rs = stmt.executeQuery();) {
 
 			// sourceActor.tell(ByteString.fromString("# dataset export created on " + new Date() + "\n"), null);
 			queue.offer(ByteString.fromString("id,resource_id,ts,pp1,pp2,pp3," + String.join(",", projection) + "\n"))
-			        .toCompletableFuture().get();
+					.toCompletableFuture().get();
 
 			while (rs.next()) {
 				StringBuffer sb = new StringBuffer();
@@ -794,7 +794,7 @@ public class EntityDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		queue.complete();
@@ -813,14 +813,14 @@ public class EntityDS extends LinkedDS {
 
 		// export the data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection
-		                .prepareStatement("SELECT id, resource_id, ts, pp1, pp2, pp3, data FROM " + dataTableName
-		                        + timeFilterWhereClause(start, end) + " ORDER BY id ASC;");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("SELECT id, resource_id, ts, pp1, pp2, pp3, data FROM " + dataTableName
+								+ timeFilterWhereClause(start, end) + " ORDER BY id ASC;");
+				ResultSet rs = stmt.executeQuery();) {
 
 			queue.offer(ByteString.fromString("id,resource_id,ts,pp1,pp2,pp3," + String.join(",", projection) + "\n"))
-			        .toCompletableFuture().get();
+					.toCompletableFuture().get();
 
 			while (rs.next()) {
 				StringBuffer sb = new StringBuffer();
@@ -853,7 +853,7 @@ public class EntityDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		queue.complete();
@@ -866,12 +866,12 @@ public class EntityDS extends LinkedDS {
 		List<ObjectNode> objects = new LinkedList<ObjectNode>();
 		// export the data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection
-		                .prepareStatement("SELECT id, resource_id, ts, pp1, pp2, pp3, data FROM " + dataTableName
-		                        + " WHERE id IN " + "(SELECT MAX(id) FROM " + dataTableName + " GROUP BY resource_id) "
-		                        + timeFilterWhereClause(start, end).replace("WHERE", "AND") + " ORDER BY ts ASC;");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("SELECT id, resource_id, ts, pp1, pp2, pp3, data FROM " + dataTableName
+								+ " WHERE id IN " + "(SELECT MAX(id) FROM " + dataTableName + " GROUP BY resource_id) "
+								+ timeFilterWhereClause(start, end).replace("WHERE", "AND") + " ORDER BY ts ASC;");
+				ResultSet rs = stmt.executeQuery();) {
 
 			while (rs.next()) {
 
@@ -903,7 +903,7 @@ public class EntityDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		ArrayNode result = Json.newArray();

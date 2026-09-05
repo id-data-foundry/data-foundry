@@ -88,6 +88,21 @@ public class ConfigurationUtils {
 
 	// ----------------------------------------------------------------------------------------------------------------
 
+	public static final String DF_NOTIFICATIONS_ENABLED = "df.notifications.enabled";
+	public static final String DF_NOTIFICATIONS_SLACK_ENABLED = "df.notifications.channels.slack.enabled";
+	public static final String DF_NOTIFICATIONS_SLACK_URL = "df.notifications.channels.slack.url";
+	public static final String DF_NOTIFICATIONS_SLACK_KEY = "df.notifications.channels.slack.key";
+	public static final String DF_NOTIFICATIONS_NTFY_ENABLED = "df.notifications.channels.ntfy.enabled";
+	public static final String DF_NOTIFICATIONS_NTFY_SERVER = "df.notifications.channels.ntfy.server";
+	public static final String DF_NOTIFICATIONS_NTFY_TOPIC = "df.notifications.channels.ntfy.topic";
+	public static final String DF_NOTIFICATIONS_NTFY_TOKEN = "df.notifications.channels.ntfy.token";
+	public static final String DF_NOTIFICATIONS_NTFY_PRIORITY = "df.notifications.channels.ntfy.priority";
+	public static final String DF_NOTIFICATIONS_AI_OFFLINE = "df.notifications.ai.alert_on_offline";
+	public static final String DF_NOTIFICATIONS_AI_RECOVERY = "df.notifications.ai.alert_on_recovery";
+	public static final String DF_NOTIFICATIONS_AI_THRESHOLD = "df.notifications.ai.consecutive_failures_threshold";
+
+	// ----------------------------------------------------------------------------------------------------------------
+
 	public static final String DF_VENDOR_SLACK_CHANNEL = "df.vendor.slack.channel";
 
 	public static final String DF_VENDOR_FITBIT_ID = "df.vendor.fitbit.id";
@@ -139,6 +154,13 @@ public class ConfigurationUtils {
 		defaultValueFormat.put(DF_OOCSI_SERVER, "\"oocsi.example.org\"");
 		defaultValueFormat.put(DF_VENDOR_SLACK_CHANNEL,
 				"\"https://hooks.slack.com/services/XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\"");
+		defaultValueFormat.put(DF_NOTIFICATIONS_ENABLED, "true");
+		defaultValueFormat.put(DF_NOTIFICATIONS_SLACK_URL,
+				"\"https://hooks.slack.com/services/XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\"");
+		defaultValueFormat.put(DF_NOTIFICATIONS_SLACK_KEY,
+				"\"T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX\"");
+		defaultValueFormat.put(DF_NOTIFICATIONS_NTFY_SERVER, "\"https://ntfy.sh\"");
+		defaultValueFormat.put(DF_NOTIFICATIONS_NTFY_TOPIC, "\"datafoundry-alerts\"");
 
 		defaultValueFormat.put(DF_AI_BASEURL, "\"http://localhost:9191/v1\"");
 
@@ -174,11 +196,24 @@ public class ConfigurationUtils {
 	 * @return
 	 */
 	private static boolean checkGeneralConfig(Config configuration, List<String> sb) {
-		return internalCheckConfiguration(new String[] { DF_BASEURL, DF_UPLOAD_DIR, DF_MAX_ACTIVE_PROJECTS,
+		boolean generalOk = internalCheckConfiguration(new String[] { DF_BASEURL, DF_UPLOAD_DIR, DF_MAX_ACTIVE_PROJECTS,
 				DF_SSO_CLIENT, DF_SSO_SECRET, DF_SSO_DISCOVERY, DF_MSGRAPH_TENANT, DF_MSGRAPH_CLIENT, DF_MSGRAPH_SECRET,
 				DF_MSGRAPH_DISCOVERY, DF_USERS_ADMINS, DF_USERS_MODERATORS, DF_USERS_REVIEWERS, DF_KEYS_API,
 				DF_KEYS_AUTH_API, DF_KEYS_V2_MULTI_API, DF_KEYS_V2_USER_API, DF_KEYS_REGISTRATION_ACCESS,
-				DF_KEYS_PROJECT_TOKEN, DF_OOCSI_SERVER, DF_VENDOR_SLACK_CHANNEL, DF_AI_BASEURL }, configuration, sb);
+				DF_KEYS_PROJECT_TOKEN, DF_OOCSI_SERVER, DF_AI_BASEURL }, configuration, sb);
+
+		// check notification channel: accept either new notification config (slack url/key or ntfy topic) or legacy vendor.slack.channel
+		boolean hasNotificationConfig = configuration.hasPath(DF_NOTIFICATIONS_SLACK_URL)
+				|| configuration.hasPath(DF_NOTIFICATIONS_SLACK_KEY)
+				|| configuration.hasPath(DF_NOTIFICATIONS_NTFY_TOPIC)
+				|| configuration.hasPath(DF_VENDOR_SLACK_CHANNEL);
+		if (!hasNotificationConfig) {
+			sb.add(">  " + DF_NOTIFICATIONS_SLACK_URL + " = " + defaultValueFormat.get(DF_NOTIFICATIONS_SLACK_URL)
+					+ " (or configure " + DF_NOTIFICATIONS_NTFY_TOPIC + ")");
+			generalOk = false;
+		}
+
+		return generalOk;
 	}
 
 	/**

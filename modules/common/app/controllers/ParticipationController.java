@@ -48,7 +48,7 @@ import play.twirl.api.Html;
 import services.email.NotificationService;
 import services.inlets.FitBitService;
 import services.inlets.GoogleFitService;
-import services.slack.Slack;
+import services.notifications.SystemNotificationService;
 import services.telegrambot.TelegramBotService;
 import utils.DataUtils;
 import utils.StringUtils;
@@ -67,13 +67,14 @@ public class ParticipationController extends Controller {
 	private final GoogleFitService googlefitService;
 	private final NotificationService notificationService;
 	private final TelegramBotService telegramBotUtils;
+	private final SystemNotificationService systemNotifications;
 	private static final Logger.ALogger logger = Logger.of(ParticipationController.class);
 
 	@Inject
 	public ParticipationController(Langs langs, FormFactory formFactory, SyncCacheApi cache,
 			DatasetConnector datasetConnector, TokenResolverUtil tokenResolverUtil, FitBitService fitbitService,
 			GoogleFitService googlefitService, NotificationService notificationService,
-			TelegramBotService telegramBotService) {
+			TelegramBotService telegramBotService, SystemNotificationService systemNotifications) {
 		this.langs = langs;
 		this.formFactory = formFactory;
 		this.cache = cache;
@@ -83,6 +84,7 @@ public class ParticipationController extends Controller {
 		this.googlefitService = googlefitService;
 		this.notificationService = notificationService;
 		this.telegramBotUtils = telegramBotService;
+		this.systemNotifications = systemNotifications;
 	}
 
 	@AddCSRFToken
@@ -423,7 +425,7 @@ public class ParticipationController extends Controller {
 			return redirect(controllers.routes.ParticipationController.view(invite_token));
 		} catch (NullPointerException e) {
 			logger.error("Error in uploading dataset file.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			systemNotifications.send("Exception", e.getLocalizedMessage());
 		}
 
 		return redirect(controllers.routes.ParticipationController.view(invite_token)).addingToSession(request, "error",

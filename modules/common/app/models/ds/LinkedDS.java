@@ -32,7 +32,7 @@ import models.sr.Cluster;
 import play.Logger;
 import play.libs.Json;
 import services.outlets.OOCSIStreamOutService;
-import services.slack.Slack;
+import services.notifications.Notifications;
 import utils.DateUtils;
 
 public abstract class LinkedDS {
@@ -247,7 +247,7 @@ public abstract class LinkedDS {
 			logger.error("Error in exporting timeseries.", e);
 		} catch (Exception e) {
 			logger.error("Error in exporting timeseries.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		queue.complete();
@@ -296,7 +296,7 @@ public abstract class LinkedDS {
 				transaction.commit();
 			} catch (Exception e) {
 				logger.error("Error in retrieving stats.", e);
-				Slack.call("Exception", e.getLocalizedMessage());
+				Notifications.call("Exception", e.getLocalizedMessage());
 			}
 
 			// last week items
@@ -313,7 +313,7 @@ public abstract class LinkedDS {
 				transaction.commit();
 			} catch (Exception e) {
 				logger.error("Error in retrieving stats.", e);
-				Slack.call("Exception", e.getLocalizedMessage());
+				Notifications.call("Exception", e.getLocalizedMessage());
 			}
 
 			// this week items
@@ -333,7 +333,7 @@ public abstract class LinkedDS {
 				transaction.commit();
 			} catch (Exception e) {
 				logger.error("Error in retrieving stats.", e);
-				Slack.call("Exception", e.getLocalizedMessage());
+				Notifications.call("Exception", e.getLocalizedMessage());
 			}
 		}
 
@@ -358,7 +358,7 @@ public abstract class LinkedDS {
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in resetting dataset table.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 	}
 
@@ -397,7 +397,7 @@ public abstract class LinkedDS {
 			return rows;
 		} catch (SQLException e) {
 			logger.error("Error in selective delete from dataset table.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 			return -1;
 		}
 	}
@@ -428,7 +428,7 @@ public abstract class LinkedDS {
 			return rows;
 		} catch (SQLException e) {
 			logger.error("Error in selective delete by time from dataset table.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 			return -1;
 		}
 	}
@@ -517,10 +517,10 @@ public abstract class LinkedDS {
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in retrieving last updates from dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		} catch (Exception e) {
 			logger.error("Error in exporting last updates from dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 	}
 }

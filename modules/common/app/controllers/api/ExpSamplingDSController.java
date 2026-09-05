@@ -34,7 +34,6 @@ import play.mvc.Http.MultipartFormData.FilePart;
 import play.mvc.Http.Request;
 import play.mvc.Result;
 import play.mvc.Security.Authenticated;
-import services.slack.Slack;
 import utils.DataUtils;
 import utils.components.OnboardingSupport;
 import utils.validators.FileTypeUtils;
@@ -259,7 +258,7 @@ public class ExpSamplingDSController extends AbstractDSController {
 			return redirect(controllers.routes.DatasetsController.view(ds.getId()));
 		} catch (NullPointerException e) {
 			logger.error("Exception", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			systemNotifications.send("Exception", e.getLocalizedMessage());
 		}
 
 		return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",

@@ -14,7 +14,7 @@ import com.google.inject.Singleton;
 import com.typesafe.config.Config;
 
 import play.Logger;
-import services.slack.Slack;
+import services.notifications.SystemNotificationService;
 import utils.conf.ConfigurationUtils;
 
 @Singleton
@@ -25,9 +25,11 @@ public class EmailService implements ScheduledService {
 	private final String mailhost;
 	private final String username;
 	private final String password;
+	private final SystemNotificationService systemNotifications;
 
 	@Inject
-	public EmailService(Config config) {
+	public EmailService(Config config, SystemNotificationService systemNotifications) {
+		this.systemNotifications = systemNotifications;
 		if (config.hasPath(ConfigurationUtils.DF_MAIL_HOST) && config.hasPath(ConfigurationUtils.DF_MAIL_USERNAME)
 		        && config.hasPath(ConfigurationUtils.DF_MAIL_PASSWORD)) {
 			mailhost = config.getString(ConfigurationUtils.DF_MAIL_HOST);
@@ -85,13 +87,13 @@ public class EmailService implements ScheduledService {
 			storeObj.close();
 		} catch (NoSuchProviderException e) {
 			logger.error("Email sending problem: provider", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			systemNotifications.send("Exception", e.getLocalizedMessage());
 		} catch (MessagingException e) {
 			logger.error("Email sending problem: message", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			systemNotifications.send("Exception", e.getLocalizedMessage());
 		} catch (Exception e) {
 			logger.error("Email sending problem: general", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			systemNotifications.send("Exception", e.getLocalizedMessage());
 		}
 	}
 

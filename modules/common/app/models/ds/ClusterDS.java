@@ -22,7 +22,7 @@ import models.DatasetType;
 import models.Project;
 import models.sr.Cluster;
 import play.Logger;
-import services.slack.Slack;
+import services.notifications.Notifications;
 
 public class ClusterDS {
 
@@ -43,7 +43,7 @@ public class ClusterDS {
 
 		// get list of device Ids
 		String deviceIds = cluster.getDevices().stream().map(d -> d.getId().toString())
-		        .collect(Collectors.joining(","));
+				.collect(Collectors.joining(","));
 
 		// use day resolution for timeseries output
 		if (project.getCreation().toInstant().plus(30, ChronoUnit.DAYS).isBefore(Instant.now())) {
@@ -52,7 +52,7 @@ public class ClusterDS {
 					String id = datasetConnector.getDatasetDS(ds).getDataTableName();
 					String name = ds.getName().replace("'", "");
 					return "SELECT TRUNCATE(ts) AS day, count(*) as events, '" + name + "' FROM " + id
-					        + " WHERE device_id IN (" + deviceIds + ") GROUP BY day ";
+							+ " WHERE device_id IN (" + deviceIds + ") GROUP BY day ";
 				}
 
 				return null;
@@ -64,9 +64,9 @@ public class ClusterDS {
 			}
 
 			try (Transaction transaction = DB.beginTransaction();
-			        Connection connection = transaction.connection();
-			        PreparedStatement stmt = connection.prepareStatement(query + sortingClause);
-			        ResultSet rs = stmt.executeQuery();) {
+					Connection connection = transaction.connection();
+					PreparedStatement stmt = connection.prepareStatement(query + sortingClause);
+					ResultSet rs = stmt.executeQuery();) {
 
 				queue.offer(ByteString.fromString("day,events,dataset\n")).toCompletableFuture().get();
 				while (rs.next()) {
@@ -80,7 +80,7 @@ public class ClusterDS {
 				transaction.commit();
 			} catch (Exception e) {
 				logger.error("Error in exporting a timeseries dataset.", e);
-				Slack.call("Exception", e.getLocalizedMessage());
+				Notifications.call("Exception", e.getLocalizedMessage());
 			}
 		}
 		// use hour resolution for timeseries output
@@ -90,7 +90,7 @@ public class ClusterDS {
 					String id = datasetConnector.getDatasetDS(ds).getDataTableName();
 					String name = ds.getName().replace("'", "");
 					return "SELECT PARSEDATETIME(FORMATDATETIME(ts, 'yyyy-MM-dd HH'), 'yyyy-MM-dd HH') AS day, count(*) as events, '"
-					        + name + "' FROM " + id + " WHERE device_id IN (" + deviceIds + ") GROUP BY day ";
+							+ name + "' FROM " + id + " WHERE device_id IN (" + deviceIds + ") GROUP BY day ";
 				}
 
 				return null;
@@ -102,9 +102,9 @@ public class ClusterDS {
 			}
 
 			try (Transaction transaction = DB.beginTransaction();
-			        Connection connection = transaction.connection();
-			        PreparedStatement stmt = connection.prepareStatement(query + sortingClause);
-			        ResultSet rs = stmt.executeQuery();) {
+					Connection connection = transaction.connection();
+					PreparedStatement stmt = connection.prepareStatement(query + sortingClause);
+					ResultSet rs = stmt.executeQuery();) {
 
 				queue.offer(ByteString.fromString("day,events,dataset\n")).toCompletableFuture().get();
 				while (rs.next()) {
@@ -118,7 +118,7 @@ public class ClusterDS {
 				transaction.commit();
 			} catch (Exception e) {
 				logger.error("Error in exporting a timeseries dataset.", e);
-				Slack.call("Exception", e.getLocalizedMessage());
+				Notifications.call("Exception", e.getLocalizedMessage());
 			}
 		}
 
@@ -141,9 +141,9 @@ public class ClusterDS {
 
 			// use day resolution for timeseries output
 			try (Transaction transaction = DB.beginTransaction();
-			        Connection connection = transaction.connection();
-			        PreparedStatement stmt = connection.prepareStatement(query + " ORDER BY day ASC;");
-			        ResultSet rs = stmt.executeQuery();) {
+					Connection connection = transaction.connection();
+					PreparedStatement stmt = connection.prepareStatement(query + " ORDER BY day ASC;");
+					ResultSet rs = stmt.executeQuery();) {
 
 				queue.offer(ByteString.fromString("day,events,dataset\n")).toCompletableFuture().get();
 				while (rs.next()) {
@@ -159,7 +159,7 @@ public class ClusterDS {
 				logger.error("Error in retrieving a timeseries.", e);
 			} catch (Exception e) {
 				logger.error("Error in retrieving a timeseries.", e);
-				Slack.call("Exception", e.getLocalizedMessage());
+				Notifications.call("Exception", e.getLocalizedMessage());
 			}
 		}
 		// use hour resolution for timeseries output
@@ -168,14 +168,14 @@ public class ClusterDS {
 				String id = datasetConnector.getDatasetDS(ds).getDataTableName();
 				String name = ds.getName().replace("'", "");
 				return "SELECT PARSEDATETIME(FORMATDATETIME(ts, 'yyyy-MM-dd HH'), 'yyyy-MM-dd HH') AS day, count(*) as events, '"
-				        + name + "' FROM " + id + " GROUP BY day";
+						+ name + "' FROM " + id + " GROUP BY day";
 			}).collect(Collectors.joining(" UNION "));
 
 			// use day resolution for timeseries output
 			try (Transaction transaction = DB.beginTransaction();
-			        Connection connection = transaction.connection();
-			        PreparedStatement stmt = connection.prepareStatement(query + " ORDER BY day ASC;");
-			        ResultSet rs = stmt.executeQuery();) {
+					Connection connection = transaction.connection();
+					PreparedStatement stmt = connection.prepareStatement(query + " ORDER BY day ASC;");
+					ResultSet rs = stmt.executeQuery();) {
 
 				queue.offer(ByteString.fromString("day,events,dataset\n")).toCompletableFuture().get();
 				while (rs.next()) {
@@ -191,7 +191,7 @@ public class ClusterDS {
 				logger.error("Error in retrieving a timeseries.", e);
 			} catch (Exception e) {
 				logger.error("Error in retrieving a timeseries.", e);
-				Slack.call("Exception", e.getLocalizedMessage());
+				Notifications.call("Exception", e.getLocalizedMessage());
 			}
 		}
 
@@ -212,38 +212,37 @@ public class ClusterDS {
 
 		// get list of device Ids
 		String deviceIds = cluster.getDevices().stream().map(d -> d.getId().toString())
-		        .collect(Collectors.joining(","));
+				.collect(Collectors.joining(","));
 		String participantIds = cluster.getParticipants().stream().map(d -> d.getId().toString())
-		        .collect(Collectors.joining(","));
+				.collect(Collectors.joining(","));
 		// List<Long> wearableIds = c.wearables.stream().map(d -> d.id).collect(Collectors.toList());
 
 		// use day resolution for timeseries output
 		if (project.getCreation().toInstant().plus(30, ChronoUnit.DAYS).isBefore(Instant.now())) {
 			String query = project.getDatasets().stream().filter(ds -> (ds.getDsType() == DatasetType.ANNOTATION
-			        || ds.getDsType() == DatasetType.IOT || ds.getDsType() == DatasetType.DIARY)).map(ds -> {
+					|| ds.getDsType() == DatasetType.IOT || ds.getDsType() == DatasetType.DIARY)).map(ds -> {
 
-				        if (ds.getDsType() == DatasetType.ANNOTATION) {
-					        String id = datasetConnector.getDatasetDS(ds).getDataTableName();
-					        String name = ds.getName().replace("'", "");
-					        return "SELECT TRUNCATE(ts) AS day, count(*) as events, '" + name
-					                + "' FROM " + id + " GROUP BY day ";
-				        }
-				        if (ds.getDsType() == DatasetType.IOT) {
-					        String id = datasetConnector.getDatasetDS(ds).getDataTableName();
-					        String name = ds.getName().replace("'", "");
-					        return "SELECT TRUNCATE(ts) AS day, count(*) as events, '" + name
-					                + "' FROM " + id + " WHERE device_id IN (" + deviceIds + ") GROUP BY day ";
-				        }
-				        if (ds.getDsType() == DatasetType.DIARY) {
-					        String id = datasetConnector.getDatasetDS(ds).getDataTableName();
-					        String name = ds.getName().replace("'", "");
-					        return "SELECT TRUNCATE(ts) AS day, count(*) as events, '" + name
-					                + "' FROM " + id + " WHERE participant_id IN (" + participantIds
-					                + ") GROUP BY day ";
-				        }
+						if (ds.getDsType() == DatasetType.ANNOTATION) {
+							String id = datasetConnector.getDatasetDS(ds).getDataTableName();
+							String name = ds.getName().replace("'", "");
+							return "SELECT TRUNCATE(ts) AS day, count(*) as events, '" + name + "' FROM " + id
+									+ " GROUP BY day ";
+						}
+						if (ds.getDsType() == DatasetType.IOT) {
+							String id = datasetConnector.getDatasetDS(ds).getDataTableName();
+							String name = ds.getName().replace("'", "");
+							return "SELECT TRUNCATE(ts) AS day, count(*) as events, '" + name + "' FROM " + id
+									+ " WHERE device_id IN (" + deviceIds + ") GROUP BY day ";
+						}
+						if (ds.getDsType() == DatasetType.DIARY) {
+							String id = datasetConnector.getDatasetDS(ds).getDataTableName();
+							String name = ds.getName().replace("'", "");
+							return "SELECT TRUNCATE(ts) AS day, count(*) as events, '" + name + "' FROM " + id
+									+ " WHERE participant_id IN (" + participantIds + ") GROUP BY day ";
+						}
 
-				        return null;
-			        }).filter(s -> s != null).collect(Collectors.joining(" UNION "));
+						return null;
+					}).filter(s -> s != null).collect(Collectors.joining(" UNION "));
 
 			String sortingClause = ";";
 			if (query.contains("UNION")) {
@@ -262,9 +261,9 @@ public class ClusterDS {
 			}
 
 			try (Transaction transaction = DB.beginTransaction();
-			        Connection connection = transaction.connection();
-			        PreparedStatement stmt = connection.prepareStatement(query + sortingClause);
-			        ResultSet rs = stmt.executeQuery();) {
+					Connection connection = transaction.connection();
+					PreparedStatement stmt = connection.prepareStatement(query + sortingClause);
+					ResultSet rs = stmt.executeQuery();) {
 
 				queue.offer(ByteString.fromString("day,events,dataset\n")).toCompletableFuture().get();
 				while (rs.next()) {
@@ -280,36 +279,36 @@ public class ClusterDS {
 				logger.error("Error in exporting a timeseries.", e);
 			} catch (Exception e) {
 				logger.error("Error in exporting a timeseries.", e);
-				Slack.call("Exception", e.getLocalizedMessage());
+				Notifications.call("Exception", e.getLocalizedMessage());
 			}
 		}
 		// use hour resolution for timeseries output
 		else {
 			String query = project.getDatasets().stream().filter(ds -> (ds.getDsType() == DatasetType.ANNOTATION
-			        || ds.getDsType() == DatasetType.IOT || ds.getDsType() == DatasetType.DIARY)).map(ds -> {
+					|| ds.getDsType() == DatasetType.IOT || ds.getDsType() == DatasetType.DIARY)).map(ds -> {
 
-				        if (ds.getDsType() == DatasetType.ANNOTATION) {
-					        String id = datasetConnector.getDatasetDS(ds).getDataTableName();
-					        String name = ds.getName().replace("'", "");
-					        return "SELECT PARSEDATETIME(FORMATDATETIME(ts, 'yyyy-MM-dd HH'), 'yyyy-MM-dd HH') AS day, count(*) as events, '"
-					                + name + "' FROM " + id + " GROUP BY day ";
-				        }
-				        if (ds.getDsType() == DatasetType.IOT) {
-					        String id = datasetConnector.getDatasetDS(ds).getDataTableName();
-					        String name = ds.getName().replace("'", "");
-					        return "SELECT PARSEDATETIME(FORMATDATETIME(ts, 'yyyy-MM-dd HH'), 'yyyy-MM-dd HH') AS day, count(*) as events, '"
-					                + name + "' FROM " + id + " WHERE device_id IN (" + deviceIds + ") GROUP BY day ";
-				        }
-				        if (ds.getDsType() == DatasetType.DIARY) {
-					        String id = datasetConnector.getDatasetDS(ds).getDataTableName();
-					        String name = ds.getName().replace("'", "");
-					        return "SELECT PARSEDATETIME(FORMATDATETIME(ts, 'yyyy-MM-dd HH'), 'yyyy-MM-dd HH') AS day, count(*) as events, '"
-					                + name + "' FROM " + id + " WHERE participant_id IN (" + participantIds
-					                + ") GROUP BY day ";
-				        }
+						if (ds.getDsType() == DatasetType.ANNOTATION) {
+							String id = datasetConnector.getDatasetDS(ds).getDataTableName();
+							String name = ds.getName().replace("'", "");
+							return "SELECT PARSEDATETIME(FORMATDATETIME(ts, 'yyyy-MM-dd HH'), 'yyyy-MM-dd HH') AS day, count(*) as events, '"
+									+ name + "' FROM " + id + " GROUP BY day ";
+						}
+						if (ds.getDsType() == DatasetType.IOT) {
+							String id = datasetConnector.getDatasetDS(ds).getDataTableName();
+							String name = ds.getName().replace("'", "");
+							return "SELECT PARSEDATETIME(FORMATDATETIME(ts, 'yyyy-MM-dd HH'), 'yyyy-MM-dd HH') AS day, count(*) as events, '"
+									+ name + "' FROM " + id + " WHERE device_id IN (" + deviceIds + ") GROUP BY day ";
+						}
+						if (ds.getDsType() == DatasetType.DIARY) {
+							String id = datasetConnector.getDatasetDS(ds).getDataTableName();
+							String name = ds.getName().replace("'", "");
+							return "SELECT PARSEDATETIME(FORMATDATETIME(ts, 'yyyy-MM-dd HH'), 'yyyy-MM-dd HH') AS day, count(*) as events, '"
+									+ name + "' FROM " + id + " WHERE participant_id IN (" + participantIds
+									+ ") GROUP BY day ";
+						}
 
-				        return null;
-			        }).filter(s -> s != null).collect(Collectors.joining(" UNION "));
+						return null;
+					}).filter(s -> s != null).collect(Collectors.joining(" UNION "));
 
 			String sortingClause = ";";
 			if (query.contains("UNION")) {
@@ -328,9 +327,9 @@ public class ClusterDS {
 			}
 
 			try (Transaction transaction = DB.beginTransaction();
-			        Connection connection = transaction.connection();
-			        PreparedStatement stmt = connection.prepareStatement(query + sortingClause);
-			        ResultSet rs = stmt.executeQuery();) {
+					Connection connection = transaction.connection();
+					PreparedStatement stmt = connection.prepareStatement(query + sortingClause);
+					ResultSet rs = stmt.executeQuery();) {
 
 				queue.offer(ByteString.fromString("day,events,dataset\n")).toCompletableFuture().get();
 				while (rs.next()) {
@@ -346,7 +345,7 @@ public class ClusterDS {
 				logger.error("Error in exporting a timeseries.", e);
 			} catch (Exception e) {
 				logger.error("Error in exporting a timeseries.", e);
-				Slack.call("Exception", e.getLocalizedMessage());
+				Notifications.call("Exception", e.getLocalizedMessage());
 			}
 		}
 

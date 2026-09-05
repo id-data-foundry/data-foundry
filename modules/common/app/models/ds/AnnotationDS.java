@@ -24,8 +24,8 @@ import models.Dataset;
 import models.sr.Cluster;
 import play.Logger;
 import play.libs.Json;
+import services.notifications.Notifications;
 import services.outlets.OOCSIStreamOutService;
-import services.slack.Slack;
 
 public class AnnotationDS extends LinkedDS {
 
@@ -44,12 +44,12 @@ public class AnnotationDS extends LinkedDS {
 	public void createInstance() {
 		try (Transaction transaction = DB.beginTransaction(); Connection connection = transaction.connection();) {
 			connection.createStatement().execute("CREATE TABLE IF NOT EXISTS " + dataTableName + " ( " //
-			        + "id bigint auto_increment not null," //
-			        + "cluster_id bigint," //
-			        + "ts timestamp," //
-			        + "title varchar(255)," //
-			        + "text TEXT," //
-			        + "PRIMARY KEY (id) );");
+					+ "id bigint auto_increment not null," //
+					+ "cluster_id bigint," //
+					+ "ts timestamp," //
+					+ "title varchar(255)," //
+					+ "text TEXT," //
+					+ "PRIMARY KEY (id) );");
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in creating dataset DB table.", e);
@@ -65,7 +65,7 @@ public class AnnotationDS extends LinkedDS {
 				// schema is ok, do nothing
 			} else {
 				connection.createStatement().execute("ALTER TABLE IF EXISTS " + dataTableName + " " //
-				        + "ALTER COLUMN text TEXT;");
+						+ "ALTER COLUMN text TEXT;");
 				logger.info("Dataset table " + dataTableName + " migrated.");
 			}
 			transaction.commit();
@@ -87,9 +87,9 @@ public class AnnotationDS extends LinkedDS {
 
 		// insert record
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("INSERT INTO " + dataTableName
-		                + " (cluster_id, ts, title, text )" + " VALUES (?, ?, ?, ?);");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("INSERT INTO " + dataTableName
+						+ " (cluster_id, ts, title, text )" + " VALUES (?, ?, ?, ?);");) {
 
 			// use raw JDBC
 			stmt.setLong(1, cluster_id);
@@ -103,10 +103,10 @@ public class AnnotationDS extends LinkedDS {
 
 			// post update on OOCSI
 			oocsiStreaming.datasetUpdate(dataset, OOCSIStreamOutService.map().put("operation", "add")
-			        .put("title", nss(title, 255)).put("text", nss(text)).put("cluster", cluster_id).build());
+					.put("title", nss(title, 255)).put("text", nss(text)).put("cluster", cluster_id).build());
 		} catch (SQLException e) {
 			logger.error("Error in writing record to table.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 	}
 
@@ -119,11 +119,11 @@ public class AnnotationDS extends LinkedDS {
 
 		// create the actual database for the data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("SELECT id, cluster_id, ts, title, text FROM "
-		                + dataTableName + timeFilterWhereClause(start, end) + " ORDER BY id ASC "
-		                + limitExpression(limit) + ";");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("SELECT id, cluster_id, ts, title, text FROM "
+						+ dataTableName + timeFilterWhereClause(start, end) + " ORDER BY id ASC "
+						+ limitExpression(limit) + ";");
+				ResultSet rs = stmt.executeQuery();) {
 
 			// sourceActor.tell(ByteString.fromString("# dataset export created on " + new Date() + "\n"), null);
 			queue.offer(ByteString.fromString("id,cluster_id,ts,title,text\n")).toCompletableFuture().get();
@@ -142,7 +142,7 @@ public class AnnotationDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in exporting from DB.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		queue.complete();
@@ -157,16 +157,16 @@ public class AnnotationDS extends LinkedDS {
 			whereClause = timeFilterWhereClause(start, end);
 		} else {
 			whereClause = " WHERE cluster_id IN (" + cluster.getId() + ") "
-			        + timeFilterWhereClause(start, end).replace("WHERE", "AND");
+					+ timeFilterWhereClause(start, end).replace("WHERE", "AND");
 		}
 
 		List<ObjectNode> objects = new LinkedList<ObjectNode>();
 		// export the data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("SELECT id, cluster_id, ts, title, text FROM "
-		                + dataTableName + whereClause + " ORDER BY id DESC LIMIT " + limit + ";");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("SELECT id, cluster_id, ts, title, text FROM "
+						+ dataTableName + whereClause + " ORDER BY id DESC LIMIT " + limit + ";");
+				ResultSet rs = stmt.executeQuery();) {
 
 			while (rs.next()) {
 				// ObjectNode on = result.addObject();
@@ -183,7 +183,7 @@ public class AnnotationDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in exporting from DB.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		ArrayNode result = Json.newArray();

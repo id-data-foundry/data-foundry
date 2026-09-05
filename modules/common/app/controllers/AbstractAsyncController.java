@@ -33,6 +33,7 @@ import play.mvc.Http.Request;
 import play.mvc.Http.RequestHeader;
 import play.mvc.Result;
 import services.maintenance.RealTimeNotificationService;
+import services.notifications.SystemNotificationService;
 import utils.DateUtils;
 import utils.StringUtils;
 import utils.auth.TokenResolverUtil;
@@ -61,7 +62,10 @@ public class AbstractAsyncController extends Controller {
 	private TokenResolverUtil tokenResolverUtil;
 
 	@Inject
-	RealTimeNotificationService realtimeNotifications;
+	private RealTimeNotificationService realtimeNotifications;
+
+	@Inject
+	protected SystemNotificationService systemNotifications;
 
 	private static final Logger.ALogger logger = Logger.of(AbstractAsyncController.class);
 

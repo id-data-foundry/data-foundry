@@ -35,10 +35,10 @@ import services.inlets.ScheduledService;
 import services.jsexecutor.JSExecutorService;
 import services.maintenance.DatabaseBackupService;
 import services.maintenance.ProjectLifecycleService;
+import services.notifications.SystemNotificationService;
 import services.outlets.OOCSIStreamOutService;
 import services.processing.AnalyticsService;
 import services.search.SearchService;
-import services.slack.Slack;
 import services.telegrambot.TelegramBotService;
 import utils.conf.Configurator;
 
@@ -67,7 +67,8 @@ public class RefreshTask {
 			GoogleFitService gfService, DatabaseBackupService dbBackup, TelegramBotService telegramBotService,
 			JSExecutorService jsExecutorService, ProjectLifecycleService projectLifecycleService,
 			AnalyticsService analytics, SearchService searchService, UnmanagedAIApiService unmanagedAIService,
-			DatasetConnector datasetConnector, DatasetUpdateQueue datasetUpdateQueue) {
+			DatasetConnector datasetConnector, DatasetUpdateQueue datasetUpdateQueue,
+			SystemNotificationService notifications) {
 
 		this.actorSystem = actorSystem;
 		this.executionContext = executionContext;
@@ -85,7 +86,7 @@ public class RefreshTask {
 
 		// log application start for production
 		if (application.isProd()) {
-			Slack.call("System", "Application started");
+			notifications.send("System", "Application started");
 		}
 
 		lc.addStopHook(new Callable<CompletionStage<?>>() {
@@ -93,7 +94,7 @@ public class RefreshTask {
 			public CompletionStage<?> call() throws Exception {
 				// log application shutdown for production
 				if (application.isProd()) {
-					Slack.call("System", "Application shutdown");
+					notifications.send("System", "Application shutdown");
 				}
 
 //				// debug applications might need a cache shutdown

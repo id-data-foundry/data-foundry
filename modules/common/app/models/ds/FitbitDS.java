@@ -28,7 +28,7 @@ import models.sr.Participant;
 import models.sr.Wearable;
 import play.Logger;
 import play.libs.Json;
-import services.slack.Slack;
+import services.notifications.Notifications;
 
 public class FitbitDS extends LinkedDS {
 
@@ -47,26 +47,26 @@ public class FitbitDS extends LinkedDS {
 	public void createInstance() {
 		try (Transaction transaction = DB.beginTransaction(); Connection connection = transaction.connection();) {
 			connection.createStatement().execute("CREATE TABLE IF NOT EXISTS " + dataTableName + " ( " //
-			        + "id bigint auto_increment not null," //
-			        + "wearable_id bigint not null," //
-			        + "user_id varchar(50) not null," //
-			        + "ts timestamp not null," //
-			        + "pp1 varchar(255)," //
-			        + "pp2 varchar(255)," //
-			        + "pp3 varchar(255)," //
-			        + "data_date bigint," //
-			        + "heartrate int," //
-			        + "activity varchar(16383)," //
-			        + "calories float," //
-			        + "steps int," //
-			        + "distance float," //
-			        + "floors int," //
-			        + "elevation float," //
-			        + "sleep varchar(10)," //
-			        + "weight float," //
-			        + "bmi float," //
-			        + "fat float," //
-			        + "PRIMARY KEY (id) );");
+					+ "id bigint auto_increment not null," //
+					+ "wearable_id bigint not null," //
+					+ "user_id varchar(50) not null," //
+					+ "ts timestamp not null," //
+					+ "pp1 varchar(255)," //
+					+ "pp2 varchar(255)," //
+					+ "pp3 varchar(255)," //
+					+ "data_date bigint," //
+					+ "heartrate int," //
+					+ "activity varchar(16383)," //
+					+ "calories float," //
+					+ "steps int," //
+					+ "distance float," //
+					+ "floors int," //
+					+ "elevation float," //
+					+ "sleep varchar(10)," //
+					+ "weight float," //
+					+ "bmi float," //
+					+ "fat float," //
+					+ "PRIMARY KEY (id) );");
 
 			transaction.commit();
 		} catch (SQLException e) {
@@ -87,8 +87,8 @@ public class FitbitDS extends LinkedDS {
 				// scheme is ok, do nothing
 			} else {
 				connection.createStatement()
-				        .execute("ALTER TABLE " + dataTableName + " ADD COLUMN IF NOT EXISTS bmi float; "
-				                + "ALTER TABLE " + dataTableName + " ADD COLUMN IF NOT EXISTS fat float;");
+						.execute("ALTER TABLE " + dataTableName + " ADD COLUMN IF NOT EXISTS bmi float; "
+								+ "ALTER TABLE " + dataTableName + " ADD COLUMN IF NOT EXISTS fat float;");
 				logger.info("Applied db table migration for " + dataTableName + ": added column 'BMI' and 'FAT'.");
 			}
 			transaction.commit();
@@ -100,7 +100,7 @@ public class FitbitDS extends LinkedDS {
 	@Override
 	public String[] getSchema() {
 		return new String[] { "id", "wearable_id", "user_id", "ts", "pp1", "pp2", "pp3", "data_date", "heartrate",
-		        "activity", "calories", "steps", "distance", "floors", "elevation", "sleep", "weight", "bmi", "fat" };
+				"activity", "calories", "steps", "distance", "floors", "elevation", "sleep", "weight", "bmi", "fat" };
 	}
 
 	/**
@@ -114,32 +114,35 @@ public class FitbitDS extends LinkedDS {
 	public void addRecord(Wearable wearable, String scope, JsonNode jn, long dataDate) {
 		// insert record
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("INSERT INTO " + dataTableName
-		                + " (wearable_id, user_id, ts, pp1, pp2, pp3, data_date, heartrate, activity, calories, steps,"
-		                + " distance, floors, elevation, sleep, weight, bmi, fat )"
-		                + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("INSERT INTO " + dataTableName
+						+ " (wearable_id, user_id, ts, pp1, pp2, pp3, data_date, heartrate, activity, calories, steps,"
+						+ " distance, floors, elevation, sleep, weight, bmi, fat )"
+						+ " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);");) {
 
 			Participant participant = wearable.getClusterParticipant();
 			if (participant != null) {
 				stmt.setString(2, nss(participant.getId() + "", 50));
 				stmt.setString(4,
-				        nss(wearable.getPublicParameter1() == null
-				                ? (participant.getPublicParameter1() == null ? "" : participant.getPublicParameter1())
-				                : wearable.getPublicParameter1(), 255));
+						nss(wearable.getPublicParameter1() == null
+								? (participant.getPublicParameter1() == null ? "" : participant.getPublicParameter1())
+								: wearable.getPublicParameter1(), 255));
 				stmt.setString(5,
-				        nss(wearable.getPublicParameter2() == null
-				                ? (participant.getPublicParameter2() == null ? "" : participant.getPublicParameter2())
-				                : wearable.getPublicParameter2(), 255));
+						nss(wearable.getPublicParameter2() == null
+								? (participant.getPublicParameter2() == null ? "" : participant.getPublicParameter2())
+								: wearable.getPublicParameter2(), 255));
 				stmt.setString(6,
-				        nss(wearable.getPublicParameter3() == null
-				                ? (participant.getPublicParameter3() == null ? "" : participant.getPublicParameter3())
-				                : wearable.getPublicParameter3(), 255));
+						nss(wearable.getPublicParameter3() == null
+								? (participant.getPublicParameter3() == null ? "" : participant.getPublicParameter3())
+								: wearable.getPublicParameter3(), 255));
 			} else {
 				stmt.setString(2, nss(wearable.getUserId(), 50));
-				stmt.setString(4, nss(wearable.getPublicParameter1() == null ? "" : wearable.getPublicParameter1(), 255));
-				stmt.setString(5, nss(wearable.getPublicParameter2() == null ? "" : wearable.getPublicParameter2(), 255));
-				stmt.setString(6, nss(wearable.getPublicParameter3() == null ? "" : wearable.getPublicParameter3(), 255));
+				stmt.setString(4,
+						nss(wearable.getPublicParameter1() == null ? "" : wearable.getPublicParameter1(), 255));
+				stmt.setString(5,
+						nss(wearable.getPublicParameter2() == null ? "" : wearable.getPublicParameter2(), 255));
+				stmt.setString(6,
+						nss(wearable.getPublicParameter3() == null ? "" : wearable.getPublicParameter3(), 255));
 			}
 
 			stmt.setLong(1, wearable.getId());
@@ -152,7 +155,8 @@ public class FitbitDS extends LinkedDS {
 			stmt.setString(12, scope.equals("distance") ? jn.get("value").toString() : "0");
 			stmt.setString(13, scope.equals("floors") ? jn.get("value").toString() : "0");
 			stmt.setString(14, scope.equals("elevation") ? jn.get("value").toString() : "0");
-			stmt.setString(15, scope.equals("sleep") ? (jn.has("level") ? nss(jn.get("level").toString(), 10) : "") : "");
+			stmt.setString(15,
+					scope.equals("sleep") ? (jn.has("level") ? nss(jn.get("level").toString(), 10) : "") : "");
 			stmt.setString(16, scope.equals("weight") ? jn.get("weight").toString() : "0");
 			stmt.setString(17, scope.equals("bmi") ? jn.get("bmi").toString() : "0");
 			stmt.setString(18, scope.equals("fat") ? jn.get("fat").toString() : "0");
@@ -161,7 +165,7 @@ public class FitbitDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in inserting record in dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 	}
 
@@ -176,32 +180,35 @@ public class FitbitDS extends LinkedDS {
 	public void addEmptyRecord(Wearable wearable, String scope, String emptyContent, long dataDate) {
 		// insert record
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("INSERT INTO " + dataTableName
-		                + " (wearable_id, user_id, ts, pp1, pp2, pp3, data_date, heartrate, activity, calories, steps,"
-		                + " distance, floors, elevation, sleep, weight, bmi, fat )"
-		                + " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("INSERT INTO " + dataTableName
+						+ " (wearable_id, user_id, ts, pp1, pp2, pp3, data_date, heartrate, activity, calories, steps,"
+						+ " distance, floors, elevation, sleep, weight, bmi, fat )"
+						+ " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);");) {
 
 			Participant participant = wearable.getClusterParticipant();
 			if (participant != null) {
 				stmt.setString(2, nss(participant.getId() + "", 50));
 				stmt.setString(4,
-				        nss(wearable.getPublicParameter1() == null
-				                ? (participant.getPublicParameter1() == null ? "" : participant.getPublicParameter1())
-				                : wearable.getPublicParameter1(), 255));
+						nss(wearable.getPublicParameter1() == null
+								? (participant.getPublicParameter1() == null ? "" : participant.getPublicParameter1())
+								: wearable.getPublicParameter1(), 255));
 				stmt.setString(5,
-				        nss(wearable.getPublicParameter2() == null
-				                ? (participant.getPublicParameter2() == null ? "" : participant.getPublicParameter2())
-				                : wearable.getPublicParameter2(), 255));
+						nss(wearable.getPublicParameter2() == null
+								? (participant.getPublicParameter2() == null ? "" : participant.getPublicParameter2())
+								: wearable.getPublicParameter2(), 255));
 				stmt.setString(6,
-				        nss(wearable.getPublicParameter3() == null
-				                ? (participant.getPublicParameter3() == null ? "" : participant.getPublicParameter3())
-				                : wearable.getPublicParameter3(), 255));
+						nss(wearable.getPublicParameter3() == null
+								? (participant.getPublicParameter3() == null ? "" : participant.getPublicParameter3())
+								: wearable.getPublicParameter3(), 255));
 			} else {
 				stmt.setString(2, nss(wearable.getUserId(), 50));
-				stmt.setString(4, nss(wearable.getPublicParameter1() == null ? "" : wearable.getPublicParameter1(), 255));
-				stmt.setString(5, nss(wearable.getPublicParameter2() == null ? "" : wearable.getPublicParameter2(), 255));
-				stmt.setString(6, nss(wearable.getPublicParameter3() == null ? "" : wearable.getPublicParameter3(), 255));
+				stmt.setString(4,
+						nss(wearable.getPublicParameter1() == null ? "" : wearable.getPublicParameter1(), 255));
+				stmt.setString(5,
+						nss(wearable.getPublicParameter2() == null ? "" : wearable.getPublicParameter2(), 255));
+				stmt.setString(6,
+						nss(wearable.getPublicParameter3() == null ? "" : wearable.getPublicParameter3(), 255));
 			}
 
 			stmt.setLong(1, wearable.getId());
@@ -223,7 +230,7 @@ public class FitbitDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in inserting empty record in dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 	}
 
@@ -257,9 +264,9 @@ public class FitbitDS extends LinkedDS {
 		int rs = 0;
 		// insert record
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("UPDATE " + dataTableName + " SET " + scope
-		                + " = ?, ts = ? WHERE wearable_id = ? AND data_date = ?;");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("UPDATE " + dataTableName + " SET " + scope
+						+ " = ?, ts = ? WHERE wearable_id = ? AND data_date = ?;");) {
 
 			switch (scope) {
 			case "sleep":
@@ -288,7 +295,7 @@ public class FitbitDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in updating record in dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 
 			if (rs <= 0) {
 				addRecord(wearable, scope, jn, dataDate);
@@ -326,9 +333,9 @@ public class FitbitDS extends LinkedDS {
 		int rs = 0;
 		// insert record
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("UPDATE " + dataTableName + " SET " + scope
-		                + " = ?, ts = ? WHERE wearable_id = ? AND data_date = ?;");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("UPDATE " + dataTableName + " SET " + scope
+						+ " = ?, ts = ? WHERE wearable_id = ? AND data_date = ?;");) {
 
 			if (scope.equals("sleep")) {
 				stmt.setString(1, nss(emptyContent, 10));
@@ -345,7 +352,7 @@ public class FitbitDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in updating empty record in dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 
 			if (rs <= 0) {
 				addEmptyRecord(wearable, scope, emptyContent, dataDate);
@@ -367,13 +374,13 @@ public class FitbitDS extends LinkedDS {
 	 */
 	public void export(SourceQueueWithComplete<ByteString> queue, long limit, long start, long end) {
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("SELECT * FROM " + dataTableName
-		                + timeFilterWhereClause(start, end) + " ORDER BY id ASC " + limitExpression(limit) + ";");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("SELECT * FROM " + dataTableName
+						+ timeFilterWhereClause(start, end) + " ORDER BY id ASC " + limitExpression(limit) + ";");
+				ResultSet rs = stmt.executeQuery();) {
 
 			queue.offer(ByteString.fromString("id,wearable_id,user_id,ts,pp1,pp2,pp3,data_date,heartrate,activity"
-			        + ",calories,steps,distance,floors,elevation,sleep,weight,bmi,fat\n")).toCompletableFuture().get();
+					+ ",calories,steps,distance,floors,elevation,sleep,weight,bmi,fat\n")).toCompletableFuture().get();
 
 			while (rs.next()) {
 				StringBuffer sb = new StringBuffer();
@@ -404,7 +411,7 @@ public class FitbitDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 		}
 
 		queue.complete();
@@ -419,18 +426,18 @@ public class FitbitDS extends LinkedDS {
 			whereClause = timeFilterWhereClause(start, end);
 		} else {
 			whereClause = " WHERE wearable_id IN ("
-			        + cluster.getWearables().stream().map(w -> w.getId().toString()).collect(Collectors.joining(","))
-			        + ") " + timeFilterWhereClause(start, end).replace("WHERE", "AND");
+					+ cluster.getWearables().stream().map(w -> w.getId().toString()).collect(Collectors.joining(","))
+					+ ") " + timeFilterWhereClause(start, end).replace("WHERE", "AND");
 		}
 
 		List<ObjectNode> objects = new LinkedList<ObjectNode>();
 		// export the data
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement(
-		                "SELECT id, wearable_id, ts, activity, calories, heartrate, steps, distance, floors, elevation, weight, bmi, fat, sleep, pp1, pp2, pp3 FROM "
-		                        + dataTableName + whereClause + " ORDER BY id DESC LIMIT " + limit + ";");
-		        ResultSet rs = stmt.executeQuery();) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement(
+						"SELECT id, wearable_id, ts, activity, calories, heartrate, steps, distance, floors, elevation, weight, bmi, fat, sleep, pp1, pp2, pp3 FROM "
+								+ dataTableName + whereClause + " ORDER BY id DESC LIMIT " + limit + ";");
+				ResultSet rs = stmt.executeQuery();) {
 
 			while (rs.next()) {
 
@@ -459,7 +466,7 @@ public class FitbitDS extends LinkedDS {
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in exporting dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 
 		}
 
@@ -479,9 +486,9 @@ public class FitbitDS extends LinkedDS {
 
 		// insert record
 		try (Transaction transaction = DB.beginTransaction();
-		        Connection connection = transaction.connection();
-		        PreparedStatement stmt = connection.prepareStatement("SELECT id FROM " + dataTableName
-		                + " WHERE wearable_id = ? AND data_date >= ? AND data_date <= ?;");) {
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection.prepareStatement("SELECT id FROM " + dataTableName
+						+ " WHERE wearable_id = ? AND data_date >= ? AND data_date <= ?;");) {
 
 			stmt.setLong(1, wearable.getId());
 			stmt.setLong(2, timeStart);
@@ -493,7 +500,7 @@ public class FitbitDS extends LinkedDS {
 			return hasRecord;
 		} catch (Exception e) {
 			logger.error("Error in checking for record in dataset.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			Notifications.call("Exception", e.getLocalizedMessage());
 			return false;
 		}
 	}

@@ -42,7 +42,6 @@ import play.mvc.Http.MultipartFormData.FilePart;
 import play.mvc.Http.Request;
 import play.mvc.Result;
 import play.mvc.Security.Authenticated;
-import services.slack.Slack;
 import utils.DataUtils;
 import utils.DateUtils;
 import utils.auth.TokenResolverUtil;
@@ -768,7 +767,7 @@ public class ApiSpecs extends AbstractAsyncController {
 			return ok(okJSONResponseObject());
 		} catch (IOException | NullPointerException e) {
 			logger.error("Error in uploading dataset file.", e);
-			Slack.call("Exception", e.getLocalizedMessage());
+			systemNotifications.send("Exception", e.getLocalizedMessage());
 		}
 
 		return badRequest(errorJSONResponseObject("Invalid request, no files have been included in the request."));
