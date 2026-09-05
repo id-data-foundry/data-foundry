@@ -74,7 +74,7 @@ public class Person extends Model {
 	////////////////////////////////////////////////////////////////////////////////////////
 
 	public static Person register(String user_id, String firstname, String lastname, String email, String website,
-	        String password, String access_inline) {
+			String password, String access_inline) {
 		Person p = new Person();
 		p.setUser_id(user_id);
 		p.setIdentity(newIdentity().toString());
@@ -167,7 +167,7 @@ public class Person extends Model {
 	 */
 	public List<Project> projects() {
 		return projects.stream().filter(p -> p.isDFNativeProject() && !p.getRefId().equals(AdminUtils.SYSTEM_PROJECT))
-		        .collect(Collectors.toList());
+				.collect(Collectors.toList());
 	}
 
 	public List<Project> unManagedCollaborations() {
@@ -181,7 +181,7 @@ public class Person extends Model {
 	 */
 	public List<Project> collaborations() {
 		return collaborations.stream().map(c -> c.getProject()).filter(p -> p.isDFNativeProject())
-		        .collect(Collectors.toList());
+				.collect(Collectors.toList());
 	}
 
 	/**
@@ -192,12 +192,20 @@ public class Person extends Model {
 	public List<Project> getOwnAndCollabProjects() {
 		List<Project> results = new LinkedList<>();
 		results.addAll(this.projects().stream().sorted((p1, p2) -> p1.getId().compareTo(p2.getId()))
-		        .collect(Collectors.toList()));
-		results.addAll(this.collaborations.stream().filter(c -> c.getProject().isDFNativeProject()).map(c -> {
-			c.getProject().refresh();
-			return c.getProject();
-		}).sorted((p1, p2) -> p1.getId().compareTo(p2.getId())).collect(Collectors.toList()));
+				.collect(Collectors.toList()));
+		results.addAll(
+				this.collaborations.stream().filter(c -> c.getProject().isDFNativeProject()).map(c -> c.getProject())
+						.sorted((p1, p2) -> p1.getId().compareTo(p2.getId())).collect(Collectors.toList()));
 		return results;
+	}
+
+	/**
+	 * get the total count of own and collaboration projects of this user
+	 * 
+	 * @return
+	 */
+	public int getOwnAndCollabProjectsCount() {
+		return projects().size() + collaborations().size();
 	}
 
 	/**
@@ -207,7 +215,7 @@ public class Person extends Model {
 	 */
 	public List<Project> subscriptions() {
 		return subscriptions.stream().map(s -> s.getProject()).filter(p -> p.isDFNativeProject())
-		        .collect(Collectors.toList());
+				.collect(Collectors.toList());
 	}
 
 	/**
@@ -229,7 +237,7 @@ public class Person extends Model {
 	 */
 	public boolean owns(Project project) {
 		return projects.stream().anyMatch(p -> p.getId().equals(project.getId()))
-		        || project.getOwner().email.equals(this.email);
+				|| project.getOwner().email.equals(this.email);
 	}
 
 	/**
@@ -254,7 +262,7 @@ public class Person extends Model {
 	 */
 	public List<Collaboration> getCollaborations(Date monday) {
 		return collaborations.stream().filter(s -> DateUtils.isInWeekOf(monday, s.getCreated()))
-		        .collect(Collectors.toList());
+				.collect(Collectors.toList());
 	}
 
 	/**
@@ -279,7 +287,7 @@ public class Person extends Model {
 	 */
 	public List<Subscription> getSubscriptions(Date monday) {
 		return subscriptions.stream().filter(s -> DateUtils.isInWeekOf(monday, s.getCreated()))
-		        .collect(Collectors.toList());
+				.collect(Collectors.toList());
 	}
 
 	/**
@@ -343,9 +351,9 @@ public class Person extends Model {
 	 */
 	public List<Dataset> getUserActors() {
 		return this.projects().stream().flatMap(p -> p.getDatasets().stream())
-		        .filter(d -> d.getDsType().equals(DatasetType.COMPLETE) && d.getCollectorType() != null
-		                && d.getCollectorType().equals(Dataset.ACTOR))
-		        .collect(Collectors.toList());
+				.filter(d -> d.getDsType().equals(DatasetType.COMPLETE) && d.getCollectorType() != null
+						&& d.getCollectorType().equals(Dataset.ACTOR))
+				.collect(Collectors.toList());
 	}
 
 	/**
@@ -355,9 +363,9 @@ public class Person extends Model {
 	 */
 	public List<Dataset> getActiveUserActors() {
 		return this.projects().stream().flatMap(p -> p.getDatasets().stream())
-		        .filter(d -> d.getDsType().equals(DatasetType.COMPLETE) && d.isActive() && d.getCollectorType() != null
-		                && d.getCollectorType().equals(Dataset.ACTOR))
-		        .collect(Collectors.toList());
+				.filter(d -> d.getDsType().equals(DatasetType.COMPLETE) && d.isActive() && d.getCollectorType() != null
+						&& d.getCollectorType().equals(Dataset.ACTOR))
+				.collect(Collectors.toList());
 	}
 
 	/**
@@ -367,9 +375,9 @@ public class Person extends Model {
 	 */
 	public List<Dataset> getLiveUserActors() {
 		return this.projects().stream().flatMap(p -> p.getDatasets().stream())
-		        .filter(d -> d.getDsType().equals(DatasetType.COMPLETE) && d.isActive() && d.getCollectorType() != null
-		                && d.getCollectorType().equals(Dataset.ACTOR) && d.isScriptLive())
-		        .collect(Collectors.toList());
+				.filter(d -> d.getDsType().equals(DatasetType.COMPLETE) && d.isActive() && d.getCollectorType() != null
+						&& d.getCollectorType().equals(Dataset.ACTOR) && d.isScriptLive())
+				.collect(Collectors.toList());
 	}
 
 	/**
@@ -388,10 +396,10 @@ public class Person extends Model {
 	 */
 	public List<Dataset> getUserCollaborationActors() {
 		return this.collaborations.stream().map(c -> c.getProject()).flatMap(p -> p.getDatasets().stream())
-		        .filter(d -> d.isScript()).map(d -> {
-			        d.getProject().refresh();
-			        return d;
-		        }).collect(Collectors.toList());
+				.filter(d -> d.isScript()).map(d -> {
+					d.getProject().refresh();
+					return d;
+				}).collect(Collectors.toList());
 	}
 
 	/**
@@ -401,7 +409,7 @@ public class Person extends Model {
 	 */
 	public List<Dataset> getUserNotebookDatasets(DatasetConnector datasetConnector) {
 		return this.projects().stream().flatMap(p -> p.getCompleteDatasets().stream()).filter(ds -> ds.isWebsite())
-		        .collect(Collectors.toList());
+				.collect(Collectors.toList());
 	}
 
 	/**
@@ -411,7 +419,7 @@ public class Person extends Model {
 	 */
 	public List<Dataset> getSavedExports(List<Project> filterProjects) {
 		return filterProjects.stream().flatMap(p -> p.getDatasets().stream()).filter(d -> d.isSavedExport())
-		        .collect(Collectors.toList());
+				.collect(Collectors.toList());
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -602,8 +610,8 @@ public class Person extends Model {
 	public String getInitials() {
 		// Extended list of common last name prefixes to exclude (all lowercase)
 		final String[] PREFIXES = { "van", "von", "van der", "van de", "van den", "de", "der", "den", "del", "della",
-		        "dello", "degli", "dei", "du", "des", "d'", "da", "das", "do", "dos", "af", "av", "mac", "mc", "o'",
-		        "le", "la", "el" };
+				"dello", "degli", "dei", "du", "des", "d'", "da", "das", "do", "dos", "af", "av", "mac", "mc", "o'",
+				"le", "la", "el" };
 
 		// Handle first name: take the first word
 		String firstInitial = "";

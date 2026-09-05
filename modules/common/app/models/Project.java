@@ -11,7 +11,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -150,7 +149,7 @@ public class Project extends Model {
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	public static Project create(String name, Person owner, String intro, boolean publicProject,
-	        boolean shareableProject) {
+			boolean shareableProject) {
 		Project p = new Project();
 		p.setName(name);
 		p.setRefId("p" + UUID.randomUUID().toString().replace("-", "").substring(0, 16));
@@ -183,8 +182,8 @@ public class Project extends Model {
 	 * @return
 	 */
 	public boolean belongsTo(String username) {
-		getOwner().refresh();
-		return getOwner().getEmail().equalsIgnoreCase(username);
+		return username != null && getOwner() != null && getOwner().getEmail() != null
+				&& getOwner().getEmail().equalsIgnoreCase(username);
 	}
 
 	/**
@@ -204,11 +203,8 @@ public class Project extends Model {
 	 * @return
 	 */
 	public boolean collaboratesWith(String username) {
-		Predicate<Collaboration> p1 = c -> c.getCollaborator().getEmail().equalsIgnoreCase(username);
-		return username != null && collaborators.stream().map(c -> {
-			c.getCollaborator().refresh();
-			return c;
-		}).anyMatch(p1);
+		return username != null && collaborators.stream().anyMatch(
+				c -> c.getCollaborator() != null && username.equalsIgnoreCase(c.getCollaborator().getEmail()));
 	}
 
 	/**
@@ -218,11 +214,8 @@ public class Project extends Model {
 	 * @return
 	 */
 	public boolean subscribedBy(String username) {
-		Predicate<Subscription> p1 = c -> c.getSubscriber().getEmail().equals(username);
-		return username != null && subscribers.stream().map(c -> {
-			c.getSubscriber().refresh();
-			return c;
-		}).anyMatch(p1);
+		return username != null && subscribers.stream()
+				.anyMatch(c -> c.getSubscriber() != null && username.equals(c.getSubscriber().getEmail()));
 	}
 
 	/**
@@ -232,11 +225,7 @@ public class Project extends Model {
 	 * @return
 	 */
 	public boolean subscribedBy(Person user) {
-		Predicate<Subscription> p1 = c -> c.getSubscriber().equals(user);
-		return user != null && subscribers.stream().map(c -> {
-			c.getSubscriber().refresh();
-			return c;
-		}).anyMatch(p1);
+		return user != null && subscribers.stream().anyMatch(c -> user.equals(c.getSubscriber()));
 	}
 
 	/**
@@ -352,8 +341,8 @@ public class Project extends Model {
 	 */
 	public String getTeamNames() {
 		return getCollaborators().stream().map(c -> c.getCollaborator())
-		        .sorted((a, b) -> a.getLastname().compareToIgnoreCase(b.getLastname())).map(p -> p.getName())
-		        .collect(Collectors.joining(", "));
+				.sorted((a, b) -> a.getLastname().compareToIgnoreCase(b.getLastname())).map(p -> p.getName())
+				.collect(Collectors.joining(", "));
 	}
 
 	/**
@@ -364,7 +353,7 @@ public class Project extends Model {
 	 */
 	public List<Person> getTeam() {
 		return Stream.concat(Stream.of(getOwner()), getCollaborators().stream().map(c -> c.getCollaborator()))
-		        .sorted((a, b) -> a.getLastname().compareToIgnoreCase(b.getLastname())).collect(Collectors.toList());
+				.sorted((a, b) -> a.getLastname().compareToIgnoreCase(b.getLastname())).collect(Collectors.toList());
 	}
 
 	/**
@@ -375,10 +364,10 @@ public class Project extends Model {
 	 */
 	public List<Person> getOwnerAndTeam() {
 		return Stream
-		        .concat(Stream.of(getOwner()),
-		                collaborators.stream().map(c -> c.getCollaborator())
-		                        .sorted((a, b) -> a.getLastname().compareToIgnoreCase(b.getLastname())))
-		        .collect(Collectors.toList());
+				.concat(Stream.of(getOwner()),
+						collaborators.stream().map(c -> c.getCollaborator())
+								.sorted((a, b) -> a.getLastname().compareToIgnoreCase(b.getLastname())))
+				.collect(Collectors.toList());
 	}
 
 	/**
@@ -389,10 +378,10 @@ public class Project extends Model {
 	 */
 	public String getOwnerAndTeamNames() {
 		return Stream
-		        .concat(Stream.of(getOwner()),
-		                collaborators.stream().map(c -> c.getCollaborator())
-		                        .sorted((a, b) -> a.getLastname().compareToIgnoreCase(b.getLastname())))
-		        .map(p -> p.getName()).collect(Collectors.joining(", "));
+				.concat(Stream.of(getOwner()),
+						collaborators.stream().map(c -> c.getCollaborator())
+								.sorted((a, b) -> a.getLastname().compareToIgnoreCase(b.getLastname())))
+				.map(p -> p.getName()).collect(Collectors.joining(", "));
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -412,43 +401,24 @@ public class Project extends Model {
 	}
 
 	public boolean hasParticipantWithEmail(String email) {
-		Predicate<Participant> p1 = c -> c.getEmail().equalsIgnoreCase(email);
-		return participants.stream().map(c -> {
-			c.refresh();
-			return c;
-		}).anyMatch(p1);
+		return email != null
+				&& participants.stream().anyMatch(c -> c.getEmail() != null && c.getEmail().equalsIgnoreCase(email));
 	}
 
 	public boolean hasParticipant(Participant participant) {
-		Predicate<Participant> p1 = c -> c.getId().equals(participant.getId());
-		return participants.stream().map(c -> {
-			c.refresh();
-			return c;
-		}).anyMatch(p1);
+		return participant != null && participants.stream().anyMatch(c -> c.getId().equals(participant.getId()));
 	}
 
 	public boolean hasDevice(String deviceRefId) {
-		Predicate<Device> p1 = c -> c.getRefId().equals(deviceRefId);
-		return devices.stream().map(c -> {
-			c.refresh();
-			return c;
-		}).anyMatch(p1);
+		return deviceRefId != null && devices.stream().anyMatch(c -> deviceRefId.equals(c.getRefId()));
 	}
 
 	public boolean hasDevice(Device device) {
-		Predicate<Device> p1 = c -> c.getId().equals(device.getId());
-		return devices.stream().map(c -> {
-			c.refresh();
-			return c;
-		}).anyMatch(p1);
+		return device != null && devices.stream().anyMatch(c -> c.getId().equals(device.getId()));
 	}
 
 	public boolean hasWearable(Wearable wearable) {
-		Predicate<Wearable> p1 = c -> c.getId().equals(wearable.getId());
-		return wearables.stream().map(c -> {
-			c.refresh();
-			return c;
-		}).anyMatch(p1);
+		return wearable != null && wearables.stream().anyMatch(c -> c.getId().equals(wearable.getId()));
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -581,7 +551,7 @@ public class Project extends Model {
 	 */
 	public boolean isDFNativeProject() {
 		return getRelation() == null || (!getRelation().startsWith("$report$")
-		        && !getRelation().startsWith("$pinboard$") && !getRelation().startsWith("$feedback$"));
+				&& !getRelation().startsWith("$pinboard$") && !getRelation().startsWith("$feedback$"));
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -600,7 +570,7 @@ public class Project extends Model {
 
 	public String[] getKeywordList() {
 		return Arrays.stream(getKeywords().split(",")).map(String::trim).filter(kw -> !kw.isEmpty())
-		        .collect(Collectors.toUnmodifiableList()).toArray(new String[] {});
+				.collect(Collectors.toUnmodifiableList()).toArray(new String[] {});
 	}
 
 	public String getDoi() {
@@ -816,7 +786,7 @@ public class Project extends Model {
 	 */
 	public Dataset getProjectWebsiteDataset() {
 		Optional<Dataset> ds = this.datasets.stream()
-		        .filter(d -> d.getDsType().equals(DatasetType.COMPLETE) && d.getName().equals("www")).findFirst();
+				.filter(d -> d.getDsType().equals(DatasetType.COMPLETE) && d.getName().equals("www")).findFirst();
 		return ds.isPresent() ? ds.get() : null;
 	}
 
@@ -833,7 +803,7 @@ public class Project extends Model {
 	 */
 	public List<Dataset> getProjectActors() {
 		return this.datasets.stream().filter(d -> d.getDsType().equals(DatasetType.COMPLETE)
-		        && d.getCollectorType() != null && d.getCollectorType().equals("ACTOR")).collect(Collectors.toList());
+				&& d.getCollectorType() != null && d.getCollectorType().equals("ACTOR")).collect(Collectors.toList());
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1034,8 +1004,8 @@ public class Project extends Model {
 	 */
 	public List<Dataset> getWebsiteDatasets() {
 		return this.datasets.stream()
-		        .filter(d -> d.getDsType() == DatasetType.COMPLETE && d.isWebsiteLive() && d.isActive())
-		        .collect(Collectors.toList());
+				.filter(d -> d.getDsType() == DatasetType.COMPLETE && d.isWebsiteLive() && d.isActive())
+				.collect(Collectors.toList());
 	}
 
 	/**
@@ -1073,7 +1043,7 @@ public class Project extends Model {
 	 */
 	public Optional<Dataset> getStudyManagementDataset() {
 		return this.datasets.stream().filter(d -> d.getDsType() == DatasetType.COMPLETE && d.isStudyManagement())
-		        .findAny();
+				.findAny();
 	}
 
 	/**
@@ -1083,7 +1053,7 @@ public class Project extends Model {
 	 */
 	public Optional<Dataset> getNarrativeSurveyDataset() {
 		return this.datasets.stream().filter(d -> d.getDsType() == DatasetType.COMPLETE && d.isNarrativeSurvey())
-		        .findAny();
+				.findAny();
 	}
 
 	/**
@@ -1093,10 +1063,10 @@ public class Project extends Model {
 	 */
 	public Dataset getParticipantStudyDataset() {
 		return this.datasets.stream()
-		        .filter(d -> d.getDsType() == DatasetType.COMPLETE && d.isActive()
-		                && Dataset.PARTICIPANT_STUDY_PAGE.equals(d.getTargetObject())
-		                && !d.configuration(Dataset.WEB_ACCESS_TOKEN, "").isEmpty())
-		        .findFirst().orElse(Dataset.EMPTY_DATASET);
+				.filter(d -> d.getDsType() == DatasetType.COMPLETE && d.isActive()
+						&& Dataset.PARTICIPANT_STUDY_PAGE.equals(d.getTargetObject())
+						&& !d.configuration(Dataset.WEB_ACCESS_TOKEN, "").isEmpty())
+				.findFirst().orElse(Dataset.EMPTY_DATASET);
 	}
 
 	/**
@@ -1106,10 +1076,10 @@ public class Project extends Model {
 	 */
 	public Dataset getParticipantDashboardDataset() {
 		return this.datasets.stream()
-		        .filter(d -> d.getDsType() == DatasetType.COMPLETE && d.isActive()
-		                && Dataset.PARTICIPANT_DASHBOARD_PAGE.equals(d.getTargetObject())
-		                && !d.configuration(Dataset.WEB_ACCESS_TOKEN, "").isEmpty())
-		        .findFirst().orElse(Dataset.EMPTY_DATASET);
+				.filter(d -> d.getDsType() == DatasetType.COMPLETE && d.isActive()
+						&& Dataset.PARTICIPANT_DASHBOARD_PAGE.equals(d.getTargetObject())
+						&& !d.configuration(Dataset.WEB_ACCESS_TOKEN, "").isEmpty())
+				.findFirst().orElse(Dataset.EMPTY_DATASET);
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1130,7 +1100,7 @@ public class Project extends Model {
 	 */
 	private List<Dataset> getActiveDatasets(DatasetType datasetType) {
 		return this.datasets.stream().filter(d -> d.getDsType() == datasetType && d.isActive())
-		        .collect(Collectors.toList());
+				.collect(Collectors.toList());
 	}
 
 	/**
@@ -1148,19 +1118,19 @@ public class Project extends Model {
 
 	public Map<String, String> getAllDatasetUIStringSet() {
 		return this.datasets.stream().filter(ds -> !ds.isStudyManagement() && !ds.isSavedExport())
-		        .collect(Collectors.toMap(ds -> {
-			        if (ds.isScript()) {
-				        return "SCRIPT";
-			        } else {
-				        return ds.getDsType().toUIString();
-			        }
-		        }, ds -> {
-			        if (ds.isScript()) {
-				        return "orange lighten-3";
-			        } else {
-				        return ds.getDsType().toColorBG();
-			        }
-		        }, (a, b) -> a));
+				.collect(Collectors.toMap(ds -> {
+					if (ds.isScript()) {
+						return "SCRIPT";
+					} else {
+						return ds.getDsType().toUIString();
+					}
+				}, ds -> {
+					if (ds.isScript()) {
+						return "orange lighten-3";
+					} else {
+						return ds.getDsType().toColorBG();
+					}
+				}, (a, b) -> a));
 	}
 
 	/**
@@ -1176,7 +1146,7 @@ public class Project extends Model {
 		}
 
 		return Dataset.find.query().where().eq("project", this).and().eq("dsType", targetDS.getDsType()).and()
-		        .ge("start", targetDS.getStart()).orderBy("start asc").findList();
+				.ge("start", targetDS.getStart()).orderBy("start asc").findList();
 	}
 
 	/**
@@ -1194,13 +1164,13 @@ public class Project extends Model {
 
 	public float projectCompleteness() {
 		List<String> items = Arrays.asList(getName(), getRefId(), getIntro(), getDescription(), getKeywords(), getDoi(),
-		        getRelation(), getOrganization(), getRemarks(), getLicense());
+				getRelation(), getOrganization(), getRemarks(), getLicense());
 		return items.stream().filter(s -> nnne(s)).count() / (float) items.size();
 	}
 
 	public int metadataCompleteness() {
 		return (int) (100 * (projectCompleteness() + datasets.stream().map(ds -> (double) ds.datasetCompleteness())
-		        .collect(Collectors.summingDouble(d -> d))) / (float) (1 + datasets.size()));
+				.collect(Collectors.summingDouble(d -> d))) / (float) (1 + datasets.size()));
 	}
 
 	public long getLastUpdated() {
@@ -1226,7 +1196,7 @@ public class Project extends Model {
 	 */
 	public List<Collaboration> getCollaborations(Date monday) {
 		return this.collaborators.stream().filter(c -> DateUtils.isInWeekOf(monday, c.getCreated()))
-		        .collect(Collectors.toList());
+				.collect(Collectors.toList());
 	}
 
 	/**
@@ -1237,7 +1207,7 @@ public class Project extends Model {
 	 */
 	public List<Subscription> getSubscriptions(Date monday) {
 		return this.subscribers.stream().filter(s -> DateUtils.isInWeekOf(monday, s.getCreated()))
-		        .collect(Collectors.toList());
+				.collect(Collectors.toList());
 	}
 
 	/**
@@ -1248,7 +1218,7 @@ public class Project extends Model {
 	 */
 	public List<Participant> getParticipants(Date monday) {
 		return this.participants.stream().filter(s -> DateUtils.isInWeekOf(monday, s.getCreation()))
-		        .collect(Collectors.toList());
+				.collect(Collectors.toList());
 	}
 
 	/**
