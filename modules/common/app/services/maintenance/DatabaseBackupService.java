@@ -118,7 +118,7 @@ public class DatabaseBackupService implements ScheduledService {
 			if (dbStatsSemaphore.tryAcquire()) {
 				final ArrayNode an = Json.newArray();
 				try {
-					final List<Project> projects = Project.find.all();
+					final List<Project> projects = Project.find.query().where().eq("frozenProject", false).findList();
 					projects.forEach(project -> {
 
 						// don't touch frozen projects here

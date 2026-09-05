@@ -105,7 +105,12 @@ public class SearchService implements ScheduledService {
 		IndexWriterConfig config = new IndexWriterConfig(sa);
 		try (final IndexWriter w = new IndexWriter(newIndex, config);) {
 			final AtomicInteger ai = new AtomicInteger();
-			Project.find.all().forEach(project -> {
+			Project.find.query().where()
+					.eq("publicProject", true)
+					.eq("archivedProject", false)
+					.eq("frozenProject", false)
+					.findList()
+					.forEach(project -> {
 
 				Document doc = new Document();
 				doc.add(new StoredField("id", project.getId()));
