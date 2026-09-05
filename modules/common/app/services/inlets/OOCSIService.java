@@ -337,6 +337,41 @@ public class OOCSIService implements ScheduledService {
 		return new OOCSIDiagnostics();
 	}
 
+	/**
+	 * count the number of active subscriptions or registered services on this channel/service name,
+	 * excluding the specified dataset
+	 * 
+	 * @param channelName
+	 * @param excludeDatasetId
+	 * @return
+	 */
+	public synchronized int countSubscriptions(String channelName, long excludeDatasetId) {
+		if (channelName == null || channelName.trim().isEmpty()) {
+			return 0;
+		}
+
+		String trimmed = channelName.trim();
+		long countSubs = datasetSubscriptionList.entrySet().stream()
+				.filter(e -> !e.getKey().equals(excludeDatasetId) && e.getValue() != null
+						&& trimmed.equals(e.getValue().channelName))
+				.count();
+		long countServices = datasetServiceList.entrySet().stream()
+				.filter(e -> !e.getKey().equals(excludeDatasetId) && trimmed.equals(e.getValue()))
+				.count();
+		return (int) (countSubs + countServices);
+	}
+
+	/**
+	 * check whether a channel or service is currently subscribed/registered by any other dataset
+	 * 
+	 * @param channelName
+	 * @param excludeDatasetId
+	 * @return
+	 */
+	public synchronized boolean hasSubscription(String channelName, long excludeDatasetId) {
+		return countSubscriptions(channelName, excludeDatasetId) > 0;
+	}
+
 	static public class OOCSIDiagnostics {
 		public String lastSuccessfulEvent = "";
 

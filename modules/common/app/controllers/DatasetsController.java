@@ -5,7 +5,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -1846,22 +1845,13 @@ public class DatasetsController extends AbstractAsyncController {
 			return ok("");
 		}
 
-		// find all datasets have the same channel name
-		List<Dataset> dsList = new ArrayList<>();
-		Dataset.find.all().forEach(dataset -> {
-			// add to list if channel is present and it's not the current dataset
-			if (dataset.hasOOCSIChannel(targetChannel, channelName) && !ds.getId().equals(dataset.getId())) {
-				dsList.add(dataset);
-			}
-		});
-
-		// channel name is valid
-		if (dsList.isEmpty()) {
+		// check in-memory OOCSI subscriptions and registered services
+		int count = oocsiService.countSubscriptions(channelName, ds.getId());
+		if (count == 0) {
 			return ok("");
 		}
 
-		// return "in" for the channel name is used by datasets in the same project
-		return ok(dsList.size() + "");
+		return ok(count + "");
 	}
 
 	/**
