@@ -38,7 +38,7 @@ public class DBController extends AbstractAsyncController {
 
 	@AddCSRFToken
 	public Result index(Request request) {
-		if (!environment.isDev() || Project.find.all().size() > 0) {
+		if (!environment.isDev() || Project.find.query().exists()) {
 			return redirect(routes.HomeController.index());
 		}
 
@@ -53,7 +53,7 @@ public class DBController extends AbstractAsyncController {
 	public CompletionStage<Result> generateData(Request request) {
 		return CompletableFuture.supplyAsync(() -> {
 			// check permissions
-			if (!environment.isDev() || Project.find.all().size() > 0) {
+			if (!environment.isDev() || Project.find.query().exists()) {
 				return redirect(routes.HomeController.index());
 			}
 
@@ -68,12 +68,12 @@ public class DBController extends AbstractAsyncController {
 			logger.info("Database initialized and set up with mock data");
 
 			return ok("""
-			        <hr>
-			        <p>
-			        	Fresh data has arrived. 👍
-			        </p>
-			        <a href="/" class="btn">Back to home</a>
-			        """);
+					<hr>
+					<p>
+						Fresh data has arrived. 👍
+					</p>
+					<a href="/" class="btn">Back to home</a>
+					""");
 		});
 	}
 

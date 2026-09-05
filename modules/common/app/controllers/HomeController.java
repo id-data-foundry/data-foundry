@@ -93,7 +93,7 @@ public class HomeController extends AbstractAsyncController {
 	public Result index(Request request) {
 
 		// check if we are in DEV mode and the database is uninitialized
-		if (environment.isDev() && Project.find.all().isEmpty()) {
+		if (environment.isDev() && !Project.find.query().exists()) {
 			// redirect to dev init screen
 			return redirect(routes.DBController.index());
 		}
