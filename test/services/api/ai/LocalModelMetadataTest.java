@@ -14,9 +14,24 @@ import services.api.ai.LocalModelMetadata.ModelMetadata;
 
 public class LocalModelMetadataTest {
 
+	private static Path resolveTestFile(String relativePath) {
+		Path[] candidates = new Path[] {
+			Path.of(relativePath),
+			Path.of("DataFoundry", relativePath),
+			Path.of("../..", relativePath),
+			Path.of("..", relativePath)
+		};
+		for (Path p : candidates) {
+			if (Files.exists(p)) {
+				return p;
+			}
+		}
+		return Path.of(relativePath);
+	}
+
 	@Test
 	public void testParseOpenAIAPIModels() throws IOException {
-		String jsonContent = Files.readString(Path.of("test/services/api/ai/openai-api-format.json"));
+		String jsonContent = Files.readString(resolveTestFile("test/services/api/ai/openai-api-format.json"));
 		LocalModelMetadata localModelMetadata = new LocalModelMetadata();
 		localModelMetadata.updateModels(jsonContent);
 
@@ -34,7 +49,7 @@ public class LocalModelMetadataTest {
 
 	@Test
 	public void testParseLiteLLMFormat() throws IOException {
-		String jsonContent = Files.readString(Path.of("test/services/api/ai/litellm-format.json"));
+		String jsonContent = Files.readString(resolveTestFile("test/services/api/ai/litellm-format.json"));
 		LocalModelMetadata localModelMetadata = new LocalModelMetadata();
 		localModelMetadata.updateModels(jsonContent);
 

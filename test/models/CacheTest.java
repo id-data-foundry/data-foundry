@@ -27,6 +27,11 @@ public class CacheTest extends WithApplication {
 				.configure("db.default.driver", "org.h2.Driver")
 				.configure("db.default.url", "jdbc:h2:mem:play;DB_CLOSE_DELAY=-1")
 				.configure("play.evolutions.db.default.autoApply", true)
+				.configure("df.base_url", "http://localhost:9000")
+				.configure("df.keys.project", "test-project-secret")
+				.configure("df.keys.v2.user.api", "test-api-key")
+				.configure("df.keys.v2.multi.api", "test-api-key")
+				.configure("df.keys.registration", java.util.Collections.singletonList("test-access-code"))
 				.build();
 	}
 
