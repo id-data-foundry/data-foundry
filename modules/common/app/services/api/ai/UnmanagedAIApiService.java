@@ -20,10 +20,6 @@ import java.util.stream.StreamSupport;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
-import services.notifications.NotificationLevel;
-import services.notifications.NotificationMessage;
-import services.notifications.SystemNotificationService;
-
 import org.apache.pekko.stream.Materializer;
 import org.apache.pekko.stream.javadsl.FileIO;
 import org.apache.pekko.stream.javadsl.Sink;
@@ -53,6 +49,9 @@ import services.api.remoting.RemoteApiRequest;
 import services.api.remoting.RemoteRequestsExecutionService;
 import services.api.remoting.StreamingRemoteApiRequest;
 import services.inlets.ScheduledService;
+import services.notifications.NotificationLevel;
+import services.notifications.NotificationMessage;
+import services.notifications.SystemNotificationService;
 import utils.admin.AdminUtils;
 import utils.auth.TokenResolverUtil;
 import utils.conf.ConfigurationUtils;
@@ -61,7 +60,8 @@ import utils.conf.ConfigurationUtils;
 public class UnmanagedAIApiService extends AbstractAIApiService implements ApiServiceConstants, ScheduledService {
 
 	private static final Logger.ALogger logger = Logger.of(UnmanagedAIApiService.class);
-	private static final java.util.regex.Pattern TOTAL_TOKENS_PATTERN = java.util.regex.Pattern.compile("\"total_tokens\"\\s*:\\s*(\\d+)");
+	private static final java.util.regex.Pattern TOTAL_TOKENS_PATTERN = java.util.regex.Pattern
+			.compile("\"total_tokens\"\\s*:\\s*(\\d+)");
 
 	private final Config configuration;
 	private final RemoteRequestsExecutionService executionService;
@@ -94,7 +94,8 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 		this.notificationService = notificationService;
 
 		this.failureThreshold = configuration.hasPath(ConfigurationUtils.DF_NOTIFICATIONS_AI_THRESHOLD)
-				? configuration.getInt(ConfigurationUtils.DF_NOTIFICATIONS_AI_THRESHOLD) : 2;
+				? configuration.getInt(ConfigurationUtils.DF_NOTIFICATIONS_AI_THRESHOLD)
+				: 2;
 		this.alertOnOffline = !configuration.hasPath(ConfigurationUtils.DF_NOTIFICATIONS_AI_OFFLINE)
 				|| configuration.getBoolean(ConfigurationUtils.DF_NOTIFICATIONS_AI_OFFLINE);
 		this.alertOnRecovery = !configuration.hasPath(ConfigurationUtils.DF_NOTIFICATIONS_AI_RECOVERY)
@@ -136,7 +137,19 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 
 			// ok, parse and make a mapping data structure
 			String modelJson = internalAPIRequest.getResult();
-			localModelMetadata.updateModels(modelJson);
+			if (modelJson == null || modelJson.trim().isEmpty()) {
+				throw new IllegalStateException("Empty response from AI backend");
+			}
+
+			String errorMsg = extractErrorMessageIfPresent(modelJson);
+			if (errorMsg != null) {
+				throw new IllegalStateException(errorMsg);
+			}
+
+			boolean modelsLoaded = localModelMetadata.updateModels(modelJson);
+			if (!modelsLoaded) {
+				throw new IllegalStateException("No models returned by AI backend");
+			}
 
 			// additionally ping endpoints for capabilities
 			pingEndpoint("/chat/completions").thenAccept(localModelMetadata::setTextToTextAvailable);
@@ -149,13 +162,9 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 			if (isAiOnline.compareAndSet(false, true)) {
 				logger.info("✅ AI backend at " + aiBaseUrl + " is back ONLINE");
 				if (alertOnRecovery && notificationService != null) {
-					notificationService.send(NotificationMessage.builder()
-							.title("AI Service Online")
+					notificationService.send(NotificationMessage.builder().title("AI Service Online")
 							.message("AI service at " + aiBaseUrl + " has recovered and is now reachable.")
-							.level(NotificationLevel.INFO)
-							.tag("robot")
-							.tag("white_check_mark")
-							.build());
+							.level(NotificationLevel.INFO).tag("robot").tag("white_check_mark").build());
 				}
 			}
 
@@ -167,15 +176,10 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 			if (failures >= failureThreshold && isAiOnline.compareAndSet(true, false)) {
 				logger.warn("🚨 AI backend at " + aiBaseUrl + " marked OFFLINE after " + failures + " failures");
 				if (alertOnOffline && notificationService != null) {
-					notificationService.send(NotificationMessage.builder()
-							.title("AI Service Offline")
-							.message("AI service at " + aiBaseUrl + " is unreachable (failures: "
-									+ failures + "): " + e.getMessage())
-							.level(NotificationLevel.CRITICAL)
-							.tag("robot")
-							.tag("warning")
-							.tag("plug")
-							.build());
+					notificationService.send(NotificationMessage.builder().title("AI Service Offline")
+							.message("AI service at " + aiBaseUrl + " is unreachable (failures: " + failures + "): "
+									+ e.getMessage())
+							.level(NotificationLevel.CRITICAL).tag("robot").tag("warning").tag("plug").build());
 				}
 			}
 		}
@@ -196,6 +200,27 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 		}).exceptionally(e -> {
 			return false;
 		}).toCompletableFuture();
+	}
+
+	private String extractErrorMessageIfPresent(String json) {
+		if (json == null || json.trim().isEmpty()) {
+			return null;
+		}
+		try {
+			JsonNode node = Json.parse(json);
+			if (node.has("error")) {
+				JsonNode errorNode = node.get("error");
+				if (errorNode.isTextual()) {
+					return errorNode.asText();
+				} else if (errorNode.has("message") && errorNode.get("message").isTextual()) {
+					return errorNode.get("message").asText();
+				}
+				return errorNode.toString();
+			}
+		} catch (Exception e) {
+			// not valid JSON or parsing error
+		}
+		return null;
 	}
 
 	@Override
@@ -401,7 +426,8 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 							} else if (totalTokensVal == 0) {
 								finalTokens += estimatePromptTokens(request.getParams());
 							}
-							logModelInvocation(request, request.getModel(), mapTaskToType(request.getType()), finalTokens, true, null, System.currentTimeMillis() - start);
+							logModelInvocation(request, request.getModel(), mapTaskToType(request.getType()),
+									finalTokens, true, null, System.currentTimeMillis() - start);
 						} else {
 							request.appendResult(decodeString);
 						}
@@ -409,7 +435,9 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 					}).runWith(Sink.ignore(), materializer);
 				}).exceptionally((e) -> {
 					request.setResult(Optional.empty());
-					logModelInvocation(request, request.getModel(), mapTaskToType(request.getType()), request.getRequestedTokens(), false, e.getLocalizedMessage(), System.currentTimeMillis() - start);
+					logModelInvocation(request, request.getModel(), mapTaskToType(request.getType()),
+							request.getRequestedTokens(), false, e.getLocalizedMessage(),
+							System.currentTimeMillis() - start);
 					return null;
 				});
 	}
@@ -481,7 +509,9 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 					request.setResult(Optional.of(request
 							.errorMessage("API returned status " + res.getStatus() + ": " + errorMsg).toString()));
 					if (!request.isModelsRequest()) {
-						logModelInvocation(request, request.getModel(), mapTaskToType(request.getType()), request.getRequestedTokens(), false, "API returned status " + res.getStatus(), System.currentTimeMillis() - start);
+						logModelInvocation(request, request.getModel(), mapTaskToType(request.getType()),
+								request.getRequestedTokens(), false, "API returned status " + res.getStatus(),
+								System.currentTimeMillis() - start);
 					}
 					return CompletableFuture.completedFuture(null);
 				}
@@ -502,7 +532,9 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 										.put("prompt", request.getParams().path(REQUEST_PROMPT).asText(""))
 										.toString()));
 								if (!request.isModelsRequest()) {
-									logModelInvocation(request, request.getModel(), mapTaskToType(request.getType()), request.getRequestedTokens(), true, null, System.currentTimeMillis() - start);
+									logModelInvocation(request, request.getModel(), mapTaskToType(request.getType()),
+											request.getRequestedTokens(), true, null,
+											System.currentTimeMillis() - start);
 								}
 							});
 				} else if (request.getType().equals(REQUEST_TASK_SPEECH_GENERATION)) {
@@ -514,7 +546,9 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 							.runWith(FileIO.toPath(tempSpeechFile.toPath()), materializer).thenAccept(ioResult -> {
 								request.setResult(Optional.of(tempSpeechFile.getAbsolutePath()));
 								if (!request.isModelsRequest()) {
-									logModelInvocation(request, request.getModel(), mapTaskToType(request.getType()), request.getRequestedTokens(), true, null, System.currentTimeMillis() - start);
+									logModelInvocation(request, request.getModel(), mapTaskToType(request.getType()),
+											request.getRequestedTokens(), true, null,
+											System.currentTimeMillis() - start);
 								}
 							});
 				}
@@ -529,12 +563,14 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 							if (responseJson.has("usage") && responseJson.get("usage").has("total_tokens")) {
 								actualTokens = responseJson.get("usage").path("total_tokens").asInt(1);
 							} else {
-								actualTokens = estimatePromptTokens(request.getParams()) + estimateResponseTokens(responseJson);
+								actualTokens = estimatePromptTokens(request.getParams())
+										+ estimateResponseTokens(responseJson);
 							}
 						} catch (Exception e) {
 							actualTokens = request.getRequestedTokens();
 						}
-						logModelInvocation(request, request.getModel(), mapTaskToType(request.getType()), actualTokens, true, null, System.currentTimeMillis() - start);
+						logModelInvocation(request, request.getModel(), mapTaskToType(request.getType()), actualTokens,
+								true, null, System.currentTimeMillis() - start);
 					}
 					return CompletableFuture.completedFuture(null);
 				}
@@ -544,7 +580,9 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 				logger.error("AI API request: " + aiBaseUrl + request.getPath() + " ["
 						+ (System.currentTimeMillis() - start) + "ms]: " + e.getLocalizedMessage());
 				if (!request.isModelsRequest()) {
-					logModelInvocation(request, request.getModel(), mapTaskToType(request.getType()), request.getRequestedTokens(), false, e.getLocalizedMessage(), System.currentTimeMillis() - start);
+					logModelInvocation(request, request.getModel(), mapTaskToType(request.getType()),
+							request.getRequestedTokens(), false, e.getLocalizedMessage(),
+							System.currentTimeMillis() - start);
 				}
 				// don't issue an exception
 				return null;
@@ -553,7 +591,9 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 			logger.error("AI API request: " + aiBaseUrl + request.getPath() + " ["
 					+ (System.currentTimeMillis() - start) + "ms]: " + e.getLocalizedMessage());
 			if (!request.isModelsRequest()) {
-				logModelInvocation(request, request.getModel(), mapTaskToType(request.getType()), request.getRequestedTokens(), false, e.getLocalizedMessage(), System.currentTimeMillis() - start);
+				logModelInvocation(request, request.getModel(), mapTaskToType(request.getType()),
+						request.getRequestedTokens(), false, e.getLocalizedMessage(),
+						System.currentTimeMillis() - start);
 			}
 		}
 	}
@@ -586,7 +626,8 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 						int charCount = contentToEmbed.stream().mapToInt(String::length).sum();
 						embeddingTokens = Math.max(1, charCount / 4);
 					}
-					logModelInvocation("SYSTEM", username, LOCALAI_EMBEDDING_MODEL_DEFAULT, "embeddings", embeddingTokens, true, null, System.currentTimeMillis() - start);
+					logModelInvocation("SYSTEM", username, LOCALAI_EMBEDDING_MODEL_DEFAULT, "embeddings",
+							embeddingTokens, true, null, System.currentTimeMillis() - start);
 					return StreamSupport.stream(responseJson.get("data").spliterator(), false).map(item -> {
 						JsonNode embeddingNode = item.get("embedding");
 						return StreamSupport.stream(embeddingNode.spliterator(), false).map(JsonNode::asDouble)
@@ -594,10 +635,12 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 					}).collect(Collectors.toList());
 				}
 			}
-			logModelInvocation("SYSTEM", username, LOCALAI_EMBEDDING_MODEL_DEFAULT, "embeddings", 1, false, "Status code: " + res.getStatus(), System.currentTimeMillis() - start);
+			logModelInvocation("SYSTEM", username, LOCALAI_EMBEDDING_MODEL_DEFAULT, "embeddings", 1, false,
+					"Status code: " + res.getStatus(), System.currentTimeMillis() - start);
 		} catch (Exception e) {
 			logger.error("❌ Failed to fetch embeddings from AI backend: " + e.getMessage());
-			logModelInvocation("SYSTEM", username, LOCALAI_EMBEDDING_MODEL_DEFAULT, "embeddings", 1, false, e.getMessage(), System.currentTimeMillis() - start);
+			logModelInvocation("SYSTEM", username, LOCALAI_EMBEDDING_MODEL_DEFAULT, "embeddings", 1, false,
+					e.getMessage(), System.currentTimeMillis() - start);
 		}
 
 		return new LinkedList<>();
@@ -655,43 +698,46 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 			return "unknown";
 		}
 		switch (task) {
-			case REQUEST_TASK_CHAT_COMPLETION:
-			case REQUEST_TASK_COMPLETION:
-				return "t2t";
-			case REQUEST_TASK_IMAGE_GENERATION:
-				return "tti";
-			case REQUEST_TASK_SPEECH_GENERATION:
-				return "tts";
-			case REQUEST_TASK_AUDIO_TRANSCRIPTION:
-				return "stt";
-			case REQUEST_TASK_EMBEDDING:
-				return "embeddings";
-			default:
-				return task;
+		case REQUEST_TASK_CHAT_COMPLETION:
+		case REQUEST_TASK_COMPLETION:
+			return "t2t";
+		case REQUEST_TASK_IMAGE_GENERATION:
+			return "tti";
+		case REQUEST_TASK_SPEECH_GENERATION:
+			return "tts";
+		case REQUEST_TASK_AUDIO_TRANSCRIPTION:
+			return "stt";
+		case REQUEST_TASK_EMBEDDING:
+			return "embeddings";
+		default:
+			return task;
 		}
 	}
 
-	public void logModelInvocation(RemoteApiRequest request, String model, String modelType, int requestedTokens, boolean success, String errorMessage, long durationMs) {
+	public void logModelInvocation(RemoteApiRequest request, String model, String modelType, int requestedTokens,
+			boolean success, String errorMessage, long durationMs) {
 		String explicitUser = request != null ? request.getUsername() : null;
 		String apiKey = request != null ? request.getUserApiKey() : null;
 		logModelInvocation(apiKey, explicitUser, model, modelType, requestedTokens, success, errorMessage, durationMs);
 	}
 
-	public void logModelInvocation(String apiKey, String model, String modelType, int requestedTokens, boolean success, String errorMessage, long durationMs) {
+	public void logModelInvocation(String apiKey, String model, String modelType, int requestedTokens, boolean success,
+			String errorMessage, long durationMs) {
 		logModelInvocation(apiKey, null, model, modelType, requestedTokens, success, errorMessage, durationMs);
 	}
 
-	public void logModelInvocation(String apiKey, String explicitUsername, String model, String modelType, int requestedTokens, boolean success, String errorMessage, long durationMs) {
+	public void logModelInvocation(String apiKey, String explicitUsername, String model, String modelType,
+			int requestedTokens, boolean success, String errorMessage, long durationMs) {
 		try {
 			initDatastoreIfNeeded();
 			if (localAiUsageStore == null) {
 				return;
 			}
-			
+
 			String username = "SYSTEM";
 			String email = "system@df";
 			long projectId = -1L;
-			
+
 			if (apiKey != null && !apiKey.isEmpty() && !apiKey.equals("SYSTEM")) {
 				ApiKeyDetails details = getApiKeyDetails(apiKey);
 				if (details != null) {
@@ -699,7 +745,8 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 					email = details.email();
 					projectId = details.projectId();
 				} else if (apiKey.equals(getInternalDocumentationAPIKey())) {
-					if (explicitUsername != null && !explicitUsername.trim().isEmpty() && !"SYSTEM".equalsIgnoreCase(explicitUsername)) {
+					if (explicitUsername != null && !explicitUsername.trim().isEmpty()
+							&& !"SYSTEM".equalsIgnoreCase(explicitUsername)) {
 						username = explicitUsername;
 						email = explicitUsername.contains("@") ? explicitUsername : explicitUsername + "@df";
 					} else {
@@ -707,11 +754,13 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 						email = "system@df";
 					}
 				} else {
-					username = explicitUsername != null && !explicitUsername.trim().isEmpty() ? explicitUsername : "UNKNOWN";
+					username = explicitUsername != null && !explicitUsername.trim().isEmpty() ? explicitUsername
+							: "UNKNOWN";
 					email = apiKey;
 				}
 			} else if ("SYSTEM".equals(apiKey)) {
-				if (explicitUsername != null && !explicitUsername.trim().isEmpty() && !"SYSTEM".equalsIgnoreCase(explicitUsername)) {
+				if (explicitUsername != null && !explicitUsername.trim().isEmpty()
+						&& !"SYSTEM".equalsIgnoreCase(explicitUsername)) {
 					username = explicitUsername;
 					email = explicitUsername.contains("@") ? explicitUsername : explicitUsername + "@df";
 				} else {
@@ -719,7 +768,7 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 					email = "system@df";
 				}
 			}
-			
+
 			ObjectNode dataNode = Json.newObject();
 			dataNode.put("success", success);
 			dataNode.put("tokens", requestedTokens);
@@ -729,18 +778,11 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 			if (errorMessage != null && !errorMessage.isEmpty()) {
 				dataNode.put("error", errorMessage);
 			}
-			
+
 			String pp3Value = success ? "success" : "error";
-			
-			localAiUsageStore.internalAddRecord(
-				"local_ai_service",
-				username,
-				modelType,
-				pp3Value,
-				new java.util.Date(),
-				model != null ? model : "unknown",
-				dataNode
-			);
+
+			localAiUsageStore.internalAddRecord("local_ai_service", username, modelType, pp3Value, new java.util.Date(),
+					model != null ? model : "unknown", dataNode);
 		} catch (Exception e) {
 			logger.error("Failed to log model invocation: ", e);
 		}
@@ -768,8 +810,8 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 	}
 
 	/**
-	 * Estimates the number of prompt tokens from request parameters based on character count
-	 * as a fallback for legacy or non-compliant backends (Option A fallback).
+	 * Estimates the number of prompt tokens from request parameters based on character count as a fallback for legacy
+	 * or non-compliant backends (Option A fallback).
 	 *
 	 * @param params the JSON parameters of the request
 	 * @return estimated prompt token count (approx. 1 token per 4 characters)
@@ -790,8 +832,8 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 	}
 
 	/**
-	 * Estimates the number of response tokens from a JSON response payload based on character count
-	 * as a fallback for legacy or non-compliant backends (Option A fallback).
+	 * Estimates the number of response tokens from a JSON response payload based on character count as a fallback for
+	 * legacy or non-compliant backends (Option A fallback).
 	 *
 	 * @param responseJson the JSON response returned by the backend
 	 * @return estimated response token count (approx. 1 token per 4 characters)
@@ -801,7 +843,8 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 			return 0;
 		}
 		int charCount = 0;
-		if (responseJson.has("choices") && responseJson.get("choices").isArray() && responseJson.get("choices").size() > 0) {
+		if (responseJson.has("choices") && responseJson.get("choices").isArray()
+				&& responseJson.get("choices").size() > 0) {
 			JsonNode choice = responseJson.get("choices").get(0);
 			if (choice.has("message")) {
 				charCount += choice.get("message").path("content").asText("").length();

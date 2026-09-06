@@ -119,19 +119,19 @@ public class LocalModelMetadata {
 	 *
 	 * @param modelJson
 	 */
-	public void updateModels(String modelJson) {
+	public boolean updateModels(String modelJson) {
 		// parse and check if it's an array
-		if (modelJson == null || modelJson.isEmpty()) {
+		if (modelJson == null || modelJson.trim().isEmpty()) {
 			logger.warn("⚠️ Model update failed, JSON empty. Clearing models.");
 			clearModels();
-			return;
+			return false;
 		}
 
 		List<ModelMetadata> models = json2ModelList(modelJson);
 		if (models.isEmpty()) {
 			logger.warn("⚠️ No models found in JSON. Clearing models.");
 			clearModels();
-			return;
+			return false;
 		}
 
 		// then extract model meta data into a new map
@@ -155,6 +155,7 @@ public class LocalModelMetadata {
 		// Atomically replace the map
 		this.modelmapper = newModelMapper;
 //		logger.info("Successfully synced 🧪" + models.size() + " models.");
+		return true;
 	}
 
 	/**

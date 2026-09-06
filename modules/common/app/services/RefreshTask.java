@@ -35,6 +35,7 @@ import services.inlets.ScheduledService;
 import services.jsexecutor.JSExecutorService;
 import services.maintenance.DatabaseBackupService;
 import services.maintenance.ProjectLifecycleService;
+import services.notifications.NotificationLevel;
 import services.notifications.SystemNotificationService;
 import services.outlets.OOCSIStreamOutService;
 import services.processing.AnalyticsService;
@@ -85,16 +86,16 @@ public class RefreshTask {
 		}
 
 		// log application start for production
-		if (application.isProd()) {
-			notifications.send("System", "Application started");
+		if (application.isProd() || application.isDev()) {
+			notifications.send(NotificationLevel.HIGH, "System", "Application started");
 		}
 
 		lc.addStopHook(new Callable<CompletionStage<?>>() {
 			@Override
 			public CompletionStage<?> call() throws Exception {
 				// log application shutdown for production
-				if (application.isProd()) {
-					notifications.send("System", "Application shutdown");
+				if (application.isProd() || application.isDev()) {
+					notifications.send(NotificationLevel.HIGH, "System", "Application shutdown");
 				}
 
 //				// debug applications might need a cache shutdown

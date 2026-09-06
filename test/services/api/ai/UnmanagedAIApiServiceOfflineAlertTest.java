@@ -64,6 +64,8 @@ public class UnmanagedAIApiServiceOfflineAlertTest {
 
 	static class TestableUnmanagedAIApiService extends UnmanagedAIApiService {
 		boolean shouldFail = true;
+		String successResponse = "{\"data\": [{\"id\": \"test-model\", \"name\": \"Test Model\"}]}";
+		String errorResponse = null;
 
 		public TestableUnmanagedAIApiService(Config config, RecordingNotificationService notificationService) {
 			super(config, null, null, null, null, null, null, null, new LocalModelMetadata(), notificationService);
@@ -75,8 +77,11 @@ public class UnmanagedAIApiServiceOfflineAlertTest {
 				CompletableFuture<Void> failed = new CompletableFuture<>();
 				failed.completeExceptionally(new RuntimeException("Connection refused to AI backend"));
 				return failed;
+			} else if (errorResponse != null) {
+				request.setResult(Optional.of(errorResponse));
+				return CompletableFuture.completedFuture(null);
 			} else {
-				request.setResult(Optional.of("{\"data\": []}"));
+				request.setResult(Optional.of(successResponse));
 				return CompletableFuture.completedFuture(null);
 			}
 		}
@@ -120,7 +125,7 @@ public class UnmanagedAIApiServiceOfflineAlertTest {
 		assertFalse(service.isOnline());
 		assertEquals(1, notificationService.messages.size());
 
-		// Recovery: backend comes back online -> transitions to ONLINE, sends INFO alert
+		// Recovery: backend comes back online with valid model -> transitions to ONLINE, sends INFO alert
 		service.shouldFail = false;
 		service.refresh();
 		assertEquals(0, service.getConsecutiveFailures());
@@ -128,5 +133,94 @@ public class UnmanagedAIApiServiceOfflineAlertTest {
 		assertEquals(2, notificationService.messages.size());
 		assertEquals("AI Service Online", notificationService.messages.get(1).getTitle());
 		assertEquals(NotificationLevel.INFO, notificationService.messages.get(1).getLevel());
+	}
+
+	@Test
+	public void testAiOfflineOnEmptyStringResponse() {
+		Map<String, Object> map = new HashMap<>();
+		map.put("df.processing.ai.baseurl", "http://localhost:9191/v1");
+		map.put("df.notifications.ai.consecutive_failures_threshold", 2);
+		map.put("df.notifications.ai.alert_on_offline", true);
+
+		Config config = ConfigFactory.parseMap(map);
+		RecordingNotificationService notificationService = new RecordingNotificationService();
+		TestableUnmanagedAIApiService service = new TestableUnmanagedAIApiService(config, notificationService);
+
+		service.shouldFail = false;
+		service.successResponse = "";
+
+		// 1st empty response
+		service.refresh();
+		assertEquals(1, service.getConsecutiveFailures());
+		assertTrue(service.isOnline());
+		assertEquals(0, notificationService.messages.size());
+
+		// 2nd empty response -> threshold reached, triggers offline alert
+		service.refresh();
+		assertEquals(2, service.getConsecutiveFailures());
+		assertFalse(service.isOnline());
+		assertEquals(1, notificationService.messages.size());
+		assertEquals("AI Service Offline", notificationService.messages.get(0).getTitle());
+		assertEquals(NotificationLevel.CRITICAL, notificationService.messages.get(0).getLevel());
+		assertTrue(notificationService.messages.get(0).getMessage().contains("Empty response from AI backend"));
+	}
+
+	@Test
+	public void testAiOfflineOnEmptyDataArrayResponse() {
+		Map<String, Object> map = new HashMap<>();
+		map.put("df.processing.ai.baseurl", "http://localhost:9191/v1");
+		map.put("df.notifications.ai.consecutive_failures_threshold", 2);
+		map.put("df.notifications.ai.alert_on_offline", true);
+
+		Config config = ConfigFactory.parseMap(map);
+		RecordingNotificationService notificationService = new RecordingNotificationService();
+		TestableUnmanagedAIApiService service = new TestableUnmanagedAIApiService(config, notificationService);
+
+		service.shouldFail = false;
+		service.successResponse = "{\"data\": []}";
+
+		// 1st empty models response
+		service.refresh();
+		assertEquals(1, service.getConsecutiveFailures());
+		assertTrue(service.isOnline());
+		assertEquals(0, notificationService.messages.size());
+
+		// 2nd empty models response -> threshold reached, triggers offline alert
+		service.refresh();
+		assertEquals(2, service.getConsecutiveFailures());
+		assertFalse(service.isOnline());
+		assertEquals(1, notificationService.messages.size());
+		assertEquals("AI Service Offline", notificationService.messages.get(0).getTitle());
+		assertEquals(NotificationLevel.CRITICAL, notificationService.messages.get(0).getLevel());
+		assertTrue(notificationService.messages.get(0).getMessage().contains("No models returned by AI backend"));
+	}
+
+	@Test
+	public void testAiOfflineOnErrorResponse() {
+		Map<String, Object> map = new HashMap<>();
+		map.put("df.processing.ai.baseurl", "http://localhost:9191/v1");
+		map.put("df.notifications.ai.consecutive_failures_threshold", 2);
+		map.put("df.notifications.ai.alert_on_offline", true);
+
+		Config config = ConfigFactory.parseMap(map);
+		RecordingNotificationService notificationService = new RecordingNotificationService();
+		TestableUnmanagedAIApiService service = new TestableUnmanagedAIApiService(config, notificationService);
+
+		service.shouldFail = false;
+		service.errorResponse = "{\"error\": {\"message\": \"API returned status 502: Bad Gateway\"}}";
+
+		// 1st error response
+		service.refresh();
+		assertEquals(1, service.getConsecutiveFailures());
+		assertTrue(service.isOnline());
+
+		// 2nd error response -> triggers offline alert with extracted error message
+		service.refresh();
+		assertEquals(2, service.getConsecutiveFailures());
+		assertFalse(service.isOnline());
+		assertEquals(1, notificationService.messages.size());
+		assertEquals("AI Service Offline", notificationService.messages.get(0).getTitle());
+		assertEquals(NotificationLevel.CRITICAL, notificationService.messages.get(0).getLevel());
+		assertTrue(notificationService.messages.get(0).getMessage().contains("API returned status 502: Bad Gateway"));
 	}
 }

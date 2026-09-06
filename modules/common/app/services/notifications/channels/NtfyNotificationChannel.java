@@ -1,7 +1,5 @@
 package services.notifications.channels;
 
-import java.net.InetAddress;
-import java.net.UnknownHostException;
 import java.time.Duration;
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -31,18 +29,9 @@ public class NtfyNotificationChannel implements NotificationChannel {
 	private final String topic;
 	private final String token;
 	private final int defaultPriority;
-	private final String hostname;
 
 	public NtfyNotificationChannel(Config config, WSClient wsClient) {
 		this.wsClient = wsClient;
-
-		String host;
-		try {
-			host = InetAddress.getLocalHost().getHostName();
-		} catch (UnknownHostException e) {
-			host = "<server unknown>";
-		}
-		this.hostname = host;
 
 		// 1. Resolve server
 		String resolvedServer = DEFAULT_NTFY_SERVER;
@@ -118,21 +107,16 @@ public class NtfyNotificationChannel implements NotificationChannel {
 
 			// Title
 			String title = message.getTitle() != null ? message.getTitle() : "";
-			request.addHeader("Title", hostname + ": " + title);
+			request.addHeader("Title", title);
 
 			// Priority mapping
-			String priorityHeader;
-			if (message.getLevel() == NotificationLevel.CRITICAL) {
-				priorityHeader = "urgent";
-			} else if (message.getLevel() == NotificationLevel.ERROR) {
-				priorityHeader = "high";
-			} else if (message.getLevel() == NotificationLevel.WARNING) {
-				priorityHeader = "default";
-			} else if (message.getLevel() == NotificationLevel.INFO) {
-				priorityHeader = String.valueOf(defaultPriority);
-			} else {
-				priorityHeader = "min";
-			}
+			String priorityHeader = switch (message.getLevel()) {
+			case CRITICAL -> "urgent";
+			case HIGH, ERROR -> "high";
+			case WARNING -> "default";
+			case INFO -> String.valueOf(defaultPriority);
+			default -> "min";
+			};
 			request.addHeader("Priority", priorityHeader);
 
 			// Tags
