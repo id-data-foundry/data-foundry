@@ -24,6 +24,7 @@ import com.typesafe.config.Config;
 import controllers.api.CompleteDSController;
 import controllers.auth.UserAuth;
 import datasets.DatasetConnector;
+import datasets.DatasetUpdateQueue;
 import datasets.ModelTemplates;
 import models.Collaboration;
 import models.Dataset;
@@ -86,6 +87,7 @@ public class ProjectsController extends AbstractAsyncController {
 	private final SearchService searchService;
 	private final UnmanagedAIApiService aiAPIService;
 	private final ProjectLifecycleService lifeCycleService;
+	private final DatasetUpdateQueue datasetUpdateQueue;
 	private static final Logger.ALogger logger = Logger.of(ProjectsController.class);
 	private final int MAX_ACTIVE_PROJECTS;
 
@@ -94,7 +96,8 @@ public class ProjectsController extends AbstractAsyncController {
 			FormFactory formFactory, CompleteDSController cdsc, DatasetConnector datasetConnector,
 			NotificationService notificationService, TokenResolverUtil tokenResolverUtil,
 			OnboardingSupport onboardingSupport, TelegramBotService telegramBotService, SearchService searchService,
-			UnmanagedAIApiService aiAPIService, ProjectLifecycleService lifeCycleService) {
+			UnmanagedAIApiService aiAPIService, ProjectLifecycleService lifeCycleService,
+			DatasetUpdateQueue datasetUpdateQueue) {
 		this.config = config;
 		this.configurator = configurator;
 		this.environment = environment;
@@ -109,6 +112,7 @@ public class ProjectsController extends AbstractAsyncController {
 		this.searchService = searchService;
 		this.aiAPIService = aiAPIService;
 		this.lifeCycleService = lifeCycleService;
+		this.datasetUpdateQueue = datasetUpdateQueue;
 
 		this.MAX_ACTIVE_PROJECTS = ConfigurationUtils.configureInt(config, ConfigurationUtils.DF_MAX_ACTIVE_PROJECTS,
 				20);
@@ -1202,6 +1206,7 @@ public class ProjectsController extends AbstractAsyncController {
 		for (Dataset ds : project.getDatasets()) {
 			ds.setEnd(DateUtils.moveMonths(DateUtils.endOfDay(new Date()), extendMonths));
 			ds.update();
+			datasetUpdateQueue.enqueue(ds);
 		}
 
 		logger.info("Extended project " + project.getId() + " by " + extendMonths + " months.");

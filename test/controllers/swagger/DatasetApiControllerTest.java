@@ -33,11 +33,13 @@ import play.mvc.Http;
 import play.mvc.Result;
 import play.test.WithApplication;
 import utils.auth.TokenResolverUtil;
+import datasets.DatasetUpdateQueue;
 
 public class DatasetApiControllerTest extends WithApplication {
 
 	private TokenResolverUtil tokenUtil;
 	private DatasetConnector datasetConnector;
+	private DatasetUpdateQueue updateQueue;
 
 	@Override
 	protected Application provideApplication() {
@@ -50,6 +52,8 @@ public class DatasetApiControllerTest extends WithApplication {
 	public void setUp() {
 		tokenUtil = app.injector().instanceOf(TokenResolverUtil.class);
 		datasetConnector = app.injector().instanceOf(DatasetConnector.class);
+		updateQueue = app.injector().instanceOf(DatasetUpdateQueue.class);
+		updateQueue.drain();
 	}
 
 	private Person createUser(String firstName, String email) {
@@ -167,6 +171,7 @@ public class DatasetApiControllerTest extends WithApplication {
 		Result addResult = route(app, authenticatedRequest(POST, "/api/v2/datasets/add", token).bodyJson(dsData));
 		assertEquals(OK, addResult.status());
 		long dsId = Json.parse(contentAsString(addResult)).get("id").asLong();
+		assertTrue(updateQueue.drain().contains(dsId));
 
 		// EDIT
 		ObjectNode editData = Json.newObject();
@@ -174,6 +179,7 @@ public class DatasetApiControllerTest extends WithApplication {
 		Result editResult = route(app,
 				authenticatedRequest(POST, "/api/v2/datasets/edit/" + dsId, token).bodyJson(editData));
 		assertEquals(OK, editResult.status());
+		assertTrue(updateQueue.drain().contains(dsId));
 
 		// Verify
 		Result viewResult = route(app, authenticatedRequest(GET, "/api/v2/datasets/" + dsId, token));
@@ -253,9 +259,12 @@ public class DatasetApiControllerTest extends WithApplication {
 		Dataset ds = createDataset(p, "To Be Deleted", DatasetType.IOT);
 		String token = user.getAccesscode();
 
+		updateQueue.drain();
+
 		// DELETE
 		Result deleteResult = route(app, authenticatedRequest(DELETE, "/api/v2/datasets/" + ds.getId(), token));
 		assertEquals(OK, deleteResult.status());
+		assertTrue(updateQueue.drain().contains(ds.getId()));
 
 		// Verify dataset is gone
 		Result viewResult = route(app, authenticatedRequest(GET, "/api/v2/datasets/" + ds.getId(), token));

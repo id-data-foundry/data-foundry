@@ -25,6 +25,7 @@ import controllers.api.MediaDSController;
 import controllers.api.MovementDSController;
 import controllers.auth.V2UserApiAuth;
 import datasets.DatasetConnector;
+import datasets.DatasetUpdateQueue;
 import io.ebean.ExpressionList;
 import models.Dataset;
 import models.DatasetType;
@@ -67,13 +68,16 @@ import utils.validators.FileTypeUtils;
 public class DatasetApiController extends AbstractApiController {
 
 	private final DatasetsController datasetsController;
+	private final DatasetUpdateQueue datasetUpdateQueue;
 	private static final Logger.ALogger logger = Logger.of(DatasetApiController.class);
 
 	@Inject
 	public DatasetApiController(DatasetsController datasetsController, FormFactory formFactory,
-			DatasetConnector datasetConnector, TokenResolverUtil tokenResolverUtil) {
+			DatasetConnector datasetConnector, TokenResolverUtil tokenResolverUtil,
+			DatasetUpdateQueue datasetUpdateQueue) {
 		super(formFactory, datasetConnector, tokenResolverUtil);
 		this.datasetsController = datasetsController;
+		this.datasetUpdateQueue = datasetUpdateQueue;
 	}
 
 	@Authenticated(V2UserApiAuth.class)
@@ -375,6 +379,7 @@ public class DatasetApiController extends AbstractApiController {
 		}
 
 		ds.save();
+		datasetUpdateQueue.enqueue(ds);
 
 		LabNotesEntry.log(DatasetApiController.class, LabNotesEntryType.CREATE, "Data set created: " + ds.getName(),
 				ds.getProject());
@@ -494,6 +499,7 @@ public class DatasetApiController extends AbstractApiController {
 
 		// update the dataset
 		ds.update();
+		datasetUpdateQueue.enqueue(ds);
 
 		LabNotesEntry.log(DatasetApiController.class, LabNotesEntryType.MODIFY, "Data set edited: " + ds.getName(),
 				ds.getProject());
@@ -532,6 +538,7 @@ public class DatasetApiController extends AbstractApiController {
 
 		// delete dataset entity
 		ds.delete();
+		datasetUpdateQueue.enqueue(id);
 
 		LabNotesEntry.log(DatasetApiController.class, LabNotesEntryType.DELETE, "Data set deleted: " + ds.getName(), p);
 
