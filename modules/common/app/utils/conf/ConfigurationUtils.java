@@ -97,6 +97,12 @@ public class ConfigurationUtils {
 	public static final String DF_NOTIFICATIONS_NTFY_TOPIC = "df.notifications.channels.ntfy.topic";
 	public static final String DF_NOTIFICATIONS_NTFY_TOKEN = "df.notifications.channels.ntfy.token";
 	public static final String DF_NOTIFICATIONS_NTFY_PRIORITY = "df.notifications.channels.ntfy.priority";
+	public static final String DF_NOTIFICATIONS_PUSHOVER_ENABLED = "df.notifications.channels.pushover.enabled";
+	public static final String DF_NOTIFICATIONS_PUSHOVER_URL = "df.notifications.channels.pushover.url";
+	public static final String DF_NOTIFICATIONS_PUSHOVER_TOKEN = "df.notifications.channels.pushover.token";
+	public static final String DF_NOTIFICATIONS_PUSHOVER_USER = "df.notifications.channels.pushover.user";
+	public static final String DF_NOTIFICATIONS_PUSHOVER_DEVICE = "df.notifications.channels.pushover.device";
+	public static final String DF_NOTIFICATIONS_PUSHOVER_PRIORITY = "df.notifications.channels.pushover.priority";
 	public static final String DF_NOTIFICATIONS_AI_OFFLINE = "df.notifications.ai.alert_on_offline";
 	public static final String DF_NOTIFICATIONS_AI_RECOVERY = "df.notifications.ai.alert_on_recovery";
 	public static final String DF_NOTIFICATIONS_AI_THRESHOLD = "df.notifications.ai.consecutive_failures_threshold";
@@ -161,6 +167,9 @@ public class ConfigurationUtils {
 				"\"T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX\"");
 		defaultValueFormat.put(DF_NOTIFICATIONS_NTFY_SERVER, "\"https://ntfy.sh\"");
 		defaultValueFormat.put(DF_NOTIFICATIONS_NTFY_TOPIC, "\"datafoundry-alerts\"");
+		defaultValueFormat.put(DF_NOTIFICATIONS_PUSHOVER_URL, "\"https://api.pushover.net/1/messages.json\"");
+		defaultValueFormat.put(DF_NOTIFICATIONS_PUSHOVER_TOKEN, "\"\"");
+		defaultValueFormat.put(DF_NOTIFICATIONS_PUSHOVER_USER, "\"\"");
 
 		defaultValueFormat.put(DF_AI_BASEURL, "\"http://localhost:9191/v1\"");
 
@@ -202,14 +211,17 @@ public class ConfigurationUtils {
 				DF_KEYS_AUTH_API, DF_KEYS_V2_MULTI_API, DF_KEYS_V2_USER_API, DF_KEYS_REGISTRATION_ACCESS,
 				DF_KEYS_PROJECT_TOKEN, DF_OOCSI_SERVER, DF_AI_BASEURL }, configuration, sb);
 
-		// check notification channel: accept either new notification config (slack url/key or ntfy topic) or legacy vendor.slack.channel
+		// check notification channel: accept either new notification config (slack url/key, ntfy topic, or pushover) or legacy vendor.slack.channel
 		boolean hasNotificationConfig = configuration.hasPath(DF_NOTIFICATIONS_SLACK_URL)
 				|| configuration.hasPath(DF_NOTIFICATIONS_SLACK_KEY)
 				|| configuration.hasPath(DF_NOTIFICATIONS_NTFY_TOPIC)
+				|| (configuration.hasPath(DF_NOTIFICATIONS_PUSHOVER_TOKEN)
+						&& configuration.hasPath(DF_NOTIFICATIONS_PUSHOVER_USER))
 				|| configuration.hasPath(DF_VENDOR_SLACK_CHANNEL);
 		if (!hasNotificationConfig) {
 			sb.add(">  " + DF_NOTIFICATIONS_SLACK_URL + " = " + defaultValueFormat.get(DF_NOTIFICATIONS_SLACK_URL)
-					+ " (or configure " + DF_NOTIFICATIONS_NTFY_TOPIC + ")");
+					+ " (or configure " + DF_NOTIFICATIONS_NTFY_TOPIC + " or " + DF_NOTIFICATIONS_PUSHOVER_TOKEN + "/"
+					+ DF_NOTIFICATIONS_PUSHOVER_USER + ")");
 			generalOk = false;
 		}
 

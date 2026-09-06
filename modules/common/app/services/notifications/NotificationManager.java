@@ -15,6 +15,7 @@ import play.Environment;
 import play.Logger;
 import play.libs.ws.WSClient;
 import services.notifications.channels.NtfyNotificationChannel;
+import services.notifications.channels.PushoverNotificationChannel;
 import services.notifications.channels.SlackNotificationChannel;
 import utils.conf.ConfigurationUtils;
 
@@ -45,12 +46,16 @@ public class NotificationManager implements SystemNotificationService {
 		NtfyNotificationChannel ntfyChannel = new NtfyNotificationChannel(config, wsClient);
 		channels.add(ntfyChannel);
 
+		PushoverNotificationChannel pushoverChannel = new PushoverNotificationChannel(config, wsClient);
+		channels.add(pushoverChannel);
+
 		// Set static reference for non-injected callers
 		NotificationManager.instance = this;
 
 		logger.info("NotificationManager initialized. Globally enabled: " + globallyEnabled
 				+ ", Slack enabled: " + slackChannel.isEnabled()
-				+ ", Ntfy enabled: " + ntfyChannel.isEnabled());
+				+ ", Ntfy enabled: " + ntfyChannel.isEnabled()
+				+ ", Pushover enabled: " + pushoverChannel.isEnabled());
 	}
 
 	public static NotificationManager getInstance() {

@@ -61,6 +61,13 @@ public class Configurator {
 				&& !configuration.getString(ConfigurationUtils.DF_NOTIFICATIONS_NTFY_TOPIC).trim().isEmpty();
 	}
 
+	public boolean isPushoverNotificationConfigured() {
+		return configuration.hasPath(ConfigurationUtils.DF_NOTIFICATIONS_PUSHOVER_USER)
+				&& !configuration.getString(ConfigurationUtils.DF_NOTIFICATIONS_PUSHOVER_USER).trim().isEmpty()
+				&& configuration.hasPath(ConfigurationUtils.DF_NOTIFICATIONS_PUSHOVER_TOKEN)
+				&& !configuration.getString(ConfigurationUtils.DF_NOTIFICATIONS_PUSHOVER_TOKEN).trim().isEmpty();
+	}
+
 	public List<services.notifications.NotificationRecord> getRecentNotifications() {
 		return services.notifications.Notifications.getRecentNotifications();
 	}

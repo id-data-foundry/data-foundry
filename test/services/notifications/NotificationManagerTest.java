@@ -16,6 +16,7 @@ import com.typesafe.config.ConfigFactory;
 
 import play.Environment;
 import services.notifications.channels.NtfyNotificationChannel;
+import services.notifications.channels.PushoverNotificationChannel;
 import services.notifications.channels.SlackNotificationChannel;
 
 public class NotificationManagerTest {
@@ -147,5 +148,110 @@ public class NotificationManagerTest {
 		NotificationRecord systemRecord = history.get(1);
 		assertEquals("System", systemRecord.getTitle());
 		assertEquals(NotificationLevel.INFO, systemRecord.getLevel());
+	}
+
+	@Test
+	public void testPushoverNotificationChannelConfiguration() {
+		Map<String, Object> map = new HashMap<>();
+		map.put("df.notifications.enabled", true);
+		map.put("df.notifications.channels.pushover.enabled", true);
+		map.put("df.notifications.channels.pushover.token", "app-token-12345");
+		map.put("df.notifications.channels.pushover.user", "user-key-67890");
+		map.put("df.notifications.channels.pushover.device", "my-phone");
+		map.put("df.notifications.channels.pushover.priority", 1);
+		map.put("df.notifications.channels.pushover.url", "https://custom.pushover.net/messages.json");
+
+		Config config = ConfigFactory.parseMap(map);
+		PushoverNotificationChannel channel = new PushoverNotificationChannel(config, null);
+
+		assertEquals("pushover", channel.getName());
+		assertEquals("https://custom.pushover.net/messages.json", channel.getApiUrl());
+		assertEquals("app-token-12345", channel.getToken());
+		assertEquals("user-key-67890", channel.getUser());
+		assertEquals("my-phone", channel.getDevice());
+		assertEquals(1, channel.getDefaultPriority());
+		assertNotNull(channel.getHostname());
+		assertFalse(channel.isEnabled()); // null wsClient disables
+	}
+
+	@Test
+	public void testPushoverNotificationChannelDefaultUrl() {
+		Map<String, Object> map = new HashMap<>();
+		map.put("df.notifications.enabled", true);
+		map.put("df.notifications.channels.pushover.enabled", true);
+		map.put("df.notifications.channels.pushover.token", "token");
+		map.put("df.notifications.channels.pushover.user", "user");
+
+		Config config = ConfigFactory.parseMap(map);
+		PushoverNotificationChannel channel = new PushoverNotificationChannel(config, null);
+
+		assertEquals("https://api.pushover.net/1/messages.json", channel.getApiUrl());
+		assertEquals(0, channel.getDefaultPriority());
+		assertEquals("", channel.getDevice());
+	}
+
+	@Test
+	public void testPushoverPriorityResolution() {
+		Map<String, Object> map = new HashMap<>();
+		Config config = ConfigFactory.parseMap(map);
+		PushoverNotificationChannel channel = new PushoverNotificationChannel(config, null);
+
+		assertEquals(1, channel.resolvePriority(NotificationLevel.CRITICAL));
+		assertEquals(1, channel.resolvePriority(NotificationLevel.HIGH));
+		assertEquals(1, channel.resolvePriority(NotificationLevel.ERROR));
+		assertEquals(0, channel.resolvePriority(NotificationLevel.WARNING));
+		assertEquals(0, channel.resolvePriority(NotificationLevel.INFO));
+		assertEquals(-1, channel.resolvePriority(NotificationLevel.DEBUG));
+		assertEquals(-1, channel.resolvePriority(NotificationLevel.TRACE));
+	}
+
+	@Test
+	public void testPushoverHostnameInTitle() {
+		Map<String, Object> map = new HashMap<>();
+		Config config = ConfigFactory.parseMap(map);
+		PushoverNotificationChannel channel = new PushoverNotificationChannel(config, null);
+
+		String host = channel.getHostname();
+		assertNotNull(host);
+		assertFalse(host.isEmpty());
+
+		NotificationMessage msgCritical = NotificationMessage.critical("DB Failure", "Connection timed out");
+		String titleCritical = channel.formatTitle(msgCritical);
+		assertTrue("Title should start with hostname", titleCritical.startsWith(host + ": "));
+		assertTrue("Title should contain critical icon", titleCritical.contains("🚨 [CRITICAL]"));
+		assertTrue("Title should contain subject", titleCritical.contains("DB Failure"));
+
+		NotificationMessage msgInfo = NotificationMessage.info("Backup", "Backup finished");
+		String titleInfo = channel.formatTitle(msgInfo);
+		assertEquals(host + ": Backup", titleInfo);
+
+		NotificationMessage msgEmptyTitle = NotificationMessage.error("", "Something broke");
+		String titleEmpty = channel.formatTitle(msgEmptyTitle);
+		assertTrue(titleEmpty.startsWith(host + ": ❌ [ERROR]"));
+	}
+
+	@Test
+	public void testNotificationManagerIncludesPushoverChannel() {
+		Map<String, Object> map = new HashMap<>();
+		map.put("df.notifications.enabled", true);
+
+		Config config = ConfigFactory.parseMap(map);
+		NotificationManager manager = new NotificationManager(config, null, Environment.simple());
+
+		List<NotificationChannel> channels = manager.getChannels();
+		assertNotNull(channels);
+		assertEquals(3, channels.size());
+
+		boolean hasSlack = false;
+		boolean hasNtfy = false;
+		boolean hasPushover = false;
+		for (NotificationChannel ch : channels) {
+			if ("slack".equals(ch.getName())) hasSlack = true;
+			if ("ntfy".equals(ch.getName())) hasNtfy = true;
+			if ("pushover".equals(ch.getName())) hasPushover = true;
+		}
+		assertTrue("Slack channel should be present", hasSlack);
+		assertTrue("Ntfy channel should be present", hasNtfy);
+		assertTrue("Pushover channel should be present", hasPushover);
 	}
 }
