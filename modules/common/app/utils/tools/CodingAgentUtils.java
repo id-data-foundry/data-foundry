@@ -9,10 +9,12 @@ import java.util.concurrent.ThreadLocalRandom;
 import java.util.regex.Pattern;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.typesafe.config.Config;
 
 import models.DatasetType;
 import play.Logger;
 import play.libs.Json;
+import utils.conf.ConfigurationUtils;
 
 public class CodingAgentUtils {
 
@@ -305,5 +307,93 @@ public class CodingAgentUtils {
 			break;
 		}
 		return routes;
+	}
+
+	/**
+	 * Resolve the base API path for the Unmanaged AI completions endpoint
+	 * dynamically using the Play reverse router.
+	 *
+	 * @return basePath, e.g. "/v1"
+	 */
+	public static String resolveLocalProxyBasePath() {
+		try {
+			String chatCompletionsPath = controllers.api2.routes.UnmanagedAIApiController.chatCompletion().url();
+			if (chatCompletionsPath != null && chatCompletionsPath.contains("/chat/completions")) {
+				return chatCompletionsPath.replace("/chat/completions", "");
+			}
+		} catch (Throwable t) {
+			logger.warn("Could not resolve basePath via reverse route for UnmanagedAIApiController, falling back to /v1", t);
+		}
+		return "/v1";
+	}
+
+	/**
+	 * Resolve the internal local proxy URL for LLM calls by inspecting Play reverse routes,
+	 * the df.base_url configuration key (for host and port), and runtime server port.
+	 *
+	 * @param config Play configuration
+	 * @return resolved local proxy URL, e.g. "http://localhost:9000/v1"
+	 */
+	public static String resolveLocalProxyUrl(Config config) {
+		return resolveLocalProxyUrl(config, resolveLocalProxyBasePath());
+	}
+
+	/**
+	 * Resolve the internal local proxy URL for LLM calls with an explicit base path.
+	 *
+	 * @param config Play configuration
+	 * @param basePath base URL path, e.g. "/v1"
+	 * @return resolved local proxy URL
+	 */
+	public static String resolveLocalProxyUrl(Config config, String basePath) {
+		// 1. Check optional explicit override if configured
+		if (config != null) {
+			if (config.hasPath(ConfigurationUtils.DF_CODINGAGENT_LOCAL_PROXY_URL)
+					&& !config.getString(ConfigurationUtils.DF_CODINGAGENT_LOCAL_PROXY_URL).trim().isEmpty()) {
+				String customUrl = config.getString(ConfigurationUtils.DF_CODINGAGENT_LOCAL_PROXY_URL).trim();
+				return customUrl.endsWith("/") ? customUrl.substring(0, customUrl.length() - 1) : customUrl;
+			}
+			if (config.hasPath("df.processing.ai.local_proxy_url")
+					&& !config.getString("df.processing.ai.local_proxy_url").trim().isEmpty()) {
+				String customUrl = config.getString("df.processing.ai.local_proxy_url").trim();
+				return customUrl.endsWith("/") ? customUrl.substring(0, customUrl.length() - 1) : customUrl;
+			}
+		}
+
+		String cleanBasePath = basePath != null ? basePath.trim() : "";
+		if (!cleanBasePath.isEmpty() && !cleanBasePath.startsWith("/")) {
+			cleanBasePath = "/" + cleanBasePath;
+		}
+		if (cleanBasePath.endsWith("/")) {
+			cleanBasePath = cleanBasePath.substring(0, cleanBasePath.length() - 1);
+		}
+
+		// 2. Check configuration key df.base_url for host and port
+		if (config != null && config.hasPath(ConfigurationUtils.DF_BASEURL)
+				&& !config.getString(ConfigurationUtils.DF_BASEURL).trim().isEmpty()) {
+			String baseUrl = config.getString(ConfigurationUtils.DF_BASEURL).trim();
+			while (baseUrl.endsWith("/")) {
+				baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+			}
+			String scheme = baseUrl.startsWith("https://") ? "https://" : "http://";
+			String hostAndPort = baseUrl.replaceFirst("^https?://", "");
+			if (cleanBasePath.isEmpty() || hostAndPort.endsWith(cleanBasePath)) {
+				return scheme + hostAndPort;
+			}
+			return scheme + hostAndPort + cleanBasePath;
+		}
+
+		// 3. Fallback: check system property / play config / default port 9000
+		String port = System.getProperty("http.port");
+		if (port == null || port.trim().isEmpty()) {
+			if (config != null && config.hasPath("play.server.http.port")) {
+				port = config.getString("play.server.http.port").trim();
+			}
+		}
+		if (port == null || port.trim().isEmpty() || "disabled".equalsIgnoreCase(port)) {
+			port = "9000";
+		}
+
+		return "http://localhost:" + port + cleanBasePath;
 	}
 }

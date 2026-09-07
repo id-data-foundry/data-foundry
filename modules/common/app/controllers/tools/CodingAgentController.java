@@ -256,14 +256,9 @@ public class CodingAgentController extends AbstractAsyncController {
 
 			DatasetContext ctx = new DatasetContext(sink, source, materializer, null, null, new Toolkit(), cpds,
 					history);
-			ctx.setLocalProxyHost(request.host());
-			ctx.setLocalProxySecure(request.secure());
 			checkAndReloadAgent(ctx, datasetId, sessionId, userEmail);
 			return ctx;
 		});
-
-		context.setLocalProxyHost(request.host());
-		context.setLocalProxySecure(request.secure());
 
 		// Fetch and replay history for this session
 		List<JsonNode> historyNodes = context.history().load();
@@ -515,23 +510,7 @@ public class CodingAgentController extends AbstractAsyncController {
 						.additionalHeader(ApiServiceConstants.X_API_MODEL, subAgentModelName)
 						.additionalHeader(ApiServiceConstants.X_API_USER, userEmail != null ? userEmail : "").build();
 
-				String chatCompletionsPath = controllers.api2.routes.UnmanagedAIApiController.chatCompletion().url();
-				String basePath = chatCompletionsPath.replace("/chat/completions", "");
-
-				String scheme = context.isLocalProxySecure() ? "https://" : "http://";
-				String host = context.getLocalProxyHost();
-				if (host == null || host.isEmpty()) {
-					if (config.hasPath(ConfigurationUtils.DF_BASEURL)
-							&& !config.getString(ConfigurationUtils.DF_BASEURL).isEmpty()) {
-						String baseUrl = config.getString(ConfigurationUtils.DF_BASEURL);
-						scheme = baseUrl.startsWith("https://") ? "https://" : "http://";
-						host = baseUrl.replace("http://", "").replace("https://", "");
-					} else {
-						host = "localhost:9000";
-						scheme = "http://";
-					}
-				}
-				String localProxyUrl = scheme + host + basePath;
+				String localProxyUrl = CodingAgentUtils.resolveLocalProxyUrl(config);
 
 				OpenAIChatModel mainModel = OpenAIChatModel.builder().modelName(mainModelName)
 						.apiKey(aiAPIService.getInternalDocumentationAPIKey()).baseUrl(localProxyUrl)
@@ -612,8 +591,6 @@ public class CodingAgentController extends AbstractAsyncController {
 		private final UncompactedHistory history;
 		private long agentsMdLastModified = -1L;
 		private volatile boolean isThinking = false;
-		private String localProxyHost;
-		private boolean localProxySecure;
 
 		public DatasetContext(Sink<JsonNode, ?> sink, Source<JsonNode, ?> source, Materializer materializer,
 				HarnessAgent agent, HarnessAgent subAgent, Toolkit toolkit, CompleteDS cpds,
@@ -682,22 +659,6 @@ public class CodingAgentController extends AbstractAsyncController {
 
 		public void setThinking(boolean thinking) {
 			this.isThinking = thinking;
-		}
-
-		public String getLocalProxyHost() {
-			return localProxyHost;
-		}
-
-		public void setLocalProxyHost(String localProxyHost) {
-			this.localProxyHost = localProxyHost;
-		}
-
-		public boolean isLocalProxySecure() {
-			return localProxySecure;
-		}
-
-		public void setLocalProxySecure(boolean localProxySecure) {
-			this.localProxySecure = localProxySecure;
 		}
 	}
 

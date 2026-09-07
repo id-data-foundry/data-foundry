@@ -81,6 +81,7 @@ public class ConfigurationUtils {
 	public static final String DF_AI_MODEL_CODING_SUBAGENT = "df.processing.ai.models.coding_subagent";
 	public static final String DF_AI_MODEL_TEXT = "df.processing.ai.models.text";
 	public static final String DF_AI_MODEL_TRANSLATE = "df.processing.ai.models.translate";
+	public static final String DF_CODINGAGENT_LOCAL_PROXY_URL = "df.codingagent.local_proxy_url";
 
 	// ----------------------------------------------------------------------------------------------------------------
 

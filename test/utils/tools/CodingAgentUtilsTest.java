@@ -9,6 +9,8 @@ import java.io.File;
 import org.junit.Test;
 
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import models.DatasetType;
 
@@ -218,5 +220,52 @@ public class CodingAgentUtilsTest {
 
 		ObjectNode nullIdRoutes = CodingAgentUtils.getDatasetApiRoutes(DatasetType.IOT, null);
 		assertEquals(0, nullIdRoutes.size());
+	}
+
+	@Test
+	public void testResolveLocalProxyUrlAndBasePath() {
+		// Test basePath resolution via reverse router
+		assertEquals("/v1", CodingAgentUtils.resolveLocalProxyBasePath());
+
+		// Test df.base_url parsing with default port
+		Config config1 = ConfigFactory.parseString("df.base_url = \"http://localhost:9000\"");
+		assertEquals("http://localhost:9000/v1", CodingAgentUtils.resolveLocalProxyUrl(config1));
+
+		// Test df.base_url with trailing slash
+		Config config2 = ConfigFactory.parseString("df.base_url = \"http://localhost:9000/\"");
+		assertEquals("http://localhost:9000/v1", CodingAgentUtils.resolveLocalProxyUrl(config2));
+
+		// Test df.base_url with custom port and https
+		Config config3 = ConfigFactory.parseString("df.base_url = \"https://datafoundry.tue.nl:8443\"");
+		assertEquals("https://datafoundry.tue.nl:8443/v1", CodingAgentUtils.resolveLocalProxyUrl(config3));
+
+		// Test df.base_url without scheme
+		Config config4 = ConfigFactory.parseString("df.base_url = \"127.0.0.1:8888\"");
+		assertEquals("http://127.0.0.1:8888/v1", CodingAgentUtils.resolveLocalProxyUrl(config4));
+
+		// Test df.base_url that already has /v1 path
+		Config config5 = ConfigFactory.parseString("df.base_url = \"http://localhost:9000/v1\"");
+		assertEquals("http://localhost:9000/v1", CodingAgentUtils.resolveLocalProxyUrl(config5));
+
+		// Test fallback to play.server.http.port when df.base_url is absent
+		Config config6 = ConfigFactory.parseString("play.server.http.port = 9005");
+		assertEquals("http://localhost:9005/v1", CodingAgentUtils.resolveLocalProxyUrl(config6));
+
+		// Test explicit override with df.codingagent.local_proxy_url
+		Config config7 = ConfigFactory.parseString(
+				"df.base_url = \"http://localhost:9000\"\n" +
+				"df.codingagent.local_proxy_url = \"http://internal-docker-host:9000/v1/\"");
+		assertEquals("http://internal-docker-host:9000/v1", CodingAgentUtils.resolveLocalProxyUrl(config7));
+
+		// Test explicit override with df.processing.ai.local_proxy_url
+		Config config8 = ConfigFactory.parseString(
+				"df.base_url = \"http://localhost:9000\"\n" +
+				"df.processing.ai.local_proxy_url = \"http://ai-proxy:8080/v1\"");
+		assertEquals("http://ai-proxy:8080/v1", CodingAgentUtils.resolveLocalProxyUrl(config8));
+
+		// Test custom basePath overload
+		Config config9 = ConfigFactory.parseString("df.base_url = \"http://localhost:9000\"");
+		assertEquals("http://localhost:9000/api/v2", CodingAgentUtils.resolveLocalProxyUrl(config9, "/api/v2"));
+		assertEquals("http://localhost:9000", CodingAgentUtils.resolveLocalProxyUrl(config9, ""));
 	}
 }
