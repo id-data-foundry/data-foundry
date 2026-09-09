@@ -1,7 +1,7 @@
 # Stage 1: Build Stage
 
 # Base build
-FROM ubuntu:latest as builder
+FROM ubuntu:latest AS builder
 
 # Set PATH
 WORKDIR /app
