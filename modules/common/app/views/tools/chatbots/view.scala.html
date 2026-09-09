@@ -402,6 +402,7 @@ fetch("[HOST]/api/v1/chatbots/@dataset.getId()/file", {
   <script>
     const uploader = document.querySelector('.file-uploader');
     const input = document.getElementById('file-input');
+    const uploadForm = document.getElementById('fileUploadForm');
 
     // Initialize tabs and inject host
     document.addEventListener('DOMContentLoaded', function() {
@@ -413,6 +414,20 @@ fetch("[HOST]/api/v1/chatbots/@dataset.getId()/file", {
       document.querySelectorAll('.api-snippet').forEach(code => {
         code.innerHTML = code.innerHTML.replace(/\[HOST\]/g, host);
       });
+    });
+
+    // Helper to filter valid file types (PDF, Markdown, Text)
+    function filterValidFiles(files) {
+      const validTypes = ['application/pdf', 'text/plain', 'text/markdown'];
+      const validExts = ['.pdf', '.txt', '.md'];
+      return files.filter(file => validTypes.includes(file.type) || validExts.some(ext => file.name.toLowerCase().endsWith(ext)));
+    }
+
+    // Allow clicking anywhere on the drop zone to open the file dialog
+    uploader.addEventListener('click', (e) => {
+      if (e.target !== input && e.target.tagName !== 'LABEL') {
+        input.click();
+      }
     });
 
     // Highlight on drag
@@ -427,11 +442,28 @@ fetch("[HOST]/api/v1/chatbots/@dataset.getId()/file", {
       e.preventDefault();
       uploader.classList.remove('dragover');
       const files = Array.from(e.dataTransfer.files);
-      const validTypes = ['application/pdf', 'text/plain', 'text/markdown'];
-      const validExts = ['.pdf', '.txt', '.md'];
-      const kbFiles = files.filter(file => validTypes.includes(file.type) || validExts.some(ext => file.name.toLowerCase().endsWith(ext)));
-      input.files = createFileList(kbFiles);
-      htmx.trigger('#fileUploadForm', 'submit');
+      const kbFiles = filterValidFiles(files);
+      if (kbFiles.length > 0) {
+        input.files = createFileList(kbFiles);
+        htmx.trigger('#fileUploadForm', 'submit');
+      }
+    });
+
+    // Trigger upload when files are selected via dialog
+    input.addEventListener('change', () => {
+      const files = Array.from(input.files);
+      const kbFiles = filterValidFiles(files);
+      if (kbFiles.length > 0) {
+        input.files = createFileList(kbFiles);
+        htmx.trigger('#fileUploadForm', 'submit');
+      } else {
+        input.value = '';
+      }
+    });
+
+    // Reset form after upload request finishes so the same file can be re-uploaded if desired
+    uploadForm.addEventListener('htmx:afterRequest', () => {
+      uploadForm.reset();
     });
 
     // Helper to create a FileList from an array of Files
