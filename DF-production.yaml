@@ -1,4 +1,18 @@
 services:
+  db:
+    image: postgres:latest
+    container_name: postgresdocker
+    restart: always
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: playdb
+    volumes:
+      - .pgdata/database:/var/lib/postgresql
+      - .pgdata/docker-entrypoint-initdb.d:/docker-entrypoint-initdb.d
+
   datafoundry:
     image: datafoundrydocker:production
     container_name: datafoundrydocker
@@ -6,6 +20,10 @@ services:
       - "9000:9000"
     volumes:
     # You can change this to change the data directory on the host system (E.g: /home/diede/database:/home/datafoundry/data)
-      - .data/production:/app/datafoundry/data
+      # - .data/production:/app/datafoundry/data
     # Keep this path the same, it is referring to the configuration files.
       - ./conf:/app/datafoundry/conf
+
+  volumes:
+    .pgdata:
+      driver: local

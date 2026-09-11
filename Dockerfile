@@ -1,12 +1,12 @@
-
 # Stage 1: Build Stage
 
 # Base build
-FROM ubuntu:latest as builder
+FROM ubuntu:latest AS builder
 
 # Set PATH
 WORKDIR /app
 
+ARG DEBIAN_FRONTEND=noninteractive
 # Install system dependencies needed for sbt
 RUN apt-get update && apt-get install -y \
     curl \
@@ -18,10 +18,12 @@ RUN apt-get update && apt-get install -y \
     npm \
     file \
     python3-libsass \
+    build-essential \
     ruby \
+    ruby-dev \
     bundler \
-    jekyll \
-    && apt-get clean
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install SDKman
 RUN curl -s "https://get.sdkman.io?ci=true&rcupdate=false" | bash
@@ -51,8 +53,9 @@ COPY documentation ./documentation
 COPY lib ./lib
 
 RUN cd ./documentation && \
-    bundle install && \
-    bundle exec jekyll build --config _config_internal.yml
+    bundle config set jobs 1 && \
+    bundle install --verbose && \
+    bundle exec jekyll build --config _config_internal.yml --verbose
 
 ARG BUILD_MODE=stage
 ENV BUILD_MODE=${BUILD_MODE}
@@ -66,7 +69,7 @@ RUN sbt dist && ls -l /app/target/universal
 
 # Stage 2: Application container
 
-FROM --platform=linux/amd64 ghcr.io/graalvm/graalvm-community:25 AS production
+FROM ghcr.io/graalvm/graalvm-community:25 AS production
 
 # Set working directory
 WORKDIR /app

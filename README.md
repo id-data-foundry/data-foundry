@@ -73,23 +73,35 @@ git submodule init
 git submodule update
 ```
 
+#### For development
 **2. Build the Base Image**
-
-  ```bash
-  docker build --tag datafoundrydocker:basecontainer -f .devcontainer/Dockerfile.base .
-  ```
+```bash
+docker build --tag datafoundrydocker:basecontainer -f .devcontainer/Dockerfile.base .
+```
 
 **3. Run in Development Mode**
 This command builds the development image and starts the application using Docker Compose.
 ```bash
-docker build --tag datafoundrydocker:development --target development . && docker compose -f DF-development.yaml up
+docker build --tag datafoundrydocker:development -f .devcontainer/Dockerfile.dev . && docker compose -f DF-development.yaml up
 ```
 The application will be available at `http://localhost:9000`. The environment exposes ports `9000` (App), `8001`, and `9092`.
 
-**4. Run in Production Mode**
+#### For production
+**2. Build & Run in Production Mode**
 For a production deployment, use the following command:
 ```bash
-docker build --tag datafoundrydocker:production --build-arg BUILD_MODE=stage --target production . && docker compose -f DF-production.yaml up
+docker build --tag datafoundrydocker:production --target production . && docker compose -f DF-production.yaml up
+```
+
+#### For distribution
+**2. Build containers for all platforms**
+Using the following command
+```bash
+podman build --platform linux/amd64,linux/arm64 --manifest datafoundrydocker:latest --target production .
+```
+##### Publish
+```bash
+podman manifest push datafoundrydocker:latest ghcr.io/id-data-foundry/data-foundry:latest
 ```
 
 ### Local Development (sbt)
@@ -129,4 +141,3 @@ In short, this means you are free to use, study, share, and modify the software.
 For the full license text, see the `LICENSE` file.
 
 ---
-
