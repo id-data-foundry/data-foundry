@@ -5,27 +5,60 @@
 <script src="@routes.DatasetsController.jsRoutes()" type="text/javascript"></script>
 <link rel="stylesheet" media="screen" href="@routes.Assets.versioned("stylesheets/prism.css")">
 <style type="text/css">
+  body.collapsed-layout {
+    overflow: hidden;
+    height: 100vh;
+    max-height: 100vh;
+  }
+  .collapsed-layout .container,
   .container {
     height: 100vh;
+    max-height: 100vh;
+    width: calc(100vw - 100px) !important;
+    max-width: calc(100vw - 100px) !important;
+    margin-left: 84px !important;
+    margin-right: 16px !important;
+    box-sizing: border-box;
     overflow: hidden;
     display: grid;
-    grid-template-rows: 60px 60px 1fr auto;
+    grid-template-rows: auto auto minmax(0, 1fr);
+    padding: 0 0 0.5rem 0 !important;
+  }
+  @@media only screen and (max-width: 992px) {
+    .collapsed-layout .container,
+    .container {
+      width: 100vw !important;
+      max-width: 100vw !important;
+      margin-left: 0 !important;
+      margin-right: 0 !important;
+      padding: 0 0.5rem 0.5rem 0.5rem !important;
+    }
   }
   footer {
     display: none;
   }
   .splitview {
-    height: calc(100vh - 130px);
+    height: 100%;
+    max-height: 100%;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    min-height: 0;
+    box-sizing: border-box;
     overflow: hidden;
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 1rem;
   }
   .splitview > div {
     display: grid;
-    grid-template-rows: 48px 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
     min-height: 0;
     min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
   }
   textarea.codeflask__textarea, pre.codeflask__pre, code.codeflask__code {
     font-family: monospace !important;
@@ -40,6 +73,9 @@
     height: 100%;
     margin: 0.5rem 0;
     border: 1px solid #ddd;
+    min-width: 0;
+    overflow: hidden;
+    box-sizing: border-box;
   }
   
   /* Chat styles */
@@ -48,18 +84,26 @@
     flex-direction: column;
     height: 100%;
     min-height: 0;
+    min-width: 0;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+    box-sizing: border-box;
     padding-top: 0.75rem;
   }
   #chat-messages {
     flex: 1;
+    width: 100%;
     max-width: 100%;
     min-height: 0;
+    min-width: 0;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 1rem;
+    padding: 0.75rem;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.75rem;
+    box-sizing: border-box;
   }
   #chat-notifications {
     padding: 0.5rem 1rem;
@@ -68,6 +112,12 @@
     gap: 4px;
     max-height: 100px;
     overflow-y: auto;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  #chat-notifications:empty {
+    display: none;
+    padding: 0;
   }
   .notification-item {
     font-size: 0.75rem;
@@ -84,9 +134,10 @@
   .notification-item.red { background-color: #ffebee !important; border-color: #f44336; color: #c62828; }
   
   .message {
-    padding: 0.5rem 0.8rem;
+    padding: 0.6rem 0.9rem;
     border-radius: 8px;
-    max-width: 85%;
+    max-width: 90%;
+    width: fit-content;
     position: relative;
     word-wrap: break-word;
     overflow-wrap: anywhere;
@@ -98,16 +149,19 @@
     align-self: flex-start;
     background: #fff;
     border: 1px solid #e0e0e0;
+    max-width: 100%;
   }
   .message.user {
     align-self: flex-end;
     background: #e3f2fd;
     border: 1px solid #bbdefb;
+    max-width: 85%;
   }
   .message.other {
     align-self: flex-end;
     background: #f1f8e9;
     border: 1px solid #dcedc8;
+    max-width: 85%;
   }
   .message .message-header {
     display: flex;
@@ -126,11 +180,23 @@
     font-weight: normal;
   }
   .message article {
+    width: 100%;
     max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    overflow-wrap: anywhere;
+    word-break: break-word;
     overflow-x: auto;
+    overflow-y: visible;
+  }
+  .message article > * {
+    max-width: 100%;
+    min-width: 0;
   }
   .message article p {
     margin: 0 0 0.5rem 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
   .message article p:last-child {
     margin-bottom: 0;
@@ -140,6 +206,8 @@
     font-weight: bold;
     line-height: 1.2;
     color: inherit;
+    overflow-wrap: anywhere;
+    word-break: break-word;
   }
   .message article h1 { font-size: 1.5rem; }
   .message article h2 { font-size: 1.35rem; }
@@ -148,44 +216,123 @@
   .message article h5 { font-size: 1.05rem; }
   .message article h6 { font-size: 1.0rem; }
   
-  .message article pre {
+  .message article pre,
+  .message pre[class*=language-] {
     margin: 0.5rem 0;
-    padding: 0.5rem;
-    border-radius: 4px;
-    background: #f8f8f8;
+    padding: 0.75rem;
+    border-radius: 6px;
+    background: #f6f8fa;
+    border: 1px solid #e1e4e8;
     overflow-x: auto;
+    overflow-y: hidden;
     max-width: 100%;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box !important;
     display: block;
+    scrollbar-width: thin;
+  }
+  .message article pre::-webkit-scrollbar,
+  .message pre[class*=language-]::-webkit-scrollbar {
+    height: 6px;
+  }
+  .message article pre::-webkit-scrollbar-track,
+  .message pre[class*=language-]::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+  }
+  .message article pre::-webkit-scrollbar-thumb,
+  .message pre[class*=language-]::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+  }
+  .message article pre::-webkit-scrollbar-thumb:hover,
+  .message pre[class*=language-]::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
   }
   .message article code {
     white-space: pre-wrap;
     word-break: break-word;
+    overflow-wrap: anywhere;
     background: rgba(0,0,0,0.05);
     padding: 2px 4px;
     border-radius: 3px;
-    font-size: 0.9em;
+    font-size: 0.88em;
   }
-  .message article pre code {
+  .message article pre code,
+  .message pre[class*=language-] code {
     white-space: pre;
     word-break: normal;
+    overflow-wrap: normal;
     background: transparent;
     padding: 0;
+    display: inline-block;
+    min-width: 100%;
+    box-sizing: border-box;
+  }
+  .message article table {
     display: block;
+    max-width: 100%;
+    width: 100%;
+    overflow-x: auto;
+    border-collapse: collapse;
+    margin: 0.5rem 0;
+    box-sizing: border-box;
+    scrollbar-width: thin;
+  }
+  .message article table::-webkit-scrollbar {
+    height: 6px;
+  }
+  .message article table::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+  }
+  .message article table::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+  }
+  .message article table::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+  }
+  .message article table th,
+  .message article table td {
+    padding: 6px 10px;
+    border: 1px solid #dfe2e5;
+    font-size: 0.85rem;
+  }
+  .message article table tr:nth-child(2n) {
+    background-color: #f6f8fa;
+  }
+  .message article img,
+  .message article svg,
+  .message article canvas,
+  .message article iframe,
+  .message article video {
+    max-width: 100%;
+    box-sizing: border-box;
   }
   #chat-form {
-  	padding: 0.5rem 1rem 0;
+    padding: 0.5rem 1rem 0;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    flex-shrink: 0;
   }
   #chat-input-container {
     display: flex;
     gap: 0.5rem;
+    width: 100%;
+    box-sizing: border-box;
   }
   #chat-input {
     flex: 1;
+    min-width: 0;
     border: 1px solid #ccc;
     padding: 0.2rem 0.5rem;
     border-radius: 4px;
     outline: none;
     margin: 0;
+    box-sizing: border-box;
   }
   
   /* Loading indicator */
@@ -200,6 +347,8 @@
     color: #888;
     font-style: italic;
     margin: 0 1rem;
+    max-width: 90%;
+    box-sizing: border-box;
   }
   .typing-indicator.active {
     display: block;
@@ -222,11 +371,11 @@
   
   /* System message and Collapsible Thought Process styles */
   .message.system {
-    align-self: flex-start;
+    align-self: stretch;
     background: #f0f7ff;
     border: 1px solid #bae0ff;
     border-left: 3px solid #1890ff;
-    max-width: 85%;
+    max-width: 100%;
     font-size: 0.88rem;
     color: #1d395a;
     text-align: left;
@@ -247,6 +396,9 @@
     border-radius: 6px;
     font-size: 0.85rem;
     text-align: left;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
   }
   details.thought-process summary {
     cursor: pointer;
@@ -260,8 +412,13 @@
     color: #666;
     font-style: italic;
     white-space: pre-wrap;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    max-height: 200px;
+    overflow-y: auto;
     border-top: 1px solid #e1e8ed;
     padding-top: 0.5rem;
+    box-sizing: border-box;
   }
 </style>
 
@@ -305,12 +462,15 @@
           flex-direction: column;
           flex: 1;
           min-height: 0;
+          min-width: 0;
+          width: 100%;
           border: 1px solid rgba(224, 224, 224, 0.7);
           border-radius: 12px;
           background: #ffffff;
           box-shadow: 0 4px 12px rgba(0,0,0,0.05);
           overflow: hidden;
           margin: 0.5rem 0;
+          box-sizing: border-box;
         ">
           <!-- Header -->
           <div style="
@@ -345,11 +505,15 @@
           <div id="session_chat_messages" style="
             flex: 1;
             overflow-y: auto;
+            overflow-x: hidden;
             padding: 1.5rem;
             display: flex;
             flex-direction: column;
             gap: 1rem;
             background: #fdfdfd;
+            min-width: 0;
+            width: 100%;
+            box-sizing: border-box;
           ">
             <div style="text-align: center; color: #888; margin-top: 2rem;">
               <div class="preloader-wrapper small active">
@@ -846,7 +1010,9 @@
         headerDiv.appendChild(timeSpan);
         
         const textP = document.createElement('article');
-        textP.innerHTML = marked.parse(text);
+        let msgContent = text || '';
+        msgContent = msgContent.replace(/<think>([\s\S]*?)<\/think>/g, '<details class="thought-process"><summary>Agent thought process</summary><div class="thought-content">$1</div></details>');
+        textP.innerHTML = marked.parse(msgContent);
         
         msgDiv.appendChild(headerDiv);
         msgDiv.appendChild(textP);
