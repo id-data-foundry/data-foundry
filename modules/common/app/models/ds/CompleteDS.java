@@ -37,6 +37,7 @@ import play.mvc.Http.Request;
 import services.outlets.OOCSIStreamOutService;
 import services.notifications.Notifications;
 import utils.conf.ConfigurationUtils;
+import utils.rendering.FileUtil;
 import utils.validators.FileTypeUtils;
 
 /**
@@ -317,28 +318,39 @@ public class CompleteDS extends LinkedDS {
 	 * @return
 	 */
 	public Optional<File> getFile(String fileName) {
+		if (fileName == null || fileName.trim().isEmpty()) {
+			return Optional.empty();
+		}
 
-		// first just decode from URL
-		String decodedFilename = utils.StringUtils.url2s(fileName);
-		File f = new File(getFolder(), decodedFilename);
+		final File theFolder = getFolder();
+		if (!theFolder.exists() || !theFolder.isDirectory()) {
+			return Optional.empty();
+		}
 
-		if (!f.exists()) {
-			// MODERATE: sanitize filename then find
-			String sanitizedFileName = FileTypeUtils.sanitizeFilename(decodedFilename);
-			f = new File(getFolder(), sanitizedFileName);
+		// 1. Direct safe lookup in folder (canonical path containment + regular file check)
+		Optional<File> safeFile = FileUtil.getSafeFileInFolder(theFolder, fileName);
+		if (safeFile.isPresent()) {
+			return safeFile;
+		}
 
-			if (!f.exists()) {
-				// EXPENSIVE: try potential matches on disk in old formats
-				Optional<String> possibleMatch = Arrays.stream(getFolder().list())
-						.filter(sf -> FileTypeUtils.sanitizeFilename(sf).equals(sanitizedFileName)).findAny();
-				if (possibleMatch.isPresent()) {
-					f = new File(getFolder(), possibleMatch.get());
-				}
+		// 2. MODERATE: sanitize filename then find safely
+		String sanitizedFileName = FileTypeUtils.sanitizeFilename(fileName);
+		safeFile = FileUtil.getSafeFileInFolder(theFolder, sanitizedFileName);
+		if (safeFile.isPresent()) {
+			return safeFile;
+		}
+
+		// 3. EXPENSIVE: try potential matches on disk in old formats
+		String[] fileList = theFolder.list();
+		if (fileList != null) {
+			Optional<String> possibleMatch = Arrays.stream(fileList)
+					.filter(sf -> FileTypeUtils.sanitizeFilename(sf).equals(sanitizedFileName)).findAny();
+			if (possibleMatch.isPresent()) {
+				return FileUtil.getSafeFileInFolder(theFolder, possibleMatch.get());
 			}
 		}
 
-		// final check
-		return f.exists() ? Optional.of(f) : Optional.empty();
+		return Optional.empty();
 	}
 
 	/**
@@ -348,11 +360,27 @@ public class CompleteDS extends LinkedDS {
 	 * @return
 	 */
 	public Optional<File> getFileTemp(String fileName) {
+		if (fileName == null || fileName.trim().isEmpty()) {
+			return Optional.empty();
+		}
 
 		// sanitize beforehand
 		fileName = FileTypeUtils.sanitizeFilename(fileName);
 
-		File f = new File(getFolder(), fileName);
+		File folder = getFolder();
+		File f = new File(folder, fileName);
+		try {
+			String canonicalDir = folder.getCanonicalPath();
+			if (!canonicalDir.endsWith(File.separator)) {
+				canonicalDir += File.separator;
+			}
+			if (!f.getCanonicalPath().startsWith(canonicalDir)) {
+				return Optional.empty();
+			}
+		} catch (IOException e) {
+			return Optional.empty();
+		}
+
 		return Optional.of(f);
 	}
 

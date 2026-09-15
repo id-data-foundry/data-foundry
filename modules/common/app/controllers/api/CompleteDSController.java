@@ -5,6 +5,8 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
@@ -876,13 +878,13 @@ public class CompleteDSController extends AbstractDSController {
 		Optional<File> requestedFileOpt = cpds.getFile(fileName);
 		if (!requestedFileOpt.isPresent()) {
 			return cs(() -> redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request,
-					"error", "No file found: " + fileName));
+					"error", "No file found: " + FileTypeUtils.sanitizeFilename(fileName)));
 		}
 
 		File requestedFile = requestedFileOpt.get();
-		if (!requestedFile.exists()) {
+		if (!requestedFile.exists() || !requestedFile.isFile()) {
 			return cs(() -> redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request,
-					"error", "No file found: " + fileName));
+					"error", "No file found: " + FileTypeUtils.sanitizeFilename(fileName)));
 		}
 
 		LabNotesEntry.log(CompleteDSController.class, LabNotesEntryType.DOWNLOAD, "Dataset downloaded: " + ds.getName(),
@@ -895,13 +897,25 @@ public class CompleteDSController extends AbstractDSController {
 	 * download file with dataset id, file name, and access_token
 	 * 
 	 * @param fileName
-	 * @param access_token
+	 * @param token
 	 * @return
 	 */
 	public CompletionStage<Result> downloadFilePublic(String fileName, String token) {
 
+		// reject null or path traversal characters at controller level
+		if (fileName == null || fileName.trim().isEmpty() || fileName.contains("..") || fileName.contains("/")
+				|| fileName.contains("\\")) {
+			return cs(() -> notFound("File not found."));
+		}
+
 		// retrieve id from token
+		if (token == null || token.trim().isEmpty()) {
+			return redirectCS(HOME);
+		}
 		Long id = tokenResolverUtil.getDatasetIdFromToken(token);
+		if (id == null || id <= 0) {
+			return redirectCS(HOME);
+		}
 
 		// check id
 		Dataset ds = Dataset.find.byId(id);
@@ -909,20 +923,30 @@ public class CompleteDSController extends AbstractDSController {
 			return redirectCS(HOME);
 		}
 
+		// check project active status
+		Project project = ds.getProject();
+		if (project == null || !project.isActive()) {
+			return cs(() -> status(GONE, "The project is not active, download is not available anymore."));
+		}
+
 		// check if the token is current
 		String pat = ds.getConfiguration().get(Dataset.PUBLIC_ACCESS_TOKEN);
-		if (!token.equals(pat)) {
+		if (pat == null || pat.trim().isEmpty()
+				|| !MessageDigest.isEqual(pat.getBytes(StandardCharsets.UTF_8), token.getBytes(StandardCharsets.UTF_8))) {
 			return redirectCS(HOME);
 		}
 
 		// compose file path and check existence
 		final CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
 		Optional<File> requestedFile = cpds.getFile(fileName);
-		if (requestedFile.isPresent()) {
-			return okCS(requestedFile.get());
+		if (requestedFile.isPresent() && requestedFile.get().isFile()) {
+			File file = requestedFile.get();
+			LabNotesEntry.log(CompleteDSController.class, LabNotesEntryType.DOWNLOAD,
+					"Dataset file downloaded publicly: " + ds.getName() + " (" + file.getName() + ")", ds.getProject());
+			return cs(() -> ok(file));
 		}
 
-		return redirectCS(controllers.routes.DatasetsController.view(id));
+		return cs(() -> notFound("File not found."));
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
