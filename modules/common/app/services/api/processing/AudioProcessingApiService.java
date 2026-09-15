@@ -7,7 +7,10 @@ import java.time.Duration;
 import java.util.Base64;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -27,7 +30,6 @@ import play.libs.Files.TemporaryFile;
 import play.libs.Json;
 import services.api.GenericApiService;
 import services.api.remoting.RemoteApiRequest;
-import services.api.remoting.RemoteRequestsExecutionService;
 import services.api.requests.ApiRequest;
 import services.processing.MediaProcessingService;
 import utils.admin.AdminUtils;
@@ -48,18 +50,17 @@ public class AudioProcessingApiService extends GenericApiService {
 	private final MediaProcessingService mediaProcessor;
 	private final ActorSystem actorSystem;
 
-	private final RemoteRequestsExecutionService executionService;
+	private final ExecutorService executor = Executors.newFixedThreadPool(4);
 
 	@Inject
 	protected AudioProcessingApiService(Config configuration, AdminUtils adminUtils, DatasetConnector datasetConnector,
-	        TokenResolverUtil tokenResolver, SyncCacheApi cache, ActorSystem actorSystem,
-	        RemoteRequestsExecutionService executionService, MediaProcessingService speechToText) {
+			TokenResolverUtil tokenResolver, SyncCacheApi cache, ActorSystem actorSystem,
+			MediaProcessingService speechToText) {
 		super(configuration, adminUtils, datasetConnector, tokenResolver);
 
 		this.cache = cache;
 		this.mediaProcessor = speechToText;
 		this.actorSystem = actorSystem;
-		this.executionService = executionService;
 	}
 
 	private void processRequest(RemoteApiRequest request) {
@@ -156,23 +157,23 @@ public class AudioProcessingApiService extends GenericApiService {
 		String processingResult = "";
 		try {
 			processingResult = mediaProcessor
-			        .scheduleMediaToTextProcess(file, "en_sm", "audio", r.getUsername(), UUID.randomUUID().toString())
-			        .thenApply(token -> {
-				        String textFromAudio;
-				        do {
-					        textFromAudio = (String) cache.get(token).orElse("");
-					        try {
-						        Thread.sleep(500);
-					        } catch (InterruptedException e) {
-					        }
-				        } while (!textFromAudio.contains("[ERROR]") && !textFromAudio.contains("[END]"));
+					.scheduleMediaToTextProcess(file, "en_sm", "audio", r.getUsername(), UUID.randomUUID().toString())
+					.thenApply(token -> {
+						String textFromAudio;
+						do {
+							textFromAudio = (String) cache.get(token).orElse("");
+							try {
+								Thread.sleep(500);
+							} catch (InterruptedException e) {
+							}
+						} while (!textFromAudio.contains("[ERROR]") && !textFromAudio.contains("[END]"));
 
-				        // post-process the text output
-				        textFromAudio = textFromAudio.replace("[END]", "");
-				        textFromAudio = textFromAudio.replace("\n", " - ");
+						// post-process the text output
+						textFromAudio = textFromAudio.replace("[END]", "");
+						textFromAudio = textFromAudio.replace("\n", " - ");
 
-				        return textFromAudio;
-			        }).toCompletableFuture().get(60, TimeUnit.SECONDS);
+						return textFromAudio;
+					}).toCompletableFuture().get(60, TimeUnit.SECONDS);
 		} catch (InterruptedException | ExecutionException | TimeoutException e) {
 			return Json.newObject().put(RESPONSE_ERROR, "Server error processing audio data.").toString();
 		}
@@ -264,6 +265,6 @@ public class AudioProcessingApiService extends GenericApiService {
 	}
 
 	public Future<Void> submitApiRequest(RemoteApiRequest request) {
-		return executionService.submitRequest(request, (r) -> processRequest(r), request.getMsTimeout());
+		return CompletableFuture.runAsync(() -> processRequest(request), executor);
 	}
 }

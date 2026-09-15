@@ -3,20 +3,13 @@ package controllers.api2;
 import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import javax.inject.Inject;
-
-import org.apache.pekko.NotUsed;
-import org.apache.pekko.actor.ActorRef;
-import org.apache.pekko.actor.Status;
-import org.apache.pekko.stream.OverflowStrategy;
-import org.apache.pekko.stream.javadsl.Source;
-import org.apache.pekko.util.ByteString;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
@@ -32,9 +25,11 @@ import play.mvc.Http.Request;
 import play.mvc.Result;
 import play.mvc.Security.Authenticated;
 import services.api.ApiServiceConstants;
+import services.api.ai.AiLane;
+import services.api.ai.AiLaneLimiter;
 import services.api.ai.UnmanagedAIApiService;
 import services.api.remoting.RemoteApiRequest;
-import services.api.remoting.StreamingRemoteApiRequest;
+import services.api.remoting.RemoteApiRequest.Outcome;
 
 public class UnmanagedAIApiController extends Controller implements ApiServiceConstants {
 
@@ -50,149 +45,150 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 	@Inject
 	services.processing.MediaProcessingService mediaProcessingService;
 
+	public record ApiCall(String username, String apiKey) {
+	}
+
+	private Optional<ApiCall> authorize(Request request) {
+		String authHeader = request.header("Authorization").orElse("");
+		if (!authHeader.startsWith("Bearer ")) {
+			return Optional.empty();
+		}
+		String authorization = authHeader.substring(7).trim();
+		if (authorization.isEmpty()) {
+			return Optional.empty();
+		}
+		String apiKey = checkDocumentationAPIKey(request, authorization);
+		String username = request.header(ApiServiceConstants.X_API_USER).orElse("");
+		return Optional.of(new ApiCall(username, apiKey));
+	}
+
+	private ObjectNode err(String message, String type) {
+		ObjectNode result = Json.newObject();
+		result.putObject(RESPONSE_ERROR).put(RESPONSE_MESSAGE, message).put("type", type).putNull("param").put("code",
+				"");
+		return result;
+	}
+
+	private Result respond(RemoteApiRequest req, Throwable err, String contentType) {
+		Throwable c = (err instanceof java.util.concurrent.CompletionException && err.getCause() != null)
+				? err.getCause()
+				: err;
+
+		if (c instanceof TimeoutException) {
+			return status(GATEWAY_TIMEOUT, err("Deadline of " + req.getMsTimeout() + " ms exceeded.", "timeout"))
+					.as(contentType).withHeader("X-Request-Id", req.getId());
+		}
+		if (c instanceof AiLaneLimiter.LaneFull) {
+			AiLaneLimiter.LaneFull full = (AiLaneLimiter.LaneFull) c;
+			return status(TOO_MANY_REQUESTS, err("The " + full.lane + " queue is full.", "lane_full")).as(contentType)
+					.withHeader("Retry-After", "5").withHeader("X-Request-Id", req.getId());
+		}
+		if (c != null) {
+			return status(BAD_GATEWAY, err("Upstream failure: " + c.getMessage(), "upstream_error")).as(contentType)
+					.withHeader("X-Request-Id", req.getId());
+		}
+		return switch (req.getOutcome()) {
+		case OK -> ok(req.getResult()).as(contentType).withHeader("X-Request-Id", req.getId());
+		case TIMEOUT ->
+			status(GATEWAY_TIMEOUT, req.getResult()).as(contentType).withHeader("X-Request-Id", req.getId());
+		case UPSTREAM_ERROR ->
+			status(BAD_GATEWAY, req.getResult()).as(contentType).withHeader("X-Request-Id", req.getId());
+		case NO_CREDITS ->
+			status(PAYMENT_REQUIRED, req.getResult()).as(contentType).withHeader("X-Request-Id", req.getId());
+		case UNAUTHORIZED -> unauthorized(req.getResult()).as(contentType).withHeader("X-Request-Id", req.getId());
+		case BAD_REQUEST -> badRequest(req.getResult()).as(contentType).withHeader("X-Request-Id", req.getId());
+		};
+	}
+
 	public CompletionStage<Result> chatCompletion(Request request) {
-		return CompletableFuture.supplyAsync(() -> {
+		Optional<ApiCall> callOpt = authorize(request);
+		if (callOpt.isEmpty()) {
+			return CompletableFuture
+					.completedFuture(badRequest(err("Authorization header missing or invalid", "unauthorized")));
+		}
+		JsonNode json = request.body().asJson();
+		if (json == null || !json.isObject() || !json.has(REQUEST_MODEL)) {
+			return CompletableFuture
+					.completedFuture(badRequest(err("Expecting a JSON object with a model", "bad_request")));
+		}
+		ApiCall call = callOpt.get();
+		((ObjectNode) json).put(REQUEST_API_TOKEN, call.apiKey());
 
-			// check request
-			JsonNode json = request.body().asJson();
-			if (json == null || !json.isObject()) {
-				return badRequest("Expecting Json data");
-			}
+		// ---- streaming: piped straight through, no actor, no buffer ----
+		if (json.path(REQUEST_STREAM).asBoolean(false)) {
+			RemoteApiRequest streamRequest = new RemoteApiRequest(REQUEST_TASK_CHAT_COMPLETION, AiLane.LLM.timeoutMs(),
+					call.username(), call.apiKey(), -1L, (ObjectNode) json);
+			return aiApiService.openStream(streamRequest)
+					.thenApply(body -> ok().chunked(body).as("text/event-stream")
+							.withHeader("Cache-Control", "no-cache").withHeader("X-Accel-Buffering", "no")
+							.withHeader("X-Request-Id", streamRequest.getId()))
+					.exceptionally(err -> respond(streamRequest, err, "application/json"));
+		}
 
-			String authHeader = request.header("Authorization").orElse("");
-			if (authHeader.isEmpty() || !authHeader.startsWith("Bearer ")) {
-				return badRequest("Authorization header missing or invalid");
-			}
-
-			String authorization = authHeader.replace("Bearer ", "").trim();
-			if (authorization.isEmpty()) {
-				return badRequest("Authorization header missing or invalid");
-			}
-
-			// check whether we have a documentation API key
-			final String apiKey = checkDocumentationAPIKey(request, authorization);
-			final String username = request.header(ApiServiceConstants.X_API_USER).orElse("");
-
-			// add authorization to request parameters
-			if (json.isObject()) {
-				((ObjectNode) json).put(REQUEST_API_TOKEN, apiKey);
-			}
-
-			// check model for where to dispatch
-			if (!json.has(REQUEST_MODEL)) {
-				return badRequest("Model missing from request");
-			}
-
-			// create request
-			if (json.has(REQUEST_STREAM) && json.get(REQUEST_STREAM).asBoolean()) {
-				// streaming request
-				@SuppressWarnings("deprecation")
-				Source<ByteString, ?> source = Source.<ByteString>actorRef(16, OverflowStrategy.dropTail())
-						.mapMaterializedValue(sourceActor -> {
-							ChunkedWriter writer = new ChunkedWriter(sourceActor);
-							StreamingRemoteApiRequest internalAPIRequest = new StreamingRemoteApiRequest(REQUEST_TASK_CHAT_COMPLETION,
-									ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, username,
-									apiKey, -1L, (ObjectNode) json, writer);
-							aiApiService.submitApiRequest(internalAPIRequest);
-							return NotUsed.getInstance();
-						});
-				return ok().chunked(source).as("application/json");
-			} else {
-				// buffered request
-				RemoteApiRequest internalAPIRequest = new RemoteApiRequest(REQUEST_TASK_CHAT_COMPLETION,
-						ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, username, apiKey, -1L, (ObjectNode) json);
-
-				try {
-					// submit and wait for timeout
-					aiApiService.submitApiRequest(internalAPIRequest)
-							.get(ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-				} catch (InterruptedException | ExecutionException | TimeoutException e) {
-					// do nothing
-				}
-
-				return ok(internalAPIRequest.getResult()).as("application/json");
-			}
-		});
+		// ---- buffered request ----
+		RemoteApiRequest req = new RemoteApiRequest(REQUEST_TASK_CHAT_COMPLETION, AiLane.LLM.timeoutMs(),
+				call.username(), call.apiKey(), -1L, (ObjectNode) json);
+		return aiApiService.submitApiRequest(req).orTimeout(AiLane.LLM.timeoutMs(), TimeUnit.MILLISECONDS)
+				.handle((v, err) -> respond(req, err, "application/json"));
 	}
 
 	public CompletionStage<Result> audioTranscription(Request request) {
-		return CompletableFuture.supplyAsync(() -> {
+		Optional<ApiCall> callOpt = authorize(request);
+		if (callOpt.isEmpty()) {
+			return CompletableFuture
+					.completedFuture(badRequest(err("Authorization header missing or invalid", "unauthorized")));
+		}
+		MultipartFormData<TemporaryFile> mpfd = request.body().asMultipartFormData();
+		if (mpfd == null || mpfd.isEmpty()) {
+			return CompletableFuture.completedFuture(badRequest(err("File to transcribe missing.", "bad_request")));
+		}
+		ApiCall call = callOpt.get();
+		RemoteApiRequest req = new RemoteApiRequest(REQUEST_TASK_AUDIO_TRANSCRIPTION, AiLane.STT.timeoutMs(),
+				call.username(), call.apiKey(), -1L, Json.newObject());
+		req.setMultipartFormData(mpfd);
 
-			// check request
-			String authHeader = request.header("Authorization").orElse("");
-			if (authHeader.isEmpty() || !authHeader.startsWith("Bearer ")) {
-				return badRequest("Authorization header missing or invalid");
-			}
-
-			String authorization = authHeader.replace("Bearer ", "").trim();
-			if (authorization.isEmpty()) {
-				return badRequest("Authorization header missing or invalid");
-			}
-
-			MultipartFormData<TemporaryFile> mpfd = request.body().asMultipartFormData();
-			if (mpfd.isEmpty()) {
-				return badRequest("File to transcribe missing.");
-			}
-
-			// check whether we have a documentation API key
-			final String apiKey = checkDocumentationAPIKey(request, authorization);
-			final String username = request.header(ApiServiceConstants.X_API_USER).orElse("");
-
-			// create request
-			RemoteApiRequest internalAPIRequest = new RemoteApiRequest(REQUEST_TASK_AUDIO_TRANSCRIPTION,
-					ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, username, apiKey, -1L, Json.newObject());
-
-			// set file in request
-			internalAPIRequest.setMultipartFormData(mpfd);
-
-			try {
-				// submit and wait for timeout
-				aiApiService.submitApiRequest(internalAPIRequest)
-						.get(ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-			} catch (InterruptedException | ExecutionException | TimeoutException e) {
-				// do nothing
-			}
-			return ok(internalAPIRequest.getResult()).as("application/json");
-		});
+		return aiApiService.submitApiRequest(req).orTimeout(AiLane.STT.timeoutMs(), TimeUnit.MILLISECONDS)
+				.handle((v, err) -> respond(req, err, "application/json"));
 	}
 
 	public CompletionStage<Result> imageGeneration(Request request) {
-		return CompletableFuture.<Result>supplyAsync(() -> {
+		Optional<ApiCall> callOpt = authorize(request);
+		if (callOpt.isEmpty()) {
+			return CompletableFuture
+					.completedFuture(badRequest(err("Authorization header missing or invalid", "unauthorized")));
+		}
+		JsonNode json = request.body().asJson();
+		if (json == null || !json.isObject()) {
+			return CompletableFuture.completedFuture(badRequest(err("Expecting JSON body", "bad_request")));
+		}
+		ApiCall call = callOpt.get();
+		ObjectNode requestParams = (ObjectNode) json;
+		RemoteApiRequest req = new RemoteApiRequest(REQUEST_TASK_IMAGE_GENERATION, AiLane.IMAGE.timeoutMs(),
+				call.username(), call.apiKey(), -1L, requestParams);
 
-			// check request
-			String authHeader = request.header("Authorization").orElse("");
-			if (authHeader.isEmpty() || !authHeader.startsWith("Bearer ")) {
-				return badRequest("Authorization header missing or invalid");
-			}
-
-			String authorization = authHeader.replace("Bearer ", "").trim();
-			if (authorization.isEmpty()) {
-				return badRequest("Authorization header missing or invalid");
-			}
-
-			// check whether we have a documentation API key
-			final String apiKey = checkDocumentationAPIKey(request, authorization);
-			final String username = request.header(ApiServiceConstants.X_API_USER).orElse("");
-
-			// create request
-			ObjectNode requestParams = (ObjectNode) request.body().asJson();
-			RemoteApiRequest internalAPIRequest = new RemoteApiRequest(REQUEST_TASK_IMAGE_GENERATION,
-					ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS * 5, username, apiKey, -1L, requestParams);
-
-			try {
-				// submit and wait for timeout
-				aiApiService.submitApiRequest(internalAPIRequest)
-						.get(ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS * 5, TimeUnit.MILLISECONDS);
-			} catch (InterruptedException | ExecutionException | TimeoutException e) {
-				// do nothing
-			}
-
-			JsonNode result = Json.parse(internalAPIRequest.getResult());
-			return ok(Json.newObject()
-					.put("image_url", routes.UnmanagedAIApiController.image(result.get("image_id").asText())
-							.absoluteURL(request, environment.isProd()))
-					.set("prompt", requestParams.get("prompt")).toString());
-		});
+		return aiApiService.submitApiRequest(req).orTimeout(AiLane.IMAGE.timeoutMs(), TimeUnit.MILLISECONDS)
+				.handle((v, e) -> {
+					if (e != null || req.getOutcome() != Outcome.OK) {
+						return respond(req, e, "application/json");
+					}
+					try {
+						JsonNode result = Json.parse(req.getResult());
+						JsonNode imageId = result.get("image_id");
+						if (imageId == null) {
+							return status(BAD_GATEWAY, err("Image backend returned no image id.", "upstream_error"))
+									.withHeader("X-Request-Id", req.getId());
+						}
+						return ok(Json.newObject()
+								.put("image_url",
+										routes.UnmanagedAIApiController.image(imageId.asText()).absoluteURL(request,
+												environment.isProd()))
+								.set("prompt", requestParams.get("prompt")).toString()).as("application/json")
+								.withHeader("X-Request-Id", req.getId());
+					} catch (Exception parseEx) {
+						return status(BAD_GATEWAY, err("Invalid JSON response from image backend.", "upstream_error"))
+								.withHeader("X-Request-Id", req.getId());
+					}
+				});
 	}
 
 	public Result image(Request request, String token) {
@@ -208,131 +204,93 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 	}
 
 	public CompletionStage<Result> speechGeneration(Request request) {
-		return CompletableFuture.<Result>supplyAsync(() -> {
+		Optional<ApiCall> callOpt = authorize(request);
+		if (callOpt.isEmpty()) {
+			return CompletableFuture
+					.completedFuture(badRequest(err("Authorization header missing or invalid", "unauthorized")));
+		}
+		JsonNode json = request.body().asJson();
+		if (json == null || !json.isObject()) {
+			return CompletableFuture.completedFuture(badRequest(err("Expecting JSON body", "bad_request")));
+		}
+		ApiCall call = callOpt.get();
+		ObjectNode requestParams = (ObjectNode) json;
+		RemoteApiRequest req = new RemoteApiRequest(REQUEST_TASK_SPEECH_GENERATION, AiLane.TTS.timeoutMs(),
+				call.username(), call.apiKey(), -1L, requestParams);
 
-			// check request
-			String authHeader = request.header("Authorization").orElse("");
-			if (authHeader.isEmpty() || !authHeader.startsWith("Bearer ")) {
-				return badRequest("Authorization header missing or invalid");
-			}
-
-			String authorization = authHeader.replace("Bearer ", "").trim();
-			if (authorization.isEmpty()) {
-				return badRequest("Authorization header missing or invalid");
-			}
-
-			// check whether we have a documentation API key
-			final String apiKey = checkDocumentationAPIKey(request, authorization);
-			final String username = request.header(ApiServiceConstants.X_API_USER).orElse("");
-
-			// create request
-			ObjectNode requestParams = (ObjectNode) request.body().asJson();
-			RemoteApiRequest internalAPIRequest = new RemoteApiRequest(REQUEST_TASK_SPEECH_GENERATION,
-					ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS / 2, username, apiKey, -1L, requestParams);
-
-			try {
-				// submit and wait for timeout
-				aiApiService.submitApiRequest(internalAPIRequest)
-						.get(ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS / 3, TimeUnit.MILLISECONDS);
-			} catch (InterruptedException | ExecutionException | TimeoutException e) {
-				// do nothing
-			}
-
-			// check generated file
-			File generatedSpeech = new File(internalAPIRequest.getResult());
-			if (!generatedSpeech.exists() || !generatedSpeech.isFile() || !generatedSpeech.canRead()
-					|| generatedSpeech.length() < 1000) {
-				return internalServerError();
-			}
-
-			return ok(generatedSpeech).as("audio/mpeg");
-		});
+		return aiApiService.submitApiRequest(req).orTimeout(AiLane.TTS.timeoutMs(), TimeUnit.MILLISECONDS)
+				.handle((v, e) -> {
+					if (e != null || req.getOutcome() != Outcome.OK) {
+						return respond(req, e, "application/json");
+					}
+					File generatedSpeech = new File(req.getResult());
+					if (!generatedSpeech.exists() || !generatedSpeech.isFile() || !generatedSpeech.canRead()
+							|| generatedSpeech.length() < 1000) {
+						return status(BAD_GATEWAY, err("Speech generation produced invalid file.", "upstream_error"))
+								.withHeader("X-Request-Id", req.getId());
+					}
+					return ok(generatedSpeech).as("audio/mpeg").withHeader("X-Request-Id", req.getId());
+				});
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	public CompletionStage<Result> pdfToText(Request request) {
-		return CompletableFuture.supplyAsync(() -> {
+		Optional<ApiCall> callOpt = authorize(request);
+		if (callOpt.isEmpty()) {
+			return CompletableFuture
+					.completedFuture(badRequest(err("Authorization header missing or invalid", "unauthorized")));
+		}
+		ApiCall call = callOpt.get();
+		if (!aiApiService.isValidApiKey(call.apiKey())) {
+			return CompletableFuture
+					.completedFuture(unauthorized(err("Invalid API key or unauthorized.", "unauthorized")));
+		}
 
-			// check request
-			String authHeader = request.header("Authorization").orElse("");
-			if (authHeader.isEmpty() || !authHeader.startsWith("Bearer ")) {
-				return badRequest(Json.newObject().put("error", "Authorization header missing or invalid"));
-			}
+		MultipartFormData<TemporaryFile> mpfd = request.body().asMultipartFormData();
+		if (mpfd == null || mpfd.getFile("file") == null) {
+			return CompletableFuture.completedFuture(
+					badRequest(err("PDF file missing (use multipart field name 'file')", "bad_request")));
+		}
 
-			String authorization = authHeader.replace("Bearer ", "").trim();
-			if (authorization.isEmpty()) {
-				return badRequest(Json.newObject().put("error", "Authorization header missing or invalid"));
-			}
+		File pdfFile = mpfd.getFile("file").getRef().path().toFile();
+		String internalToken = "api2_pdf_" + java.util.UUID.randomUUID().toString();
 
-			// check whether we have a documentation API key
-			final String apiKey = checkDocumentationAPIKey(request, authorization);
-
-			// check API key
-			if (!aiApiService.isValidApiKey(apiKey)) {
-				return unauthorized(Json.newObject().put("error", "Invalid API key or unauthorized."));
-			}
-
-			MultipartFormData<TemporaryFile> mpfd = request.body().asMultipartFormData();
-			if (mpfd == null || mpfd.getFile("file") == null) {
-				return badRequest(Json.newObject().put("error", "PDF file missing (use multipart field name 'file')"));
-			}
-
-			// extract file
-			MultipartFormData.FilePart<TemporaryFile> pdfPart = mpfd.getFile("file");
-			File pdfFile = pdfPart.getRef().path().toFile();
-			String internalToken = "api2_pdf_" + java.util.UUID.randomUUID().toString();
-
-			try {
-				// submit and wait for timeout (30 seconds)
-				String result = mediaProcessingService
-						.scheduleMediaToTextProcess(pdfFile, "", "application/pdf", apiKey, internalToken)
-						.toCompletableFuture().get(300, TimeUnit.SECONDS);
-
-				// clean up result
-				result = result.replace(" [END]", "");
-
-				return ok(Json.newObject().put("text", result)).as("application/json");
-			} catch (InterruptedException | ExecutionException | TimeoutException e) {
-				return internalServerError(Json.newObject().put("error", "PDF processing timed out or failed."));
-			}
-		});
+		return mediaProcessingService
+				.scheduleMediaToTextProcess(pdfFile, "", "application/pdf", call.apiKey(), internalToken)
+				.toCompletableFuture().orTimeout(300, TimeUnit.SECONDS).handle((result, err) -> {
+					if (err != null) {
+						return internalServerError(err("PDF processing timed out or failed.", "processing_error"));
+					}
+					String cleaned = result.replace(" [END]", "");
+					return ok(Json.newObject().put("text", cleaned)).as("application/json");
+				});
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	public CompletionStage<Result> models(Request request) {
-		return CompletableFuture.supplyAsync(() -> {
+		Optional<ApiCall> callOpt = authorize(request);
+		if (callOpt.isEmpty()) {
+			return CompletableFuture
+					.completedFuture(badRequest(err("Authorization header missing or invalid", "unauthorized")));
+		}
+		ApiCall call = callOpt.get();
+		RemoteApiRequest req = new RemoteApiRequest(REQUEST_TASK_MODELS, AiLane.MODELS.timeoutMs(), "", call.apiKey(),
+				-1L);
 
-			// check request
-			String authHeader = request.header("Authorization").orElse("");
-			if (authHeader.isEmpty() || !authHeader.startsWith("Bearer ")) {
-				return badRequest("Authorization header missing or invalid");
-			}
-
-			String authorization = authHeader.replace("Bearer ", "").trim();
-			if (authorization.isEmpty()) {
-				return badRequest("Authorization header missing or invalid");
-			}
-
-			// create request
-			RemoteApiRequest internalAPIRequest = new RemoteApiRequest(REQUEST_TASK_MODELS,
-					ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, "", authorization, -1L);
-
-			try {
-				// submit and wait for timeout
-				aiApiService.submitApiRequest(internalAPIRequest)
-						.get(ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-			} catch (InterruptedException | ExecutionException | TimeoutException e) {
-				// do nothing
-			}
-			return ok(internalAPIRequest.getResult()).as("application/json");
-		});
+		return aiApiService.submitApiRequest(req).orTimeout(AiLane.MODELS.timeoutMs(), TimeUnit.MILLISECONDS)
+				.handle((v, err) -> respond(req, err, "application/json"));
 	}
 
 	@Authenticated(UserAuth.class)
 	public Result modelsPage(Request request) {
 		return ok(views.html.tools.ai.index.render(aiApiService.getModels()));
+	}
+
+	@Authenticated(UserAuth.class)
+	public Result laneStats() {
+		return ok(aiApiService.getLaneLimiter().snapshot()).as("application/json");
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -352,24 +310,6 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 		}
 
 		return authorization;
-	}
-
-	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-	static public class ChunkedWriter {
-		private final ActorRef output;
-
-		public ChunkedWriter(ActorRef output) {
-			this.output = output;
-		}
-
-		public void append(String str) {
-			output.tell(ByteString.fromString(str), null);
-		}
-
-		public void close() {
-			output.tell(new Status.Success(NotUsed.getInstance()), null);
-		}
 	}
 
 }

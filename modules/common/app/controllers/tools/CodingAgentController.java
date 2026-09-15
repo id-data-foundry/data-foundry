@@ -500,13 +500,20 @@ public class CodingAgentController extends AbstractAsyncController {
 				}
 				String subAgentModelName = localModelMetadata.mapModelId(defaultCodingSubAgentModel);
 
+				int agentMaxTokens = 8192;
+				if (config.hasPath(ConfigurationUtils.DF_AI_AGENT_MAX_TOKENS)) {
+					agentMaxTokens = config.getInt(ConfigurationUtils.DF_AI_AGENT_MAX_TOKENS);
+				}
+
 				GenerateOptions mainOptions = GenerateOptions.builder()
 //						.additionalBodyParam("preserve_thinking", true)
+						.maxTokens(agentMaxTokens)
 						.additionalHeader(ApiServiceConstants.X_API_MODEL, mainModelName)
 						.additionalHeader(ApiServiceConstants.X_API_USER, userEmail != null ? userEmail : "").build();
 
 				GenerateOptions subAgentOptions = GenerateOptions.builder()
 //						.additionalBodyParam("preserve_thinking", true)
+						.maxTokens(agentMaxTokens)
 						.additionalHeader(ApiServiceConstants.X_API_MODEL, subAgentModelName)
 						.additionalHeader(ApiServiceConstants.X_API_USER, userEmail != null ? userEmail : "").build();
 

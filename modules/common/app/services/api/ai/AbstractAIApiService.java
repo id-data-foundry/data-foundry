@@ -15,6 +15,7 @@ public class AbstractAIApiService extends GenericApiService {
 
 	protected final String localAIAPIKey;
 	protected final String aiBaseUrl;
+	protected final int defaultMaxTokens;
 
 	protected final LocalModelMetadata localModelMetadata;
 
@@ -37,6 +38,13 @@ public class AbstractAIApiService extends GenericApiService {
 			localAIAPIKey = configuration.getString(ConfigurationUtils.DF_AI_API_KEY);
 		} else {
 			localAIAPIKey = "";
+		}
+
+		// retrieve default max tokens from configuration (default: 4096)
+		if (configuration.hasPath(ConfigurationUtils.DF_AI_DEFAULT_MAX_TOKENS)) {
+			defaultMaxTokens = configuration.getInt(ConfigurationUtils.DF_AI_DEFAULT_MAX_TOKENS);
+		} else {
+			defaultMaxTokens = 4096;
 		}
 
 		if (tempAIBaseUrl.isEmpty()) {
@@ -82,14 +90,20 @@ public class AbstractAIApiService extends GenericApiService {
 			}
 		}
 
-		// also set the max_tokens to default if not set
-		if (!json.has(REQUEST_MAX_TOKENS)) {
-			json.put(REQUEST_MAX_TOKENS, 500);
+		// set default max_tokens if neither max_tokens nor max_completion_tokens is specified
+		if (!json.has(REQUEST_MAX_TOKENS) && !json.has("max_completion_tokens")) {
+			if (defaultMaxTokens > 0) {
+				json.put(REQUEST_MAX_TOKENS, defaultMaxTokens);
+			}
 		}
 	}
 
 	public String getAiBaseUrl() {
 		return aiBaseUrl;
+	}
+
+	public int getDefaultMaxTokens() {
+		return defaultMaxTokens;
 	}
 
 }

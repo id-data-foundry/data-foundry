@@ -6,6 +6,7 @@ import java.sql.ResultSet;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.locks.ReentrantLock;
 
 import javax.inject.Inject;
 
@@ -41,6 +42,52 @@ abstract public class GenericApiService implements ApiServiceConstants {
 
 	static final String CREATED = "created";
 
+	/**
+	 * Number of striped locks used for concurrency control over per-token credit checks and updates. Must be a power of
+	 * two so that bitwise AND masking {@code (hash & (NUM_STRIPES - 1))} distributes uniformly across the stripe array.
+	 */
+	private static final int CREDIT_LOCK_STRIPES = 64;
+
+	/**
+	 * Bitmask used for mapping positive token hashcodes to lock stripe indices.
+	 */
+	private static final int CREDIT_LOCK_MASK = CREDIT_LOCK_STRIPES - 1;
+
+	/**
+	 * Array of reentrant locks for striped concurrency control over credit checks and balance updates.
+	 * <p>
+	 * <b>Architecture & Rationale:</b><br>
+	 * In high-throughput AI proxy environments, multiple concurrent API requests need to inspect and deduct user token
+	 * credits stored in the backing {@code datastore} (an {@link EntityDS} instance backed by JDBC). Historically, this
+	 * was protected by a coarse-grained {@code synchronized (datastore)} monitor. Under load, that JVM-wide monitor
+	 * caused severe thread serialization: all requests across unrelated users, projects, and concurrent AI lanes were
+	 * forced to wait sequentially for database reads and writes to finish, creating an artificial bottleneck and
+	 * leading to queue timeouts.<br>
+	 * <br>
+	 * <b>Lock Striping Mechanism:</b><br>
+	 * Lock striping partitions the token key space across an array of 64 independent {@link ReentrantLock} instances.
+	 * When a request arrives, its API token is mapped to a stripe lock via:
+	 * 
+	 * <pre>{@code
+	 * int idx = (token.hashCode() & 0x7FFFFFFF) & CREDIT_LOCK_MASK;
+	 * }</pre>
+	 * <ul>
+	 * <li><b>Per-Token Thread Safety:</b> Concurrent requests presenting the <i>same</i> API token deterministically
+	 * map to the identical stripe lock. This guarantees strict serial isolation for that token's read-modify-write
+	 * credit cycle, preventing lost updates and balance race conditions.</li>
+	 * <li><b>Cross-Token Parallelism:</b> Requests presenting <i>different</i> API tokens distribute uniformly across
+	 * the 64 stripes (with ~98.4% probability of disjoint locks for any two keys), enabling up to 64 credit updates to
+	 * execute concurrently in parallel without blocking each other.</li>
+	 * <li><b>Safe Over-Synchronization:</b> In the event of a hash collision where two different tokens map to the same
+	 * stripe index, correctness is 100% maintained: the colliding requests simply serialize temporarily, which is
+	 * harmless and safe.</li>
+	 * <li><b>Fault Tolerance & Null Safety:</b> If a token is null or empty, it maps safely to stripe 0. Every lock
+	 * acquisition is wrapped in a standard {@code try ... finally { lock.unlock(); }} idiom to ensure locks are never
+	 * leaked even if database operations throw runtime exceptions.</li>
+	 * </ul>
+	 */
+	private final ReentrantLock[] creditLocks = new ReentrantLock[CREDIT_LOCK_STRIPES];
+
 	protected final TokenResolverUtil tokenResolver;
 	protected final Config configuration;
 	protected final AdminUtils adminUtils;
@@ -67,6 +114,25 @@ abstract public class GenericApiService implements ApiServiceConstants {
 		this.adminUtils = adminUtils;
 		this.datasetConnector = datasetConnector;
 		this.tokenResolver = tokenResolver;
+
+		for (int i = 0; i < CREDIT_LOCK_STRIPES; i++) {
+			this.creditLocks[i] = new ReentrantLock();
+		}
+	}
+
+	/**
+	 * Resolves the striped {@link ReentrantLock} assigned to the specified API token.
+	 *
+	 * @param token the API token or key; may be null or empty
+	 * @return the striped {@link ReentrantLock} guarding operations on this token
+	 */
+	protected ReentrantLock getLockForToken(String token) {
+		if (token == null || token.isEmpty()) {
+			return creditLocks[0];
+		}
+		int hash = token.hashCode();
+		int idx = (hash & 0x7FFFFFFF) & CREDIT_LOCK_MASK;
+		return creditLocks[idx];
 	}
 
 	protected synchronized void initDatastoreIfNeeded() {
@@ -263,8 +329,10 @@ abstract public class GenericApiService implements ApiServiceConstants {
 			return Optional.empty();
 		}
 
-		// this is needed to isolate database access in case multiple requests come in at the same time
-		synchronized (datastore) {
+		// isolate access per-token via lock striping to allow concurrent requests for different tokens
+		ReentrantLock lock = getLockForToken(apiKey);
+		lock.lock();
+		try {
 			Optional<ObjectNode> profileOpt = datastore.getItem(apiKey, Optional.empty());
 			if (profileOpt.isEmpty() || profileOpt.get().isEmpty()) {
 				return Optional.of(Json.newObject().put(RESPONSE_ERROR, "No valid API key provided.").toString());
@@ -288,6 +356,8 @@ abstract public class GenericApiService implements ApiServiceConstants {
 				return Optional.of(Json.newObject()
 						.put(RESPONSE_ERROR, "Please ensure a correct DF API key is provided.").toString());
 			}
+		} finally {
+			lock.unlock();
 		}
 	}
 
@@ -315,8 +385,10 @@ abstract public class GenericApiService implements ApiServiceConstants {
 			return Optional.empty();
 		}
 
-		// this is needed to isolate database access in case multiple requests come in at the same time
-		synchronized (datastore) {
+		// isolate access per-token via lock striping to allow concurrent requests for different tokens
+		ReentrantLock lock = getLockForToken(apiToken);
+		lock.lock();
+		try {
 			Optional<ObjectNode> profileOpt = datastore.getItem(apiToken, Optional.empty());
 			if (profileOpt.isEmpty() || profileOpt.get().isEmpty()) {
 				return Optional.of(Json.newObject().put(RESPONSE_ERROR, "No valid API key provided.").toString());
@@ -338,6 +410,8 @@ abstract public class GenericApiService implements ApiServiceConstants {
 					Json.newObject().put(TOKENS_USED, tokens + requestedTokens));
 
 			return Optional.empty();
+		} finally {
+			lock.unlock();
 		}
 	}
 

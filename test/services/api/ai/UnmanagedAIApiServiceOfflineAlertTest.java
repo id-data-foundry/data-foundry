@@ -72,7 +72,7 @@ public class UnmanagedAIApiServiceOfflineAlertTest {
 		}
 
 		@Override
-		public Future<Void> submitApiRequest(RemoteApiRequest request) {
+		public CompletableFuture<Void> submitApiRequest(RemoteApiRequest request) {
 			if (shouldFail) {
 				CompletableFuture<Void> failed = new CompletableFuture<>();
 				failed.completeExceptionally(new RuntimeException("Connection refused to AI backend"));

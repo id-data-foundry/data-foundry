@@ -9,6 +9,7 @@ import play.libs.Files.TemporaryFile;
 import play.libs.Json;
 import play.mvc.Http.MultipartFormData;
 import services.api.ApiServiceConstants;
+import services.api.ai.AiLane;
 import services.api.requests.ApiRequest;
 
 /**
@@ -20,7 +21,14 @@ import services.api.requests.ApiRequest;
  */
 public class RemoteApiRequest extends ApiRequest<String> implements ApiServiceConstants {
 
+	public enum Outcome {
+		OK, TIMEOUT, UPSTREAM_ERROR, NO_CREDITS, UNAUTHORIZED, BAD_REQUEST
+	}
+
 	String id = UUID.randomUUID().toString();
+	private volatile Outcome outcome = Outcome.OK;
+	private final long createdAt = System.currentTimeMillis();
+	private volatile long dispatchedAt = 0;
 	private String state = "initialized";
 	private boolean isCanceled = false;
 	private Optional<String> result;
@@ -135,12 +143,53 @@ public class RemoteApiRequest extends ApiRequest<String> implements ApiServiceCo
 		this.result = result;
 	}
 
+	public Outcome getOutcome() {
+		return outcome;
+	}
+
+	public void setOutcome(Outcome outcome) {
+		this.outcome = outcome;
+	}
+
+	public String getId() {
+		return id;
+	}
+
+	public AiLane getLane() {
+		return AiLane.of(getTask().isEmpty() ? getType() : getTask());
+	}
+
+	public long getCreatedAt() {
+		return createdAt;
+	}
+
+	public long getDispatchedAt() {
+		return dispatchedAt;
+	}
+
+	public void markDispatched() {
+		this.dispatchedAt = System.currentTimeMillis();
+	}
+
+	public long getQueueDurationMs() {
+		return dispatchedAt > 0 ? (dispatchedAt - createdAt) : (System.currentTimeMillis() - createdAt);
+	}
+
+	public long getUpstreamDurationMs() {
+		return dispatchedAt > 0 ? (System.currentTimeMillis() - dispatchedAt) : 0;
+	}
+
+	public long getTotalDurationMs() {
+		return System.currentTimeMillis() - createdAt;
+	}
+
 	/**
 	 * is triggered when the supervisor timeout runs out; cancels and sets a result if none is set
 	 * 
 	 */
 	public void timeout() {
 		cancel();
+		setOutcome(Outcome.TIMEOUT);
 		this.result = this.result == null ? Optional.of(errorMessage("API timeout").toString()) : this.result;
 	}
 

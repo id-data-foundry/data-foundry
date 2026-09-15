@@ -75,6 +75,11 @@ public class ConfigurationUtils {
 
 	public static final String DF_AI_BASEURL = "df.processing.ai.baseurl";
 	public static final String DF_AI_API_KEY = "df.processing.ai.key";
+	public static final String DF_AI_STREAM_IDLE_TIMEOUT = "df.processing.ai.stream.idle_timeout";
+	public static final String DF_AI_STREAM_MAX_DURATION = "df.processing.ai.stream.max_duration";
+
+	public static final String DF_AI_DEFAULT_MAX_TOKENS = "df.processing.ai.default_max_tokens";
+	public static final String DF_AI_AGENT_MAX_TOKENS = "df.processing.ai.agent_max_tokens";
 
 	public static final String DF_AI_MODEL_DEFAULT = "df.processing.ai.models.default";
 	public static final String DF_AI_MODEL_CODING = "df.processing.ai.models.coding";
@@ -164,8 +169,7 @@ public class ConfigurationUtils {
 		defaultValueFormat.put(DF_NOTIFICATIONS_ENABLED, "true");
 		defaultValueFormat.put(DF_NOTIFICATIONS_SLACK_URL,
 				"\"https://hooks.slack.com/services/XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\"");
-		defaultValueFormat.put(DF_NOTIFICATIONS_SLACK_KEY,
-				"\"T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX\"");
+		defaultValueFormat.put(DF_NOTIFICATIONS_SLACK_KEY, "\"T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX\"");
 		defaultValueFormat.put(DF_NOTIFICATIONS_NTFY_SERVER, "\"https://ntfy.sh\"");
 		defaultValueFormat.put(DF_NOTIFICATIONS_NTFY_TOPIC, "\"datafoundry-alerts\"");
 		defaultValueFormat.put(DF_NOTIFICATIONS_PUSHOVER_URL, "\"https://api.pushover.net/1/messages.json\"");
@@ -212,7 +216,8 @@ public class ConfigurationUtils {
 				DF_KEYS_AUTH_API, DF_KEYS_V2_MULTI_API, DF_KEYS_V2_USER_API, DF_KEYS_REGISTRATION_ACCESS,
 				DF_KEYS_PROJECT_TOKEN, DF_OOCSI_SERVER, DF_AI_BASEURL }, configuration, sb);
 
-		// check notification channel: accept either new notification config (slack url/key, ntfy topic, or pushover) or legacy vendor.slack.channel
+		// check notification channel: accept either new notification config (slack url/key, ntfy topic, or pushover) or
+		// legacy vendor.slack.channel
 		boolean hasNotificationConfig = configuration.hasPath(DF_NOTIFICATIONS_SLACK_URL)
 				|| configuration.hasPath(DF_NOTIFICATIONS_SLACK_KEY)
 				|| configuration.hasPath(DF_NOTIFICATIONS_NTFY_TOPIC)

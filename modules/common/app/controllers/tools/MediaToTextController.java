@@ -169,7 +169,8 @@ public class MediaToTextController extends AbstractAsyncController implements Ap
 		transcriptionQueue.execute(() -> {
 			try {
 				// submit and wait for timeout
-				aiApiService.submitApiRequest(internalAPIRequest).get(timeoutMs, TimeUnit.MILLISECONDS);
+				aiApiService.submitApiRequest(internalAPIRequest).toCompletableFuture().get(timeoutMs,
+						TimeUnit.MILLISECONDS);
 				String resultText = Json.parse(internalAPIRequest.getResult()).get("text").asText();
 				resultText = resultText.isEmpty() ? "Transcription error." : resultText;
 				cache.set(internalToken(publicToken), resultText, MediaProcessingService.EXPIRATION_TIMEOUT_SECS);

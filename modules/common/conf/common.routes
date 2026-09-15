@@ -532,6 +532,7 @@ GET			/tools/codingagent/:id/ws							controllers.tools.CodingAgentController.ws
 
 # list of AI models
 GET			/tools/models										controllers.api2.UnmanagedAIApiController.modelsPage(request: Request)			
+GET			/tools/lanes										controllers.api2.UnmanagedAIApiController.laneStats()			
 
 
 # -------------------------------------------------------------------------------------------------------------------------

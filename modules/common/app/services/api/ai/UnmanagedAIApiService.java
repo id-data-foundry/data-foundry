@@ -1,7 +1,6 @@
 package services.api.ai;
 
 import java.io.File;
-import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.LinkedList;
 import java.util.List;
@@ -9,8 +8,8 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -22,7 +21,8 @@ import javax.inject.Singleton;
 
 import org.apache.pekko.stream.Materializer;
 import org.apache.pekko.stream.javadsl.FileIO;
-import org.apache.pekko.stream.javadsl.Sink;
+import org.apache.pekko.stream.javadsl.Framing;
+import org.apache.pekko.stream.javadsl.FramingTruncation;
 import org.apache.pekko.stream.javadsl.Source;
 import org.apache.pekko.util.ByteString;
 
@@ -46,8 +46,7 @@ import play.mvc.Http.MultipartFormData.FilePart;
 import services.api.ApiServiceConstants;
 import services.api.ai.LocalModelMetadata.ModelMetadata;
 import services.api.remoting.RemoteApiRequest;
-import services.api.remoting.RemoteRequestsExecutionService;
-import services.api.remoting.StreamingRemoteApiRequest;
+import services.api.remoting.RemoteApiRequest.Outcome;
 import services.inlets.ScheduledService;
 import services.notifications.NotificationLevel;
 import services.notifications.NotificationMessage;
@@ -62,13 +61,18 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 	private static final Logger.ALogger logger = Logger.of(UnmanagedAIApiService.class);
 	private static final java.util.regex.Pattern TOTAL_TOKENS_PATTERN = java.util.regex.Pattern
 			.compile("\"total_tokens\"\\s*:\\s*(\\d+)");
+	private static final ByteString SSE_SEP = ByteString.fromString("\n\n");
+	private static final int MAX_SSE_FRAME = 1 << 20; // 1 MiB per event
 
 	private final Config configuration;
-	private final RemoteRequestsExecutionService executionService;
+	private final AiLaneLimiter laneLimiter;
 	private final WSClient wsClient;
 	private final SyncCacheApi cache;
 	private final Materializer materializer;
 	private final SystemNotificationService notificationService;
+
+	private final Duration streamIdleTimeout;
+	private final Duration streamMaxDuration;
 
 	private final AtomicBoolean isAiOnline = new AtomicBoolean(true);
 	private final AtomicInteger consecutiveFailures = new AtomicInteger(0);
@@ -80,15 +84,22 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 	private final String internalDocumentationAPIKey = "df-internal-"
 			+ UUID.randomUUID().toString().replace("-", "").substring(0, 16);
 
+	// dedicated single-threaded daemon executor to offload usage logging from the request completion path
+	private final ExecutorService dbLogExecutor = Executors.newSingleThreadExecutor(r -> {
+		Thread t = new Thread(r, "df-ai-usage-logger");
+		t.setDaemon(true);
+		return t;
+	});
+
 	@Inject
 	protected UnmanagedAIApiService(Config configuration, SyncCacheApi cache, AdminUtils adminUtils,
-			DatasetConnector datasetConnector, TokenResolverUtil tokenResolver,
-			RemoteRequestsExecutionService executionService, WSClient wsClient, Materializer materializer,
-			LocalModelMetadata lmmd, SystemNotificationService notificationService) {
+			DatasetConnector datasetConnector, TokenResolverUtil tokenResolver, AiLaneLimiter laneLimiter,
+			WSClient wsClient, Materializer materializer, LocalModelMetadata lmmd,
+			SystemNotificationService notificationService) {
 		super(configuration, adminUtils, datasetConnector, tokenResolver, lmmd);
 		this.configuration = configuration;
 		this.cache = cache;
-		this.executionService = executionService;
+		this.laneLimiter = laneLimiter;
 		this.wsClient = wsClient;
 		this.materializer = materializer;
 		this.notificationService = notificationService;
@@ -100,6 +111,13 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 				|| configuration.getBoolean(ConfigurationUtils.DF_NOTIFICATIONS_AI_OFFLINE);
 		this.alertOnRecovery = !configuration.hasPath(ConfigurationUtils.DF_NOTIFICATIONS_AI_RECOVERY)
 				|| configuration.getBoolean(ConfigurationUtils.DF_NOTIFICATIONS_AI_RECOVERY);
+
+		this.streamIdleTimeout = configuration.hasPath(ConfigurationUtils.DF_AI_STREAM_IDLE_TIMEOUT)
+				? configuration.getDuration(ConfigurationUtils.DF_AI_STREAM_IDLE_TIMEOUT)
+				: Duration.ofSeconds(90);
+		this.streamMaxDuration = configuration.hasPath(ConfigurationUtils.DF_AI_STREAM_MAX_DURATION)
+				? configuration.getDuration(ConfigurationUtils.DF_AI_STREAM_MAX_DURATION)
+				: Duration.ofMinutes(30);
 
 		// check whether local AI is defined
 		if (ConfigurationUtils.checkConfiguration(configuration, ConfigurationUtils.DF_AI_BASEURL)) {
@@ -229,12 +247,16 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	public Future<Void> submitApiRequest(RemoteApiRequest request) {
+	public CompletableFuture<Void> submitApiRequest(RemoteApiRequest request) {
 
 		// 1. check if we have an API token set and whether this token is valid
 		switch (request.getInternalApiKey()) {
 		case "":
+			request.setOutcome(Outcome.UNAUTHORIZED);
 			request.setResult(Optional.of(Json.newObject().put(RESPONSE_ERROR, "No api-key available.").toString()));
+			logger.info("ai.request id={} lane={} model={} user={} queueMs=0 upstreamMs=0 totalMs={} outcome={}",
+					request.getId(), request.getLane(), request.getModel(), request.getUsername(),
+					request.getTotalDurationMs(), request.getOutcome());
 			return CompletableFuture.completedFuture(null);
 		default:
 			break;
@@ -242,13 +264,17 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 
 		// 2.1 fast track credit requests
 		if (request.isCreditRequest()) {
+			request.setOutcome(Outcome.OK);
 			request.setResult(checkCredits(request.getUserApiKey()));
+			logger.info("ai.request id={} lane={} model={} user={} queueMs=0 upstreamMs=0 totalMs={} outcome={}",
+					request.getId(), request.getLane(), request.getModel(), request.getUsername(),
+					request.getTotalDurationMs(), request.getOutcome());
 			return CompletableFuture.completedFuture(null);
 		}
 
 		// 2.2 fast track models request
 		if (request.isModelsRequest()) {
-			return executionService.submitRequest(request, (r) -> processRequest(r), request.getMsTimeout());
+			return dispatchWithPermit(request);
 		}
 
 		// 3. check and map requested model
@@ -256,22 +282,49 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 
 		// 4. fast track local documentation API requests
 		if (request.getUserApiKey().equals(getInternalDocumentationAPIKey()) && request.getRequestedTokens() <= 1) {
-			// submit and wait for timeout
-			return executionService.submitRequest(request, (r) -> processRequest(r), request.getMsTimeout());
+			return dispatchWithPermit(request);
 		}
 
 		// 5. check authorization from DB: check available credits for this request, if sufficient update credits
 		Optional<String> errorResponse = checkAndUpdateCredits(request.getUserApiKey(), request.getRequestedTokens());
 		// if an error response is returned, abort and return it directly
 		if (errorResponse.isPresent()) {
+			if (errorResponse.get().contains("No valid API key")) {
+				request.setOutcome(Outcome.UNAUTHORIZED);
+			} else {
+				request.setOutcome(Outcome.NO_CREDITS);
+			}
 			request.setResult(errorResponse);
 			request.cancel();
+
+			logger.info("ai.request id={} lane={} model={} user={} queueMs=0 upstreamMs=0 totalMs={} outcome={}",
+					request.getId(), request.getLane(), request.getModel(), request.getUsername(),
+					request.getTotalDurationMs(), request.getOutcome());
 
 			return CompletableFuture.completedFuture(null);
 		}
 
 		// 6. submit and wait for timeout
-		return executionService.submitRequest(request, (r) -> processRequest(r), request.getMsTimeout());
+		return dispatchWithPermit(request);
+	}
+
+	private CompletableFuture<Void> dispatchWithPermit(RemoteApiRequest request) {
+		return laneLimiter.acquire(request.getLane()).thenCompose(permit -> {
+			request.markDispatched();
+			return processRequest(request).whenComplete((v, e) -> {
+				try {
+					permit.close();
+				} catch (Exception ex) {
+					// ignore
+				} finally {
+					logger.info(
+							"ai.request id={} lane={} model={} user={} queueMs={} upstreamMs={} totalMs={} outcome={}",
+							request.getId(), request.getLane(), request.getModel(), request.getUsername(),
+							request.getQueueDurationMs(), request.getUpstreamDurationMs(), request.getTotalDurationMs(),
+							request.getOutcome());
+				}
+			});
+		}).toCompletableFuture();
 	}
 
 	/**
@@ -282,62 +335,145 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 	 */
 	public String submitApiRequestSync(RemoteApiRequest request) {
 		try {
-			this.submitApiRequest(request).get(request.getMsTimeout() + 1000, TimeUnit.MILLISECONDS);
+			this.submitApiRequest(request).toCompletableFuture().get(request.getMsTimeout() + 1000,
+					TimeUnit.MILLISECONDS);
 		} catch (Exception e) {
 			// ignore
 		}
 		return request.getResult();
 	}
 
-	/**
-	 * run a remote API request for max. msTimeout millisecond; abort on timeout
-	 * 
-	 * @param request
-	 * @param msTimeout
-	 * @return
-	 */
-	public void submitApiRequest(StreamingRemoteApiRequest request) {
+	public CompletionStage<Source<ByteString, ?>> openStream(RemoteApiRequest request) {
+		// 1. must have an internal key
+		if (request.getInternalApiKey() == null || request.getInternalApiKey().isEmpty()) {
+			request.setOutcome(Outcome.UNAUTHORIZED);
+			logger.info("ai.request id={} lane={} model={} user={} queueMs=0 upstreamMs=0 totalMs={} outcome={}",
+					request.getId(), request.getLane(), request.getModel(), request.getUsername(),
+					request.getTotalDurationMs(), request.getOutcome());
+			return CompletableFuture.completedFuture(Source.single(sseError("No api-key available.")));
+		}
+		// 2. map model, apply defaults (same as the buffered path)
+		preProcessRequest(request);
 
-		// 1. check if we have an API token set and whether this token is valid
-		switch (request.getInternalApiKey()) {
-		case "":
-			request.setResult(Optional.of(Json.newObject().put(RESPONSE_ERROR, "No api-key available.").toString()));
-			request.setInternalApiKey(localAIAPIKey);
-			return;
-		default:
-			break;
+		// 3. credits + throttle, unless this is the internal documentation key
+		boolean internalDocs = request.getUserApiKey().equals(getInternalDocumentationAPIKey())
+				&& request.getRequestedTokens() <= 1;
+		if (!internalDocs) {
+			Optional<String> error = checkAndUpdateCredits(request.getUserApiKey(), request.getRequestedTokens());
+			if (error.isPresent()) {
+				if (error.get().contains("No valid API key")) {
+					request.setOutcome(Outcome.UNAUTHORIZED);
+				} else {
+					request.setOutcome(Outcome.NO_CREDITS);
+				}
+				logger.info("ai.request id={} lane={} model={} user={} queueMs=0 upstreamMs=0 totalMs={} outcome={}",
+						request.getId(), request.getLane(), request.getModel(), request.getUsername(),
+						request.getTotalDurationMs(), request.getOutcome());
+				return CompletableFuture.completedFuture(Source.single(sseRaw(error.get())));
+			}
+		}
+		return laneLimiter.acquire(request.getLane()).thenCompose(permit -> {
+			request.markDispatched();
+			return doOpenStream(request, permit);
+		});
+	}
+
+	private CompletionStage<Source<ByteString, ?>> doOpenStream(RemoteApiRequest request, AutoCloseable permit) {
+		final long start = System.currentTimeMillis();
+		final AtomicInteger tokens = new AtomicInteger(0);
+
+		ObjectNode params = request.getParams();
+		if (params != null && !params.has("stream_options")) {
+			params.set("stream_options", Json.newObject().put("include_usage", true));
 		}
 
-		// 2. fast track credit requests
-		if (request.isCreditRequest()) {
-			request.appendResult(checkCredits(request.getUserApiKey()).get());
-			request.finish();
-		}
+		return wsClient.url(aiBaseUrl + request.getPath()).setRequestTimeout(streamMaxDuration)
+				.setMethod(REQUEST_METHOD_POST).setBody(params)
+				.addHeader(ApiServiceConstants.X_API_MODEL, nss(request.getModel())).stream().thenApply(res -> {
+					if (res.getStatus() != Http.Status.OK) {
+						try {
+							permit.close();
+						} catch (Exception ex) {
+							// ignore
+						}
+						request.setOutcome(Outcome.UPSTREAM_ERROR);
+						logModelInvocation(request, request.getModel(), mapTaskToType(request.getType()),
+								request.getRequestedTokens(), false, "upstream status " + res.getStatus(),
+								System.currentTimeMillis() - start);
+						logger.info(
+								"ai.request id={} lane={} model={} user={} queueMs={} upstreamMs={} totalMs={} outcome={}",
+								request.getId(), request.getLane(), request.getModel(), request.getUsername(),
+								request.getQueueDurationMs(), request.getUpstreamDurationMs(),
+								request.getTotalDurationMs(), request.getOutcome());
+						return Source.single(sseError("upstream returned status " + res.getStatus()));
+					}
+					return res.getBody(WSBodyReadables.instance.source())
+							// liveness measured on RAW bytes, before framing
+							.idleTimeout(streamIdleTimeout)
+							// whole SSE events, so a sentinel can never split or be faked by content
+							.via(Framing.delimiter(SSE_SEP, MAX_SSE_FRAME, FramingTruncation.ALLOW)).map(frame -> {
+								String text = frame.utf8String();
+								int total = extractTokensFromChunk(text);
+								if (total > 0) {
+									tokens.set(total);
+								} else if (text.contains("\"content\"")) {
+									tokens.incrementAndGet();
+								}
+								return frame.concat(SSE_SEP);
+							})
+							// log the REAL outcome (must sit above recover)
+							.watchTermination((mat, done) -> {
+								done.whenComplete((d, e) -> {
+									try {
+										permit.close();
+									} catch (Exception ex) {
+										// ignore
+									}
+									if (e != null) {
+										request.setOutcome(Outcome.UPSTREAM_ERROR);
+									}
+									logModelInvocation(request, request.getModel(), mapTaskToType(request.getType()),
+											tokens.get() > 0 ? tokens.get() : request.getRequestedTokens(), e == null,
+											e == null ? null : e.getLocalizedMessage(),
+											System.currentTimeMillis() - start);
+									logger.info(
+											"ai.request id={} lane={} model={} user={} queueMs={} upstreamMs={} totalMs={} outcome={}",
+											request.getId(), request.getLane(), request.getModel(),
+											request.getUsername(), request.getQueueDurationMs(),
+											request.getUpstreamDurationMs(), request.getTotalDurationMs(),
+											request.getOutcome());
+								});
+								return mat;
+							})
+							// client always gets a clean terminator instead of a silent cut
+							.recover(Throwable.class, () -> sseError("stream ended early"));
+				}).exceptionally(e -> {
+					try {
+						permit.close();
+					} catch (Exception ex) {
+						// ignore
+					}
+					request.setOutcome(Outcome.UPSTREAM_ERROR);
+					logModelInvocation(request, request.getModel(), mapTaskToType(request.getType()),
+							request.getRequestedTokens(), false, e.getLocalizedMessage(),
+							System.currentTimeMillis() - start);
+					logger.info(
+							"ai.request id={} lane={} model={} user={} queueMs={} upstreamMs={} totalMs={} outcome={}",
+							request.getId(), request.getLane(), request.getModel(), request.getUsername(),
+							request.getQueueDurationMs(), request.getUpstreamDurationMs(), request.getTotalDurationMs(),
+							request.getOutcome());
+					return Source.single(sseError(e.getLocalizedMessage()));
+				});
+	}
 
-//		// 3. compute requested credits
-//		if (request.isDirectOpenAIApiRequest()) {
-//			// this can be sent directly, no need to check for DB: submit and return immediately
-//			executionService.submitRequest(request, (r) -> processRequest(r), request.getMsTimeout());
-//			return;
-//		}
+	/** one SSE error event followed by a terminator, so clients always close cleanly */
+	private ByteString sseError(String message) {
+		return sseRaw(Json.newObject()
+				.set("error", Json.newObject().put("message", message).put("type", "upstream_error")).toString());
+	}
 
-		// 4. fast track local documentation API requests
-		if (request.getUserApiKey().equals(getInternalDocumentationAPIKey()) && request.getRequestedTokens() <= 1) {
-			// submit and wait for timeout
-			executionService.submitRequest(request, (r) -> processRequest(r), request.getMsTimeout());
-			return;
-		}
-
-		// 5. check authorization from DB and check available credits for this request, if sufficient update credits
-		Optional<String> errorResponse = checkAndUpdateCredits(request.getUserApiKey(), request.getRequestedTokens());
-		// if an error response is returned, abort and return it directly
-		if (errorResponse.isPresent()) {
-			request.cancel();
-			return;
-		}
-
-		// 6. submit and return immediately
-		executionService.submitRequest(request, (r) -> processRequest(r), request.getMsTimeout());
+	private ByteString sseRaw(String jsonPayload) {
+		return ByteString.fromString("data: " + jsonPayload + "\n\ndata: [DONE]\n\n");
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -370,79 +506,15 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	private void processRequest(RemoteApiRequest request) {
-		if (!request.isCanceled()) {
-			try {
-				if (request instanceof StreamingRemoteApiRequest) {
-					runApiRequest((StreamingRemoteApiRequest) request);
-				} else {
-					runApiRequest(request);
-				}
-			} catch (Exception e) {
-				logger.error("API request execution problem", e);
-			}
-		} else {
-			if (request instanceof StreamingRemoteApiRequest) {
-				((StreamingRemoteApiRequest) request).finish();
-			} else {
-				request.setResult(Optional.of(request.errorMessage("API timeout").toString()));
-			}
+	private CompletionStage<Void> processRequest(RemoteApiRequest request) {
+		if (request.isCanceled()) {
+			request.setOutcome(Outcome.TIMEOUT);
+			return CompletableFuture.completedFuture(null);
 		}
+		return runApiRequest(request);
 	}
 
-	private void runApiRequest(StreamingRemoteApiRequest request) {
-		long start = System.currentTimeMillis();
-		java.util.concurrent.atomic.AtomicInteger tokens = new java.util.concurrent.atomic.AtomicInteger(0);
-
-		// Inject stream_options to guarantee total_tokens in SSE final chunk
-		ObjectNode params = request.getParams();
-		if (params != null) {
-			if (!params.has("stream_options")) {
-				ObjectNode streamOptions = play.libs.Json.newObject();
-				streamOptions.put("include_usage", true);
-				params.set("stream_options", streamOptions);
-			}
-		}
-
-		wsClient.url(aiBaseUrl + request.getPath()).setRequestTimeout(Duration.ofMillis(request.getMsTimeout()))
-				.setMethod("POST").setBody(request.getParams())
-				.addHeader(ApiServiceConstants.X_API_MODEL, nss(request.getModel())).stream().thenAccept((res) -> {
-					res.getBody(WSBodyReadables.instance.source()).map(bs -> {
-						String decodeString = bs.decodeString(StandardCharsets.UTF_8);
-
-						int totalTokensVal = extractTokensFromChunk(decodeString);
-						if (totalTokensVal > 0) {
-							tokens.set(totalTokensVal);
-						} else if (decodeString.contains("\"content\"")) {
-							tokens.incrementAndGet();
-						}
-
-						if (decodeString.contains("[DONE]")) {
-							request.appendResult(decodeString);
-							request.finish();
-							int finalTokens = tokens.get();
-							if (finalTokens == 0) {
-								finalTokens = request.getRequestedTokens();
-							} else if (totalTokensVal == 0) {
-								finalTokens += estimatePromptTokens(request.getParams());
-							}
-							logModelInvocation(request, request.getModel(), mapTaskToType(request.getType()),
-									finalTokens, true, null, System.currentTimeMillis() - start);
-						} else {
-							request.appendResult(decodeString);
-						}
-						return bs;
-					}).runWith(Sink.ignore(), materializer);
-				}).exceptionally((e) -> {
-					request.setResult(Optional.empty());
-					logModelInvocation(request, request.getModel(), mapTaskToType(request.getType()),
-							request.getRequestedTokens(), false, e.getLocalizedMessage(),
-							System.currentTimeMillis() - start);
-					return null;
-				});
-	}
-
-	private void runApiRequest(RemoteApiRequest request) {
+	private CompletionStage<Void> runApiRequest(RemoteApiRequest request) {
 		// check if we have enough time to submit the request
 		long start = System.currentTimeMillis();
 		CompletionStage<WSResponse> requestCompletionStage;
@@ -469,13 +541,15 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 
 				// check if all properties are present
 				if (fileParts.size() < 1) {
+					request.setOutcome(Outcome.BAD_REQUEST);
 					request.setResult(Optional.of(Json.newObject()
 							.put(RESPONSE_ERROR, "Audio file property missing from request.").toString()));
-					return;
+					return CompletableFuture.completedFuture(null);
 				} else if (dataParts.size() < 1 || dataParts.stream().noneMatch(dp -> dp.getKey().equals("model"))) {
+					request.setOutcome(Outcome.BAD_REQUEST);
 					request.setResult(Optional.of(
 							Json.newObject().put(RESPONSE_ERROR, "Model property missing from request.").toString()));
-					return;
+					return CompletableFuture.completedFuture(null);
 				}
 
 				// ensure that the model is set on outgoing requests
@@ -497,97 +571,84 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 			requestCompletionStage = prepareWSRemoteAPIRequest(request).get();
 		}
 
-		// run request
-		try {
-			requestCompletionStage.thenCompose(res -> {
-				logger.trace("AI API request: " + aiBaseUrl + request.getPath() + " -> " + request.getModel() + " ["
-						+ (System.currentTimeMillis() - start) + "ms]");
+		// run request asynchronously without blocking threads
+		return requestCompletionStage.thenCompose(res -> {
+			logger.trace("AI API request: " + aiBaseUrl + request.getPath() + " -> " + request.getModel() + " ["
+					+ (System.currentTimeMillis() - start) + "ms]");
 
-				// 1. Check for non-200 status codes
-				if (res.getStatus() != Http.Status.OK) {
-					String errorMsg = res.getBody();
-					request.setResult(Optional.of(request
-							.errorMessage("API returned status " + res.getStatus() + ": " + errorMsg).toString()));
-					if (!request.isModelsRequest()) {
-						logModelInvocation(request, request.getModel(), mapTaskToType(request.getType()),
-								request.getRequestedTokens(), false, "API returned status " + res.getStatus(),
-								System.currentTimeMillis() - start);
-					}
-					return CompletableFuture.completedFuture(null);
-				}
-
-				// 2. Handle binary responses with streaming
-				if (request.getType().equals(REQUEST_TASK_IMAGE_GENERATION)) {
-					String token = UUID.randomUUID().toString();
-					TemporaryFile tif = play.libs.Files.singletonTemporaryFileCreator().create("generatedImage",
-							".png");
-					File tempImageFile = tif.path().toFile();
-
-					return res.getBody(WSBodyReadables.instance.source())
-							.runWith(FileIO.toPath(tempImageFile.toPath()), materializer).thenAccept(ioResult -> {
-								// cache for 1 minute
-								cache.set(token, tempImageFile.getAbsolutePath(),
-										(int) Duration.ofMinutes(1).toSeconds());
-								request.setResult(Optional.of(Json.newObject().put("image_id", token)
-										.put("prompt", request.getParams().path(REQUEST_PROMPT).asText(""))
-										.toString()));
-								if (!request.isModelsRequest()) {
-									logModelInvocation(request, request.getModel(), mapTaskToType(request.getType()),
-											request.getRequestedTokens(), true, null,
-											System.currentTimeMillis() - start);
-								}
-							});
-				} else if (request.getType().equals(REQUEST_TASK_SPEECH_GENERATION)) {
-					TemporaryFile tif = play.libs.Files.singletonTemporaryFileCreator().create("generatedSpeech",
-							".mp3");
-					File tempSpeechFile = tif.path().toFile();
-
-					return res.getBody(WSBodyReadables.instance.source())
-							.runWith(FileIO.toPath(tempSpeechFile.toPath()), materializer).thenAccept(ioResult -> {
-								request.setResult(Optional.of(tempSpeechFile.getAbsolutePath()));
-								if (!request.isModelsRequest()) {
-									logModelInvocation(request, request.getModel(), mapTaskToType(request.getType()),
-											request.getRequestedTokens(), true, null,
-											System.currentTimeMillis() - start);
-								}
-							});
-				}
-				// Handle textual responses directly in memory
-				else {
-					String responseBody = res.getBody();
-					request.setResult(Optional.of(responseBody));
-					if (!request.isModelsRequest()) {
-						int actualTokens = 1;
-						try {
-							JsonNode responseJson = Json.parse(responseBody);
-							if (responseJson.has("usage") && responseJson.get("usage").has("total_tokens")) {
-								actualTokens = responseJson.get("usage").path("total_tokens").asInt(1);
-							} else {
-								actualTokens = estimatePromptTokens(request.getParams())
-										+ estimateResponseTokens(responseJson);
-							}
-						} catch (Exception e) {
-							actualTokens = request.getRequestedTokens();
-						}
-						logModelInvocation(request, request.getModel(), mapTaskToType(request.getType()), actualTokens,
-								true, null, System.currentTimeMillis() - start);
-					}
-					return CompletableFuture.completedFuture(null);
-				}
-			}).exceptionally((e) -> {
+			// 1. Check for non-200 status codes
+			if (res.getStatus() != Http.Status.OK) {
+				String errorMsg = res.getBody();
+				request.setOutcome(Outcome.UPSTREAM_ERROR);
 				request.setResult(Optional.of(
-						request.errorMessage("API request execution problem: " + e.getLocalizedMessage()).toString()));
-				logger.error("AI API request: " + aiBaseUrl + request.getPath() + " ["
-						+ (System.currentTimeMillis() - start) + "ms]: " + e.getLocalizedMessage());
+						request.errorMessage("API returned status " + res.getStatus() + ": " + errorMsg).toString()));
 				if (!request.isModelsRequest()) {
 					logModelInvocation(request, request.getModel(), mapTaskToType(request.getType()),
-							request.getRequestedTokens(), false, e.getLocalizedMessage(),
+							request.getRequestedTokens(), false, "API returned status " + res.getStatus(),
 							System.currentTimeMillis() - start);
 				}
-				// don't issue an exception
-				return null;
-			}).toCompletableFuture().get();
-		} catch (InterruptedException | ExecutionException e) {
+				return CompletableFuture.completedFuture(null);
+			}
+
+			// 2. Handle binary responses with streaming
+			if (request.getType().equals(REQUEST_TASK_IMAGE_GENERATION)) {
+				String token = UUID.randomUUID().toString();
+				TemporaryFile tif = play.libs.Files.singletonTemporaryFileCreator().create("generatedImage", ".png");
+				File tempImageFile = tif.path().toFile();
+
+				return res.getBody(WSBodyReadables.instance.source())
+						.runWith(FileIO.toPath(tempImageFile.toPath()), materializer).thenAccept(ioResult -> {
+							// cache for 1 minute
+							cache.set(token, tempImageFile.getAbsolutePath(), (int) Duration.ofMinutes(1).toSeconds());
+							request.setOutcome(Outcome.OK);
+							request.setResult(Optional.of(Json.newObject().put("image_id", token)
+									.put("prompt", request.getParams().path(REQUEST_PROMPT).asText("")).toString()));
+							if (!request.isModelsRequest()) {
+								logModelInvocation(request, request.getModel(), mapTaskToType(request.getType()),
+										request.getRequestedTokens(), true, null, System.currentTimeMillis() - start);
+							}
+						});
+			} else if (request.getType().equals(REQUEST_TASK_SPEECH_GENERATION)) {
+				TemporaryFile tif = play.libs.Files.singletonTemporaryFileCreator().create("generatedSpeech", ".mp3");
+				File tempSpeechFile = tif.path().toFile();
+
+				return res.getBody(WSBodyReadables.instance.source())
+						.runWith(FileIO.toPath(tempSpeechFile.toPath()), materializer).thenAccept(ioResult -> {
+							request.setOutcome(Outcome.OK);
+							request.setResult(Optional.of(tempSpeechFile.getAbsolutePath()));
+							if (!request.isModelsRequest()) {
+								logModelInvocation(request, request.getModel(), mapTaskToType(request.getType()),
+										request.getRequestedTokens(), true, null, System.currentTimeMillis() - start);
+							}
+						});
+			}
+			// Handle textual responses directly in memory
+			else {
+				String responseBody = res.getBody();
+				request.setOutcome(Outcome.OK);
+				request.setResult(Optional.of(responseBody));
+				if (!request.isModelsRequest()) {
+					int actualTokens = 1;
+					try {
+						JsonNode responseJson = Json.parse(responseBody);
+						if (responseJson.has("usage") && responseJson.get("usage").has("total_tokens")) {
+							actualTokens = responseJson.get("usage").path("total_tokens").asInt(1);
+						} else {
+							actualTokens = estimatePromptTokens(request.getParams())
+									+ estimateResponseTokens(responseJson);
+						}
+					} catch (Exception e) {
+						actualTokens = request.getRequestedTokens();
+					}
+					logModelInvocation(request, request.getModel(), mapTaskToType(request.getType()), actualTokens,
+							true, null, System.currentTimeMillis() - start);
+				}
+				return CompletableFuture.completedFuture(null);
+			}
+		}).exceptionally((e) -> {
+			request.setOutcome(Outcome.UPSTREAM_ERROR);
+			request.setResult(Optional
+					.of(request.errorMessage("API request execution problem: " + e.getLocalizedMessage()).toString()));
 			logger.error("AI API request: " + aiBaseUrl + request.getPath() + " ["
 					+ (System.currentTimeMillis() - start) + "ms]: " + e.getLocalizedMessage());
 			if (!request.isModelsRequest()) {
@@ -595,7 +656,12 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 						request.getRequestedTokens(), false, e.getLocalizedMessage(),
 						System.currentTimeMillis() - start);
 			}
-		}
+			return null;
+		});
+	}
+
+	public AiLaneLimiter getLaneLimiter() {
+		return laneLimiter;
 	}
 
 	private WSRequest prepareWSRemoteAPIRequest(RemoteApiRequest request) {
@@ -728,23 +794,38 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 
 	public void logModelInvocation(String apiKey, String explicitUsername, String model, String modelType,
 			int requestedTokens, boolean success, String errorMessage, long durationMs) {
-		try {
-			initDatastoreIfNeeded();
-			if (localAiUsageStore == null) {
-				return;
-			}
+		dbLogExecutor.submit(() -> {
+			try {
+				initDatastoreIfNeeded();
+				if (localAiUsageStore == null) {
+					return;
+				}
 
-			String username = "SYSTEM";
-			String email = "system@df";
-			long projectId = -1L;
+				String username = "SYSTEM";
+				String email = "system@df";
+				long projectId = -1L;
 
-			if (apiKey != null && !apiKey.isEmpty() && !apiKey.equals("SYSTEM")) {
-				ApiKeyDetails details = getApiKeyDetails(apiKey);
-				if (details != null) {
-					username = details.username();
-					email = details.email();
-					projectId = details.projectId();
-				} else if (apiKey.equals(getInternalDocumentationAPIKey())) {
+				if (apiKey != null && !apiKey.isEmpty() && !apiKey.equals("SYSTEM")) {
+					ApiKeyDetails details = getApiKeyDetails(apiKey);
+					if (details != null) {
+						username = details.username();
+						email = details.email();
+						projectId = details.projectId();
+					} else if (apiKey.equals(getInternalDocumentationAPIKey())) {
+						if (explicitUsername != null && !explicitUsername.trim().isEmpty()
+								&& !"SYSTEM".equalsIgnoreCase(explicitUsername)) {
+							username = explicitUsername;
+							email = explicitUsername.contains("@") ? explicitUsername : explicitUsername + "@df";
+						} else {
+							username = "SYSTEM";
+							email = "system@df";
+						}
+					} else {
+						username = explicitUsername != null && !explicitUsername.trim().isEmpty() ? explicitUsername
+								: "UNKNOWN";
+						email = apiKey;
+					}
+				} else if ("SYSTEM".equals(apiKey)) {
 					if (explicitUsername != null && !explicitUsername.trim().isEmpty()
 							&& !"SYSTEM".equalsIgnoreCase(explicitUsername)) {
 						username = explicitUsername;
@@ -753,39 +834,26 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 						username = "SYSTEM";
 						email = "system@df";
 					}
-				} else {
-					username = explicitUsername != null && !explicitUsername.trim().isEmpty() ? explicitUsername
-							: "UNKNOWN";
-					email = apiKey;
 				}
-			} else if ("SYSTEM".equals(apiKey)) {
-				if (explicitUsername != null && !explicitUsername.trim().isEmpty()
-						&& !"SYSTEM".equalsIgnoreCase(explicitUsername)) {
-					username = explicitUsername;
-					email = explicitUsername.contains("@") ? explicitUsername : explicitUsername + "@df";
-				} else {
-					username = "SYSTEM";
-					email = "system@df";
+
+				ObjectNode dataNode = Json.newObject();
+				dataNode.put("success", success);
+				dataNode.put("tokens", requestedTokens);
+				dataNode.put("duration", durationMs);
+				dataNode.put("projectId", projectId);
+				dataNode.put("email", email);
+				if (errorMessage != null && !errorMessage.isEmpty()) {
+					dataNode.put("error", errorMessage);
 				}
+
+				String pp3Value = success ? "success" : "error";
+
+				localAiUsageStore.internalAddRecord("local_ai_service", username, modelType, pp3Value,
+						new java.util.Date(), model != null ? model : "unknown", dataNode);
+			} catch (Exception e) {
+				logger.error("Failed to log model invocation: ", e);
 			}
-
-			ObjectNode dataNode = Json.newObject();
-			dataNode.put("success", success);
-			dataNode.put("tokens", requestedTokens);
-			dataNode.put("duration", durationMs);
-			dataNode.put("projectId", projectId);
-			dataNode.put("email", email);
-			if (errorMessage != null && !errorMessage.isEmpty()) {
-				dataNode.put("error", errorMessage);
-			}
-
-			String pp3Value = success ? "success" : "error";
-
-			localAiUsageStore.internalAddRecord("local_ai_service", username, modelType, pp3Value, new java.util.Date(),
-					model != null ? model : "unknown", dataNode);
-		} catch (Exception e) {
-			logger.error("Failed to log model invocation: ", e);
-		}
+		});
 	}
 
 	/**
