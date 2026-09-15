@@ -360,7 +360,8 @@ public class CompleteDS extends LinkedDS {
 	 * @return
 	 */
 	public Optional<File> getFileTemp(String fileName) {
-		if (fileName == null || fileName.trim().isEmpty()) {
+		if (fileName == null || fileName.trim().isEmpty() || fileName.contains("..") || fileName.contains("/")
+				|| fileName.contains("\\")) {
 			return Optional.empty();
 		}
 
