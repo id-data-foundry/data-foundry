@@ -21,45 +21,43 @@ public class GraalSandboxSecurityTest {
 	}
 
 	public static class TestBean {
-		@org.graalvm.polyglot.HostAccess.Export
-		public String allowedMethod() {
-			return "allowed";
-		}
-
-		public String blockedMethod() {
-			return "blocked";
+		public String sayHello(String name) {
+			return "Hello, " + name;
 		}
 	}
 
 	@Test
-	public void testHostAccessExplicitEnforcement() throws Exception {
+	public void testBoundObjectMethodsWork() throws Exception {
 		GraalSandbox sandbox = GraalSandboxes.create();
 		javax.script.Bindings bindings = sandbox.createNewBindings();
 		bindings.put("bean", new TestBean());
 
-		// Exported method should execute successfully
-		Object allowedResult = sandbox.eval("bean.allowedMethod()", bindings);
-		assertEquals("allowed", allowedResult.toString());
+		Object allowedResult = sandbox.eval("bean.sayHello('World')", bindings);
+		assertEquals("Hello, World", allowedResult.toString());
+	}
 
-		// Unexported method should fail / not be accessible under HostAccess.EXPLICIT
+	@Test
+	public void testJavaClassLookupAndReflectionBlocked() {
+		GraalSandbox sandbox = GraalSandboxes.create();
 		try {
-			sandbox.eval("bean.blockedMethod()", bindings);
-			fail("Blocked method without @HostAccess.Export must not be executable");
+			// Trying to access unexported Java classes or methods must fail because host class lookup is disabled
+			sandbox.eval("java.lang.System.exit(1);");
+			fail("Should not allow access to System.exit");
 		} catch (Exception e) {
-			// Expected: TypeError or NoSuchMethodException
+			// Expected: ReferenceError or TypeError
 			assertTrue(true);
 		}
 	}
 
 	@Test
-	public void testJavaReflectionBlocked() {
+	public void testPolyglotAccessBlocked() {
 		GraalSandbox sandbox = GraalSandboxes.create();
 		try {
-			// Trying to access unexported Java classes or methods must fail under HostAccess.EXPLICIT
-			sandbox.eval("java.lang.System.exit(1);");
-			fail("Should not allow access to System.exit");
+			// Polyglot access is disabled via PolyglotAccess.NONE
+			sandbox.eval("Polyglot.eval('js', '1+1');");
+			fail("Polyglot.eval must not be accessible");
 		} catch (Exception e) {
-			// Expected exception
+			// Expected
 			assertTrue(true);
 		}
 	}

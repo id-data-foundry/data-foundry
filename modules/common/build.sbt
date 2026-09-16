@@ -99,8 +99,16 @@ libraryDependencies ++= Seq(
   "com.bucket4j" % "bucket4j-core" % "8.1.1",
 
   // Microsoft Email Gateway
-  "com.microsoft.graph" % "microsoft-graph" % "5.41.0", //excludeAll(ExclusionRule(organization = "com.fasterxml.jackson.core"), ExclusionRule(organization = "com.fasterxml.jackson.module"), ExclusionRule(organization = "com.fasterxml.jackson.datatype")),
-  "com.azure" % "azure-identity" % "1.15.3", //excludeAll(ExclusionRule(organization = "com.fasterxml.jackson.core"), ExclusionRule(organization = "com.fasterxml.jackson.module"), ExclusionRule(organization = "com.fasterxml.jackson.datatype")),
+  "com.microsoft.graph" % "microsoft-graph" % "5.41.0" excludeAll(
+    ExclusionRule(organization = "com.fasterxml.jackson.core"),
+    ExclusionRule(organization = "com.fasterxml.jackson.module"),
+    ExclusionRule(organization = "com.fasterxml.jackson.datatype")
+  ),
+  "com.azure" % "azure-identity" % "1.15.3" excludeAll(
+    ExclusionRule(organization = "com.fasterxml.jackson.core"),
+    ExclusionRule(organization = "com.fasterxml.jackson.module"),
+    ExclusionRule(organization = "com.fasterxml.jackson.datatype")
+  ),
   "com.squareup.okhttp3" % "okhttp" % "4.10.0",
 
   // OpenDataLoader for PDF text extraction
