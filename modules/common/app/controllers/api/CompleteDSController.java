@@ -1003,6 +1003,9 @@ public class CompleteDSController extends AbstractDSController {
 
 	@Authenticated(DatasetApiAuth.class)
 	public CompletionStage<Result> addItemApi(Request request, Long id) {
+		if (!DatasetApiAuth.isAuthorizedForDataset(request, id)) {
+			return CompletableFuture.completedFuture(forbidden(Json.newObject().put("error", "Access denied.")));
+		}
 		return addItem(request, id);
 	}
 

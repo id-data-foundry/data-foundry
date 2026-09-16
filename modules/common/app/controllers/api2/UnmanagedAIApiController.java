@@ -301,11 +301,17 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 
 		try {
 			URL refUrl = new URL(referrer);
-			// ensure same host, /documentation path
-			if (referrer.contains(host) && refUrl.getPath().startsWith("/documentation")) {
+			String requestHost = host.contains(":") ? host.substring(0, host.indexOf(':')) : host;
+			int requestPort = host.contains(":") ? Integer.parseInt(host.substring(host.indexOf(':') + 1))
+					: (request.secure() ? 443 : 80);
+			int refPort = refUrl.getPort() == -1 ? refUrl.getDefaultPort() : refUrl.getPort();
+
+			// ensure exact same host, port, and /documentation path
+			if (refUrl.getHost().equalsIgnoreCase(requestHost) && refPort == requestPort
+					&& (refUrl.getPath().equals("/documentation") || refUrl.getPath().startsWith("/documentation/"))) {
 				return aiApiService.getInternalDocumentationAPIKey();
 			}
-		} catch (MalformedURLException e) {
+		} catch (MalformedURLException | NumberFormatException e) {
 			// do nothing
 		}
 

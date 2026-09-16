@@ -56,7 +56,30 @@ public class DatasetApiAuth extends play.mvc.Security.Authenticator {
 			return Optional.empty();
 		}
 
-		return Optional.of("ok");
+		// If path contains a dataset id parameter, ensure it matches the authorized dataset id
+		String[] segments = request.path().split("/");
+		for (int i = 0; i < segments.length - 1; i++) {
+			if ("datasets".equals(segments[i]) && i + 2 < segments.length) {
+				try {
+					long pathId = Long.parseLong(segments[i + 2]);
+					if (pathId != ds.getId()) {
+						logger.warn("DatasetApiAuth: token for dataset " + ds.getId() + " cannot access dataset " + pathId);
+						return Optional.empty();
+					}
+				} catch (NumberFormatException ignored) {
+				}
+			}
+		}
+
+		return Optional.of(ds.getId().toString());
+	}
+
+	public static boolean isAuthorizedForDataset(Request request, Long datasetId) {
+		if (datasetId == null || request == null) {
+			return false;
+		}
+		String authDsId = request.attrs().getOptional(play.mvc.Security.USERNAME).orElse("");
+		return String.valueOf(datasetId).equals(authDsId);
 	}
 
 	@Override

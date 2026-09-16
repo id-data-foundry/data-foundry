@@ -293,9 +293,14 @@ public class AnnotationDSController extends AbstractDSController {
 
 	@Authenticated(UserAuth.class)
 	public Result recordForProject(Request request, Long id) {
+		String username = getAuthenticatedUserNameOrReturn(request, redirect(LANDING));
 		Project project = Project.find.byId(id);
 		if (project == null) {
 			return badRequest();
+		}
+		project.refresh();
+		if (!project.editableBy(username)) {
+			return forbidden();
 		}
 
 		Dataset ds = project.getAnnotationDataset();

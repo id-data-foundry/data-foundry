@@ -85,7 +85,7 @@ public class StarboardController extends AbstractAsyncController {
 	@RequireCSRFCheck
 	@Authenticated(UserAuth.class)
 	public Result addNotebook(Request request) {
-		getAuthenticatedUserOrReturn(request,
+		Person user = getAuthenticatedUserOrReturn(request,
 				redirect(LANDING).addingToSession(request, "error", "Please log in first to use this tool."));
 
 		DynamicForm df = formFactory.form().bindFromRequest(request);
@@ -104,6 +104,9 @@ public class StarboardController extends AbstractAsyncController {
 		Dataset ds = Dataset.find.byId(dsId);
 		if (ds == null) {
 			return redirect(routes.StarboardController.index()).flashing("error", "Dataset id not found.");
+		}
+		if (!user.canEdit(ds.getProject())) {
+			return redirect(routes.StarboardController.index()).flashing("error", "Access denied.");
 		}
 
 		CompleteDS cds = datasetConnector.getTypedDatasetDS(ds);

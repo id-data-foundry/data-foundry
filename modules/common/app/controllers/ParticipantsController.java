@@ -8,6 +8,7 @@ import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -760,10 +761,22 @@ public class ParticipantsController extends AbstractAsyncController {
 	 */
 	@Authenticated(UserAuth.class)
 	public CompletionStage<Result> getTelegramImage(String fileId) {
+		if (fileId == null || fileId.contains("..") || fileId.contains(":") || fileId.contains("?")
+				|| fileId.contains("&") || fileId.startsWith("/")) {
+			return CompletableFuture.completedFuture(badRequest("Invalid file ID."));
+		}
+		if (!fileId.matches("^[a-zA-Z0-9_./-]+$")) {
+			return CompletableFuture.completedFuture(badRequest("Invalid file ID."));
+		}
+
 		// https://api.telegram.org/file/bot<token>/<file_path>
 		return ws.url("https://api.telegram.org/file/bot" + telegramBotUtils.getBotToken() + "/" + fileId)
-		        .setFollowRedirects(true).get().toCompletableFuture().thenApply(ws -> {
-			        return ok(ws.asByteArray());
+		        .setFollowRedirects(false).get().toCompletableFuture().thenApply(res -> {
+			        if (res.getStatus() != 200) {
+				        return notFound();
+			        }
+			        String contentType = res.getSingleHeader("Content-Type").orElse("image/jpeg");
+			        return ok(res.asByteArray()).as(contentType).withHeader("X-Content-Type-Options", "nosniff");
 		        });
 	}
 

@@ -1188,6 +1188,7 @@ public class DatasetApiController extends AbstractApiController {
 	 * @param participant_id
 	 * @return
 	 */
+	@Authenticated(V2UserApiAuth.class)
 	public Result addDiaryRecord(Request request, final Long id, long participant_id) {
 
 		// check id
@@ -1197,6 +1198,13 @@ public class DatasetApiController extends AbstractApiController {
 					"No or invalid dataset ID given. Only Diary dataset is available for this request."));
 		} else if (!ds.canAppend()) {
 			return forbidden(errorJSONResponseObject("Dataset is closed (adjust start and end dates to open)."));
+		}
+
+		// check user
+		Person user = Person.find.byId(getAuthenticatedAPIUserId(request));
+		Project project = ds.getProject();
+		if (user == null || (!project.belongsTo(user) && !project.collaboratesWith(user))) {
+			return forbidden(errorJSONResponseObject("Access to project not authorized."));
 		}
 
 		// check participant id from invite_id

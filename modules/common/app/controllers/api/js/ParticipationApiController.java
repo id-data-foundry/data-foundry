@@ -548,7 +548,8 @@ public class ParticipationApiController extends AbstractApiController {
 
 			// check dataset and dataset type
 			Dataset ds = Dataset.find.byId(id);
-			if (ds == null) {
+			if (ds == null || ds.getProject() == null
+					|| !ds.getProject().getId().equals(participant.getProject().getId())) {
 				return notFound("No or invalid dataset ID given.");
 			}
 
@@ -602,7 +603,8 @@ public class ParticipationApiController extends AbstractApiController {
 
 			// check dataset and dataset type
 			Dataset ds = Dataset.find.byId(id);
-			if (ds == null) {
+			if (ds == null || ds.getProject() == null
+					|| !ds.getProject().getId().equals(participant.getProject().getId())) {
 				return notFound("No or invalid dataset ID given.");
 			}
 

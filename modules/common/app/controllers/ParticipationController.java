@@ -946,10 +946,20 @@ public class ParticipationController extends Controller {
 		// check participant has no wearables in on-going projects
 		Long participant_id = tokenResolverUtil.getParticipantIdFromParticipationToken(invite_token);
 		Participant participant = Participant.find.byId(participant_id);
+		if (participant == null || participant.getProject() == null) {
+			return redirect(routes.HomeController.index());
+		}
+
+		// ensure wearable belongs to participant's project
+		if (wearable.getProject() == null || !wearable.getProject().getId().equals(participant.getProject().getId())) {
+			return redirect(routes.HomeController.index()).addingToSession(request, "error",
+					"Invalid wearable for project.");
+		}
+
 		Participant clusterParticipant = wearable.getClusterParticipant();
 
 		// check whether participant and wearable is in the same cluster or the wearable is unregistered
-		if (clusterParticipant != null && participant_id.equals(clusterParticipant.getId())
+		if ((clusterParticipant != null && participant_id.equals(clusterParticipant.getId()))
 				|| (!participant.getClusters().isEmpty() && !wearable.isConnected())) {
 
 			String signupStatus = "new";

@@ -226,6 +226,9 @@ public class MediaDSController extends AbstractDSController {
 	 */
 	@Authenticated(DatasetApiAuth.class)
 	public CompletionStage<Result> getItemApi(Request request, Long id, String fileNameParam) {
+		if (!DatasetApiAuth.isAuthorizedForDataset(request, id)) {
+			return CompletableFuture.completedFuture(forbidden("Access denied."));
+		}
 		return CompletableFuture.supplyAsync(() -> {
 			String fileName = fileNameParam;
 
@@ -264,6 +267,9 @@ public class MediaDSController extends AbstractDSController {
 
 	@Authenticated(DatasetApiAuth.class)
 	public CompletionStage<Result> addItemApi(Request request, Long id) {
+		if (!DatasetApiAuth.isAuthorizedForDataset(request, id)) {
+			return CompletableFuture.completedFuture(forbidden("Access denied."));
+		}
 		return addItem(request, id);
 	}
 
@@ -383,6 +389,9 @@ public class MediaDSController extends AbstractDSController {
 
 	@Authenticated(DatasetApiAuth.class)
 	public CompletionStage<Result> updateItemApi(Request request, Long id, Long itemId) {
+		if (!DatasetApiAuth.isAuthorizedForDataset(request, id)) {
+			return CompletableFuture.completedFuture(forbidden("Access denied."));
+		}
 		return internalUpdateItem(request, id, itemId, null);
 	}
 
