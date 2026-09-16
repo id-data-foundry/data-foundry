@@ -14,6 +14,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import javax.inject.Inject;
@@ -89,8 +92,11 @@ public class CodingAgentController extends AbstractAsyncController {
 	private final LocalModelMetadata localModelMetadata;
 	private final Config config;
 
+	// Dedicated work-stealing pool for agent LLM execution
+	private final ExecutorService agentExecutor = Executors.newWorkStealingPool();
+
 	// Shared WebSocket flows per dataset
-	private final Map<Long, DatasetContext> datasetContexts = new HashMap<>();
+	private final Map<Long, DatasetContext> datasetContexts = new ConcurrentHashMap<>();
 
 	@Inject
 	public CodingAgentController(Environment environment, DatasetConnector datasetConnector,
@@ -139,7 +145,8 @@ public class CodingAgentController extends AbstractAsyncController {
 		}
 
 		final CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
-		final List<TimedMedia> fileList = cpds.getFiles().stream()
+		final List<TimedMedia> fileList = cache.getOrElseUpdate(CompleteDSController.CACHE_FILES + id,
+				() -> cpds.getFiles(), 30).stream()
 				.filter(tl -> FileTypeUtils.looksLikeEditableFile(tl.link)).collect(Collectors.toList());
 
 		if (fileId == -1L && !fileList.isEmpty()) {
@@ -150,17 +157,13 @@ public class CodingAgentController extends AbstractAsyncController {
 		String fileType = "";
 		String fileContent = "";
 		if (fileId != -1L) {
+			fileContent = cpds.getFileContent(fileId).orElse("");
 			Optional<File> requestedFileOpt = cpds.getFile(fileId);
 			if (requestedFileOpt.isPresent()) {
 				File f = requestedFileOpt.get();
 				fileName = f.getName();
 				String comps[] = fileName.split("\\.");
 				fileType = comps[comps.length - 1];
-				try {
-					fileContent = FileUtils.readFileToString(f, Charset.defaultCharset());
-				} catch (Exception e) {
-					logger.error("Error reading file content", e);
-				}
 			}
 		}
 
@@ -180,7 +183,8 @@ public class CodingAgentController extends AbstractAsyncController {
 		}
 
 		final CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
-		final List<TimedMedia> fileList = cpds.getFiles().stream()
+		final List<TimedMedia> fileList = cache.getOrElseUpdate(CompleteDSController.CACHE_FILES + id,
+				() -> cpds.getFiles(), 30).stream()
 				.filter(tl -> FileTypeUtils.looksLikeEditableFile(tl.link)).collect(Collectors.toList());
 
 		ArrayNode array = Json.newArray();
@@ -214,7 +218,7 @@ public class CodingAgentController extends AbstractAsyncController {
 		});
 	}
 
-	private synchronized Flow<JsonNode, JsonNode, ?> getDatasetFlow(play.mvc.Http.RequestHeader request, Long datasetId,
+	private Flow<JsonNode, JsonNode, ?> getDatasetFlow(play.mvc.Http.RequestHeader request, Long datasetId,
 			String username, String userEmail) {
 		final String sessionId = datasetId + "-session";
 		DatasetContext context = datasetContexts.computeIfAbsent(datasetId, id -> {
@@ -377,7 +381,7 @@ public class CodingAgentController extends AbstractAsyncController {
 				Source.single((JsonNode) userMsg).runWith(context.sink(), materializer);
 
 				if (CodingAgentUtils.isAgentSummoned(message)) {
-					// Trigger AgentScope processing when @bot is summoned
+					// Trigger AgentScope processing when @bot is summoned on dedicated work-stealing pool
 					CompletableFuture.runAsync(() -> {
 						context.setThinking(true);
 						try {
@@ -423,7 +427,7 @@ public class CodingAgentController extends AbstractAsyncController {
 							ObjectNode typingEnd = Json.newObject().put("type", "typing").put("active", false);
 							Source.single((JsonNode) typingEnd).runWith(context.sink(), materializer);
 						}
-					});
+					}, agentExecutor);
 				} else {
 					// Record team discussion into Agent state memory without triggering LLM generation
 					try {
@@ -445,144 +449,146 @@ public class CodingAgentController extends AbstractAsyncController {
 		}), historySource.concat(context.source()));
 	}
 
-	private synchronized void checkAndReloadAgent(DatasetContext context, Long datasetId, String sessionId,
+	private void checkAndReloadAgent(DatasetContext context, Long datasetId, String sessionId,
 			String userEmail) {
-		Optional<File> sourceAgentsMdOpt = context.cpds().getFile("AGENTS.md");
-		if (sourceAgentsMdOpt.isEmpty()) {
-			sourceAgentsMdOpt = context.cpds().getFile(".agents/AGENTS.md");
-		}
-
-		long currentLastModified = sourceAgentsMdOpt.map(File::lastModified).orElse(0L);
-
-		if (context.agent() == null || currentLastModified != context.getAgentsMdLastModified()) {
-			context.setAgentsMdLastModified(currentLastModified);
-
-			File agentscopeDir = new File(context.cpds().getFolder(), ".agentscope");
-			File targetAgentsMd = new File(agentscopeDir, "AGENTS.md");
-
-			if (sourceAgentsMdOpt.isPresent()) {
-				try {
-					FileUtils.copyFile(sourceAgentsMdOpt.get(), targetAgentsMd);
-					logger.info("Synced updated AGENTS.md to agent workspace.");
-				} catch (Exception e) {
-					logger.error("Could not sync AGENTS.md to agent workspace", e);
-				}
-			} else {
-				if (targetAgentsMd.exists()) {
-					targetAgentsMd.delete();
-					logger.info("Deleted AGENTS.md from agent workspace as it was removed from dataset.");
-				}
+		synchronized (context) {
+			Optional<File> sourceAgentsMdOpt = context.cpds().getFile("AGENTS.md");
+			if (sourceAgentsMdOpt.isEmpty()) {
+				sourceAgentsMdOpt = context.cpds().getFile(".agents/AGENTS.md");
 			}
 
-			try {
-				Dataset ds = Dataset.find.byId(datasetId);
-				String defaultCodingModel = "qwen/qwen3.6-27b";
-				if (config.hasPath(ConfigurationUtils.DF_AI_MODEL_CODING)
-						&& !config.getString(ConfigurationUtils.DF_AI_MODEL_CODING).isEmpty()) {
-					defaultCodingModel = config.getString(ConfigurationUtils.DF_AI_MODEL_CODING);
-				} else if (config.hasPath(ConfigurationUtils.DF_AI_MODEL_DEFAULT)
-						&& !config.getString(ConfigurationUtils.DF_AI_MODEL_DEFAULT).isEmpty()) {
-					defaultCodingModel = config.getString(ConfigurationUtils.DF_AI_MODEL_DEFAULT);
-				}
-				String mainModelName = localModelMetadata
-						.mapModelId(ds.configuration(Dataset.CHATBOT_MODEL, defaultCodingModel));
+			long currentLastModified = sourceAgentsMdOpt.map(File::lastModified).orElse(0L);
 
-				String defaultCodingSubAgentModel = "qwen/qwen3.6-27b";
-				if (config.hasPath(ConfigurationUtils.DF_AI_MODEL_CODING_SUBAGENT)
-						&& !config.getString(ConfigurationUtils.DF_AI_MODEL_CODING_SUBAGENT).isEmpty()) {
-					defaultCodingSubAgentModel = config.getString(ConfigurationUtils.DF_AI_MODEL_CODING_SUBAGENT);
-				} else if (config.hasPath(ConfigurationUtils.DF_AI_MODEL_CODING)
-						&& !config.getString(ConfigurationUtils.DF_AI_MODEL_CODING).isEmpty()) {
-					defaultCodingSubAgentModel = config.getString(ConfigurationUtils.DF_AI_MODEL_CODING);
-				} else if (config.hasPath(ConfigurationUtils.DF_AI_MODEL_DEFAULT)
-						&& !config.getString(ConfigurationUtils.DF_AI_MODEL_DEFAULT).isEmpty()) {
-					defaultCodingSubAgentModel = config.getString(ConfigurationUtils.DF_AI_MODEL_DEFAULT);
-				}
-				String subAgentModelName = localModelMetadata.mapModelId(defaultCodingSubAgentModel);
+			if (context.agent() == null || currentLastModified != context.getAgentsMdLastModified()) {
+				context.setAgentsMdLastModified(currentLastModified);
 
-				int agentMaxTokens = 8192;
-				if (config.hasPath(ConfigurationUtils.DF_AI_AGENT_MAX_TOKENS)) {
-					agentMaxTokens = config.getInt(ConfigurationUtils.DF_AI_AGENT_MAX_TOKENS);
+				File agentscopeDir = new File(context.cpds().getFolder(), ".agentscope");
+				File targetAgentsMd = new File(agentscopeDir, "AGENTS.md");
+
+				if (sourceAgentsMdOpt.isPresent()) {
+					try {
+						FileUtils.copyFile(sourceAgentsMdOpt.get(), targetAgentsMd);
+						logger.info("Synced updated AGENTS.md to agent workspace.");
+					} catch (Exception e) {
+						logger.error("Could not sync AGENTS.md to agent workspace", e);
+					}
+				} else {
+					if (targetAgentsMd.exists()) {
+						targetAgentsMd.delete();
+						logger.info("Deleted AGENTS.md from agent workspace as it was removed from dataset.");
+					}
 				}
 
-				GenerateOptions mainOptions = GenerateOptions.builder()
-//						.additionalBodyParam("preserve_thinking", true)
-						.maxTokens(agentMaxTokens)
-						.additionalHeader(ApiServiceConstants.X_API_MODEL, mainModelName)
-						.additionalHeader(ApiServiceConstants.X_API_USER, userEmail != null ? userEmail : "").build();
+				try {
+					Dataset ds = Dataset.find.byId(datasetId);
+					String defaultCodingModel = "qwen/qwen3.6-27b";
+					if (config.hasPath(ConfigurationUtils.DF_AI_MODEL_CODING)
+							&& !config.getString(ConfigurationUtils.DF_AI_MODEL_CODING).isEmpty()) {
+						defaultCodingModel = config.getString(ConfigurationUtils.DF_AI_MODEL_CODING);
+					} else if (config.hasPath(ConfigurationUtils.DF_AI_MODEL_DEFAULT)
+							&& !config.getString(ConfigurationUtils.DF_AI_MODEL_DEFAULT).isEmpty()) {
+						defaultCodingModel = config.getString(ConfigurationUtils.DF_AI_MODEL_DEFAULT);
+					}
+					String mainModelName = localModelMetadata
+							.mapModelId(ds.configuration(Dataset.CHATBOT_MODEL, defaultCodingModel));
 
-				GenerateOptions subAgentOptions = GenerateOptions.builder()
-//						.additionalBodyParam("preserve_thinking", true)
-						.maxTokens(agentMaxTokens)
-						.additionalHeader(ApiServiceConstants.X_API_MODEL, subAgentModelName)
-						.additionalHeader(ApiServiceConstants.X_API_USER, userEmail != null ? userEmail : "").build();
+					String defaultCodingSubAgentModel = "qwen/qwen3.6-27b";
+					if (config.hasPath(ConfigurationUtils.DF_AI_MODEL_CODING_SUBAGENT)
+							&& !config.getString(ConfigurationUtils.DF_AI_MODEL_CODING_SUBAGENT).isEmpty()) {
+						defaultCodingSubAgentModel = config.getString(ConfigurationUtils.DF_AI_MODEL_CODING_SUBAGENT);
+					} else if (config.hasPath(ConfigurationUtils.DF_AI_MODEL_CODING)
+							&& !config.getString(ConfigurationUtils.DF_AI_MODEL_CODING).isEmpty()) {
+						defaultCodingSubAgentModel = config.getString(ConfigurationUtils.DF_AI_MODEL_CODING);
+					} else if (config.hasPath(ConfigurationUtils.DF_AI_MODEL_DEFAULT)
+							&& !config.getString(ConfigurationUtils.DF_AI_MODEL_DEFAULT).isEmpty()) {
+						defaultCodingSubAgentModel = config.getString(ConfigurationUtils.DF_AI_MODEL_DEFAULT);
+					}
+					String subAgentModelName = localModelMetadata.mapModelId(defaultCodingSubAgentModel);
 
-				String localProxyUrl = CodingAgentUtils.resolveLocalProxyUrl(config);
+					int agentMaxTokens = 8192;
+					if (config.hasPath(ConfigurationUtils.DF_AI_AGENT_MAX_TOKENS)) {
+						agentMaxTokens = config.getInt(ConfigurationUtils.DF_AI_AGENT_MAX_TOKENS);
+					}
 
-				OpenAIChatModel mainModel = OpenAIChatModel.builder().modelName(mainModelName)
-						.apiKey(aiAPIService.getInternalDocumentationAPIKey()).baseUrl(localProxyUrl)
-						.generateOptions(mainOptions).build();
+					GenerateOptions mainOptions = GenerateOptions.builder()
+//							.additionalBodyParam("preserve_thinking", true)
+							.maxTokens(agentMaxTokens)
+							.additionalHeader(ApiServiceConstants.X_API_MODEL, mainModelName)
+							.additionalHeader(ApiServiceConstants.X_API_USER, userEmail != null ? userEmail : "").build();
 
-				OpenAIChatModel subAgentModel = OpenAIChatModel.builder().modelName(subAgentModelName)
-						.apiKey(aiAPIService.getInternalDocumentationAPIKey()).baseUrl(localProxyUrl)
-						.generateOptions(subAgentOptions).build();
+					GenerateOptions subAgentOptions = GenerateOptions.builder()
+//							.additionalBodyParam("preserve_thinking", true)
+							.maxTokens(agentMaxTokens)
+							.additionalHeader(ApiServiceConstants.X_API_MODEL, subAgentModelName)
+							.additionalHeader(ApiServiceConstants.X_API_USER, userEmail != null ? userEmail : "").build();
 
-				// Build shared read-only tool and sub-agent mutation tool
-				ReadOnlyFileTool readOnlyTool = new ReadOnlyFileTool(context.cpds(), datasetId, aiAPIService);
-				FileMutationTool mutationTool = new FileMutationTool(context.cpds(), context.sink(),
-						context.materializer(), cache, datasetId);
+					String localProxyUrl = CodingAgentUtils.resolveLocalProxyUrl(config);
 
-				// Build Coding Sub-Agent Toolkit & Agent
-				Toolkit subAgentToolkit = new Toolkit();
-				subAgentToolkit.registerTool(readOnlyTool);
-				subAgentToolkit.registerTool(mutationTool);
+					OpenAIChatModel mainModel = OpenAIChatModel.builder().modelName(mainModelName)
+							.apiKey(aiAPIService.getInternalDocumentationAPIKey()).baseUrl(localProxyUrl)
+							.generateOptions(mainOptions).build();
 
-				String subAgentSysPrompt = views.html.tools.codingagent.subagent_system_prompt.render().body().trim();
-				HarnessAgent subAgent = HarnessAgent.builder() //
-						.name("CodingSubAgent").model(subAgentModel) //
-						.toolkit(subAgentToolkit).disableShellTool().disableFilesystemTools() //
-						.sysPrompt(subAgentSysPrompt) //
-//						.compaction(CompactionConfig.builder().triggerTokens(50_000) // fire at 50k tokens
-//								.triggerMessages(10) // fire at 10 messages
-//								.keepMessages(5) // keep last 5 verbatim
-//								.truncateArgs(TruncateArgsConfig.builder().triggerTokens(20_000) // fire at 20k tokens
-//										.triggerMessages(6) // fire at 6 messages
-//										.maxArgLength(2000) //
-//										.build()) //
-//								.build())
-						.workspace(Paths.get(context.cpds().getFolder().getAbsolutePath(), ".agentscope")).build();
+					OpenAIChatModel subAgentModel = OpenAIChatModel.builder().modelName(subAgentModelName)
+							.apiKey(aiAPIService.getInternalDocumentationAPIKey()).baseUrl(localProxyUrl)
+							.generateOptions(subAgentOptions).build();
 
-				context.setSubAgent(subAgent);
+					// Build shared read-only tool and sub-agent mutation tool
+					ReadOnlyFileTool readOnlyTool = new ReadOnlyFileTool(context.cpds(), datasetId, aiAPIService);
+					FileMutationTool mutationTool = new FileMutationTool(context.cpds(), context.sink(),
+							context.materializer(), cache, datasetId);
 
-				// Build Main Agent Toolkit & Agent
-				SubAgentDelegationTool delegationTool = new SubAgentDelegationTool(context, sessionId);
-				Toolkit mainToolkit = new Toolkit();
-				mainToolkit.registerTool(readOnlyTool);
-//				mainToolkit.registerTool(mutationTool);
-				mainToolkit.registerTool(delegationTool);
+					// Build Coding Sub-Agent Toolkit & Agent
+					Toolkit subAgentToolkit = new Toolkit();
+					subAgentToolkit.registerTool(readOnlyTool);
+					subAgentToolkit.registerTool(mutationTool);
 
-				String mainSysPrompt = ds.configuration(Dataset.CHATBOT_SYSTEM_PROMPT,
-						views.html.tools.codingagent.system_prompt.render().body().trim());
+					String subAgentSysPrompt = views.html.tools.codingagent.subagent_system_prompt.render().body().trim();
+					HarnessAgent subAgent = HarnessAgent.builder() //
+							.name("CodingSubAgent").model(subAgentModel) //
+							.toolkit(subAgentToolkit).disableShellTool().disableFilesystemTools() //
+							.sysPrompt(subAgentSysPrompt) //
+//							.compaction(CompactionConfig.builder().triggerTokens(50_000) // fire at 50k tokens
+//									.triggerMessages(10) // fire at 10 messages
+//									.keepMessages(5) // keep last 5 verbatim
+//									.truncateArgs(TruncateArgsConfig.builder().triggerTokens(20_000) // fire at 20k tokens
+//											.triggerMessages(6) // fire at 6 messages
+//											.maxArgLength(2000) //
+//											.build()) //
+//									.build())
+							.workspace(Paths.get(context.cpds().getFolder().getAbsolutePath(), ".agentscope")).build();
 
-				HarnessAgent mainAgent = HarnessAgent.builder() //
-						.name("Agent").model(mainModel) //
-						.toolkit(mainToolkit).disableShellTool().disableFilesystemTools() //
-						.sysPrompt(mainSysPrompt) //
-//						.compaction(CompactionConfig.builder().triggerTokens(50_000) // fire at 50k tokens
-//								.triggerMessages(10) // fire at 10 messages
-//								.keepMessages(5) // keep last 5 verbatim
-//								.truncateArgs(TruncateArgsConfig.builder().triggerTokens(20_000) // fire at 20k tokens
-//										.triggerMessages(6) // fire at 6 messages
-//										.maxArgLength(2000) //
-//										.build()) //
-//								.build())
-						.workspace(Paths.get(context.cpds().getFolder().getAbsolutePath(), ".agentscope")).build();
+					context.setSubAgent(subAgent);
 
-				context.setAgent(mainAgent);
-				logger.info("Recreated Main HarnessAgent (model: {}) and CodingSubAgent (model: {}) instances.",
-						mainModelName, subAgentModelName);
-			} catch (Exception e) {
-				logger.error("Error recreating agent after AGENTS.md change", e);
+					// Build Main Agent Toolkit & Agent
+					SubAgentDelegationTool delegationTool = new SubAgentDelegationTool(context, sessionId);
+					Toolkit mainToolkit = new Toolkit();
+					mainToolkit.registerTool(readOnlyTool);
+//					mainToolkit.registerTool(mutationTool);
+					mainToolkit.registerTool(delegationTool);
+
+					String mainSysPrompt = ds.configuration(Dataset.CHATBOT_SYSTEM_PROMPT,
+							views.html.tools.codingagent.system_prompt.render().body().trim());
+
+					HarnessAgent mainAgent = HarnessAgent.builder() //
+							.name("Agent").model(mainModel) //
+							.toolkit(mainToolkit).disableShellTool().disableFilesystemTools() //
+							.sysPrompt(mainSysPrompt) //
+//							.compaction(CompactionConfig.builder().triggerTokens(50_000) // fire at 50k tokens
+//									.triggerMessages(10) // fire at 10 messages
+//									.keepMessages(5) // keep last 5 verbatim
+//									.truncateArgs(TruncateArgsConfig.builder().triggerTokens(20_000) // fire at 20k tokens
+//											.triggerMessages(6) // fire at 6 messages
+//											.maxArgLength(2000) //
+//											.build()) //
+//									.build())
+							.workspace(Paths.get(context.cpds().getFolder().getAbsolutePath(), ".agentscope")).build();
+
+					context.setAgent(mainAgent);
+					logger.info("Recreated Main HarnessAgent (model: {}) and CodingSubAgent (model: {}) instances.",
+							mainModelName, subAgentModelName);
+				} catch (Exception e) {
+					logger.error("Error recreating agent after AGENTS.md change", e);
+				}
 			}
 		}
 	}
@@ -899,11 +905,13 @@ public class CodingAgentController extends AbstractAsyncController {
 				}
 
 				// Invalidate cache
+				cpds.invalidateCache();
 				cache.remove(CompleteDSController.CACHE_FILES + datasetId);
 
 				// Broadcast file-sync event
 				Optional<Long> fileIdOpt = latestFileVersionId;
 				if (fileIdOpt.isPresent()) {
+					cpds.invalidateContentCache(fileIdOpt.get());
 					ObjectNode syncMsg = Json.newObject().put("type", "file-sync").put("fileId", fileIdOpt.get())
 							.put("filename", finalFileName);
 					Source.single((JsonNode) syncMsg).runWith(broadcastSink, materializer);
@@ -948,11 +956,13 @@ public class CodingAgentController extends AbstractAsyncController {
 			FileUtils.writeStringToFile(f, newContent, Charset.defaultCharset());
 
 			// Invalidate cache
+			cpds.invalidateCache();
 			cache.remove(CompleteDSController.CACHE_FILES + datasetId);
 
 			// Broadcast file-sync event
 			Optional<Long> fileIdOpt = cpds.getLatestFileVersionId(f.getName());
 			if (fileIdOpt.isPresent()) {
+				cpds.invalidateContentCache(fileIdOpt.get());
 				ObjectNode syncMsg = Json.newObject().put("type", "file-sync").put("fileId", fileIdOpt.get())
 						.put("filename", f.getName());
 				Source.single((JsonNode) syncMsg).runWith(broadcastSink, materializer);

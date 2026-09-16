@@ -346,20 +346,6 @@ public class CodingAgentUtils {
 	 * @return resolved local proxy URL
 	 */
 	public static String resolveLocalProxyUrl(Config config, String basePath) {
-		// 1. Check optional explicit override if configured
-		if (config != null) {
-			if (config.hasPath(ConfigurationUtils.DF_CODINGAGENT_LOCAL_PROXY_URL)
-					&& !config.getString(ConfigurationUtils.DF_CODINGAGENT_LOCAL_PROXY_URL).trim().isEmpty()) {
-				String customUrl = config.getString(ConfigurationUtils.DF_CODINGAGENT_LOCAL_PROXY_URL).trim();
-				return customUrl.endsWith("/") ? customUrl.substring(0, customUrl.length() - 1) : customUrl;
-			}
-			if (config.hasPath("df.processing.ai.local_proxy_url")
-					&& !config.getString("df.processing.ai.local_proxy_url").trim().isEmpty()) {
-				String customUrl = config.getString("df.processing.ai.local_proxy_url").trim();
-				return customUrl.endsWith("/") ? customUrl.substring(0, customUrl.length() - 1) : customUrl;
-			}
-		}
-
 		String cleanBasePath = basePath != null ? basePath.trim() : "";
 		if (!cleanBasePath.isEmpty() && !cleanBasePath.startsWith("/")) {
 			cleanBasePath = "/" + cleanBasePath;
@@ -368,27 +354,16 @@ public class CodingAgentUtils {
 			cleanBasePath = cleanBasePath.substring(0, cleanBasePath.length() - 1);
 		}
 
-		// 2. Check configuration key df.base_url for host and port
-		if (config != null && config.hasPath(ConfigurationUtils.DF_BASEURL)
-				&& !config.getString(ConfigurationUtils.DF_BASEURL).trim().isEmpty()) {
-			String baseUrl = config.getString(ConfigurationUtils.DF_BASEURL).trim();
-			while (baseUrl.endsWith("/")) {
-				baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
-			}
-			String scheme = baseUrl.startsWith("https://") ? "https://" : "http://";
-			String hostAndPort = baseUrl.replaceFirst("^https?://", "");
-			if (cleanBasePath.isEmpty() || hostAndPort.endsWith(cleanBasePath)) {
-				return scheme + hostAndPort;
-			}
-			return scheme + hostAndPort + cleanBasePath;
-		}
-
-		// 3. Fallback: check system property / play config / default port 9000
-		String port = System.getProperty("http.port");
-		if (port == null || port.trim().isEmpty()) {
-			if (config != null && config.hasPath("play.server.http.port")) {
+		// Resolve port directly from play.server.http.port or system property http.port (default 9000)
+		String port = null;
+		if (config != null && config.hasPath("play.server.http.port")) {
+			try {
 				port = config.getString("play.server.http.port").trim();
+			} catch (Exception ignored) {
 			}
+		}
+		if (port == null || port.trim().isEmpty() || "disabled".equalsIgnoreCase(port)) {
+			port = System.getProperty("http.port");
 		}
 		if (port == null || port.trim().isEmpty() || "disabled".equalsIgnoreCase(port)) {
 			port = "9000";

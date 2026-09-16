@@ -2,6 +2,7 @@ package models.ds;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
@@ -18,7 +19,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.pekko.stream.javadsl.SourceQueueWithComplete;
 import org.apache.pekko.util.ByteString;
 
@@ -32,6 +35,7 @@ import models.Dataset;
 import models.sr.Cluster;
 import models.vm.TimedMedia;
 import play.Logger;
+import play.cache.SyncCacheApi;
 import play.libs.Json;
 import play.mvc.Http.Request;
 import services.outlets.OOCSIStreamOutService;
@@ -47,11 +51,20 @@ public class CompleteDS extends LinkedDS {
 
 	private static final Logger.ALogger logger = Logger.of(CompleteDS.class);
 
+	public static final String CACHE_FILES = "CP_DS_FILES_";
+	public static final String CACHE_CONTENT_PREFIX = "CP_DS_CONTENT_";
+
 	protected static final String UPLOADS_DATASETS = "uploads/datasets/";
 	protected final String UPLOAD_DIR_PARENT;
+	private final SyncCacheApi cache;
 
 	public CompleteDS(Dataset dataset, Config config) {
+		this(dataset, config, null);
+	}
+
+	public CompleteDS(Dataset dataset, Config config, SyncCacheApi cache) {
 		super(dataset);
+		this.cache = cache;
 		this.dataTableName = "ds_" + dataset.getRefId() + "_cp";
 
 		// configuration of file upload directory
@@ -59,6 +72,18 @@ public class CompleteDS extends LinkedDS {
 			UPLOAD_DIR_PARENT = config.getString(ConfigurationUtils.DF_UPLOAD_DIR);
 		} else {
 			UPLOAD_DIR_PARENT = "public/";
+		}
+	}
+
+	public void invalidateCache() {
+		if (cache != null && dataset != null) {
+			cache.remove(CACHE_FILES + dataset.getId());
+		}
+	}
+
+	public void invalidateContentCache(Long fileId) {
+		if (cache != null && dataset != null && fileId != null) {
+			cache.remove(CACHE_CONTENT_PREFIX + dataset.getId() + "_" + fileId);
 		}
 	}
 
@@ -77,11 +102,26 @@ public class CompleteDS extends LinkedDS {
 					.execute("CREATE TABLE IF NOT EXISTS " + dataTableName + " ( id bigint auto_increment not null,"
 							+ "file_name varchar(255)," + "description varchar(255)," + "dataset_id bigint,"
 							+ "ts timestamp," + "PRIMARY KEY (id) );");
+			connection.createStatement()
+					.execute("CREATE INDEX IF NOT EXISTS " + dataTableName + "_fn_idx ON " + dataTableName
+							+ " (file_name);");
 
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in creating the dataset table in DB.", e);
 			Notifications.call("Exception", e.getLocalizedMessage());
+		}
+	}
+
+	@Override
+	public void migrateDatasetSchema() {
+		try (Transaction transaction = DB.beginTransaction(); Connection connection = transaction.connection();) {
+			connection.createStatement()
+					.execute("CREATE INDEX IF NOT EXISTS " + dataTableName + "_fn_idx ON " + dataTableName
+							+ " (file_name);");
+			transaction.commit();
+		} catch (Exception e) {
+			// index might already exist or not supported, ignore safely
 		}
 	}
 
@@ -105,6 +145,8 @@ public class CompleteDS extends LinkedDS {
 			stmt.executeUpdate();
 			transaction.commit();
 
+			invalidateCache();
+
 			// post update on OOCSI
 			oocsiStreaming.datasetUpdate(dataset, OOCSIStreamOutService.map().put("operation", "add")
 					.put("filename", nss(fileName, 255)).put("description", nss(description, 255)).build());
@@ -127,6 +169,8 @@ public class CompleteDS extends LinkedDS {
 			stmt.executeUpdate();
 
 			transaction.commit();
+
+			invalidateCache();
 		} catch (Exception e) {
 			logger.error("Error in updating a record in dataset table.", e);
 			Notifications.call("Exception", e.getLocalizedMessage());
@@ -145,6 +189,8 @@ public class CompleteDS extends LinkedDS {
 			stmt.executeUpdate();
 
 			transaction.commit();
+
+			invalidateCache();
 		} catch (Exception e) {
 			logger.error("Error in deleting a record from dataset table.", e);
 			Notifications.call("Exception", e.getLocalizedMessage());
@@ -163,6 +209,9 @@ public class CompleteDS extends LinkedDS {
 			stmt.executeUpdate();
 
 			transaction.commit();
+
+			invalidateCache();
+			invalidateContentCache(fileId);
 		} catch (Exception e) {
 			logger.error("Error in deleting a record from dataset table.", e);
 			Notifications.call("Exception", e.getLocalizedMessage());
@@ -176,19 +225,28 @@ public class CompleteDS extends LinkedDS {
 	 * @return
 	 */
 	public Optional<String> getFileName(Long fileId) {
+		if (fileId == null || fileId <= 0) {
+			return Optional.empty();
+		}
+		// Fast path: cached file list lookup
+		List<TimedMedia> files = getFiles();
+		for (TimedMedia tm : files) {
+			if (fileId.equals(tm.getId())) {
+				return Optional.of(tm.getLink());
+			}
+		}
+
 		Optional<String> result = Optional.empty();
-		try (Transaction transaction = DB.beginTransaction();
-				Connection connection = transaction.connection();
+		try (Connection connection = DB.getDefault().dataSource().getConnection();
 				PreparedStatement stmt = connection
-						.prepareStatement("SELECT file_name FROM " + dataTableName + " WHERE id = ?;");) {
+						.prepareStatement("SELECT file_name FROM " + dataTableName + " WHERE id = ?;")) {
 
 			stmt.setLong(1, fileId);
-			ResultSet rs = stmt.executeQuery();
-			if (rs.next()) {
-				result = Optional.of(rs.getString("file_name"));
+			try (ResultSet rs = stmt.executeQuery()) {
+				if (rs.next()) {
+					result = Optional.of(rs.getString("file_name"));
+				}
 			}
-
-			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in retrieving file name by id.", e);
 			Notifications.call("Exception", e.getLocalizedMessage());
@@ -222,6 +280,8 @@ public class CompleteDS extends LinkedDS {
 			// copy, i.e., overwrite potentially existing file
 			Path target = file.toPath();
 			Files.copy(source, target, StandardCopyOption.REPLACE_EXISTING);
+
+			invalidateCache();
 
 			return Optional.of(fileName);
 		} catch (IOException e) {
@@ -262,6 +322,8 @@ public class CompleteDS extends LinkedDS {
 				Files.write(target, Arrays.asList(notebookLines));
 			}
 
+			invalidateCache();
+
 			return Optional.of(fileName);
 		} catch (IOException e) {
 			logger.error("Error in storing a file in dataset table and on disk.", e);
@@ -277,6 +339,8 @@ public class CompleteDS extends LinkedDS {
 
 		// delete data in database
 		super.resetDataset();
+
+		invalidateCache();
 	}
 
 	/**
@@ -290,6 +354,7 @@ public class CompleteDS extends LinkedDS {
 		if (listFiles != null) {
 			Arrays.stream(listFiles).forEach(f -> f.delete());
 		}
+		invalidateCache();
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -392,6 +457,17 @@ public class CompleteDS extends LinkedDS {
 	 * @return
 	 */
 	public Optional<File> getFile(Long fileId) {
+		if (fileId == null || fileId <= 0) {
+			return Optional.empty();
+		}
+		// Fast path: find in cached file list without database query
+		List<TimedMedia> files = getFiles();
+		for (TimedMedia tm : files) {
+			if (fileId.equals(tm.getId())) {
+				return getFile(tm.getLink());
+			}
+		}
+
 		return getFileInternal(fileId, dataTableName);
 	}
 
@@ -403,33 +479,31 @@ public class CompleteDS extends LinkedDS {
 	 * @return
 	 */
 	protected Optional<File> getFileInternal(Long fileId, String dataTableName) {
-
-		// delete record
 		Optional<File> result = Optional.empty();
-		try (Transaction transaction = DB.beginTransaction();
-				Connection connection = transaction.connection();
+		String fileName = null;
+		Date timestamp = null;
+
+		try (Connection connection = DB.getDefault().dataSource().getConnection();
 				PreparedStatement stmt = connection
-						.prepareStatement("SELECT ts, file_name FROM " + dataTableName + " WHERE id = ?;");) {
+						.prepareStatement("SELECT ts, file_name FROM " + dataTableName + " WHERE id = ?;")) {
 
 			stmt.setLong(1, fileId);
-			ResultSet rs = stmt.executeQuery();
-			if (rs.next()) {
-				String fileName = rs.getString("file_name");
-				Date timestamp = rs.getTimestamp("ts");
-
-				// try just the filename
-				result = this.getFile(fileName);
-
-				// try filename with timestamp
-				if (result.isEmpty()) {
-					result = getFile(timestamp.getTime() + "_" + fileName);
+			try (ResultSet rs = stmt.executeQuery()) {
+				if (rs.next()) {
+					fileName = rs.getString("file_name");
+					timestamp = rs.getTimestamp("ts");
 				}
 			}
-
-			transaction.commit();
 		} catch (Exception e) {
-			logger.error("Error in retrieving a file.", e);
+			logger.error("Error in retrieving file metadata.", e);
 			Notifications.call("Exception", e.getLocalizedMessage());
+		}
+
+		if (fileName != null) {
+			result = this.getFile(fileName);
+			if (result.isEmpty() && timestamp != null) {
+				result = getFile(timestamp.getTime() + "_" + fileName);
+			}
 		}
 
 		return result;
@@ -442,19 +516,31 @@ public class CompleteDS extends LinkedDS {
 	 * @return
 	 */
 	public Optional<Long> getLatestFileVersionId(String filename) {
+		if (filename == null || filename.isEmpty()) {
+			return Optional.empty();
+		}
+		// Fast path: cached file list lookup
+		List<TimedMedia> files = getFiles();
+		for (TimedMedia tm : files) {
+			if (filename.equals(tm.getLink())) {
+				return Optional.of(tm.getId());
+			}
+		}
+
 		Optional<Long> id = Optional.empty();
-		try (Transaction transaction = DB.beginTransaction();
-				Connection connection = transaction.connection();
+		try (Connection connection = DB.getDefault().dataSource().getConnection();
 				PreparedStatement stmt = connection
 						.prepareStatement("SELECT MAX(id) FROM " + dataTableName + " WHERE file_name LIKE ?;")) {
 
 			stmt.setString(1, filename);
-			ResultSet rs = stmt.executeQuery();
-			if (rs.next()) {
-				id = Optional.of(rs.getLong(1));
+			try (ResultSet rs = stmt.executeQuery()) {
+				if (rs.next()) {
+					long val = rs.getLong(1);
+					if (!rs.wasNull() && val > 0) {
+						id = Optional.of(val);
+					}
+				}
 			}
-
-			transaction.commit();
 		} catch (Exception e) {
 			logger.error("File access problem", e);
 			Notifications.call("Exception", e.getLocalizedMessage());
@@ -471,48 +557,91 @@ public class CompleteDS extends LinkedDS {
 		return getFiles(Optional.empty());
 	}
 
+	private record FileRow(Long id, String fileName, Date timestamp, String description) {
+	}
+
 	/**
 	 * return file list with raw file name filtered by pattern
 	 * 
+	 * @param pattern
 	 * @return
 	 */
 	public List<TimedMedia> getFiles(Optional<String> pattern) {
-		List<TimedMedia> result = new LinkedList<TimedMedia>();
-		try (Transaction transaction = DB.beginTransaction();
-				Connection connection = transaction.connection();
+		List<TimedMedia> allFiles;
+		if (cache != null && dataset != null) {
+			allFiles = cache.getOrElseUpdate(CACHE_FILES + dataset.getId(), () -> fetchFilesFromDBAndDisk(), 300);
+		} else {
+			allFiles = fetchFilesFromDBAndDisk();
+		}
+
+		if (pattern == null || pattern.isEmpty()) {
+			return new LinkedList<>(allFiles);
+		}
+		return allFiles.stream().filter(tm -> tm.getLink().matches(pattern.get()))
+				.collect(Collectors.toCollection(LinkedList::new));
+	}
+
+	private List<TimedMedia> fetchFilesFromDBAndDisk() {
+		List<FileRow> rows = new LinkedList<>();
+		try (Connection connection = DB.getDefault().dataSource().getConnection();
 				PreparedStatement stmt = connection.prepareStatement("SELECT id, file_name, ts, description FROM "
 						+ maxIdJoinExpression(dataTableName) + " ORDER BY file_name ASC");
 				ResultSet rs = stmt.executeQuery()) {
 
 			while (rs.next()) {
-				Long id = rs.getLong("id");
-				String filename = rs.getString("file_name");
-				// check if either no pattern was provided, or the pattern matches the filename
-				if (!pattern.isPresent() || filename.matches(pattern.get())) {
-					Date timestamp = rs.getTimestamp("ts");
-					Optional<File> fileOpt = getFile(filename);
+				rows.add(new FileRow(rs.getLong("id"), rs.getString("file_name"), rs.getTimestamp("ts"),
+						rs.getString("description")));
+			}
+		} catch (Exception e) {
+			logger.error("Error in retrieving file metadata from dataset table.", e);
+			Notifications.call("Exception", e.getLocalizedMessage());
+			return Collections.emptyList();
+		}
 
-					// check timestamped version
-					if (fileOpt.isEmpty()) {
-						fileOpt = getFile(timestamp.getTime() + "_" + filename);
-					}
+		List<TimedMedia> result = new LinkedList<>();
+		for (FileRow row : rows) {
+			Optional<File> fileOpt = getFile(row.fileName());
 
-					// add to result list of file exists
-					if (fileOpt.isPresent()) {
-						TimedMedia tm = new TimedMedia(id, new Date(fileOpt.get().lastModified()), filename, "",
-								rs.getString("description"), null);
-						result.add(tm);
-					}
-				}
+			// check timestamped version
+			if (fileOpt.isEmpty() && row.timestamp() != null) {
+				fileOpt = getFile(row.timestamp().getTime() + "_" + row.fileName());
 			}
 
-			transaction.commit();
-		} catch (Exception e) {
-			logger.error("Error in retrieving all files.", e);
-			Notifications.call("Exception", e.getLocalizedMessage());
+			// add to result list if file exists
+			if (fileOpt.isPresent()) {
+				TimedMedia tm = new TimedMedia(row.id(), new Date(fileOpt.get().lastModified()), row.fileName(), "",
+						row.description(), null);
+				result.add(tm);
+			}
 		}
 
 		return result;
+	}
+
+	/**
+	 * retrieve file text content with caching
+	 * 
+	 * @param fileId
+	 * @return
+	 */
+	public Optional<String> getFileContent(Long fileId) {
+		if (cache != null && dataset != null && fileId != null && fileId > 0) {
+			return cache.getOrElseUpdate(CACHE_CONTENT_PREFIX + dataset.getId() + "_" + fileId,
+					() -> readFileContentFromDisk(fileId), 300);
+		}
+		return readFileContentFromDisk(fileId);
+	}
+
+	private Optional<String> readFileContentFromDisk(Long fileId) {
+		Optional<File> fileOpt = getFile(fileId);
+		if (fileOpt.isPresent()) {
+			try {
+				return Optional.of(FileUtils.readFileToString(fileOpt.get(), Charset.defaultCharset()));
+			} catch (Exception e) {
+				logger.error("Error reading file content from disk", e);
+			}
+		}
+		return Optional.empty();
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -27,7 +27,7 @@ libraryDependencies ++= Seq(
   "org.playframework" %% "play-mailer-guice" % "10.0.0",
   
   // https://mvnrepository.com/artifact/com.h2database/h2
-  "com.h2database" % "h2" % "1.4.199" % Test, 
+  "com.h2database" % "h2" % "1.4.199", 
 
   // https://github.com/atlassian/commonmark-java
   "com.atlassian.commonmark" % "commonmark" % "0.12.1",

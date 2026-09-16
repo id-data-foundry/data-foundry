@@ -31,6 +31,7 @@ import models.ds.MovementDS;
 import models.ds.SurveyDS;
 import models.ds.TimeseriesDS;
 import models.sr.Cluster;
+import play.cache.SyncCacheApi;
 import play.libs.Json;
 import services.inlets.ScheduledService;
 import services.outlets.OOCSIStreamOutService;
@@ -41,11 +42,13 @@ public class DatasetConnector implements ScheduledService {
 
 	private final Config config;
 	private final OOCSIStreamOutService oocsiService;
+	private final SyncCacheApi cache;
 
 	@Inject
-	public DatasetConnector(Config config, OOCSIStreamOutService oocsiService) {
+	public DatasetConnector(Config config, OOCSIStreamOutService oocsiService, SyncCacheApi cache) {
 		this.config = config;
 		this.oocsiService = oocsiService;
+		this.cache = cache;
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -91,23 +94,27 @@ public class DatasetConnector implements ScheduledService {
 	}
 
 	public LinkedDS getDatasetDS(Dataset ds) {
-		LinkedDS datasetDS = getDatasetDS(ds, config);
+		LinkedDS datasetDS = getDatasetDS(ds, config, cache);
 		datasetDS.setStreamoutService(oocsiService);
 		return datasetDS;
 	}
 
 	@SuppressWarnings("unchecked")
 	public <T extends LinkedDS> T getTypedDatasetDS(Dataset ds) {
-		LinkedDS datasetDS = getDatasetDS(ds, config);
+		LinkedDS datasetDS = getDatasetDS(ds, config, cache);
 		datasetDS.setStreamoutService(oocsiService);
 		return (T) datasetDS;
 	}
 
 	public static LinkedDS getDatasetDSUnmanaged(Dataset ds) {
-		return getDatasetDS(ds, null);
+		return getDatasetDS(ds, null, null);
 	}
 
 	public static LinkedDS getDatasetDS(Dataset ds, Config config) {
+		return getDatasetDS(ds, config, null);
+	}
+
+	public static LinkedDS getDatasetDS(Dataset ds, Config config, SyncCacheApi cache) {
 		LinkedDS datasetConnector;
 		// prevent NPE on empty dsType
 		final DatasetType dsType = ds.getDsType() != null ? ds.getDsType() : DatasetType.LINKED;
@@ -129,7 +136,7 @@ public class DatasetConnector implements ScheduledService {
 			datasetConnector = new FormDS(ds);
 			break;
 		case COMPLETE:
-			datasetConnector = new CompleteDS(ds, config);
+			datasetConnector = new CompleteDS(ds, config, cache);
 			break;
 		case MOVEMENT:
 			datasetConnector = new MovementDS(ds, config);

@@ -834,6 +834,25 @@
             isNewFile = !options.some(opt => opt.value.endsWith(`?fileId=${syncFileId}`) || opt.value.endsWith(`&fileId=${syncFileId}`));
         }
 
+        // If the file already exists in the dropdown, no network request or DOM recreation needed
+        if (!isNewFile) {
+            return;
+        }
+
+        // If it's a new file and we have id and filename, append directly to DOM
+        if (syncFileId && syncFilename) {
+            const option = document.createElement('option');
+            option.value = "@controllers.tools.routes.CodingAgentController.view(dataset.getId())?fileId=" + syncFileId;
+            option.textContent = syncFilename;
+            if (syncFileId == currentFileId) {
+                option.selected = true;
+            }
+            select.appendChild(option);
+            pushNotification(`Agent created a new file: ${syncFilename}`, 'green');
+            return;
+        }
+
+        // Fallback: only fetch from server if sync info wasn't provided
         fetch("@controllers.tools.routes.CodingAgentController.getFileList(dataset.getId())")
             .then(response => response.json())
             .then(files => {
