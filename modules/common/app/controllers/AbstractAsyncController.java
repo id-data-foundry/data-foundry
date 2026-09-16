@@ -55,6 +55,50 @@ public class AbstractAsyncController extends Controller {
 	public static final String REDIRECT_URL = "redirectUrl";
 	protected static final String CALLBACK_SSO = "callbackSSO";
 
+	/**
+	 * validate redirect URL to ensure it is a safe relative path preventing open redirects
+	 *
+	 * @param redirectUrl
+	 * @return sanitized relative path or null if unsafe
+	 */
+	public static String sanitizeRedirectUrl(String redirectUrl) {
+		if (redirectUrl == null) {
+			return null;
+		}
+		String trimmed = redirectUrl.trim();
+		if (trimmed.isEmpty()) {
+			return null;
+		}
+		// Ensure it starts with / but not // or /\
+		if (!trimmed.startsWith("/")) {
+			trimmed = "/" + trimmed;
+		}
+		if (trimmed.startsWith("//") || trimmed.startsWith("/\\")) {
+			return null;
+		}
+		// Disallow CRLF or control characters
+		for (char c : trimmed.toCharArray()) {
+			if (c < 32 || c == 127) {
+				return null;
+			}
+		}
+		// Disallow schemes like http:, javascript:, data: before query/fragment
+		int queryIdx = trimmed.indexOf('?');
+		int fragmentIdx = trimmed.indexOf('#');
+		int endIdx = trimmed.length();
+		if (queryIdx >= 0 && queryIdx < endIdx) {
+			endIdx = queryIdx;
+		}
+		if (fragmentIdx >= 0 && fragmentIdx < endIdx) {
+			endIdx = fragmentIdx;
+		}
+		String pathPart = trimmed.substring(0, endIdx);
+		if (pathPart.contains(":") || pathPart.contains("\\")) {
+			return null;
+		}
+		return trimmed;
+	}
+
 	@Inject
 	private SessionStore sessionStore;
 

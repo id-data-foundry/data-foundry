@@ -1349,20 +1349,26 @@ public class DatasetsController extends AbstractAsyncController {
 				try {
 					String contents = new String(Files.readAllBytes(Paths.get(file.getAbsolutePath())));
 					return ok(views.html.datasets.complete.webmd.render(project, ds, FormMarkdown.renderHtml(contents)))
-							.as("text/html; charset=utf-8");
+							.as("text/html; charset=utf-8")
+							.withHeader("Content-Security-Policy", "sandbox allow-scripts allow-forms")
+							.withHeader("X-Content-Type-Options", "nosniff");
 				} catch (IOException e) {
 					// log and return the file
 					logger.error("Markdown transformation failed: " + file.getAbsolutePath());
-					return ok(file).as("text/html; charset=utf-8");
+					return ok(file).as("text/html; charset=utf-8")
+							.withHeader("Content-Security-Policy", "sandbox allow-scripts allow-forms")
+							.withHeader("X-Content-Type-Options", "nosniff");
 				}
-			} else if (filename.endsWith(".html")) {
-				return ok(file).as("text/html; charset=utf-8");
+			} else if (filename.endsWith(".html") || filename.endsWith(".htm")) {
+				return ok(file).as("text/html; charset=utf-8")
+						.withHeader("Content-Security-Policy", "sandbox allow-scripts allow-forms")
+						.withHeader("X-Content-Type-Options", "nosniff");
 			} else if (filename.endsWith(".min.js") || filename.endsWith(".min.css")) {
-				return ok(file).withHeader("Cache-Control", "max-age=3600");
+				return ok(file).withHeader("Cache-Control", "max-age=3600").withHeader("X-Content-Type-Options", "nosniff");
 			} else if (filename.endsWith(".js") || filename.endsWith(".css")) {
-				return ok(file).withHeader("Cache-Control", "max-age=60");
+				return ok(file).withHeader("Cache-Control", "max-age=60").withHeader("X-Content-Type-Options", "nosniff");
 			} else {
-				return ok(file);
+				return ok(file).withHeader("X-Content-Type-Options", "nosniff");
 			}
 		});
 	}
@@ -1469,20 +1475,26 @@ public class DatasetsController extends AbstractAsyncController {
 				try {
 					String contents = new String(Files.readAllBytes(Paths.get(file.getAbsolutePath())));
 					return ok(views.html.datasets.complete.webmd.render(project, ds, FormMarkdown.renderHtml(contents)))
-							.as("text/html; charset=utf-8");
+							.as("text/html; charset=utf-8")
+							.withHeader("Content-Security-Policy", "sandbox allow-scripts allow-forms")
+							.withHeader("X-Content-Type-Options", "nosniff");
 				} catch (IOException e) {
 					// log and return the file
 					logger.error("Markdown transformation failed: " + file.getAbsolutePath());
-					return ok(file).as("text/html; charset=utf-8");
+					return ok(file).as("text/html; charset=utf-8")
+							.withHeader("Content-Security-Policy", "sandbox allow-scripts allow-forms")
+							.withHeader("X-Content-Type-Options", "nosniff");
 				}
-			} else if (filename.endsWith(".html")) {
-				return ok(file).as("text/html; charset=utf-8");
+			} else if (filename.endsWith(".html") || filename.endsWith(".htm")) {
+				return ok(file).as("text/html; charset=utf-8")
+						.withHeader("Content-Security-Policy", "sandbox allow-scripts allow-forms")
+						.withHeader("X-Content-Type-Options", "nosniff");
 			} else if (filename.endsWith(".min.js") || filename.endsWith(".min.css")) {
-				return ok(file).withHeader("Cache-Control", "max-age=3600");
+				return ok(file).withHeader("Cache-Control", "max-age=3600").withHeader("X-Content-Type-Options", "nosniff");
 			} else if (filename.endsWith(".js") || filename.endsWith(".css")) {
-				return ok(file).withHeader("Cache-Control", "max-age=60");
+				return ok(file).withHeader("Cache-Control", "max-age=60").withHeader("X-Content-Type-Options", "nosniff");
 			} else {
-				return ok(file);
+				return ok(file).withHeader("X-Content-Type-Options", "nosniff");
 			}
 		});
 	}

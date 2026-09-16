@@ -128,14 +128,15 @@ public class HomeController extends AbstractAsyncController {
 		// ensure all emails in the system are lowercase
 		username = username.toLowerCase();
 
-		// if the redirect URL is set, then put it into the session for later redirect after login
-		if (!redirectUrl.isEmpty()) {
+		// if the redirect URL is set, then sanitize and put it into the session for later redirect after login
+		String safeRedirect = sanitizeRedirectUrl(redirectUrl);
+		if (safeRedirect != null) {
 			return ok(views.html.home.login.render(ssoEnabled, ssoClientOIDC, environment.isDev(), username,
-					csrfToken(request))).addingToSession(request, REDIRECT_URL, redirectUrl);
+					csrfToken(request))).addingToSession(request, REDIRECT_URL, safeRedirect);
 		}
 
 		return ok(views.html.home.login.render(ssoEnabled, ssoClientOIDC, environment.isDev(), username,
-				csrfToken(request)));
+				csrfToken(request))).removingFromSession(request, REDIRECT_URL);
 	}
 
 	@Secure(clients = "AzureAd2Client")

@@ -135,9 +135,14 @@ public class ProjectsController extends AbstractAsyncController {
 				cache.set(uuid, pac4jSessionId, 300);
 			}
 
-			return redirect(redirectUrl) //
-					.removingFromSession(request, REDIRECT_URL) //
-					.removingFromSession(request, "error");
+			String safeRedirect = sanitizeRedirectUrl(redirectUrl);
+			if (safeRedirect != null) {
+				return redirect(safeRedirect) //
+						.removingFromSession(request, REDIRECT_URL) //
+						.removingFromSession(request, "error");
+			} else {
+				return redirect(HOME).removingFromSession(request, REDIRECT_URL);
+			}
 		}
 
 		// find all owned projects and all collaborations, and combine, filter out archived projects, and sort by last
@@ -1866,7 +1871,11 @@ public class ProjectsController extends AbstractAsyncController {
 		}
 
 		// redirect and set flag that the license was accepted
-		return redirect("/" + redirectUrl).addingToSession(request, "license_p_" + project.getId(), "accepted");
+		String safeRedirect = sanitizeRedirectUrl(redirectUrl);
+		if (safeRedirect == null) {
+			safeRedirect = PROJECT(project.getId()).url();
+		}
+		return redirect(safeRedirect).addingToSession(request, "license_p_" + project.getId(), "accepted");
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////
