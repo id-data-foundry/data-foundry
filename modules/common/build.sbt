@@ -15,7 +15,8 @@ libraryDependencies ++= Seq(
   caffeine,
 
   // "com.typesafe.play" % "play-cache_2.13" % "2.9.4",
-  "commons-io" % "commons-io" % "2.11.0",
+  "commons-io" % "commons-io" % "2.18.0",
+  "org.mindrot" % "jbcrypt" % "0.4",
   
   // qr code generation
   "com.google.zxing" % "core" % "3.4.1",
@@ -26,7 +27,7 @@ libraryDependencies ++= Seq(
   "org.playframework" %% "play-mailer-guice" % "10.0.0",
   
   // https://mvnrepository.com/artifact/com.h2database/h2
-  "com.h2database" % "h2" % "1.4.199", 
+  "com.h2database" % "h2" % "1.4.199" % Test, 
 
   // https://github.com/atlassian/commonmark-java
   "com.atlassian.commonmark" % "commonmark" % "0.12.1",
@@ -99,7 +100,7 @@ libraryDependencies ++= Seq(
 
   // Microsoft Email Gateway
   "com.microsoft.graph" % "microsoft-graph" % "5.41.0", //excludeAll(ExclusionRule(organization = "com.fasterxml.jackson.core"), ExclusionRule(organization = "com.fasterxml.jackson.module"), ExclusionRule(organization = "com.fasterxml.jackson.datatype")),
-  "com.azure" % "azure-identity" % "1.2.5", //excludeAll(ExclusionRule(organization = "com.fasterxml.jackson.core"), ExclusionRule(organization = "com.fasterxml.jackson.module"), ExclusionRule(organization = "com.fasterxml.jackson.datatype")),
+  "com.azure" % "azure-identity" % "1.15.3", //excludeAll(ExclusionRule(organization = "com.fasterxml.jackson.core"), ExclusionRule(organization = "com.fasterxml.jackson.module"), ExclusionRule(organization = "com.fasterxml.jackson.datatype")),
   "com.squareup.okhttp3" % "okhttp" % "4.10.0",
 
   // OpenDataLoader for PDF text extraction
