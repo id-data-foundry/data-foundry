@@ -932,6 +932,13 @@ public class CodingAgentController extends AbstractAsyncController {
 				return "Error: File not found";
 			File f = fOpt.get();
 
+			// Ensure file is strictly contained within dataset folder
+			String datasetCanonical = cpds.getFolder().getCanonicalPath();
+			String fileCanonical = f.getCanonicalPath();
+			if (!fileCanonical.startsWith(datasetCanonical + File.separator)) {
+				return "Error: File not found";
+			}
+
 			String content = FileUtils.readFileToString(f, Charset.defaultCharset());
 			if (!content.contains(oldString)) {
 				return "Error: 'old_string' not found in file";

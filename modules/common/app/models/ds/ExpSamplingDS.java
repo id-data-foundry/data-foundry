@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -246,8 +247,24 @@ public class ExpSamplingDS extends LinkedDS {
 	}
 
 	public File getFile(String filename) {
-		return new File(UPLOAD_DIR_PARENT + UPLOADS_DATASETS + dataset.getProject().getRefId() + "__"
-				+ dataset.getRefId() + "/" + filename.replace("..", ""));
+		File folder = getFolder();
+		if (filename == null || filename.trim().isEmpty()) {
+			return new File(folder, "non_existent");
+		}
+		String cleanName = Paths.get(filename.trim()).getFileName().toString();
+		File candidate = new File(folder, cleanName);
+		try {
+			String canonicalDir = folder.getCanonicalPath();
+			if (!canonicalDir.endsWith(File.separator)) {
+				canonicalDir += File.separator;
+			}
+			if (candidate.getCanonicalPath().startsWith(canonicalDir)) {
+				return candidate;
+			}
+		} catch (IOException e) {
+			logger.error("Error resolving file in ExpSamplingDS: " + filename, e);
+		}
+		return new File(folder, "invalid_file_traversal");
 	}
 
 	public List<TimedMedia> getFiles() {

@@ -375,19 +375,41 @@ public class HomeController extends AbstractAsyncController {
 	 * @return
 	 */
 	private Optional<File> getEnvironmentFile(String folderName, String fileName) {
+		if (folderName == null || fileName == null) {
+			return Optional.empty();
+		}
+
+		// Decode URL encoded characters first
+		if (folderName.contains("%")) {
+			folderName = utils.StringUtils.url2s(folderName);
+		}
+		if (fileName.contains("%")) {
+			fileName = utils.StringUtils.url2s(fileName);
+		}
+
+		// Reject any path traversal attempts
+		if (folderName.contains("..") || fileName.contains("..")) {
+			return Optional.empty();
+		}
+
+		// Strip leading slashes to prevent absolute path escapes
+		while (folderName.startsWith("/")) {
+			folderName = folderName.substring(1);
+		}
+		while (fileName.startsWith("/")) {
+			fileName = fileName.substring(1);
+		}
 
 		// check folder name
 		if (!folderName.endsWith("/")) {
 			folderName = folderName + "/";
 		}
 
-		// sanitize filename (first unwanted characters, then directory traversal checks)
-		fileName = fileName.replaceAll("[^A-Za-z0-9_./%-]", "");
-		fileName = fileName.replaceAll("[.][.]", "");
-
-		// check for URL encoded spaces etc.
-		if (fileName.contains("%")) {
-			fileName = utils.StringUtils.url2s(fileName);
+		// sanitize filename and folder
+		folderName = folderName.replaceAll("[^A-Za-z0-9_/-]", "");
+		fileName = fileName.replaceAll("[^A-Za-z0-9_./-]", "");
+		if (folderName.isEmpty() || fileName.isEmpty()) {
+			return Optional.empty();
 		}
 
 		// first check folder
@@ -398,10 +420,22 @@ public class HomeController extends AbstractAsyncController {
 			return Optional.empty();
 		}
 
+		File folder = existingFolder.orElseThrow();
+		// Verify canonical containment of the folder within environment root / dist
+		try {
+			String baseDir = new File(environment.isDev() ? "dist" : ".").getCanonicalPath();
+			if (!folder.getCanonicalPath().startsWith(baseDir)) {
+				logger.error("Folder traversal attempt detected: " + relativePath);
+				return Optional.empty();
+			}
+		} catch (IOException e) {
+			return Optional.empty();
+		}
+
 		// check file in folder
-		Optional<File> fileOpt = FileUtil.getSafeFileInFolder(existingFolder.orElseThrow(), fileName);
+		Optional<File> fileOpt = FileUtil.getSafeFileInFolder(folder, fileName);
 		if (!fileOpt.isPresent()) {
-			fileOpt = FileUtil.getSafeFileInFolder(existingFolder.orElseThrow(), fileName + ".html");
+			fileOpt = FileUtil.getSafeFileInFolder(folder, fileName + ".html");
 			if (!fileOpt.isPresent()) {
 				logger.error("Not found: " + relativePath + fileName);
 				return Optional.empty();

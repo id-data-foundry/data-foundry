@@ -1,7 +1,11 @@
 package models.ds;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStreamReader;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -139,7 +143,35 @@ public class MovementDS extends CompleteDS {
 		}
 	}
 
+	private static boolean containsXmlEntityOrDocType(File file) {
+		try (BufferedReader reader = new BufferedReader(
+				new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
+			String line;
+			while ((line = reader.readLine()) != null) {
+				String upper = line.toUpperCase();
+				if (upper.contains("<!DOCTYPE") || upper.contains("<!ENTITY")) {
+					return true;
+				}
+				if (upper.contains("<GPX") && !upper.contains("<!")) {
+					// Root GPX element reached; DTD declarations are invalid after root in XML
+					break;
+				}
+			}
+		} catch (Exception e) {
+			logger.error("Failed to inspect GPX file for safety", e);
+			return true;
+		}
+		return false;
+	}
+
 	public boolean importFileContents(File gpxDataFile, Participant participant) {
+		if (gpxDataFile == null || !gpxDataFile.exists() || !gpxDataFile.isFile()) {
+			return false;
+		}
+		if (containsXmlEntityOrDocType(gpxDataFile)) {
+			logger.error("Rejecting GPX file containing DOCTYPE or ENTITY declaration: " + gpxDataFile.getName());
+			return false;
+		}
 		try {
 			GPX gpx = GPX.reader(Mode.LENIENT).read(gpxDataFile.toPath());
 
