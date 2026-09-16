@@ -427,7 +427,7 @@
 
 	<script type="text/javascript">
 		
-		var metaData = @Html(metaData);
+		var metaData = @Html(metaData.replace("<", "\\u003c"));
 		
 		// tabs that can fold away
 		$('li.tab a').click(function(e) {
@@ -596,8 +596,8 @@
 		var data_1length = 0;
 		var currentItem;
 		var local_annotations = {};
-		let json = @Html(json);
-		let datasets = @Html(datasets);
+		let json = @Html(json.replace("<", "\\u003c"));
+		let datasets = @Html(datasets.replace("<", "\\u003c"));
 
 		function triggerDataSelect() {
 			if(data.length > 0) {
@@ -852,11 +852,11 @@
 				// load text
 				if(d.textualData && d.textualData.length > 0) {
 					$('#textframe')
-						.html(d.textualData)
+						.text(d.textualData)
 						.show();
 				} else {
 					$('#textframe')
-						.html('')
+						.text('')
 						.hide();
 				}
 			}

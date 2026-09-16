@@ -67,7 +67,7 @@
 	</div>
 
 	<script type="text/javascript">
-		let model = @Html(projects.toString());
+		let model = @Html(projects.toString().replace("<", "\\u003c"));
 		let datalogger = `@Html(dataloggerUrl)`;
 		let sensorlogger = `@Html(sensorloggerUrl)`;
 		let sensorLogDataImport = `@Html(sensorLogDataImportUrl)`;

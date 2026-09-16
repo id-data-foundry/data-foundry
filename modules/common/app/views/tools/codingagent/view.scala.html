@@ -626,6 +626,26 @@
 </div>
 
 <script type="text/javascript">
+  function sanitizeHtml(html) {
+    const template = document.createElement('template');
+    template.innerHTML = html;
+    const dangerousTags = ['SCRIPT', 'IFRAME', 'OBJECT', 'EMBED', 'BASE', 'LINK', 'STYLE', 'META'];
+    const elements = template.content.querySelectorAll('*');
+    elements.forEach(el => {
+      if (dangerousTags.includes(el.tagName)) {
+        el.remove();
+        return;
+      }
+      for (const attr of Array.from(el.attributes)) {
+        const attrName = attr.name.toLowerCase();
+        const attrValue = attr.value.toLowerCase().replace(/\s+/g, '');
+        if (attrName.startsWith('on') || attrValue.startsWith('javascript:') || attrValue.startsWith('data:text/html')) {
+          el.removeAttribute(attr.name);
+        }
+      }
+    });
+    return template.innerHTML;
+  }
   
   document.addEventListener("DOMContentLoaded", (event) => {
     const datasetId = @dataset.getId();
@@ -748,7 +768,7 @@
                     let msgContent = msg.message;
                     msgContent = msgContent.replace(/<think>([\s\S]*?)<\/think>/g, '<details class="thought-process"><summary>Agent thought process</summary><div class="thought-content">$1</div></details>');
                     
-                    textP.innerHTML = marked.parse(msgContent);
+                    textP.innerHTML = sanitizeHtml(marked.parse(msgContent));
                     
                     msgDiv.appendChild(headerDiv);
                     msgDiv.appendChild(textP);
@@ -1012,7 +1032,7 @@
         const textP = document.createElement('article');
         let msgContent = text || '';
         msgContent = msgContent.replace(/<think>([\s\S]*?)<\/think>/g, '<details class="thought-process"><summary>Agent thought process</summary><div class="thought-content">$1</div></details>');
-        textP.innerHTML = marked.parse(msgContent);
+        textP.innerHTML = sanitizeHtml(marked.parse(msgContent));
         
         msgDiv.appendChild(headerDiv);
         msgDiv.appendChild(textP);

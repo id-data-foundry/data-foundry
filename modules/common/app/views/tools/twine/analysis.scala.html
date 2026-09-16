@@ -25,7 +25,7 @@
 </div>
 <!-- export data -->
 <script>
-	window.narrativeSurveyDataJson = @Html(dataJson);
+	window.narrativeSurveyDataJson = @Html(dataJson.replace("<", "\\u003c"));
 </script>
 
 <!-- export from twine-vis build -->

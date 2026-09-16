@@ -175,7 +175,7 @@
   </div>
   <script src="@routes.DatasetsController.jsRoutes()" type="text/javascript"></script>
   <script>
-    const projectsAndDatasets = @Html(projectsAndDatasets.toString());
+    const projectsAndDatasets = @Html(projectsAndDatasets.toString().replace("<", "\\u003c"));
     const updateActivitiesUrlTemplate = '@updateActivitiesUrl';
     const activityLoggerUrlTemplate = '@activityLoggerUrlTemplate';
 

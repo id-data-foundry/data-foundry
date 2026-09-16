@@ -29,7 +29,7 @@ public class MarkdownRenderer {
 
 	public MarkdownRenderer(Dataset ds) {
 		parser = Parser.builder().extensions(Arrays.asList(TablesExtension.create())).build();
-		renderer = HtmlRenderer.builder().extensions(Arrays.asList(TablesExtension.create())).build();
+		renderer = HtmlRenderer.builder().escapeHtml(true).extensions(Arrays.asList(TablesExtension.create())).build();
 	}
 
 	public String render(String input) {
