@@ -1,5 +1,7 @@
 package models.sr;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Collections;
 import java.util.Date;
 import java.util.LinkedList;
@@ -7,6 +9,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import utils.auth.Hash;
 
 import com.vdurmont.emoji.EmojiParser;
 
@@ -253,15 +256,22 @@ public class Participant extends DataResource {
 	}
 
 	public void setPassword(String tmpPwd) {
-		passwordHash = hashMe(tmpPwd);
-	}
-
-	private static String hashMe(String password) {
-		return password;
+		if (tmpPwd == null || tmpPwd.isEmpty()) {
+			this.passwordHash = null;
+			return;
+		}
+		this.passwordHash = Hash.hashPassword(tmpPwd);
 	}
 
 	public boolean checkPassword(String password) {
-		return this.passwordHash.equals(hashMe(password));
+		if (this.passwordHash == null || password == null) {
+			return false;
+		}
+		if (Hash.isHashed(this.passwordHash)) {
+			return Hash.checkPassword(password, this.passwordHash);
+		}
+		// Fallback for legacy unhashed participant passwords
+		return MessageDigest.isEqual(this.passwordHash.getBytes(StandardCharsets.UTF_8), password.getBytes(StandardCharsets.UTF_8));
 	}
 
 	public String gender() {

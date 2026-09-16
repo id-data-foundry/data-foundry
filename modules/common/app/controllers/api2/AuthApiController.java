@@ -46,11 +46,12 @@ public class AuthApiController extends AbstractApiController {
 		String username = df.get("username");
 
 		// try to find user and check password
-		Person user = Person.findByEmail(username).get();
-		if (user == null || !user.checkPassword(password)) {
+		Optional<Person> userOpt = Person.findByEmail(username);
+		if (userOpt.isEmpty() || !userOpt.get().checkPassword(password)) {
 			return redirect(controllers.routes.HomeController.login(username, "")).addingToSession(request, "error",
 			        "Could not find you or your password does not match.");
 		}
+		Person user = userOpt.get();
 
 		user.touch();
 

@@ -1,26 +1,27 @@
 package utils.auth;
 
 import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 
 import com.google.common.hash.Hashing;
+import org.mindrot.jbcrypt.BCrypt;
 
 import play.Logger;
 
 /**
- * Simple Hashing util to allow for hashing passwords with SHA512
- * 
+ * Hashing util to allow for hashing passwords with BCrypt (new) and verifying legacy SHA512
  * 
  * @author mathias
  *
  */
 public class Hash {
 
-	private static final String HASH_PREFIX = "hashed";
+	public static final String BCRYPT_PREFIX = "bcrypt$";
+	public static final String HASH_PREFIX = "hashed";
 	private static final Logger.ALogger logger = Logger.of(Hash.class);
 
 	/**
-	 * has the given password (any String is possible), an error will be logged if the given String is already hashed,
-	 * which would point at a problem in the calling routine
+	 * hashes the given password with BCrypt (work factor 12)
 	 * 
 	 * @param password
 	 * @return
@@ -31,7 +32,46 @@ public class Hash {
 			return password;
 		}
 
-		return HASH_PREFIX + Hashing.sha512().hashString(password, StandardCharsets.UTF_8).toString();
+		return BCRYPT_PREFIX + BCrypt.hashpw(password, BCrypt.gensalt(12));
+	}
+
+	/**
+	 * checks candidate password against stored hash (supporting both new bcrypt$ and legacy hashed prefixes)
+	 * 
+	 * @param candidate
+	 * @param storedHash
+	 * @return
+	 */
+	public static boolean checkPassword(String candidate, String storedHash) {
+		if (candidate == null || storedHash == null) {
+			return false;
+		}
+
+		if (storedHash.startsWith(BCRYPT_PREFIX)) {
+			String rawBcrypt = storedHash.substring(BCRYPT_PREFIX.length());
+			try {
+				return BCrypt.checkpw(candidate, rawBcrypt);
+			} catch (Exception e) {
+				logger.error("Error verifying BCrypt password hash", e);
+				return false;
+			}
+		}
+
+		if (storedHash.startsWith(HASH_PREFIX)) {
+			String expected = HASH_PREFIX + Hashing.sha512().hashString(candidate, StandardCharsets.UTF_8).toString();
+			return MessageDigest.isEqual(expected.getBytes(StandardCharsets.UTF_8), storedHash.getBytes(StandardCharsets.UTF_8));
+		}
+
+		if (storedHash.startsWith("$2a$") || storedHash.startsWith("$2b$") || storedHash.startsWith("$2y$")) {
+			try {
+				return BCrypt.checkpw(candidate, storedHash);
+			} catch (Exception e) {
+				logger.error("Error verifying BCrypt password hash", e);
+				return false;
+			}
+		}
+
+		return false;
 	}
 
 	/**
@@ -41,6 +81,10 @@ public class Hash {
 	 * @return
 	 */
 	public static boolean isHashed(String password) {
-		return password.startsWith(HASH_PREFIX);
+		if (password == null) {
+			return false;
+		}
+		return password.startsWith(BCRYPT_PREFIX) || password.startsWith(HASH_PREFIX)
+				|| password.startsWith("$2a$") || password.startsWith("$2b$") || password.startsWith("$2y$");
 	}
 }

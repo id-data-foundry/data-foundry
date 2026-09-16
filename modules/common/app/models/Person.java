@@ -116,14 +116,7 @@ public class Person extends Model {
 	 * @return
 	 */
 	public boolean checkPassword(String password) {
-
-		// migration to hashed passwords
-		if (!Hash.isHashed(this.passwordHash)) {
-			setPassword(this.passwordHash);
-			this.update();
-		}
-
-		return this.passwordHash.equals(Hash.hashPassword(password));
+		return Hash.checkPassword(password, this.passwordHash);
 	}
 
 	/**
