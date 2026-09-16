@@ -3,6 +3,7 @@ package controllers;
 import java.io.File;
 import java.io.IOException;
 import java.nio.charset.Charset;
+import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.LinkedList;
@@ -1731,17 +1732,25 @@ public class ProjectsController extends AbstractAsyncController {
 				// return zip file
 				TemporaryFile tf = lifeCycleService.exportProject(Optional.of(request), project, datasetsToExport);
 				String token = UUID.randomUUID().toString();
-				cache.set("publishingStatus_" + token, tf.path().toFile().getAbsolutePath(), 30);
+				final String today = new SimpleDateFormat("yyyy-MM-dd").format(new Date());
+				final String downloadFileName = today + "_" + project.getName().replaceAll("[\\W_]+", "_") + ".zip";
+				cache.set("cachedTemporaryFile_" + token, tf.path().toFile().getAbsolutePath(), 1200);
+				cache.set("cachedTemporaryFileName_" + token, downloadFileName, 1200);
+				String downloadUrl = routes.DatasetsController.downloadTemporaryFile(token).url();
+				String projectUrl = routes.ProjectsController.view(project.getId()).url();
 				return ok("""
 						<p>
-							🌟 All clear, download should be starting...
+							🌟 All clear, download should be starting... If it doesn't start automatically, <a href="%s" download="%s" class="btn">click here to download</a>.
+						</p>
+						<p>
+							<a href="%s" class="btn-flat">Back to project</a>
 						</p>
 						<script>
 							// Trigger download
 							const link = document.createElement("a");
 							link.style.display = "none";
 							link.href = "%s";
-							link.download = "project_export.zip";
+							link.download = "%s";
 							document.body.appendChild(link);
 							link.click();
 
@@ -1750,7 +1759,7 @@ public class ProjectsController extends AbstractAsyncController {
 								link.remove();
 							}, 100);
 						</script>
-						""".formatted(routes.DatasetsController.downloadTemporaryFile(token)));
+						""".formatted(downloadUrl, downloadFileName, projectUrl, downloadUrl, downloadFileName));
 			} else {
 				// check the publishing key
 				String zenodoAccessToken = nss(df.get("publishKey"));

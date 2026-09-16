@@ -414,7 +414,18 @@ public class DatasetsController extends AbstractAsyncController {
 	@Authenticated(UserAuth.class)
 	public Result downloadTemporaryFile(Request request, String token) {
 		Optional<String> filePath = cache.get("cachedTemporaryFile_" + token);
-		return filePath.isPresent() ? ok(new File(filePath.get())) : noContent();
+		if (!filePath.isPresent()) {
+			filePath = cache.get("publishingStatus_" + token);
+		}
+		if (filePath.isPresent()) {
+			File file = new File(filePath.get());
+			if (file.exists()) {
+				String fileName = (String) cache.get("cachedTemporaryFileName_" + token)
+						.orElse(file.getName());
+				return ok(file, false, Optional.of(fileName)).as("application/zip");
+			}
+		}
+		return notFound("The exported file was not found or has expired. Please try exporting again.");
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////

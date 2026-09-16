@@ -396,22 +396,22 @@ public class ProjectLifecycleService implements ScheduledService {
 
 				// write dataset data both in JSON and CSV
 				TemporaryFile tempFileJSON = Files.singletonTemporaryFileCreator().create("data", "json");
-				filesToCleanUp.add(tempFileJSON);
 				try (FileWriter fw = new FileWriter(tempFileJSON.path().toFile());) {
 					datasetConnector.getDatasetDS(ds).exportProjectedToFile(fw, cluster, -1l, -1l, -1l);
 				} catch (Exception e) {
 					// do nothing
 				}
 				AssetsHelper.zipFile(zipOut, pathPrefix + ".json", tempFileJSON.path().toFile());
+				tempFileJSON.path().toFile().delete();
 
 				TemporaryFile tempFileCSV = Files.singletonTemporaryFileCreator().create("data", "csv");
-				filesToCleanUp.add(tempFileCSV);
 				try (FileWriter fw = new FileWriter(tempFileCSV.path().toFile());) {
 					datasetConnector.getDatasetDS(ds).exportToFile(fw, cluster, -1l, -1l, -1l);
 				} catch (Exception e) {
 					// do nothing
 				}
 				AssetsHelper.zipFile(zipOut, pathPrefix + ".csv", tempFileCSV.path().toFile());
+				tempFileCSV.path().toFile().delete();
 
 				switch (ds.getDsType()) {
 				case COMPLETE:

@@ -18,6 +18,7 @@ public class AssetsHelper {
 		try {
 			zipOut.putNextEntry(zipEntry);
 			zipOut.write(contentToZip.getBytes(Charset.defaultCharset()));
+			zipOut.closeEntry();
 		} catch (IOException e) {
 			logger.error("Error zipping string content for entry " + entryName, e);
 		}
@@ -29,20 +30,19 @@ public class AssetsHelper {
 			return;
 		}
 
-		ZipEntry zipEntry = new ZipEntry(entryName);
-		try {
-			zipOut.putNextEntry(zipEntry);
-			java.nio.file.Files.copy(contentToZip.get().toPath(), zipOut);
-		} catch (IOException e) {
-			logger.error("Error zipping file " + contentToZip.get().getAbsolutePath() + " for entry " + entryName, e);
-		}
+		zipFile(zipOut, entryName, contentToZip.get());
 	}
 
 	public static void zipFile(ZipOutputStream zipOut, String entryName, File contentToZip) {
+		if (contentToZip == null || !contentToZip.exists()) {
+			return;
+		}
+
 		ZipEntry zipEntry = new ZipEntry(entryName);
 		try {
 			zipOut.putNextEntry(zipEntry);
 			java.nio.file.Files.copy(contentToZip.toPath(), zipOut);
+			zipOut.closeEntry();
 		} catch (IOException e) {
 			logger.error("Error zipping file " + contentToZip.getAbsolutePath() + " for entry " + entryName, e);
 		}
