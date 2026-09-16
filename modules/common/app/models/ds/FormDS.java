@@ -126,7 +126,7 @@ public class FormDS extends LinkedDS {
 				StringBuffer sb = new StringBuffer();
 				sb.append(rs.getLong(1) + ",");
 				sb.append(tsExportFormatter.format(rs.getTimestamp(2)) + ",");
-				sb.append("\"" + rs.getString(3) + "\"\n");
+				sb.append(cf(rs.getString(3)) + "\n");
 
 				queue.offer(ByteString.fromString(sb.toString())).toCompletableFuture().get();
 			}

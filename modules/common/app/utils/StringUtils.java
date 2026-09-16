@@ -59,7 +59,7 @@ public class StringUtils {
 	 * format / escape string for CSV output
 	 */
 	static public final String cf(String s) {
-		return s != null ? "\"" + s + "\"" : "\"\"";
+		return DataUtils.sanitizeCsvCell(s);
 	}
 
 	/**

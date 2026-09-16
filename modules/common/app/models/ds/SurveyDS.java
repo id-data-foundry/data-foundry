@@ -141,7 +141,7 @@ public class SurveyDS extends LinkedDS {
 				sb.append(rs.getLong(1) + ",");
 				sb.append(rs.getLong(2) + ",");
 				sb.append(tsExportFormatter.format(rs.getTimestamp(3)) + ",");
-				sb.append("\"" + rs.getString(4) + "\"\n");
+				sb.append(cf(rs.getString(4)) + "\n");
 
 				queue.offer(ByteString.fromString(sb.toString())).toCompletableFuture().get();
 			}

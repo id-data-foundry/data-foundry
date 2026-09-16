@@ -132,8 +132,8 @@ public class AnnotationDS extends LinkedDS {
 				sb.append(rs.getLong(1) + ",");
 				sb.append(rs.getLong(2) + ",");
 				sb.append(tsExportFormatter.format(rs.getTimestamp(3)) + ",");
-				sb.append("\"" + rs.getString(4) + "\",");
-				sb.append("\"" + rs.getString(5) + "\"");
+				sb.append(cf(rs.getString(4)) + ",");
+				sb.append(cf(rs.getString(5)));
 				sb.append("\n");
 
 				queue.offer(ByteString.fromString(sb.toString())).toCompletableFuture().get();

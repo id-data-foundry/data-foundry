@@ -37,13 +37,8 @@ public class GraalSandboxImpl extends NashornSandboxImpl implements GraalSandbox
 	}
 
 	public GraalSandboxImpl(String... params) {
-		// HostAccess and PolyglotAccess is necessary to access Java classes
 		super(GraalJSScriptEngine.create(null, Context.newBuilder("js")
-		// .allowExperimentalOptions(true) //
-//		        .allowPolyglotAccess(PolyglotAccess.ALL) //
-//		        .allowHostClassLookup(s -> true) //
-		        .allowHostAccess(HostAccess.ALL) //
-//		        .allowAllAccess(true) //
+		        .allowHostAccess(HostAccess.EXPLICIT)
 		), params);
 		isStrict = Arrays.asList(params).contains("-strict");
 		Bindings bindings = this.scriptEngine.getBindings(ScriptContext.ENGINE_SCOPE);

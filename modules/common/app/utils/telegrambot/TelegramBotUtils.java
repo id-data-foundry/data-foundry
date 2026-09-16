@@ -1,5 +1,6 @@
 package utils.telegrambot;
 
+import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -105,13 +106,15 @@ public class TelegramBotUtils {
 		}
 	}
 
+	private static final SecureRandom secureRandom = new SecureRandom();
+
 	/**
 	 * generate a PIN number for authenticating with Telegram via the Participation controller view
 	 * 
 	 * @return
 	 */
 	public static String generateTelegramPersonalPIN() {
-		return "" + Math.round(10000 + Math.random() * 80000);
+		return String.valueOf(10000 + secureRandom.nextInt(90000));
 	}
 
 	/**
@@ -120,7 +123,7 @@ public class TelegramBotUtils {
 	 * @return
 	 */
 	public static String generateTelegramProjectPIN(long projectId) {
-		return hashids.encode(projectId, Math.round(1000 + Math.random() * 8000));
+		return hashids.encode(projectId, 1000 + secureRandom.nextInt(9000));
 	}
 
 	/**

@@ -162,4 +162,27 @@ public class DataUtils {
 		return on;
 	}
 
+	/**
+	 * Sanitize a CSV cell value to prevent CSV Formula Injection (CWE-1236)
+	 * and properly escape quotes for RFC 4180 CSV compliance.
+	 *
+	 * @param cell
+	 * @return sanitized and quoted CSV cell
+	 */
+	public static String sanitizeCsvCell(String cell) {
+		if (cell == null) {
+			return "\"\"";
+		}
+		String val = cell;
+		if (!val.isEmpty()) {
+			char firstChar = val.charAt(0);
+			if (firstChar == '=' || firstChar == '@' || firstChar == '\t' || firstChar == '\r') {
+				val = "'" + val;
+			} else if ((firstChar == '+' || firstChar == '-') && !NumberUtils.isCreatable(val.trim())) {
+				val = "'" + val;
+			}
+		}
+		return "\"" + val.replace("\"", "\"\"") + "\"";
+	}
+
 }

@@ -460,7 +460,7 @@ public abstract class LinkedDS {
 	 * format / escape string for CSV output
 	 */
 	protected final String cf(String s) {
-		return s != null ? "\"" + s + "\"" : "\"\"";
+		return utils.StringUtils.cf(s);
 	}
 
 	/**

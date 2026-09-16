@@ -137,13 +137,8 @@ public class MediaToTextController extends AbstractAsyncController implements Ap
 			return CompletableFuture.completedStage(badRequest("[ERROR] File missing."));
 		}
 
-		try {
-			mediaProcessingService
-					.scheduleMediaToTextProcess(file, nss(lang), nss(type), user.getName(), internalToken(publicToken))
-					.toCompletableFuture().get();
-		} catch (InterruptedException e) {
-		} catch (ExecutionException e) {
-		}
+		mediaProcessingService
+				.scheduleMediaToTextProcess(file, nss(lang), nss(type), user.getName(), internalToken(publicToken));
 
 		// return token immediately
 		return CompletableFuture.completedStage(ok(publicToken));
