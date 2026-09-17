@@ -482,7 +482,7 @@ public class HomeController extends AbstractAsyncController {
 		case "scientific-integrity":
 			return redirect(ConfigurationUtils.configure(configuration,
 					ConfigurationUtils.DF_LINKS_SCIENTIFIC_INTEGRITY,
-					"https://www.tue.nl/en/our-university/about-the-university/integrity/scientific-integrity/"));
+					"https://www.tue.nl/en/our-university/about-the-university/integrity-and-social-safety/scientific-integrity"));
 		// images ------------------
 		case "organization-logo":
 			return ConfigurationUtils.hasKeyConfiguration(configuration, ConfigurationUtils.DF_LINKS_ORG_LOGO)
