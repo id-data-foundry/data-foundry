@@ -85,7 +85,7 @@ public class ActorWebhookController extends AbstractAsyncController {
 		// convert to gson object for JSActor
 		Optional<String> responseOpt = Optional.empty();
 		try {
-			JsonElement element = new JsonParser().parse(Json.stringify(json));
+			JsonElement element = JsonParser.parseString(Json.stringify(json));
 			JsonObject data;
 			if (element.isJsonObject()) {
 				data = element.getAsJsonObject();

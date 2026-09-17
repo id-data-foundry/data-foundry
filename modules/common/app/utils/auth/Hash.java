@@ -3,8 +3,9 @@ package utils.auth;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 
-import com.google.common.hash.Hashing;
 import org.mindrot.jbcrypt.BCrypt;
+
+import com.google.common.hash.Hashing;
 
 import play.Logger;
 
@@ -59,7 +60,8 @@ public class Hash {
 
 		if (storedHash.startsWith(HASH_PREFIX)) {
 			String expected = HASH_PREFIX + Hashing.sha512().hashString(candidate, StandardCharsets.UTF_8).toString();
-			return MessageDigest.isEqual(expected.getBytes(StandardCharsets.UTF_8), storedHash.getBytes(StandardCharsets.UTF_8));
+			return MessageDigest.isEqual(expected.getBytes(StandardCharsets.UTF_8),
+					storedHash.getBytes(StandardCharsets.UTF_8));
 		}
 
 		if (storedHash.startsWith("$2a$") || storedHash.startsWith("$2b$") || storedHash.startsWith("$2y$")) {
@@ -84,7 +86,7 @@ public class Hash {
 		if (password == null) {
 			return false;
 		}
-		return password.startsWith(BCRYPT_PREFIX) || password.startsWith(HASH_PREFIX)
-				|| password.startsWith("$2a$") || password.startsWith("$2b$") || password.startsWith("$2y$");
+		return password.startsWith(BCRYPT_PREFIX) || password.startsWith(HASH_PREFIX) || password.startsWith("$2a$")
+				|| password.startsWith("$2b$") || password.startsWith("$2y$");
 	}
 }

@@ -498,7 +498,7 @@ public class ChatbotController extends AbstractAsyncController {
 							continue;
 
 						// Render markdown for the modal
-						String renderedSource = new MarkdownRenderer().render(ctx.content());
+						String renderedSource = new MarkdownRenderer(false).render(ctx.content());
 						// Manual escaping for JS
 						String escapedSource = renderedSource.replace("\\", "\\\\").replace("\"", "\\\"")
 								.replace("\n", "\\n").replace("\r", "\\r").replace("'", "\\'");
@@ -761,7 +761,7 @@ public class ChatbotController extends AbstractAsyncController {
 
 			// generate response item, including the messages
 			responseItem = new ConversationItem(ConversationItem.ASSISTANT, resultAsText, messages.toPrettyString(),
-					new MarkdownRenderer().render(resultAsText));
+					new MarkdownRenderer(false).render(resultAsText));
 
 			ch.items().add(responseItem);
 			cache.set(CHAT_CONTROLLER_CACHE_PREFIX + conversationId, ch, 3600);

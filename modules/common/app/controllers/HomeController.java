@@ -59,7 +59,6 @@ public class HomeController extends AbstractAsyncController {
 	private final SyncCacheApi cache;
 	private final NotificationService notificationService;
 	private final TokenResolverUtil tokenResolverUtil;
-	private final MarkdownRenderer mdRenderer;
 	private final TourManager tourManager;
 	private final RealTimeNotificationService realtimeNotifications;
 	private final LocalModelMetadata localModelMetadata;
@@ -71,14 +70,13 @@ public class HomeController extends AbstractAsyncController {
 
 	@Inject
 	public HomeController(RefreshTask rt, Config configuration, Environment environment, SyncCacheApi sca,
-			NotificationService ns, ProjectLifecycleService tbs, TokenResolverUtil tru, MarkdownRenderer mdRenderer,
-			TourManager tourManager, RealTimeNotificationService realtimeNotifications, LocalModelMetadata lmmd) {
+			NotificationService ns, ProjectLifecycleService tbs, TokenResolverUtil tru, TourManager tourManager,
+			RealTimeNotificationService realtimeNotifications, LocalModelMetadata lmmd) {
 		this.configuration = configuration;
 		this.environment = environment;
 		this.cache = sca;
 		this.notificationService = ns;
 		this.tokenResolverUtil = tru;
-		this.mdRenderer = mdRenderer;
 		this.tourManager = tourManager;
 		this.realtimeNotifications = realtimeNotifications;
 		this.localModelMetadata = lmmd;
@@ -347,7 +345,7 @@ public class HomeController extends AbstractAsyncController {
 			// read file contents
 			try {
 				String contents = new String(java.nio.file.Files.readAllBytes(Paths.get(file.getAbsolutePath())));
-				return ok(views.html.home.documentationPage.render(mdRenderer.render(contents)))
+				return ok(views.html.home.documentationPage.render(new MarkdownRenderer().render(contents)))
 						.as("text/html; charset=utf-8").withHeader("Cache-Control", "max-age=3600");
 			} catch (IOException e) {
 				// log and return the file
@@ -605,7 +603,7 @@ public class HomeController extends AbstractAsyncController {
 			return "";
 		}
 
-		final MarkdownRenderer mdr = new MarkdownRenderer();
+		final MarkdownRenderer markdownRenderer = new MarkdownRenderer();
 		final File folder = envFolder.get();
 		String result = Arrays
 				.stream(folder.listFiles(
@@ -613,7 +611,7 @@ public class HomeController extends AbstractAsyncController {
 				.map(f -> {
 					try {
 						List<String> lines = Files.readLines(f, Charset.defaultCharset());
-						return mdr.render(lines.stream().collect(Collectors.joining("\n")));
+						return markdownRenderer.render(lines.stream().collect(Collectors.joining("\n")));
 					} catch (IOException e) {
 						logger.error("", e);
 						return null;

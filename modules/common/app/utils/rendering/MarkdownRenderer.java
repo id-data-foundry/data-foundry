@@ -24,12 +24,17 @@ public class MarkdownRenderer {
 	private final HtmlRenderer renderer;
 
 	public MarkdownRenderer() {
-		this(null);
+		this(null, true);
 	}
 
-	public MarkdownRenderer(Dataset ds) {
+	public MarkdownRenderer(boolean escapeHTML) {
+		this(null, escapeHTML);
+	}
+
+	public MarkdownRenderer(Dataset ds, boolean escapeHTML) {
 		parser = Parser.builder().extensions(Arrays.asList(TablesExtension.create())).build();
-		renderer = HtmlRenderer.builder().escapeHtml(true).extensions(Arrays.asList(TablesExtension.create())).build();
+		renderer = HtmlRenderer.builder().escapeHtml(escapeHTML).extensions(Arrays.asList(TablesExtension.create()))
+				.build();
 	}
 
 	public String render(String input) {
