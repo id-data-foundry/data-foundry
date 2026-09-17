@@ -272,7 +272,8 @@ public class HomeController extends AbstractAsyncController {
 
 		// check if directory
 		if (file.isDirectory()) {
-			return redirect(routes.HomeController.docusite(file.getName() + File.separator + "index.html"));
+			String redirectTarget = filename.endsWith("/") ? filename + "index.html" : filename + "/index.html";
+			return redirect(routes.HomeController.docusite(redirectTarget));
 		}
 
 		// check if file other than HTML, then immediate return file
@@ -324,9 +325,9 @@ public class HomeController extends AbstractAsyncController {
 			if (!filename.contains(".")) {
 				// try Markdown
 				return publicContent(request, filename + ".md");
-			} else if (!filename.contains(".md")) {
+			} else if (filename.endsWith(".md")) {
 				// try HTML
-				return publicContent(request, filename.replace(".md", ".html"));
+				return publicContent(request, filename.substring(0, filename.length() - 3) + ".html");
 			}
 
 			// we give up
@@ -337,7 +338,8 @@ public class HomeController extends AbstractAsyncController {
 
 		// check if directory
 		if (file.isDirectory()) {
-			return redirect(routes.HomeController.publicContent(file.getName() + File.separator + "index.html"));
+			String redirectTarget = filename.endsWith("/") ? filename + "index.html" : filename + "/index.html";
+			return redirect(routes.HomeController.publicContent(redirectTarget));
 		}
 
 		// if suitable extension and file size, attempt a Markdown rendering
@@ -377,65 +379,54 @@ public class HomeController extends AbstractAsyncController {
 			return Optional.empty();
 		}
 
-		// Decode URL encoded characters first
-		if (folderName.contains("%")) {
-			folderName = utils.StringUtils.url2s(folderName);
+		// Whitelist folder name: only allow documentation and content via HomeController
+		if (!"documentation".equals(folderName) && !"content".equals(folderName)) {
+			return Optional.empty();
 		}
-		if (fileName.contains("%")) {
-			fileName = utils.StringUtils.url2s(fileName);
+
+		// Decode URL encoded characters first (handle potential double-encoding)
+		String decodedFileName = fileName;
+		if (decodedFileName.contains("%")) {
+			decodedFileName = utils.StringUtils.url2s(decodedFileName);
+		}
+		if (decodedFileName.contains("%")) {
+			decodedFileName = utils.StringUtils.url2s(decodedFileName);
 		}
 
 		// Reject any path traversal attempts
-		if (folderName.contains("..") || fileName.contains("..")) {
+		if (decodedFileName.contains("..") || decodedFileName.contains("\\") || decodedFileName.contains("\0")) {
 			return Optional.empty();
 		}
 
 		// Strip leading slashes to prevent absolute path escapes
-		while (folderName.startsWith("/")) {
-			folderName = folderName.substring(1);
-		}
-		while (fileName.startsWith("/")) {
-			fileName = fileName.substring(1);
+		while (decodedFileName.startsWith("/")) {
+			decodedFileName = decodedFileName.substring(1);
 		}
 
-		// check folder name
-		if (!folderName.endsWith("/")) {
-			folderName = folderName + "/";
-		}
-
-		// sanitize filename and folder
-		folderName = folderName.replaceAll("[^A-Za-z0-9_/-]", "");
-		fileName = fileName.replaceAll("[^A-Za-z0-9_./-]", "");
-		if (folderName.isEmpty() || fileName.isEmpty()) {
+		// Sanitize filename allowing valid URL path characters
+		decodedFileName = decodedFileName.replaceAll("[^A-Za-z0-9_./-]", "");
+		if (decodedFileName.isEmpty() || decodedFileName.contains("..")) {
 			return Optional.empty();
 		}
 
-		// first check folder
-		String relativePath = (environment.isDev() ? "dist/" : "") + folderName;
-		Optional<File> existingFolder = environment.getExistingFile(relativePath);
-		if (existingFolder.isEmpty()) {
-			logger.error("Folder not found: " + relativePath + fileName);
+		// Resolve safe environment folder using unified candidate discovery & boundary checks
+		Optional<File> existingFolder = FileUtil.getEnvironmentFolder(environment, folderName);
+		if (!existingFolder.isPresent()) {
+			logger.error("Folder not found: " + folderName + "/" + decodedFileName);
 			return Optional.empty();
 		}
 
-		File folder = existingFolder.orElseThrow();
-		// Verify canonical containment of the folder within environment root / dist
-		try {
-			String baseDir = new File(environment.isDev() ? "dist" : ".").getCanonicalPath();
-			if (!folder.getCanonicalPath().startsWith(baseDir)) {
-				logger.error("Folder traversal attempt detected: " + relativePath);
-				return Optional.empty();
-			}
-		} catch (IOException e) {
-			return Optional.empty();
-		}
+		File folder = existingFolder.get();
 
-		// check file in folder
-		Optional<File> fileOpt = FileUtil.getSafeFileInFolder(folder, fileName);
+		// Check file or directory in folder
+		Optional<File> fileOpt = FileUtil.getSafePathInFolder(folder, decodedFileName);
 		if (!fileOpt.isPresent()) {
-			fileOpt = FileUtil.getSafeFileInFolder(folder, fileName + ".html");
+			fileOpt = FileUtil.getSafePathInFolder(folder, decodedFileName + ".html");
+			if (!fileOpt.isPresent() && "content".equals(folderName)) {
+				fileOpt = FileUtil.getSafePathInFolder(folder, decodedFileName + ".md");
+			}
 			if (!fileOpt.isPresent()) {
-				logger.error("Not found: " + relativePath + fileName);
+				logger.error("Not found: " + folderName + "/" + decodedFileName);
 				return Optional.empty();
 			}
 		}
@@ -597,8 +588,7 @@ public class HomeController extends AbstractAsyncController {
 
 	private String getAnnouncement() {
 		// find announcement folder
-		Optional<File> envFolder = environment.isDev() ? environment.getExistingFile("dist/announcements/")
-				: environment.getExistingFile("announcements/");
+		Optional<File> envFolder = FileUtil.getEnvironmentFolder(environment, "announcements");
 		if (!envFolder.isPresent()) {
 			return "";
 		}

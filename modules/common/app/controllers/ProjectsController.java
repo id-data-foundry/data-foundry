@@ -68,6 +68,7 @@ import utils.components.OnboardingMessage;
 import utils.components.OnboardingSupport;
 import utils.conf.ConfigurationUtils;
 import utils.conf.Configurator;
+import utils.rendering.FileUtil;
 import utils.rendering.MarkdownRenderer;
 import utils.telegrambot.TelegramBotUtils;
 import utils.validators.FileTypeUtils;
@@ -491,8 +492,7 @@ public class ProjectsController extends AbstractAsyncController {
 
 	@Authenticated(UserAuth.class)
 	private List<String> getFileTemplates() {
-		final String localDevPrefix = environment.isDev() ? "dist/" : "";
-		Optional<File> envFolder = environment.getExistingFile(localDevPrefix + "templates/");
+		Optional<File> envFolder = FileUtil.getEnvironmentFolder(environment, "templates");
 		if (!envFolder.isPresent()) {
 			return new LinkedList<>();
 		}
@@ -560,8 +560,7 @@ public class ProjectsController extends AbstractAsyncController {
 		// add to project if this is using a template project
 		String template = nss(df.get("project_template"));
 		project.refresh();
-		final String localDevPrefix = environment.isDev() ? "dist/" : "";
-		Optional<File> templatesDir = environment.getExistingFile(localDevPrefix + "templates/");
+		Optional<File> templatesDir = FileUtil.getEnvironmentFolder(environment, "templates");
 		ModelTemplates.addProjectElements(project, datasetConnector, tokenResolverUtil, template,
 				templatesDir.orElse(null));
 
@@ -2009,8 +2008,7 @@ public class ProjectsController extends AbstractAsyncController {
 
 	private String getAnnouncement() {
 		// find announcement folder
-		Optional<File> envFolder = environment.isDev() ? environment.getExistingFile("dist/announcements/")
-				: environment.getExistingFile("announcements/");
+		Optional<File> envFolder = FileUtil.getEnvironmentFolder(environment, "announcements");
 		if (!envFolder.isPresent()) {
 			return "";
 		}
