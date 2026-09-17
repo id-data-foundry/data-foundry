@@ -192,4 +192,42 @@ public class ScriptApiControllerTest extends WithApplication {
 		String output = contentAsString(result);
 		assertTrue("Output should contain " + randomNumber, output.contains(String.valueOf(randomNumber)));
 	}
+
+	@Test
+	public void testDFMethodsInvocationNotBlocked() throws Exception {
+		Person user = createUser("ScriptTester", "script_tester@example.com");
+		Project p = createProject(user, "Script DF Project");
+		Dataset ds = createScript(p, "Script DF DS");
+		String token = user.getAccesscode();
+
+		String data = "var data = {};";
+		String code = String.join("\n",
+				"DF.print('START_DF_CHECK');",
+				"DF.print({status: 'OK', value: 42});",
+				"DF.eventData.log('device-1', 'activity-1', {reading: 100});",
+				"DF.dataset('test-ds').log('device-1', 'activity-1', {reading: 200});",
+				"var events = DF.eventData.get('device-1');",
+				"var dsEvents = DF.dataset('test-ds').get('device-1');",
+				"var entities = DF.entity.getAll();",
+				"DF.telegramResearchers('Message to researchers');",
+				"DF.telegramParticipant('p1', 'Message to participant');",
+				"DF.oocsi('test_channel', {ping: true});",
+				"DF.print('END_DF_CHECK:ALL_PASS');"
+		);
+
+		String url = "/api/v2/scripts/execute/" + ds.getId() + "?data="
+				+ URLEncoder.encode(data, StandardCharsets.UTF_8.toString()) + "&code="
+				+ URLEncoder.encode(code, StandardCharsets.UTF_8.toString());
+
+		Result result = route(app, authenticatedRequest(GET, url, token));
+		assertEquals(OK, result.status());
+
+		String output = contentAsString(result);
+		assertTrue("Output should contain START_DF_CHECK: " + output, output.contains("START_DF_CHECK"));
+		assertTrue("Output should contain {\"status\":\"OK\",\"value\":42}: " + output,
+				output.contains("{\"status\":\"OK\",\"value\":42}"));
+		assertTrue("Output should contain END_DF_CHECK:ALL_PASS: " + output,
+				output.contains("END_DF_CHECK:ALL_PASS"));
+	}
 }
+
