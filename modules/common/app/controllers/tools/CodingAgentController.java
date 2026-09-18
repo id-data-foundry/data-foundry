@@ -145,8 +145,7 @@ public class CodingAgentController extends AbstractAsyncController {
 		}
 
 		final CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
-		final List<TimedMedia> fileList = cache.getOrElseUpdate(CompleteDSController.CACHE_FILES + id,
-				() -> cpds.getFiles(), 30).stream()
+		final List<TimedMedia> fileList = cpds.getFiles().stream()
 				.filter(tl -> FileTypeUtils.looksLikeEditableFile(tl.link)).collect(Collectors.toList());
 
 		if (fileId == -1L && !fileList.isEmpty()) {
@@ -183,8 +182,7 @@ public class CodingAgentController extends AbstractAsyncController {
 		}
 
 		final CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
-		final List<TimedMedia> fileList = cache.getOrElseUpdate(CompleteDSController.CACHE_FILES + id,
-				() -> cpds.getFiles(), 30).stream()
+		final List<TimedMedia> fileList = cpds.getFiles().stream()
 				.filter(tl -> FileTypeUtils.looksLikeEditableFile(tl.link)).collect(Collectors.toList());
 
 		ArrayNode array = Json.newArray();

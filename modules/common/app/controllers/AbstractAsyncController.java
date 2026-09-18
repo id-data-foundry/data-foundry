@@ -403,7 +403,7 @@ public class AbstractAsyncController extends Controller {
 	 * @return
 	 */
 	protected String csrfToken(Request request) {
-		return CSRF.getToken(request).get().value();
+		return CSRF.getToken(request).map(CSRF.Token::value).orElse("");
 	}
 
 	// ----------------------------------------------------------------------------------------------------------------

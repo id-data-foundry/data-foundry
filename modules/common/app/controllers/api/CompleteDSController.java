@@ -90,7 +90,7 @@ public class CompleteDSController extends AbstractDSController {
 		}
 
 		final CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
-		final List<TimedMedia> fileList = cache.getOrElseUpdate(CACHE_FILES + id, () -> cpds.getFiles(), 30);
+		final List<TimedMedia> fileList = cpds.getFiles();
 
 		if (!ds.visibleFor(username)) {
 			return redirect(controllers.routes.ProjectsController.view(ds.getProject().getId()));
@@ -732,8 +732,8 @@ public class CompleteDSController extends AbstractDSController {
 				// redirect to Twine editor
 				return redirect(controllers.tools.routes.NarrativeSurveysController.loadTwee(id, fileId));
 			} else {
-				final List<TimedMedia> fileList = cache.getOrElseUpdate(CACHE_FILES + id, () -> cpds.getFiles(), 30)
-						.stream().filter(tl -> FileTypeUtils.lookLikeTextFile(tl.link)).collect(Collectors.toList());
+				final List<TimedMedia> fileList = cpds.getFiles().stream()
+						.filter(tl -> FileTypeUtils.lookLikeTextFile(tl.link)).collect(Collectors.toList());
 
 				// edit json files as js
 				if (fileType.equals("json")) {
