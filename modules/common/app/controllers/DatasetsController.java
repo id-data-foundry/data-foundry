@@ -68,6 +68,7 @@ import utils.DatasetUtils;
 import utils.auth.TokenResolverUtil;
 import utils.rendering.FormMarkdown;
 import utils.validators.AbstractValidator;
+import utils.validators.FileTypeUtils;
 import utils.validators.Validators;
 
 public class DatasetsController extends AbstractAsyncController {
@@ -1218,6 +1219,111 @@ public class DatasetsController extends AbstractAsyncController {
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	private static final String WEB_CSP_HEADER = "sandbox allow-scripts allow-forms allow-same-origin allow-downloads allow-modals";
+
+	private static boolean isWebAsset(String filename) {
+		if (filename == null) {
+			return false;
+		}
+		String lower = filename.toLowerCase();
+		return lower.endsWith(".css") || lower.endsWith(".js") || lower.endsWith(".mjs") || lower.endsWith(".cjs")
+				|| lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".gif")
+				|| lower.endsWith(".webp") || lower.endsWith(".svg") || lower.endsWith(".ico") || lower.endsWith(".avif")
+				|| lower.endsWith(".woff") || lower.endsWith(".woff2") || lower.endsWith(".ttf") || lower.endsWith(".otf")
+				|| lower.endsWith(".eot") || lower.endsWith(".json") || lower.endsWith(".map") || lower.endsWith(".txt")
+				|| lower.endsWith(".csv") || lower.endsWith(".xml") || lower.endsWith(".pdf") || lower.endsWith(".mp3")
+				|| lower.endsWith(".wav") || lower.endsWith(".ogg") || lower.endsWith(".mp4") || lower.endsWith(".webm");
+	}
+
+	private static String getWebAssetMimeType(String filename, File file) {
+		if (filename == null) {
+			return "application/octet-stream";
+		}
+		String lower = filename.toLowerCase();
+		if (lower.endsWith(".css")) {
+			return "text/css; charset=utf-8";
+		}
+		if (lower.endsWith(".js") || lower.endsWith(".mjs") || lower.endsWith(".cjs")) {
+			return "text/javascript; charset=utf-8";
+		}
+		if (lower.endsWith(".html") || lower.endsWith(".htm")) {
+			return "text/html; charset=utf-8";
+		}
+		if (lower.endsWith(".json") || lower.endsWith(".map")) {
+			return "application/json; charset=utf-8";
+		}
+		if (lower.endsWith(".svg")) {
+			return "image/svg+xml";
+		}
+		if (lower.endsWith(".png")) {
+			return "image/png";
+		}
+		if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) {
+			return "image/jpeg";
+		}
+		if (lower.endsWith(".gif")) {
+			return "image/gif";
+		}
+		if (lower.endsWith(".webp")) {
+			return "image/webp";
+		}
+		if (lower.endsWith(".ico")) {
+			return "image/x-icon";
+		}
+		if (lower.endsWith(".avif")) {
+			return "image/avif";
+		}
+		if (lower.endsWith(".woff")) {
+			return "font/woff";
+		}
+		if (lower.endsWith(".woff2")) {
+			return "font/woff2";
+		}
+		if (lower.endsWith(".ttf")) {
+			return "font/ttf";
+		}
+		if (lower.endsWith(".otf")) {
+			return "font/otf";
+		}
+		if (lower.endsWith(".eot")) {
+			return "application/vnd.ms-fontobject";
+		}
+		if (lower.endsWith(".txt")) {
+			return "text/plain; charset=utf-8";
+		}
+		if (lower.endsWith(".csv")) {
+			return "text/csv; charset=utf-8";
+		}
+		if (lower.endsWith(".xml")) {
+			return "application/xml; charset=utf-8";
+		}
+		if (lower.endsWith(".pdf")) {
+			return "application/pdf";
+		}
+		if (lower.endsWith(".mp3")) {
+			return "audio/mpeg";
+		}
+		if (lower.endsWith(".wav")) {
+			return "audio/wav";
+		}
+		if (lower.endsWith(".ogg")) {
+			return "audio/ogg";
+		}
+		if (lower.endsWith(".mp4")) {
+			return "video/mp4";
+		}
+		if (lower.endsWith(".webm")) {
+			return "video/webm";
+		}
+		if (file != null) {
+			String detected = FileTypeUtils.detectMime(file);
+			if (detected != null && !detected.isEmpty() && !detected.equals("application/octet-stream")) {
+				return detected;
+			}
+		}
+		return "application/octet-stream";
+	}
+
 	/**
 	 * redirect to index
 	 * 
@@ -1277,6 +1383,9 @@ public class DatasetsController extends AbstractAsyncController {
 					// try to find a participant
 					String invite_token = session(request, ParticipantAuth.PARTICIPANT_ID);
 					if (!nnne(invite_token)) {
+						if (isWebAsset(filePath)) {
+							return unauthorized("Authentication required.");
+						}
 						return framedPage ? notFoundPageResponse
 								: redirectToDSResponse.addingToSession(request, "error",
 										"Please log in to access the dataset.");
@@ -1285,6 +1394,9 @@ public class DatasetsController extends AbstractAsyncController {
 					// check participant
 					long participant_id = tokenResolverUtil.getParticipantIdFromParticipationToken(invite_token);
 					if (participant_id < 0) {
+						if (isWebAsset(filePath)) {
+							return unauthorized("Authentication required.");
+						}
 						return framedPage ? notFoundPageResponse
 								: redirectToProjectResponse.addingToSession(request, "error",
 										"Please log in to access the dataset.");
@@ -1293,6 +1405,9 @@ public class DatasetsController extends AbstractAsyncController {
 					// check participant is part of project
 					Participant participant = Participant.find.byId(participant_id);
 					if (participant == null || !project.hasParticipant(participant)) {
+						if (isWebAsset(filePath)) {
+							return unauthorized("Authentication required.");
+						}
 						return framedPage ? notFoundPageResponse
 								: redirectToProjectResponse.addingToSession(request, "error",
 										"Please log in to access the dataset.");
@@ -1343,6 +1458,9 @@ public class DatasetsController extends AbstractAsyncController {
 			Optional<File> requestedFile = cpds.getFile(filename);
 			// file does not exist
 			if (!requestedFile.isPresent()) {
+				if (isWebAsset(filename)) {
+					return notFound("Asset not found: " + filename);
+				}
 				if (usernameOpt.isPresent()) {
 					return framedPage ? notFoundPageResponse
 							: notFound(views.html.datasets.complete.web.render(project, ds, "File not found."));
@@ -1361,25 +1479,32 @@ public class DatasetsController extends AbstractAsyncController {
 					String contents = new String(Files.readAllBytes(Paths.get(file.getAbsolutePath())));
 					return ok(views.html.datasets.complete.webmd.render(project, ds, FormMarkdown.renderHtml(contents)))
 							.as("text/html; charset=utf-8")
-							.withHeader("Content-Security-Policy", "sandbox allow-scripts allow-forms")
+							.withHeader("Content-Security-Policy", WEB_CSP_HEADER)
 							.withHeader("X-Content-Type-Options", "nosniff");
 				} catch (IOException e) {
 					// log and return the file
 					logger.error("Markdown transformation failed: " + file.getAbsolutePath());
 					return ok(file).as("text/html; charset=utf-8")
-							.withHeader("Content-Security-Policy", "sandbox allow-scripts allow-forms")
+							.withHeader("Content-Security-Policy", WEB_CSP_HEADER)
 							.withHeader("X-Content-Type-Options", "nosniff");
 				}
 			} else if (filename.endsWith(".html") || filename.endsWith(".htm")) {
 				return ok(file).as("text/html; charset=utf-8")
-						.withHeader("Content-Security-Policy", "sandbox allow-scripts allow-forms")
+						.withHeader("Content-Security-Policy", WEB_CSP_HEADER)
 						.withHeader("X-Content-Type-Options", "nosniff");
-			} else if (filename.endsWith(".min.js") || filename.endsWith(".min.css")) {
-				return ok(file).withHeader("Cache-Control", "max-age=3600").withHeader("X-Content-Type-Options", "nosniff");
-			} else if (filename.endsWith(".js") || filename.endsWith(".css")) {
-				return ok(file).withHeader("Cache-Control", "max-age=60").withHeader("X-Content-Type-Options", "nosniff");
 			} else {
-				return ok(file).withHeader("X-Content-Type-Options", "nosniff");
+				String mimeType = getWebAssetMimeType(filename, file);
+				Result res = ok(file).as(mimeType).withHeader("X-Content-Type-Options", "nosniff");
+				if (filename.endsWith(".min.js") || filename.endsWith(".min.css")) {
+					return res.withHeader("Cache-Control", "max-age=3600");
+				} else if (filename.endsWith(".js") || filename.endsWith(".css")) {
+					return res.withHeader("Cache-Control", "max-age=60");
+				} else if (FileTypeUtils.looksLikeImageFile(file) || filename.endsWith(".woff")
+						|| filename.endsWith(".woff2") || filename.endsWith(".ttf") || filename.endsWith(".otf")) {
+					return res.withHeader("Cache-Control", "max-age=3600");
+				} else {
+					return res;
+				}
 			}
 		});
 	}
@@ -1475,8 +1600,7 @@ public class DatasetsController extends AbstractAsyncController {
 			Optional<File> requestedFile = cpds.getFile(filename);
 			// file does not exist
 			if (!requestedFile.isPresent()) {
-				return usernameOpt.isEmpty() ? notFound()
-						: redirect(LANDING).addingToSession(request, "error", "No content available at this point.");
+				return notFound(isWebAsset(filename) ? "Asset not found: " + filename : "File not found.");
 			}
 
 			// check the file for special website properties
@@ -1487,25 +1611,32 @@ public class DatasetsController extends AbstractAsyncController {
 					String contents = new String(Files.readAllBytes(Paths.get(file.getAbsolutePath())));
 					return ok(views.html.datasets.complete.webmd.render(project, ds, FormMarkdown.renderHtml(contents)))
 							.as("text/html; charset=utf-8")
-							.withHeader("Content-Security-Policy", "sandbox allow-scripts allow-forms")
+							.withHeader("Content-Security-Policy", WEB_CSP_HEADER)
 							.withHeader("X-Content-Type-Options", "nosniff");
 				} catch (IOException e) {
 					// log and return the file
 					logger.error("Markdown transformation failed: " + file.getAbsolutePath());
 					return ok(file).as("text/html; charset=utf-8")
-							.withHeader("Content-Security-Policy", "sandbox allow-scripts allow-forms")
+							.withHeader("Content-Security-Policy", WEB_CSP_HEADER)
 							.withHeader("X-Content-Type-Options", "nosniff");
 				}
 			} else if (filename.endsWith(".html") || filename.endsWith(".htm")) {
 				return ok(file).as("text/html; charset=utf-8")
-						.withHeader("Content-Security-Policy", "sandbox allow-scripts allow-forms")
+						.withHeader("Content-Security-Policy", WEB_CSP_HEADER)
 						.withHeader("X-Content-Type-Options", "nosniff");
-			} else if (filename.endsWith(".min.js") || filename.endsWith(".min.css")) {
-				return ok(file).withHeader("Cache-Control", "max-age=3600").withHeader("X-Content-Type-Options", "nosniff");
-			} else if (filename.endsWith(".js") || filename.endsWith(".css")) {
-				return ok(file).withHeader("Cache-Control", "max-age=60").withHeader("X-Content-Type-Options", "nosniff");
 			} else {
-				return ok(file).withHeader("X-Content-Type-Options", "nosniff");
+				String mimeType = getWebAssetMimeType(filename, file);
+				Result res = ok(file).as(mimeType).withHeader("X-Content-Type-Options", "nosniff");
+				if (filename.endsWith(".min.js") || filename.endsWith(".min.css")) {
+					return res.withHeader("Cache-Control", "max-age=3600");
+				} else if (filename.endsWith(".js") || filename.endsWith(".css")) {
+					return res.withHeader("Cache-Control", "max-age=60");
+				} else if (FileTypeUtils.looksLikeImageFile(file) || filename.endsWith(".woff")
+						|| filename.endsWith(".woff2") || filename.endsWith(".ttf") || filename.endsWith(".otf")) {
+					return res.withHeader("Cache-Control", "max-age=3600");
+				} else {
+					return res;
+				}
 			}
 		});
 	}

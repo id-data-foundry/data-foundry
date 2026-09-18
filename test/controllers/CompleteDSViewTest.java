@@ -2,7 +2,10 @@ package controllers;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static play.mvc.Http.Status.NOT_FOUND;
 import static play.mvc.Http.Status.OK;
+import static play.mvc.Http.Status.UNAUTHORIZED;
 import static play.test.Helpers.GET;
 import static play.test.Helpers.contentAsString;
 
@@ -132,5 +135,78 @@ public class CompleteDSViewTest extends WithApplication {
 		assertEquals(OK, result.status());
 		String body = contentAsString(result);
 		assertNotNull(body);
+	}
+
+	@Test
+	public void testWebAssetLoading() throws Exception {
+		File htmlFile = File.createTempFile("index", ".html");
+		Files.write(htmlFile.toPath(), "<html><head><link rel=\"stylesheet\" href=\"styles.css\"></head><body><h1>Hi</h1></body></html>".getBytes(StandardCharsets.UTF_8));
+		completeDS.storeFile(htmlFile, "index.html");
+		completeDS.addRecord("index.html", "HTML", new Date());
+		htmlFile.delete();
+
+		File cssFile = File.createTempFile("styles", ".css");
+		Files.write(cssFile.toPath(), "body { color: red; }".getBytes(StandardCharsets.UTF_8));
+		completeDS.storeFile(cssFile, "styles.css");
+		completeDS.addRecord("styles.css", "CSS", new Date());
+		cssFile.delete();
+
+		File jsFile = File.createTempFile("script", ".js");
+		Files.write(jsFile.toPath(), "console.log('hello');".getBytes(StandardCharsets.UTF_8));
+		completeDS.storeFile(jsFile, "script.js");
+		completeDS.addRecord("script.js", "JS", new Date());
+		jsFile.delete();
+
+		// 1. Verify index.html contains allow-same-origin in CSP
+		Http.Request htmlRequest = createAuthenticatedRequest(GET, "/datasets/web/" + dataset.getId() + "/index.html", ownerUser);
+		Result htmlResult = datasetsController.web(htmlRequest, dataset.getId(), "index.html").toCompletableFuture().get();
+		assertEquals(OK, htmlResult.status());
+		assertTrue(htmlResult.contentType().isPresent());
+		assertTrue(htmlResult.contentType().get().contains("text/html"));
+		assertTrue(htmlResult.header("Content-Security-Policy").isPresent());
+		assertTrue(htmlResult.header("Content-Security-Policy").get().contains("allow-same-origin"));
+		assertEquals("nosniff", htmlResult.header("X-Content-Type-Options").orElse(""));
+
+		// 2. Verify styles.css returns text/css and nosniff
+		Http.Request request = createAuthenticatedRequest(GET, "/datasets/web/" + dataset.getId() + "/styles.css", ownerUser);
+		Result cssResult = datasetsController.web(request, dataset.getId(), "styles.css").toCompletableFuture().get();
+		assertEquals(OK, cssResult.status());
+		assertTrue(cssResult.contentType().isPresent());
+		assertTrue(cssResult.contentType().get().contains("text/css"));
+		assertEquals("nosniff", cssResult.header("X-Content-Type-Options").orElse(""));
+
+		// 3. Verify script.js returns javascript MIME and nosniff
+		Http.Request jsRequest = createAuthenticatedRequest(GET, "/datasets/web/" + dataset.getId() + "/script.js", ownerUser);
+		Result jsResult = datasetsController.web(jsRequest, dataset.getId(), "script.js").toCompletableFuture().get();
+		assertEquals(OK, jsResult.status());
+		assertTrue(jsResult.contentType().isPresent());
+		assertTrue(jsResult.contentType().get().contains("javascript"));
+		assertEquals("nosniff", jsResult.header("X-Content-Type-Options").orElse(""));
+
+		// 4. Verify unauthenticated web asset returns 401 Unauthorized (not 303 redirect to HTML)
+		Http.Request unauthRequest = createAuthenticatedRequest(GET, "/datasets/web/" + dataset.getId() + "/styles.css", null);
+		Result unauthResult = datasetsController.web(unauthRequest, dataset.getId(), "styles.css").toCompletableFuture().get();
+		assertEquals(UNAUTHORIZED, unauthResult.status());
+
+		// 5. Verify missing asset returns 404 without HTML error page
+		Http.Request missingRequest = createAuthenticatedRequest(GET, "/datasets/web/" + dataset.getId() + "/missing.css", ownerUser);
+		Result missingResult = datasetsController.web(missingRequest, dataset.getId(), "missing.css").toCompletableFuture().get();
+		assertEquals(NOT_FOUND, missingResult.status());
+
+		// 6. Verify webToken serving of styles.css and missing asset
+		String webToken = tokenResolverUtil.getDatasetToken(dataset.getId());
+		dataset.getConfiguration().put(Dataset.WEB_ACCESS_TOKEN, webToken);
+		dataset.update();
+
+		Http.Request tokenRequest = createAuthenticatedRequest(GET, "/web/" + webToken + "/styles.css", null);
+		Result tokenCssResult = datasetsController.webToken(tokenRequest, webToken, "styles.css").toCompletableFuture().get();
+		assertEquals(OK, tokenCssResult.status());
+		assertTrue(tokenCssResult.contentType().isPresent());
+		assertTrue(tokenCssResult.contentType().get().contains("text/css"));
+		assertEquals("nosniff", tokenCssResult.header("X-Content-Type-Options").orElse(""));
+
+		Http.Request tokenMissingRequest = createAuthenticatedRequest(GET, "/web/" + webToken + "/missing.css", null);
+		Result tokenMissingResult = datasetsController.webToken(tokenMissingRequest, webToken, "missing.css").toCompletableFuture().get();
+		assertEquals(NOT_FOUND, tokenMissingResult.status());
 	}
 }
