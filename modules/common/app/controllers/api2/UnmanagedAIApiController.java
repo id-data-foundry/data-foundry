@@ -48,16 +48,16 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 	public record ApiCall(String username, String apiKey) {
 	}
 
-	private Optional<ApiCall> authorize(Request request) {
+	Optional<ApiCall> authorize(Request request) {
 		String authHeader = request.header("Authorization").orElse("");
-		if (!authHeader.startsWith("Bearer ")) {
-			return Optional.empty();
-		}
-		String authorization = authHeader.substring(7).trim();
-		if (authorization.isEmpty()) {
-			return Optional.empty();
+		String authorization = "";
+		if (authHeader.startsWith("Bearer ")) {
+			authorization = authHeader.substring(7).trim();
 		}
 		String apiKey = checkDocumentationAPIKey(request, authorization);
+		if (apiKey == null || apiKey.isEmpty()) {
+			return Optional.empty();
+		}
 		String username = request.header(ApiServiceConstants.X_API_USER).orElse("");
 		return Optional.of(new ApiCall(username, apiKey));
 	}
@@ -295,23 +295,25 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	private String checkDocumentationAPIKey(Request request, String authorization) {
+	String checkDocumentationAPIKey(Request request, String authorization) {
 		String referrer = request.header(REFERER).orElse("");
-		String host = request.host();
+		if (referrer.isEmpty()) {
+			return authorization;
+		}
 
 		try {
 			URL refUrl = new URL(referrer);
-			String requestHost = host.contains(":") ? host.substring(0, host.indexOf(':')) : host;
-			int requestPort = host.contains(":") ? Integer.parseInt(host.substring(host.indexOf(':') + 1))
-					: (request.secure() ? 443 : 80);
-			int refPort = refUrl.getPort() == -1 ? refUrl.getDefaultPort() : refUrl.getPort();
+			// Resolve effective host (supporting WAF / reverse proxy X-Forwarded-Host)
+			String forwardedHost = request.header("X-Forwarded-Host").orElse("");
+			String rawHost = !forwardedHost.isEmpty() ? forwardedHost.split(",")[0].trim() : request.host();
+			String requestHost = rawHost.contains(":") ? rawHost.substring(0, rawHost.indexOf(':')) : rawHost;
 
-			// ensure exact same host, port, and /documentation path
-			if (refUrl.getHost().equalsIgnoreCase(requestHost) && refPort == requestPort
+			// Ensure the referer host matches our host, and the path is under /documentation
+			if (refUrl.getHost().equalsIgnoreCase(requestHost)
 					&& (refUrl.getPath().equals("/documentation") || refUrl.getPath().startsWith("/documentation/"))) {
 				return aiApiService.getInternalDocumentationAPIKey();
 			}
-		} catch (MalformedURLException | NumberFormatException e) {
+		} catch (MalformedURLException e) {
 			// do nothing
 		}
 

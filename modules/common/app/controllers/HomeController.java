@@ -301,7 +301,8 @@ public class HomeController extends AbstractAsyncController {
 			docString = ConfigurationUtils.replaceConfigurationVars(configuration, docString);
 
 			// insert in template and render
-			return ok(docString).as(MimeTypes.HTML).withHeader("Cache-Control", "max-age=3600");
+			return ok(docString).as(MimeTypes.HTML).withHeader("Cache-Control", "max-age=3600")
+					.withHeader("Referrer-Policy", "same-origin");
 		} catch (Exception e) {
 			return internalServerError();
 		}
