@@ -140,7 +140,7 @@ public class CodingAgentController extends AbstractAsyncController {
 	public Result view(Request request, Long id, Long fileId) {
 		String username = request.attrs().get(play.mvc.Security.USERNAME);
 		Dataset ds = Dataset.find.byId(id);
-		if (ds == null || !ds.visibleFor(username)) {
+		if (ds == null || !ds.editableBy(username)) {
 			return forbidden("Dataset not accessible");
 		}
 
@@ -177,7 +177,7 @@ public class CodingAgentController extends AbstractAsyncController {
 	public Result getFileList(Request request, Long id) {
 		String username = request.attrs().get(play.mvc.Security.USERNAME);
 		Dataset ds = Dataset.find.byId(id);
-		if (ds == null || !ds.visibleFor(username)) {
+		if (ds == null || !ds.editableBy(username)) {
 			return forbidden("Dataset not accessible");
 		}
 
@@ -205,7 +205,7 @@ public class CodingAgentController extends AbstractAsyncController {
 
 			Person user = userOpt.get();
 			Dataset ds = Dataset.find.byId(id);
-			if (ds == null || !ds.visibleFor(user)) {
+			if (ds == null || !ds.editableBy(user)) {
 				return Flow.fromSinkAndSource(Sink.ignore(),
 						Source.single(Json.newObject().put("type", "error").put("message", "Forbidden")));
 			}
