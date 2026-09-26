@@ -103,6 +103,11 @@ public class UserApiController extends AbstractApiController {
 			return notFound();
 		}
 
+		// check write access: must be project editor or enrolled participant
+		if (!project.editableBy(user) && !project.hasParticipantWithEmail(user.getEmail())) {
+			return forbidden(Json.newObject().put("error", "Not a participant or editor in this project."));
+		}
+
 		// setitem
 		Dataset ds = project.getEntityDataset();
 		if (ds == Dataset.EMPTY_DATASET) {
