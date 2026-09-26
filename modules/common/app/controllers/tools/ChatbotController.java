@@ -18,6 +18,7 @@ import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
@@ -80,6 +81,10 @@ import utils.validators.FileTypeUtils;
 public class ChatbotController extends AbstractAsyncController {
 
 	private static final String CHAT_CONTROLLER_CACHE_PREFIX = "ChatController_chat_";
+
+	private String getChatCacheKey(long dsId, String conversationId) {
+		return CHAT_CONTROLLER_CACHE_PREFIX + dsId + "_" + conversationId;
+	}
 
 	private final FormFactory formFactory;
 	private final DatasetConnector datasetConnector;
@@ -435,9 +440,9 @@ public class ChatbotController extends AbstractAsyncController {
 
 		// retrieve conversation history from cache or create new
 		ConversationHistory ch;
-		Optional<ConversationHistory> chOpt = cache.get(CHAT_CONTROLLER_CACHE_PREFIX + conversationId);
+		Optional<ConversationHistory> chOpt = cache.get(getChatCacheKey(dsId, conversationId));
 		if (!chOpt.isPresent()) {
-			ch = new ConversationHistory(conversationId, new LinkedList<ConversationItem>());
+			ch = new ConversationHistory(conversationId, new CopyOnWriteArrayList<ConversationItem>());
 			// add start prompt
 			String assistantStartPrompt = ds.getConfiguration().getOrDefault(Dataset.CHATBOT_ASSISTANT_PROMPT, "")
 					.trim();
@@ -449,7 +454,7 @@ public class ChatbotController extends AbstractAsyncController {
 			ch = chOpt.get();
 		}
 
-		cache.set(CHAT_CONTROLLER_CACHE_PREFIX + conversationId, ch, 3600);
+		cache.set(getChatCacheKey(dsId, conversationId), ch, 3600);
 
 		// show the chat interface for this chatbot
 		return ok(views.html.tools.chatbots.chat.render(user, ds, conversationId, ch, csrfToken(request)));
@@ -540,6 +545,15 @@ public class ChatbotController extends AbstractAsyncController {
 			// 2. Validate token and get project ID
 			Long tokenProjectId = tokenResolver.getProjectIdFromParticipationToken(token.replace("df-", ""));
 			if (tokenProjectId == -1L) {
+				Long dsId = tokenResolver.getDatasetIdFromToken(token);
+				if (dsId != -1L && dsId == id) {
+					Dataset d = Dataset.find.byId(dsId);
+					if (d != null) {
+						tokenProjectId = d.getProject().getId();
+					}
+				}
+			}
+			if (tokenProjectId == -1L) {
 				return unauthorized(Json.newObject().put("error", "Invalid API key"));
 			}
 
@@ -547,6 +561,9 @@ public class ChatbotController extends AbstractAsyncController {
 			Dataset ds = Dataset.find.byId(id);
 			if (ds == null) {
 				return notFound(Json.newObject().put("error", "Chatbot not found"));
+			}
+			if (ds.getDsType() != DatasetType.COMPLETE || ds.configuration(Dataset.CHATBOT_MODEL, "").isEmpty()) {
+				return badRequest(Json.newObject().put("error", "Dataset is not a configured chatbot"));
 			}
 			if (ds.getProject().getId() != tokenProjectId.longValue()) {
 				return forbidden(Json.newObject().put("error", "API key does not have access to this project"));
@@ -602,30 +619,67 @@ public class ChatbotController extends AbstractAsyncController {
 	 */
 	public CompletionStage<Result> uploadFileApi(Request request, long id) {
 		return CompletableFuture.supplyAsync(() -> {
-			// 1. Extract Bearer token
-			String authHeader = request.header("Authorization").orElse("");
-			if (authHeader.isEmpty() || !authHeader.startsWith("Bearer ")) {
-				return unauthorized(Json.newObject().put("error", "Missing or invalid Authorization header"));
-			}
-			String token = authHeader.substring(7);
-
-			// 2. Validate token and get project ID
-			Long tokenProjectId = tokenResolver.getProjectIdFromParticipationToken(token.replace("df-", ""));
-			if (tokenProjectId == -1L) {
-				return unauthorized(Json.newObject().put("error", "Invalid API key"));
-			}
-
-			// 3. Find dataset and check permissions
+			// 1. Find dataset and check permissions
 			Dataset ds = Dataset.find.byId(id);
 			if (ds == null) {
 				return notFound(Json.newObject().put("error", "Chatbot not found"));
 			}
-			if (ds.getProject().getId() != tokenProjectId.longValue()) {
-				return forbidden(Json.newObject().put("error", "API key does not have access to this project"));
+
+			// 2. Validate dataset type (must be COMPLETE)
+			if (ds.getDsType() != DatasetType.COMPLETE) {
+				return badRequest(Json.newObject().put("error", "Dataset is not a complete dataset"));
 			}
 
 			if (!ds.canAppend()) {
 				return forbidden(Json.newObject().put("error", "Dataset is not active"));
+			}
+
+			// 3. Authenticate: caller must have project edit rights (via session or user API token)
+			// or provide the dataset's specific API token. Participation tokens are not allowed.
+			boolean authorized = false;
+
+			// Check session user first
+			Optional<Person> userOpt = getAuthenticatedUser(request);
+			if (userOpt.isPresent() && ds.getProject().editableBy(userOpt.get())) {
+				authorized = true;
+			}
+
+			// If not authorized by session, check token (Bearer or api_token header)
+			if (!authorized) {
+				String token = "";
+				String authHeader = request.header("Authorization").orElse("");
+				if (authHeader.startsWith("Bearer ")) {
+					token = authHeader.substring(7).trim();
+				} else if (!authHeader.isEmpty()) {
+					token = authHeader.trim();
+				} else {
+					token = request.header(Dataset.API_TOKEN).orElse(request.header("api_token").orElse("")).trim();
+				}
+
+				if (!token.isEmpty()) {
+					// Check against dataset API token
+					String configuredToken = ds.configuration(Dataset.API_TOKEN, "");
+					if (!configuredToken.isEmpty() && java.security.MessageDigest.isEqual(
+							token.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+							configuredToken.getBytes(java.nio.charset.StandardCharsets.UTF_8))) {
+						authorized = true;
+					} else {
+						// Check against user access token
+						Long userId = tokenResolver.retrieveUserIdFromUserAccessToken(token);
+						Long tokenTimeout = tokenResolver.retrieveTimeoutFromUserAccessToken(token);
+						if (userId != -1L && tokenTimeout >= System.currentTimeMillis()) {
+							Person user = Person.find.byId(userId);
+							if (user != null && ds.getProject().editableBy(user)) {
+								authorized = true;
+							}
+						}
+					}
+				}
+			}
+
+			if (!authorized) {
+				return unauthorized(Json.newObject().put("error",
+						"Unauthorized: upload requires project edit access or dataset API token"));
 			}
 
 			final CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
@@ -678,9 +732,9 @@ public class ChatbotController extends AbstractAsyncController {
 
 		// retrieve conversation history from cache or create new
 		ConversationHistory ch;
-		Optional<ConversationHistory> chOpt = cache.get(CHAT_CONTROLLER_CACHE_PREFIX + conversationId);
+		Optional<ConversationHistory> chOpt = cache.get(getChatCacheKey(ds.getId(), conversationId));
 		if (!chOpt.isPresent()) {
-			ch = new ConversationHistory(conversationId, new LinkedList<ConversationItem>());
+			ch = new ConversationHistory(conversationId, new CopyOnWriteArrayList<ConversationItem>());
 		} else {
 			ch = chOpt.get();
 		}
@@ -742,7 +796,9 @@ public class ChatbotController extends AbstractAsyncController {
 		messages.add(Json.newObject().put("role", ConversationItem.USER).put("content", promptItem.fullPrompt()));
 
 		// AFTER completing messages, add to history and story history in cache
-		ch.items().add(promptItem);
+		synchronized (ch) {
+			ch.items().add(promptItem);
+		}
 
 		// run the LLM
 		ConversationItem responseItem = null;
@@ -763,8 +819,10 @@ public class ChatbotController extends AbstractAsyncController {
 			responseItem = new ConversationItem(ConversationItem.ASSISTANT, resultAsText, messages.toPrettyString(),
 					new MarkdownRenderer(false).render(resultAsText));
 
-			ch.items().add(responseItem);
-			cache.set(CHAT_CONTROLLER_CACHE_PREFIX + conversationId, ch, 3600);
+			synchronized (ch) {
+				ch.items().add(responseItem);
+				cache.set(getChatCacheKey(ds.getId(), conversationId), ch, 3600);
+			}
 
 			if ("true".equals(ds.configuration(Dataset.CHATBOT_STORE_CHATS, "false"))) {
 				try {
@@ -848,6 +906,13 @@ public class ChatbotController extends AbstractAsyncController {
 	}
 
 	static public record ConversationHistory(String conversationId, List<ConversationItem> items) {
+		public ConversationHistory {
+			if (items == null) {
+				items = new CopyOnWriteArrayList<>();
+			} else if (!(items instanceof CopyOnWriteArrayList)) {
+				items = new CopyOnWriteArrayList<>(items);
+			}
+		}
 	}
 
 	static public record ConversationItem(String actor, String content, List<ConversationContext> context,
