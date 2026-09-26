@@ -33,8 +33,25 @@ public class TokenResolverUtil {
 	public TokenResolverUtil(Config config) {
 
 		// symmetric encryption key from configuration
+		String tokenKey = "";
 		if (config.hasPath(ConfigurationUtils.DF_KEYS_PROJECT_TOKEN)) {
-			final String tokenKey = config.getString(ConfigurationUtils.DF_KEYS_PROJECT_TOKEN);
+			tokenKey = config.getString(ConfigurationUtils.DF_KEYS_PROJECT_TOKEN).trim();
+		}
+
+		// fallback to play.http.secret.key to keep existing running instances operational
+		if (tokenKey.isEmpty()) {
+			if (config.hasPath("play.http.secret.key")) {
+				String playSecret = config.getString("play.http.secret.key").trim();
+				if (!playSecret.isEmpty()) {
+					tokenKey = com.google.common.hash.Hashing.sha256()
+							.hashString(playSecret, StandardCharsets.UTF_8).toString().substring(0, 32);
+					logger.warn("'" + ConfigurationUtils.DF_KEYS_PROJECT_TOKEN
+							+ "' is empty or not configured. Falling back to derived key from 'play.http.secret.key' to keep operational.");
+				}
+			}
+		}
+
+		if (!tokenKey.isEmpty()) {
 			USER_TOKEN_KEY = tokenKey + "_user";
 			PROJECT_PARTICIPATION_TOKEN_KEY = tokenKey + "_participation";
 			PROJECT_REVIEWER_TOKEN_KEY = tokenKey + "_reviewer";
@@ -52,7 +69,7 @@ public class TokenResolverUtil {
 			PROJECT_DATASET_TOKEN_KEY = null;
 			EMAIL_RESET_SEC_KEY = null;
 			USER_SIGN_UP_KEY = null;
-			logger.error("'" + ConfigurationUtils.DF_KEYS_PROJECT_TOKEN + "' is not defined in configuration.");
+			logger.error("'" + ConfigurationUtils.DF_KEYS_PROJECT_TOKEN + "' is not defined and no 'play.http.secret.key' fallback found.");
 			System.exit(1);
 		}
 
@@ -62,6 +79,15 @@ public class TokenResolverUtil {
 		} else {
 			REGISTRATION_ACCESS_KEY = null;
 			logger.error("'" + ConfigurationUtils.DF_KEYS_REGISTRATION_ACCESS + "' is not defined in configuration.");
+		}
+
+		boolean ssoActive = ConfigurationUtils.isSSO(config);
+		boolean hasValidRegistrationKey = REGISTRATION_ACCESS_KEY != null
+				&& REGISTRATION_ACCESS_KEY.stream().anyMatch(k -> k != null && !k.trim().isEmpty());
+
+		if (!ssoActive && !hasValidRegistrationKey) {
+			logger.warn("SECURITY WARNING: SSO is not active and no non-empty registration access key is configured in '"
+					+ ConfigurationUtils.DF_KEYS_REGISTRATION_ACCESS + "'. Registration may be open to anyone!");
 		}
 	}
 
@@ -74,11 +100,13 @@ public class TokenResolverUtil {
 	 * @return
 	 */
 	public boolean checkRegistrationAccessKey(String accessKey) {
-		if (REGISTRATION_ACCESS_KEY == null || accessKey == null) {
+		if (REGISTRATION_ACCESS_KEY == null || accessKey == null || accessKey.trim().isEmpty()) {
 			return false;
 		}
 
-		return REGISTRATION_ACCESS_KEY.contains(accessKey) ? true : false;
+		return REGISTRATION_ACCESS_KEY.stream()
+				.filter(k -> k != null && !k.trim().isEmpty())
+				.anyMatch(k -> k.equals(accessKey));
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
