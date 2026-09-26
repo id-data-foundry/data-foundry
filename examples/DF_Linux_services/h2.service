@@ -8,8 +8,10 @@ Type=simple
 User=data
 # set correct working directory
 WorkingDirectory=/home/data/scripts
+Restart=on-failure
+RestartSec=5s
 # run with full path to GraalVM, only open local ports
-ExecStart=/opt/graalvm/graalvm-21.2.0-java11/bin/java -Xms256m -Xmx1000m -cp /home/data/scripts/database/com.h2database.h2-1.4.199.jar org.h2.tools.Server -baseDir /home/data/foundry/data -tcp -ifNotExists
+ExecStart=/opt/graalvm/graalvm-21.2.0-java11/bin/java -Xms256m -Xmx1000m -Xss16m -cp /home/data/scripts/database/com.h2database.h2-1.4.199.jar org.h2.tools.Server -baseDir /home/data/foundry/data -tcp -ifNotExists
 ExecStop=/opt/graalvm/graalvm-21.2.0-java11/bin/java -cp /home/data/scripts/database/h2-1.4.200.jar org.h2.tools.Server -tcpShutdown tcp://localhost
 
 [Install]
