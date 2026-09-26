@@ -646,7 +646,8 @@ public class DatasetApiController extends AbstractApiController {
 			return notFound(errorJSONResponseObject("No file found: " + filename));
 		}
 
-		return ok(requestedFile.get()).withHeader("Content-disposition", "attachment; filename=" + filename);
+		return ok(requestedFile.get()).withHeader("Content-disposition",
+				"attachment; filename=" + utils.DataUtils.sanitizeFilenameForContentDisposition(filename));
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -791,6 +792,7 @@ public class DatasetApiController extends AbstractApiController {
 	 * @param dsApiToken
 	 * @return
 	 */
+	@Authenticated(V2UserApiAuth.class)
 	public Result addIoTRecord(Request request, final Long id) {
 
 		// check id

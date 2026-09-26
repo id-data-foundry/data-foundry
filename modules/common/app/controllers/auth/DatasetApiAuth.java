@@ -50,22 +50,35 @@ public class DatasetApiAuth extends play.mvc.Security.Authenticator {
 			return Optional.empty();
 		}
 
-		// check dataset configuration
-		if (!access_code.equals(ds.getConfiguration().get(Dataset.API_TOKEN))) {
+		// check dataset configuration with timing-safe comparison
+		String configuredToken = ds.getConfiguration().get(Dataset.API_TOKEN);
+		if (configuredToken == null || !java.security.MessageDigest.isEqual(
+				access_code.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+				configuredToken.getBytes(java.nio.charset.StandardCharsets.UTF_8))) {
 			logger.info("DatasetApiAuth: api_token not same as in DS configuration");
 			return Optional.empty();
 		}
 
 		// If path contains a dataset id parameter, ensure it matches the authorized dataset id
 		String[] segments = request.path().split("/");
-		for (int i = 0; i < segments.length - 1; i++) {
-			if ("datasets".equals(segments[i]) && i + 2 < segments.length) {
+		boolean foundDatasets = false;
+		for (String seg : segments) {
+			if (!foundDatasets) {
+				if ("datasets".equals(seg)) {
+					foundDatasets = true;
+				}
+			} else {
+				String candidate = seg;
+				if (candidate.contains(".")) {
+					candidate = candidate.substring(0, candidate.indexOf('.'));
+				}
 				try {
-					long pathId = Long.parseLong(segments[i + 2]);
+					long pathId = Long.parseLong(candidate);
 					if (pathId != ds.getId()) {
 						logger.warn("DatasetApiAuth: token for dataset " + ds.getId() + " cannot access dataset " + pathId);
 						return Optional.empty();
 					}
+					break;
 				} catch (NumberFormatException ignored) {
 				}
 			}
