@@ -4,7 +4,8 @@ services:
     container_name: datafoundry-tailscale
     hostname: datafoundrytailscale
     environment:
-      - TS_AUTHKEY=tskey-auth-krsQg7aQ7421CNTRL-ssrzPiJ7tUFuuT3ydByZUFnmXVNeEkg7
+      # Replace with your own Tailscale auth key (e.g. tskey-auth-...)
+      - TS_AUTHKEY=tskey-auth-EXAMPLE-REPLACE-WITH-YOUR-KEY
       - "TS_EXTRA_ARGS=--advertise-tags=tag:container --reset"
       - TS_SERVE_CONFIG=/config/mealie.json
       - TS_STATE_DIR=/var/lib/tailscale
@@ -25,8 +26,6 @@ services:
     container_name: datafoundrydocker
     ports:
       - "9000:9000"
-      - "8001:8001"
-      - "9092:9092"
     volumes:
     # Change this to change the data directory on the host system (E.g: /home/diede/database:/home/datafoundry/data)
       - .data/development:/app/data
