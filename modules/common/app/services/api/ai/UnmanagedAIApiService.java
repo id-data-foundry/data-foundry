@@ -599,7 +599,7 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 				return res.getBody(WSBodyReadables.instance.source())
 						.runWith(FileIO.toPath(tempImageFile.toPath()), materializer).thenAccept(ioResult -> {
 							// cache for 1 minute
-							cache.set(token, tempImageFile.getAbsolutePath(), (int) Duration.ofMinutes(1).toSeconds());
+							cache.set("ai_image_" + token, tempImageFile.getAbsolutePath(), (int) Duration.ofMinutes(1).toSeconds());
 							request.setOutcome(Outcome.OK);
 							request.setResult(Optional.of(Json.newObject().put("image_id", token)
 									.put("prompt", request.getParams().path(REQUEST_PROMPT).asText("")).toString()));

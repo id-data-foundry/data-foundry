@@ -21,6 +21,15 @@ public class UnmanagedAIApiControllerDocumentationTest {
 
 	private UnmanagedAIApiController controller;
 	private String internalDocsKey;
+	private TestUserAuth testUserAuth;
+
+	static class TestUserAuth extends controllers.auth.UserAuth {
+		boolean authenticated = true;
+		@Override
+		public Optional<String> getUsername(Request request) {
+			return authenticated ? Optional.of("testuser") : Optional.empty();
+		}
+	}
 
 	static class TestableAiService extends UnmanagedAIApiService {
 		public TestableAiService() {
@@ -33,6 +42,8 @@ public class UnmanagedAIApiControllerDocumentationTest {
 		controller = new UnmanagedAIApiController();
 		TestableAiService aiService = new TestableAiService();
 		controller.aiApiService = aiService;
+		testUserAuth = new TestUserAuth();
+		controller.userAuth = testUserAuth;
 		internalDocsKey = aiService.getInternalDocumentationAPIKey();
 	}
 
@@ -199,5 +210,19 @@ public class UnmanagedAIApiControllerDocumentationTest {
 
 		Optional<ApiCall> call = controller.authorize(request);
 		assertFalse("Authorize must reject requests with no token and no documentation referer", call.isPresent());
+	}
+
+	@Test
+	public void testRejectsDocumentationKeyWhenUnauthenticated() {
+		testUserAuth.authenticated = false;
+		Request request = new Http.RequestBuilder()
+				.method("POST")
+				.uri("/v1/chat/completions")
+				.header("Host", "datafoundry.tue.nl")
+				.header("Referer", "https://datafoundry.tue.nl/documentation/index.html")
+				.build();
+
+		String resolvedKey = controller.checkDocumentationAPIKey(request, "dummy_key");
+		assertEquals("Must not grant documentation key when unauthenticated", "dummy_key", resolvedKey);
 	}
 }

@@ -1,9 +1,11 @@
 package services.api;
 
 import java.time.Duration;
-import java.util.concurrent.ConcurrentHashMap;
 
 import javax.inject.Singleton;
+
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
@@ -12,10 +14,13 @@ import io.github.bucket4j.Refill;
 @Singleton
 public class ThrottlingService {
 
-    private final ConcurrentHashMap<String, Bucket> cache = new ConcurrentHashMap<>();
+    private final Cache<String, Bucket> cache = Caffeine.newBuilder()
+            .maximumSize(10_000)
+            .expireAfterAccess(Duration.ofMinutes(15))
+            .build();
 
     public Bucket resolveBucket(String apiKey) {
-        return cache.computeIfAbsent(apiKey, this::newBucket);
+        return cache.get(apiKey, this::newBucket);
     }
 
     private Bucket newBucket(String apiKey) {

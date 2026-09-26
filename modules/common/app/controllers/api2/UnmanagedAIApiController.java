@@ -45,6 +45,9 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 	@Inject
 	services.processing.MediaProcessingService mediaProcessingService;
 
+	@Inject
+	controllers.auth.UserAuth userAuth;
+
 	public record ApiCall(String username, String apiKey) {
 	}
 
@@ -192,7 +195,7 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 	}
 
 	public Result image(Request request, String token) {
-		String filePath = (String) cache.get(token).orElse("");
+		String filePath = (String) cache.get("ai_image_" + token).orElse("");
 		File tempFile = new File(filePath);
 
 		// check file
@@ -298,6 +301,11 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 	String checkDocumentationAPIKey(Request request, String authorization) {
 		String referrer = request.header(REFERER).orElse("");
 		if (referrer.isEmpty()) {
+			return authorization;
+		}
+
+		// Require authenticated user session to use internal documentation key
+		if (userAuth != null && userAuth.getUsername(request).isEmpty()) {
 			return authorization;
 		}
 
