@@ -164,9 +164,13 @@
                       @for(j <- 0 until contexts.size()) {
                         @defining(contexts.get(j)) { ctx =>
                           @if(ctx.document() != null && !ctx.document().isEmpty()) {
-                            <a href="#" onclick="showSource('@(new utils.rendering.MarkdownRenderer().render(ctx.content()).replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r").replace("'", "\\'"))', '@(ctx.document().replace("\\", "\\\\").replace("\"", "\\\"").replace("'", "\\'"))'); return false;">
-                              [@(j + 1)]
-                            </a>
+                            @defining(java.util.Base64.getEncoder().encodeToString(new utils.rendering.MarkdownRenderer(true).render(ctx.content()).getBytes(java.nio.charset.StandardCharsets.UTF_8))) { b64Content =>
+                              @defining(java.util.Base64.getEncoder().encodeToString(ctx.document().getBytes(java.nio.charset.StandardCharsets.UTF_8))) { b64Title =>
+                                <a href="#" data-content="@b64Content" data-title="@b64Title" onclick="showSourceFromEl(this); return false;">
+                                  [@(j + 1)]
+                                </a>
+                              }
+                            }
                           }
                         }
                       }
@@ -225,8 +229,21 @@
       </section>
     </form>
     <script>
+      function decodeB64(str) {
+        if (!str) return "";
+        try {
+          return new TextDecoder().decode(Uint8Array.from(atob(str), c => c.charCodeAt(0)));
+        } catch(e) {
+          return "";
+        }
+      }
+      function showSourceFromEl(el) {
+        const title = decodeB64(el.getAttribute('data-title')) || "Source Reference";
+        const content = decodeB64(el.getAttribute('data-content'));
+        showSource(content, title);
+      }
       function showSource(content, title) {
-        document.getElementById('modal-title').innerText = title || "Source Reference";
+        document.getElementById('modal-title').textContent = title || "Source Reference";
         document.getElementById('modal-content').innerHTML = content;
         document.getElementById('source-modal').showModal();
       }

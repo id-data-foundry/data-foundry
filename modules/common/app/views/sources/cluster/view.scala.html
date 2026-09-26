@@ -116,7 +116,7 @@
 				<li class="collection-header">
 					<h6>
 						Cluster info
-						<a onclick="let newName = prompt('Enter new cluster name:', '@c.getName()'); if(newName) { window.location.href = '@routes.ClustersController.rename(c.getId(), "")' + newName; }" href="#!" style="float: right; position: relative; top: -4px;">
+						<a data-cluster-name="@c.getName()" onclick="let newName = prompt('Enter new cluster name:', this.getAttribute('data-cluster-name')); if(newName) { window.location.href = '@routes.ClustersController.rename(c.getId(), "")' + encodeURIComponent(newName); }" href="#!" style="float: right; position: relative; top: -4px;">
 							<i class="btn-edit">@elements.icon("edit")</i>
 						</a>
 					</h6>

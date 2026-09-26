@@ -284,7 +284,7 @@
 		});
 
 	    @if(!message.isEmpty()){
-			M.toast({html: '@Html(message)', classes: 'green darken-2'});
+			M.toast({html: @Html(play.libs.Json.stringify(play.libs.Json.toJson(play.twirl.api.HtmlFormat.escape(message).body))), classes: 'green darken-2'});
 			window.scrollTo(0,0);
 		}
 	</script>

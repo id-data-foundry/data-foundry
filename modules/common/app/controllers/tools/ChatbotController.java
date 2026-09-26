@@ -502,16 +502,16 @@ public class ChatbotController extends AbstractAsyncController {
 						if (ctx.document() == null || ctx.document().isEmpty())
 							continue;
 
-						// Render markdown for the modal
-						String renderedSource = new MarkdownRenderer(false).render(ctx.content());
-						// Manual escaping for JS
-						String escapedSource = renderedSource.replace("\\", "\\\\").replace("\"", "\\\"")
-								.replace("\n", "\\n").replace("\r", "\\r").replace("'", "\\'");
-						String title = ctx.document().replace("\\", "\\\\").replace("\"", "\\\"").replace("'", "\\'");
+						// Render markdown for the modal with HTML escaping enabled (DF-23)
+						String renderedSource = new MarkdownRenderer(true).render(ctx.content());
+						String b64Content = java.util.Base64.getEncoder().encodeToString(
+								renderedSource.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+						String b64Title = java.util.Base64.getEncoder().encodeToString(
+								ctx.document().getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
 						refs.append(String.format(
-								"<a href=\"#\" onclick=\"showSource('%s', '%s'); return false;\">[%d]</a> ",
-								escapedSource, title, i + 1));
+								"<a href=\"#\" data-content=\"%s\" data-title=\"%s\" onclick=\"showSourceFromEl(this); return false;\">[%d]</a> ",
+								b64Content, b64Title, i + 1));
 					}
 					refs.append("</div>");
 					responseHtml += refs.toString();
@@ -815,9 +815,9 @@ public class ChatbotController extends AbstractAsyncController {
 
 			String resultAsText = on.path(ApiServiceConstants.RESPONSE_CONTENT).asText("");
 
-			// generate response item, including the messages
+			// generate response item, including the messages (HTML escaping enabled via MarkdownRenderer(true))
 			responseItem = new ConversationItem(ConversationItem.ASSISTANT, resultAsText, messages.toPrettyString(),
-					new MarkdownRenderer(false).render(resultAsText));
+					new MarkdownRenderer(true).render(resultAsText));
 
 			synchronized (ch) {
 				ch.items().add(responseItem);
@@ -825,19 +825,23 @@ public class ChatbotController extends AbstractAsyncController {
 			}
 
 			if ("true".equals(ds.configuration(Dataset.CHATBOT_STORE_CHATS, "false"))) {
+				File tempFile = null;
 				try {
 					String chatFileName = "chat_" + conversationId + ".json";
 					String json = Json.toJson(ch).toPrettyString();
-					File tempFile = File.createTempFile("chat", ".json");
+					tempFile = File.createTempFile("chat", ".json");
 					Files.writeString(tempFile.toPath(), json);
 
 					Optional<String> storedFile = cpds.storeFile(tempFile, chatFileName);
 					if (storedFile.isPresent()) {
 						cpds.addRecord(chatFileName, "Chat session " + conversationId, new Date());
 					}
-					tempFile.delete();
 				} catch (Exception e) {
 					logger.error("Error storing chat session", e);
+				} finally {
+					if (tempFile != null) {
+						tempFile.delete();
+					}
 				}
 			}
 		} catch (RuntimeException e) { // Catch other runtime exceptions (e.g., from MarkdownRenderer)

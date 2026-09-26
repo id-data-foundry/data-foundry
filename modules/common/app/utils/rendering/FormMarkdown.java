@@ -71,18 +71,52 @@ public class FormMarkdown {
 		final List<Extension> visualizationExtensions = Arrays.asList(new VisualizationTableRenderer(ds),
 				TablesExtension.create());
 		parser = Parser.builder().extensions(renderExtensions).build();
-		renderer = HtmlRenderer.builder().extensions(renderExtensions)
+		renderer = HtmlRenderer.builder().escapeHtml(true).extensions(renderExtensions)
+				.attributeProviderFactory(context -> (node, tagName, attributes) -> {
+					if ("a".equals(tagName)) {
+						String href = attributes.get("href");
+						if (href != null && isUnsafeUrl(href)) {
+							attributes.put("href", "");
+						}
+					} else if ("img".equals(tagName)) {
+						String src = attributes.get("src");
+						if (src != null && isUnsafeUrl(src)) {
+							attributes.put("src", "");
+						}
+					}
+				})
 				.nodeRendererFactory(new HtmlNodeRendererFactory() {
 					public NodeRenderer create(HtmlNodeRendererContext context) {
 						return new FormNodeRenderer(context, false);
 					}
 				}).build();
-		visualizer = HtmlRenderer.builder().extensions(visualizationExtensions)
+		visualizer = HtmlRenderer.builder().escapeHtml(true).extensions(visualizationExtensions)
+				.attributeProviderFactory(context -> (node, tagName, attributes) -> {
+					if ("a".equals(tagName)) {
+						String href = attributes.get("href");
+						if (href != null && isUnsafeUrl(href)) {
+							attributes.put("href", "");
+						}
+					} else if ("img".equals(tagName)) {
+						String src = attributes.get("src");
+						if (src != null && isUnsafeUrl(src)) {
+							attributes.put("src", "");
+						}
+					}
+				})
 				.nodeRendererFactory(new HtmlNodeRendererFactory() {
 					public NodeRenderer create(HtmlNodeRendererContext context) {
 						return new VisualizationRenderer(context, ds);
 					}
 				}).build();
+	}
+
+	private static boolean isUnsafeUrl(String url) {
+		if (url == null) {
+			return false;
+		}
+		String lower = url.trim().toLowerCase();
+		return lower.startsWith("javascript:") || lower.startsWith("vbscript:") || lower.startsWith("data:");
 	}
 
 	/**
@@ -93,7 +127,20 @@ public class FormMarkdown {
 	 */
 	public static String renderHtml(String md) {
 		Node n = Parser.builder().build().parse(md);
-		return HtmlRenderer.builder().build().render(n);
+		return HtmlRenderer.builder().escapeHtml(true)
+				.attributeProviderFactory(context -> (node, tagName, attributes) -> {
+					if ("a".equals(tagName)) {
+						String href = attributes.get("href");
+						if (href != null && isUnsafeUrl(href)) {
+							attributes.put("href", "");
+						}
+					} else if ("img".equals(tagName)) {
+						String src = attributes.get("src");
+						if (src != null && isUnsafeUrl(src)) {
+							attributes.put("src", "");
+						}
+					}
+				}).build().render(n);
 	}
 
 	/**

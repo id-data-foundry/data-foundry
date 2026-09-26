@@ -421,7 +421,7 @@ else {
       language: 'js',
       lineNumbers: true
     });
-    flask.updateCode('@Html(dataset.configuration(Dataset.ACTOR_CODE, "DF.print(\"test message data: \" + data.color)").replace("\\", "\\\\").replace("\n", "\\n").replace("\r", "\\r").replace("'", "\\'"))');
+    flask.updateCode(@Html(play.libs.Json.stringify(play.libs.Json.toJson(dataset.configuration(Dataset.ACTOR_CODE, "DF.print(\"test message data: \" + data.color)")))));
     flask.onUpdate((code) => {
       $('#saveBtn').removeClass('disabled');
     });

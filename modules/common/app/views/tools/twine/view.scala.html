@@ -13,10 +13,10 @@
 	<script type="text/javascript">
 		(function(){
 			window.localStorage.clear();
-			window.localStorage.setItem("twee-import", `@Html(contents)`);
-			window.localStorage.setItem("twee-csrfToken", `@csrfToken`);
-			window.localStorage.setItem("twee-postUrl", `@url`);
-			window.localStorage.setItem("twee-postUrlHTML", `@urlHTML`);
+			window.localStorage.setItem("twee-import", @Html(play.libs.Json.stringify(play.libs.Json.toJson(contents))));
+			window.localStorage.setItem("twee-csrfToken", @Html(play.libs.Json.stringify(play.libs.Json.toJson(csrfToken))));
+			window.localStorage.setItem("twee-postUrl", @Html(play.libs.Json.stringify(play.libs.Json.toJson(url))));
+			window.localStorage.setItem("twee-postUrlHTML", @Html(play.libs.Json.stringify(play.libs.Json.toJson(urlHTML))));
 			window.location.href = "/assets/vendor/twine/index.html";
 		})();
 	</script>
