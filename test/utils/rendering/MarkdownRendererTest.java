@@ -32,4 +32,15 @@ public class MarkdownRendererTest {
 		assertTrue("Bold should be rendered", rendered.contains("<strong>bold text</strong>"));
 		assertTrue("Italic should be rendered", rendered.contains("<em>italic text</em>"));
 	}
+
+	@Test
+	public void testUnsafeUrlsAreSanitized() {
+		MarkdownRenderer renderer = new MarkdownRenderer();
+		String markdown = "[click here](javascript:alert(1)) and [valid link](https://example.com) and ![img](javascript:alert(2))";
+		String rendered = renderer.render(markdown);
+
+		assertFalse("javascript: URL in link href must be neutralized", rendered.contains("javascript:alert(1)"));
+		assertFalse("javascript: URL in image src must be neutralized", rendered.contains("javascript:alert(2)"));
+		assertTrue("Valid https link should be preserved", rendered.contains("href=\"https://example.com\""));
+	}
 }

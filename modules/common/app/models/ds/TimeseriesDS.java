@@ -405,10 +405,10 @@ public class TimeseriesDS extends LinkedDS {
 				sb.append(rs.getLong(1) + ",");
 				sb.append(rs.getLong(2) + ",");
 				sb.append(tsExportFormatter.format(rs.getTimestamp(3)) + ",");
-				sb.append(rs.getString(4) + ",");
-				sb.append(rs.getString(5) + ",");
-				sb.append(rs.getString(6) + ",");
-				sb.append(rs.getString(7) + ",");
+				sb.append(cf(rs.getString(4)) + ",");
+				sb.append(cf(rs.getString(5)) + ",");
+				sb.append(cf(rs.getString(6)) + ",");
+				sb.append(cf(rs.getString(7)) + ",");
 
 				// parse data as JSON
 				String data = rs.getString(8);
@@ -420,8 +420,11 @@ public class TimeseriesDS extends LinkedDS {
 					String values = Arrays.stream(projection).map(key -> {
 						final JsonNode value = on.get(key);
 						if (value != null) {
-							String valueStr = value.toString();
-							return valueStr.equals("null") ? "" : valueStr;
+							if (value.isNull()) {
+								return "";
+							}
+							String valueStr = value.isTextual() ? value.asText() : value.toString();
+							return cf(valueStr);
 						} else {
 							return "";
 						}
@@ -434,7 +437,7 @@ public class TimeseriesDS extends LinkedDS {
 					logger.error("Error in parsing Json in dataset record to export.", e);
 
 					// log the problematic line still
-					sb.append(data);
+					sb.append(cf(data));
 					sb.append("\n");
 				}
 

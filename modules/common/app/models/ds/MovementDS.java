@@ -143,19 +143,25 @@ public class MovementDS extends CompleteDS {
 		}
 	}
 
-	private static boolean containsXmlEntityOrDocType(File file) {
-		try (BufferedReader reader = new BufferedReader(
-				new InputStreamReader(new FileInputStream(file), StandardCharsets.UTF_8))) {
-			String line;
-			while ((line = reader.readLine()) != null) {
-				String upper = line.toUpperCase();
-				if (upper.contains("<!DOCTYPE") || upper.contains("<!ENTITY")) {
-					return true;
+	static boolean containsXmlEntityOrDocType(File file) {
+		try (FileInputStream fis = new FileInputStream(file)) {
+			// Read up to 128KB of header data where XML/DTD prolog must reside
+			byte[] buffer = new byte[131072];
+			int read = fis.read(buffer);
+			if (read <= 0) {
+				return false;
+			}
+			// Build an ASCII representation normalizing zero bytes (handles UTF-8, UTF-16LE, UTF-16BE, UTF-32)
+			StringBuilder sb = new StringBuilder(read);
+			for (int i = 0; i < read; i++) {
+				byte b = buffer[i];
+				if (b != 0) {
+					sb.append((char) (b & 0xFF));
 				}
-				if (upper.contains("<GPX") && !upper.contains("<!")) {
-					// Root GPX element reached; DTD declarations are invalid after root in XML
-					break;
-				}
+			}
+			String content = sb.toString().toUpperCase();
+			if (content.contains("<!DOCTYPE") || content.contains("<!ENTITY")) {
+				return true;
 			}
 		} catch (Exception e) {
 			logger.error("Failed to inspect GPX file for safety", e);
@@ -423,7 +429,10 @@ public class MovementDS extends CompleteDS {
 					String values = Arrays.stream(new String[] { "atemp", "hr", "cad" }).map(key -> {
 						JsonNode value = on.get(key);
 						if (value != null) {
-							return value.toString();
+							if (value.isNull()) {
+								return "";
+							}
+							return cf(value.isTextual() ? value.asText() : value.toString());
 						} else {
 							return "";
 						}
@@ -431,7 +440,7 @@ public class MovementDS extends CompleteDS {
 					sb.append(values);
 				} catch (Exception e) {
 					// logger.error("Error parsing movement data", e);
-					sb.append(data);
+					sb.append(cf(data));
 				}
 				sb.append("\n");
 

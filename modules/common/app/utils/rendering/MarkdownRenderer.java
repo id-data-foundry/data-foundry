@@ -33,8 +33,30 @@ public class MarkdownRenderer {
 
 	public MarkdownRenderer(Dataset ds, boolean escapeHTML) {
 		parser = Parser.builder().extensions(Arrays.asList(TablesExtension.create())).build();
-		renderer = HtmlRenderer.builder().escapeHtml(escapeHTML).extensions(Arrays.asList(TablesExtension.create()))
+		renderer = HtmlRenderer.builder().escapeHtml(escapeHTML)
+				.attributeProviderFactory(context -> (node, tagName, attributes) -> {
+					if ("a".equals(tagName)) {
+						String href = attributes.get("href");
+						if (href != null && isUnsafeUrl(href)) {
+							attributes.put("href", "");
+						}
+					} else if ("img".equals(tagName)) {
+						String src = attributes.get("src");
+						if (src != null && isUnsafeUrl(src)) {
+							attributes.put("src", "");
+						}
+					}
+				})
+				.extensions(Arrays.asList(TablesExtension.create()))
 				.build();
+	}
+
+	private static boolean isUnsafeUrl(String url) {
+		if (url == null) {
+			return false;
+		}
+		String lower = url.trim().toLowerCase();
+		return lower.startsWith("javascript:") || lower.startsWith("vbscript:") || lower.startsWith("data:");
 	}
 
 	public String render(String input) {

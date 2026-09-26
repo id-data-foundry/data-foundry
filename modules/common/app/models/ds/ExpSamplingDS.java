@@ -391,7 +391,10 @@ public class ExpSamplingDS extends LinkedDS {
 				String values = Arrays.stream(projection).map(key -> {
 					JsonNode value = on.get(key);
 					if (value != null) {
-						return value.toString();
+						if (value.isNull()) {
+							return "";
+						}
+						return cf(value.isTextual() ? value.asText() : value.toString());
 					} else {
 						return "";
 					}

@@ -766,11 +766,11 @@ public class EntityDS extends LinkedDS {
 			while (rs.next()) {
 				StringBuffer sb = new StringBuffer();
 				sb.append(rs.getLong(1) + ",");
-				sb.append(nss(rs.getString(2), 63) + ",");
+				sb.append(cf(nss(rs.getString(2), 63)) + ",");
 				sb.append(tsExportFormatter.format(rs.getTimestamp(3)) + ",");
-				sb.append(nss(rs.getString(4), 255) + ",");
-				sb.append(nss(rs.getString(5), 255) + ",");
-				sb.append(nss(rs.getString(6), 255) + ",");
+				sb.append(cf(nss(rs.getString(4), 255)) + ",");
+				sb.append(cf(nss(rs.getString(5), 255)) + ",");
+				sb.append(cf(nss(rs.getString(6), 255)) + ",");
 
 				// parse data as JSON
 				String data = rs.getString(7);
@@ -781,7 +781,10 @@ public class EntityDS extends LinkedDS {
 				String values = Arrays.stream(projection).map(key -> {
 					JsonNode value = on.get(key);
 					if (value != null) {
-						return value.toString();
+						if (value.isNull()) {
+							return "";
+						}
+						return cf(value.isTextual() ? value.asText() : value.toString());
 					} else {
 						return "";
 					}
@@ -825,11 +828,11 @@ public class EntityDS extends LinkedDS {
 			while (rs.next()) {
 				StringBuffer sb = new StringBuffer();
 				sb.append(rs.getLong(1) + ",");
-				sb.append(nss(rs.getString(2), 63) + ",");
+				sb.append(cf(nss(rs.getString(2), 63)) + ",");
 				sb.append(tsExportFormatter.format(rs.getTimestamp(3)) + ",");
-				sb.append(nss(rs.getString(4), 255) + ",");
-				sb.append(nss(rs.getString(5), 255) + ",");
-				sb.append(nss(rs.getString(6), 255) + ",");
+				sb.append(cf(nss(rs.getString(4), 255)) + ",");
+				sb.append(cf(nss(rs.getString(5), 255)) + ",");
+				sb.append(cf(nss(rs.getString(6), 255)) + ",");
 
 				// parse data as JSON
 				String data = rs.getString(7);
@@ -840,7 +843,10 @@ public class EntityDS extends LinkedDS {
 				String values = Arrays.stream(projection).map(key -> {
 					JsonNode value = on.get(key);
 					if (value != null) {
-						return value.toString();
+						if (value.isNull()) {
+							return "";
+						}
+						return cf(value.isTextual() ? value.asText() : value.toString());
 					} else {
 						return "";
 					}

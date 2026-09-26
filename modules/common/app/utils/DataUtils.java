@@ -185,4 +185,22 @@ public class DataUtils {
 		return "\"" + val.replace("\"", "\"\"") + "\"";
 	}
 
+	/**
+	 * Sanitize and quote filename for use in Content-Disposition header
+	 * 
+	 * @param filename
+	 * @return quoted safe filename
+	 */
+	public static String sanitizeFilenameForContentDisposition(String filename) {
+		if (filename == null || filename.trim().isEmpty()) {
+			return "\"download\"";
+		}
+		String name = new java.io.File(filename).getName();
+		name = name.replaceAll("[\"\\\\;\\r\\n]", "_").trim();
+		if (name.isEmpty()) {
+			name = "download";
+		}
+		return "\"" + name + "\"";
+	}
+
 }

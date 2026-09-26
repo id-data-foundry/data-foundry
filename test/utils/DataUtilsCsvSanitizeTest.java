@@ -65,4 +65,18 @@ public class DataUtilsCsvSanitizeTest {
 			assertEquals(projectId, ids[0]);
 		}
 	}
+
+	@Test
+	public void testSanitizeFilenameForContentDisposition() {
+		assertEquals("\"download\"", DataUtils.sanitizeFilenameForContentDisposition(null));
+		assertEquals("\"download\"", DataUtils.sanitizeFilenameForContentDisposition(""));
+		assertEquals("\"test.csv\"", DataUtils.sanitizeFilenameForContentDisposition("test.csv"));
+
+		// Path traversal attempt should strip directories
+		assertEquals("\"secret.txt\"", DataUtils.sanitizeFilenameForContentDisposition("../../secret.txt"));
+
+		// Quotes, semicolons, and carriage returns should be sanitized
+		assertEquals("\"bad_file_name.csv\"", DataUtils.sanitizeFilenameForContentDisposition("bad\"file;name.csv"));
+		assertEquals("\"attack__.csv\"", DataUtils.sanitizeFilenameForContentDisposition("attack\r\n.csv"));
+	}
 }

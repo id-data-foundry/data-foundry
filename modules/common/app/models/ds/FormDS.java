@@ -176,7 +176,10 @@ public class FormDS extends LinkedDS {
 					JsonNode value = on.get(key);
 					if (value != null) {
 						if (key.contains("choice") || key.contains("text")) {
-							return value.toString();
+							if (value.isNull()) {
+								return "";
+							}
+							return cf(value.isTextual() ? value.asText() : value.toString());
 						} else {
 							return value.asInt() + "";
 						}
