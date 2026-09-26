@@ -600,36 +600,67 @@ public class Person extends Model {
 		this.lastname = lastname;
 	}
 
+	private static final String[] LASTNAME_PREFIXES = {
+		"van der", "van den", "van de", "van", "von", "de", "der", "den",
+		"del", "della", "dello", "degli", "dei", "du", "des", "d'", "da",
+		"das", "do", "dos", "af", "av", "mac", "mc", "o'", "le", "la", "el"
+	};
+
+	static {
+		java.util.Arrays.sort(LASTNAME_PREFIXES, (a, b) -> Integer.compare(b.length(), a.length()));
+	}
+
 	public String getInitials() {
-		// Extended list of common last name prefixes to exclude (all lowercase)
-		final String[] PREFIXES = { "van", "von", "van der", "van de", "van den", "de", "der", "den", "del", "della",
-				"dello", "degli", "dei", "du", "des", "d'", "da", "das", "do", "dos", "af", "av", "mac", "mc", "o'",
-				"le", "la", "el" };
+		String first = getFirstname() != null ? getFirstname().trim() : "";
+		String last = getLastname() != null ? getLastname().trim() : "";
 
-		// Handle first name: take the first word
 		String firstInitial = "";
-		if (getFirstname() != null && !getFirstname().isEmpty()) {
-			String[] firstParts = getFirstname().trim().split("\\s+");
-			firstInitial = firstParts[0].substring(0, 1).toUpperCase();
-		}
+		String secondInitial = "";
 
-		// Handle last name: remove prefix, then take first component
-		String lastNameTrimmed = getLastname().trim().toLowerCase();
-
-		// Check prefixes longest first to avoid partial matches (e.g., "van der" before "van")
-		java.util.Arrays.sort(PREFIXES, (a, b) -> Integer.compare(b.length(), a.length()));
-
-		for (String prefix : PREFIXES) {
-			if (lastNameTrimmed.startsWith(prefix + " ")) {
-				lastNameTrimmed = lastNameTrimmed.substring(prefix.length()).trim();
-				break;
+		if (!first.isEmpty()) {
+			String[] firstParts = first.split("\\s+");
+			if (firstParts.length > 0 && !firstParts[0].isEmpty()) {
+				firstInitial = firstParts[0].substring(0, 1).toUpperCase();
+				if (firstParts.length > 1 && !firstParts[1].isEmpty()) {
+					secondInitial = firstParts[1].substring(0, 1).toUpperCase();
+				}
 			}
 		}
 
-		String[] lastParts = lastNameTrimmed.split("\\s+");
-		String lastInitial = lastParts[0].substring(0, 1).toUpperCase();
+		String lastInitial = "";
+		if (!last.isEmpty()) {
+			String lastNameLower = last.toLowerCase();
+			String cleanedLast = last;
+			for (String prefix : LASTNAME_PREFIXES) {
+				if (lastNameLower.startsWith(prefix + " ")) {
+					String stripped = last.substring(prefix.length()).trim();
+					if (!stripped.isEmpty()) {
+						cleanedLast = stripped;
+					}
+					break;
+				}
+			}
 
-		return firstInitial + lastInitial;
+			String[] lastParts = cleanedLast.trim().split("\\s+");
+			if (lastParts.length > 0 && !lastParts[0].isEmpty()) {
+				lastInitial = lastParts[0].substring(0, 1).toUpperCase();
+			}
+		}
+
+		if (!firstInitial.isEmpty() && !lastInitial.isEmpty()) {
+			return firstInitial + lastInitial;
+		} else if (!firstInitial.isEmpty()) {
+			return !secondInitial.isEmpty() ? (firstInitial + secondInitial) : firstInitial;
+		} else if (!lastInitial.isEmpty()) {
+			return lastInitial;
+		}
+
+		String emailStr = getEmail();
+		if (emailStr != null && !emailStr.trim().isEmpty()) {
+			return emailStr.trim().substring(0, 1).toUpperCase();
+		}
+
+		return "";
 	}
 
 	public String getEmail() {
