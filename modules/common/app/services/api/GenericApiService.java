@@ -269,6 +269,11 @@ abstract public class GenericApiService implements ApiServiceConstants {
 			return cached;
 		}
 
+		// Validate token format (reject empty, wildcards, spaces, non-token chars)
+		if (apiKey == null || apiKey.trim().isEmpty() || !apiKey.matches("^[a-zA-Z0-9_-]+$")) {
+			return null;
+		}
+
 		initDatastoreIfNeeded();
 		if (datastore == null || datastore.getDataTableName() == null) {
 			return null;
@@ -277,7 +282,8 @@ abstract public class GenericApiService implements ApiServiceConstants {
 		try (Transaction transaction = DB.beginTransaction();
 				Connection connection = transaction.connection();
 				PreparedStatement stmt = connection.prepareStatement(sql)) {
-			stmt.setString(1, "%\"currentToken\":\"" + apiKey + "\"%");
+			String escapedKey = apiKey.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+			stmt.setString(1, "%\"currentToken\":\"" + escapedKey + "\"%");
 			ResultSet rs = stmt.executeQuery();
 			if (rs.next()) {
 				String data = rs.getString("data");

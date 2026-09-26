@@ -183,7 +183,7 @@ public class CompleteDS extends LinkedDS {
 		try (Transaction transaction = DB.beginTransaction();
 				Connection connection = transaction.connection();
 				PreparedStatement stmt = connection
-						.prepareStatement("DELETE FROM " + dataTableName + " WHERE file_name LIKE ?;");) {
+						.prepareStatement("DELETE FROM " + dataTableName + " WHERE file_name = ?;");) {
 
 			stmt.setString(1, fileName);
 			stmt.executeUpdate();

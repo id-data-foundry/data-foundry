@@ -18,7 +18,7 @@ public class ParticipantAuth extends play.mvc.Security.Authenticator {
 	@Override
 	public Optional<String> getUsername(Request request) {
 		Optional<String> participantId = request.session().get(PARTICIPANT_ID);
-		return participantId.isPresent() && participantId.get().length() > 0 ? participantId : null;
+		return participantId.isPresent() && participantId.get().length() > 0 ? participantId : Optional.empty();
 	}
 
 	@Override

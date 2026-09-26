@@ -97,6 +97,9 @@ public class DBController extends AbstractAsyncController {
 	}
 
 	public Result timeout() {
+		if (!environment.isTest()) {
+			return forbidden();
+		}
 		try {
 			Thread.sleep(10000l);
 		} catch (InterruptedException e) {

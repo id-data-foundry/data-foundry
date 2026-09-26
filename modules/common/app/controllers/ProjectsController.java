@@ -208,7 +208,7 @@ public class ProjectsController extends AbstractAsyncController {
 		// ----------------------------------------------------------------------
 
 		// check if project exists
-		Optional<Project> optProject = Project.find.query().setMaxRows(1).where().like("name", projectname).orderBy()
+		Optional<Project> optProject = Project.find.query().setMaxRows(1).where().ieq("name", projectname).orderBy()
 				.asc("id").findOneOrEmpty();
 		if (!optProject.isPresent()) {
 			if (!nnne(projectname) || projectname.equals("tools")) {
@@ -1851,6 +1851,11 @@ public class ProjectsController extends AbstractAsyncController {
 			return redirect(HOME).addingToSession(request, "error", "Project not found.");
 		}
 
+		Optional<Person> userOpt = getAuthenticatedUser(request);
+		if (!project.isPublicProject() && (userOpt.isEmpty() || !project.visibleFor(userOpt.get()))) {
+			return redirect(HOME).addingToSession(request, "error", "Project is not accessible.");
+		}
+
 		String organization = ConfigurationUtils.configure(config, ConfigurationUtils.DF_LINKS_ORGANIZATION, "");
 		String scientificIntegrityLink = ConfigurationUtils.configure(config,
 				ConfigurationUtils.DF_LINKS_SCIENTIFIC_INTEGRITY, "");
@@ -1865,6 +1870,11 @@ public class ProjectsController extends AbstractAsyncController {
 		Project project = Project.find.byId(id);
 		if (project == null) {
 			return redirect(HOME).addingToSession(request, "error", "Project not found.");
+		}
+
+		Optional<Person> userOpt = getAuthenticatedUser(request);
+		if (!project.isPublicProject() && (userOpt.isEmpty() || !project.visibleFor(userOpt.get()))) {
+			return redirect(HOME).addingToSession(request, "error", "Project is not accessible.");
 		}
 
 		DynamicForm df = formFactory.form().bindFromRequest(request);
