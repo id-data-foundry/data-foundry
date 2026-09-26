@@ -28,9 +28,8 @@ public class Hash {
 	 * @return
 	 */
 	public static String hashPassword(String password) {
-		if (isHashed(password)) {
-			logger.error("Hashed password entered to hashing again.");
-			return password;
+		if (password == null) {
+			return null;
 		}
 
 		return BCRYPT_PREFIX + BCrypt.hashpw(password, BCrypt.gensalt(12));

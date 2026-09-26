@@ -19,9 +19,14 @@ public class SymEncryption {
 	private static final int GCM_IV_LENGTH = 12;
 	private static final int GCM_TAG_LENGTH = 128;
 	private static final SecureRandom randomNumberGenerator = new SecureRandom();
+	private static final play.Logger.ALogger logger = play.Logger.of(SymEncryption.class);
 
 	public static final String encryptToken(final String valueEnc, final String secKey) {
 		return SymEncryption.encrypt(valueEnc, secKey);
+	}
+
+	public static final String encryptStableToken(final String valueEnc, final String secKey) {
+		return SymEncryption.encryptStable(valueEnc, secKey);
 	}
 
 	private static final String encrypt(final String valueEnc, final String secKey) {
@@ -30,6 +35,29 @@ public class SymEncryption {
 			final Key key = generateV2KeyFromString(secKey);
 			final byte[] iv = new byte[GCM_IV_LENGTH];
 			randomNumberGenerator.nextBytes(iv);
+			final Cipher c = Cipher.getInstance(ALGORITHM_GCM);
+			c.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(GCM_TAG_LENGTH, iv));
+			final byte[] encValue = c.doFinal(valueEnc.getBytes(StandardCharsets.UTF_8));
+			final byte[] combined = new byte[iv.length + encValue.length];
+			System.arraycopy(iv, 0, combined, 0, iv.length);
+			System.arraycopy(encValue, 0, combined, iv.length, encValue.length);
+			encryptedVal = V2_PREFIX + Base64.getUrlEncoder().withoutPadding().encodeToString(combined);
+		} catch (Exception ex) {
+			// do nothing
+		}
+
+		return encryptedVal;
+	}
+
+	private static final String encryptStable(final String valueEnc, final String secKey) {
+		String encryptedVal = null;
+		try {
+			final Key key = generateV2KeyFromString(secKey);
+			final MessageDigest md = MessageDigest.getInstance("SHA-256");
+			md.update(secKey.getBytes(StandardCharsets.UTF_8));
+			md.update((byte) ':');
+			final byte[] hash = md.digest(valueEnc.getBytes(StandardCharsets.UTF_8));
+			final byte[] iv = Arrays.copyOf(hash, GCM_IV_LENGTH);
 			final Cipher c = Cipher.getInstance(ALGORITHM_GCM);
 			c.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(GCM_TAG_LENGTH, iv));
 			final byte[] encValue = c.doFinal(valueEnc.getBytes(StandardCharsets.UTF_8));
@@ -86,6 +114,7 @@ public class SymEncryption {
 	}
 
 	private static final String decryptLegacy(final String encryptedValue, final String secretKey) {
+		logger.warn("Decrypting legacy token without v2 prefix. Legacy tokens are deprecated.");
 		String decryptedValue = null;
 		try {
 			final Key key = generateLegacyKeyFromString(secretKey);
@@ -141,7 +170,7 @@ public class SymEncryption {
 	 * @return
 	 */
 	public static String getStableToken(Long firstId, Long secondId, String key) {
-		return encryptToken(firstId + ":" + secondId + ":" + 0, key);
+		return encryptStableToken(firstId + ":" + secondId + ":" + 0, key);
 	}
 
 	/**

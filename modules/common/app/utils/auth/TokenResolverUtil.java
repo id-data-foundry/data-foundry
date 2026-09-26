@@ -133,6 +133,8 @@ public class TokenResolverUtil {
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	public static final long EMAIL_RESET_TOKEN_VALIDITY_MS = 2 * 3600 * 1000L;
+
 	/**
 	 * create a Base64 encoded token of a username, for password resets
 	 * 
@@ -140,7 +142,9 @@ public class TokenResolverUtil {
 	 * @return
 	 */
 	public String createEmailResetToken(String username) {
-		return base64Encode(SymEncryption.encryptToken(username, EMAIL_RESET_SEC_KEY));
+		long expiry = System.currentTimeMillis() + EMAIL_RESET_TOKEN_VALIDITY_MS;
+		String nonce = java.util.UUID.randomUUID().toString();
+		return base64Encode(SymEncryption.encryptToken(username + ":" + expiry + ":" + nonce, EMAIL_RESET_SEC_KEY));
 	}
 
 	/**
@@ -150,7 +154,28 @@ public class TokenResolverUtil {
 	 * @return
 	 */
 	public String retrieveUsernameFromEmailResetToken(String token) {
-		return SymEncryption.decryptToken(base64Decode(token), EMAIL_RESET_SEC_KEY);
+		String decrypted = SymEncryption.decryptToken(base64Decode(token), EMAIL_RESET_SEC_KEY);
+		if (decrypted == null) {
+			return null;
+		}
+
+		if (decrypted.contains(":")) {
+			String[] parts = decrypted.split(":");
+			if (parts.length >= 2) {
+				try {
+					long expiry = Long.parseLong(parts[1]);
+					if (System.currentTimeMillis() > expiry) {
+						logger.warn("Password reset token for user " + parts[0] + " has expired.");
+						return null;
+					}
+					return parts[0];
+				} catch (NumberFormatException e) {
+					return parts[0];
+				}
+			}
+		}
+
+		return decrypted;
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

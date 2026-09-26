@@ -191,6 +191,22 @@ public class TokenResolverUtilBackwardsCompatibilityTest {
 	}
 
 	@Test
+	public void testEmailResetTokenExpiration() {
+		String username = "student@tue.nl";
+		String freshToken = tokenResolverUtil.createEmailResetToken(username);
+		assertEquals(username, tokenResolverUtil.retrieveUsernameFromEmailResetToken(freshToken));
+
+		// Craft an expired token: username:expiredTimestamp:nonce
+		long pastTime = System.currentTimeMillis() - 10000L;
+		String expiredPayload = username + ":" + pastTime + ":" + java.util.UUID.randomUUID();
+		String expiredEncrypted = SymEncryption.encryptToken(expiredPayload, emailResetKey);
+		String expiredToken = tokenResolverUtil.base64Encode(expiredEncrypted);
+
+		org.junit.Assert.assertNull("Expired reset token must resolve to null",
+				tokenResolverUtil.retrieveUsernameFromEmailResetToken(expiredToken));
+	}
+
+	@Test
 	public void testV2TokensInteroperability() {
 		// Verify that newly generated v2 tokens resolve identically alongside legacy tokens
 		long projectId = 100L;

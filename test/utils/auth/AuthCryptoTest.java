@@ -81,4 +81,30 @@ public class AuthCryptoTest {
 		assertTrue("Valid password must verify against legacy SHA-512 hash", Hash.checkPassword(password, legacyHash));
 		assertFalse("Wrong password must fail against legacy SHA-512 hash", Hash.checkPassword("WrongPassword", legacyHash));
 	}
+
+	@Test
+	public void testStableTokenDeterminismAndDecryption() {
+		String token1 = SymEncryption.getStableToken(123L, 456L, TEST_KEY);
+		String token2 = SymEncryption.getStableToken(123L, 456L, TEST_KEY);
+
+		assertNotNull(token1);
+		assertEquals("Stable token must be deterministic across calls", token1, token2);
+		assertTrue("Stable token must start with v2: prefix", token1.startsWith(SymEncryption.V2_PREFIX));
+
+		assertEquals(Long.valueOf(123), SymEncryption.getFirstIdFromToken(token1, TEST_KEY));
+		assertEquals(Long.valueOf(456), SymEncryption.getSecondIdFromToken(token1, TEST_KEY));
+	}
+
+	@Test
+	public void testPasswordHashInjectionPrevention() {
+		// Attacker attempts to downgrade password by submitting an already hashed-looking string
+		String pseudoHash = Hash.HASH_PREFIX + Hashing.sha512().hashString("attacker_pwd", StandardCharsets.UTF_8).toString();
+		String resultHash = Hash.hashPassword(pseudoHash);
+
+		// Must be hashed with BCrypt, not returned verbatim
+		assertNotNull(resultHash);
+		assertTrue("Result hash must start with bcrypt$", resultHash.startsWith(Hash.BCRYPT_PREFIX));
+		assertFalse("Result hash must not be equal to input pseudo-hash", pseudoHash.equals(resultHash));
+		assertTrue("Password must verify against the newly generated bcrypt hash", Hash.checkPassword(pseudoHash, resultHash));
+	}
 }
