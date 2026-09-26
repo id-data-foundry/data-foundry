@@ -406,7 +406,7 @@ POST		/datasets/form/transform/:id						controllers.api.FormDSController.transfo
 GET			/datasets/form/visualize/:id						controllers.api.FormDSController.visualize(request: Request, id: Long)
 GET			/datasets/form/raw/:id.csv							controllers.api.FormDSController.downloadRaw(request: Request, id: Long, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
 GET			/datasets/form/record/:id/*token					controllers.api.FormDSController.recordForm(request: Request, id: Long, token: String)
-POST		/datasets/form/record/:id							controllers.api.FormDSController.record(request: Request, id: Long)
+POST		/datasets/form/record/:id/*invite_token				controllers.api.FormDSController.record(request: Request, id: Long, invite_token: String)
 
 # survey data
 GET			/datasets/survey/add/:id								controllers.api.SurveyDSController.add(request: Request, id: Long)

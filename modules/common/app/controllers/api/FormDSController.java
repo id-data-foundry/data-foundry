@@ -239,11 +239,31 @@ public class FormDSController extends AbstractDSController {
 		ds.getConfiguration().put(Dataset.DATA_PROJECTION, projection);
 		ds.update();
 
-		return ok(views.html.datasets.form.record.render(csrfToken(request), ds));
+		return ok(views.html.datasets.form.record.render(csrfToken(request), invite_token, ds));
 	}
 
 	@RequireCSRFCheck
-	public Result record(Request request, Long id) {
+	public Result record(Request request, Long id, String invite_token) {
+
+		// check invite_token
+		if (invite_token == null || invite_token.length() == 0) {
+			Map<String, String[]> body = request.body().asFormUrlEncoded();
+			if (body != null && body.containsKey("invite_token") && body.get("invite_token").length > 0) {
+				invite_token = body.get("invite_token")[0];
+			}
+		}
+
+		if (invite_token == null || invite_token.length() == 0) {
+			return redirect(controllers.routes.HomeController.index()).addingToSession(request, "error",
+			        "Form token is not given.");
+		}
+
+		if (!tokenResolverUtil.getDatasetIdFromToken(invite_token).equals(id)) {
+			logger.info("Form token is not recognized: " + tokenResolverUtil.getDatasetIdFromToken(invite_token)
+			        + " (given) + " + id + " (target)");
+			return redirect(controllers.routes.HomeController.index()).addingToSession(request, "error",
+			        "Form token is not recognized.");
+		}
 
 		Dataset ds = Dataset.find.byId(id);
 		if (ds == null) {
@@ -260,7 +280,8 @@ public class FormDSController extends AbstractDSController {
 
 		// check for resubmission
 		String[] token = df.get("csrfToken");
-		if (token == null || token.length == 0 || cache.get(token[0]).isPresent()) {
+		String guardKey = (token != null && token.length > 0) ? ("form_submission_guard_" + token[0]) : null;
+		if (token == null || token.length == 0 || (guardKey != null && cache.get(guardKey).isPresent())) {
 			return ok(views.html.datasets.form.thanks.render(ds));
 		}
 
@@ -295,7 +316,9 @@ public class FormDSController extends AbstractDSController {
 		fmsc.addRecord(new Date(), text);
 
 		// avoid resubmissions
-		cache.set(token[0], true, 30000);
+		if (guardKey != null) {
+			cache.set(guardKey, true, 30000);
+		}
 
 		// flash and redirect
 		return ok(views.html.datasets.form.thanks.render(ds)).addingToSession(request, "message",

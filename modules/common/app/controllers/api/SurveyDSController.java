@@ -312,7 +312,8 @@ public class SurveyDSController extends AbstractDSController {
 
 		// check for resubmission
 		String[] token = df.get("csrfToken");
-		if (token == null || token.length == 0 || cache.get(token[0]).isPresent()) {
+		String guardKey = (token != null && token.length > 0) ? ("survey_submission_guard_" + token[0]) : null;
+		if (token == null || token.length == 0 || (guardKey != null && cache.get(guardKey).isPresent())) {
 			return ok(views.html.datasets.survey.thanks.render(ds));
 		}
 
@@ -347,7 +348,9 @@ public class SurveyDSController extends AbstractDSController {
 		fmsc.addRecord(participant, new Date(), text);
 
 		// avoid resubmissions
-		cache.set(token[0], true, 30000);
+		if (guardKey != null) {
+			cache.set(guardKey, true, 30000);
+		}
 
 		// flash and redirect
 		return ok(views.html.datasets.survey.thanks.render(ds)).addingToSession(request, "message",
