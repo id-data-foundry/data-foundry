@@ -86,7 +86,13 @@ abstract public class GenericApiService implements ApiServiceConstants {
 	 * leaked even if database operations throw runtime exceptions.</li>
 	 * </ul>
 	 */
-	private final ReentrantLock[] creditLocks = new ReentrantLock[CREDIT_LOCK_STRIPES];
+	private static final ReentrantLock[] creditLocks = new ReentrantLock[CREDIT_LOCK_STRIPES];
+
+	static {
+		for (int i = 0; i < CREDIT_LOCK_STRIPES; i++) {
+			creditLocks[i] = new ReentrantLock();
+		}
+	}
 
 	protected final TokenResolverUtil tokenResolver;
 	protected final Config configuration;
@@ -114,10 +120,6 @@ abstract public class GenericApiService implements ApiServiceConstants {
 		this.adminUtils = adminUtils;
 		this.datasetConnector = datasetConnector;
 		this.tokenResolver = tokenResolver;
-
-		for (int i = 0; i < CREDIT_LOCK_STRIPES; i++) {
-			this.creditLocks[i] = new ReentrantLock();
-		}
 	}
 
 	/**

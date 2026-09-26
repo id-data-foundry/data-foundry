@@ -1928,6 +1928,15 @@ public class DatasetsController extends AbstractAsyncController {
 		}
 
 		String value = request.body().asText();
+		if (value == null) {
+			value = "";
+		}
+
+		// validate the data for the key (DF-28)
+		AbstractValidator configurationValidator = Validators.get(key);
+		if (!configurationValidator.validate(value)) {
+			return badRequest(configurationValidator.explainNo(key, value));
+		}
 
 		// configure something
 		ds.getConfiguration().put(key, value);

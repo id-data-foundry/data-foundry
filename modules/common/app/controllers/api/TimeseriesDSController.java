@@ -216,15 +216,15 @@ public class TimeseriesDSController extends AbstractDSController {
 
 	@Deprecated
 	public CompletionStage<Result> recordDeprecated(Request request, final Long id, final String dsApiToken) {
-		logger.warn("Using deprecated URL token endpoint: POST /datasets/ts/record/" + id + "/" + dsApiToken
-				+ ". Please use POST /datasets/ts/record/" + id + " instead with 'api_token' in body/form.");
+		logger.warn("Using deprecated URL token endpoint: POST /datasets/ts/record/" + id
+				+ "/* [REDACTED]. Please use POST /datasets/ts/record/" + id + " instead with 'api_token' in body/form.");
 		return record(request, id, dsApiToken);
 	}
 
 	@Deprecated
 	public CompletionStage<Result> recordApi(Request request, final Long id, final String dsApiToken) {
-		logger.warn("Using deprecated URL token endpoint: POST /api/v1/datasets/ts/" + id + "/" + dsApiToken
-				+ ". Please use POST /api/v1/datasets/ts/" + id + " instead with 'api_token' in header.");
+		logger.warn("Using deprecated URL token endpoint: POST /api/v1/datasets/ts/" + id
+				+ "/* [REDACTED]. Please use POST /api/v1/datasets/ts/" + id + " instead with 'api_token' in header.");
 		return record(request, id, dsApiToken);
 	}
 
@@ -527,7 +527,7 @@ public class TimeseriesDSController extends AbstractDSController {
 			String checkToken = dsApiToken;
 			String internalToken = ds.getConfiguration().get(Dataset.API_TOKEN);
 			if (checkToken == null || (!ds.getApiToken().equals(checkToken) && !checkToken.equals(internalToken))) {
-				logger.warn(" - api token " + checkToken + " not correct");
+				logger.warn(" - api token not correct for dataset " + id);
 				return forbidden("Api token is not correct");
 			}
 

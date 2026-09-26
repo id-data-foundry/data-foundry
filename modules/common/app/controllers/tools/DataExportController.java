@@ -131,10 +131,11 @@ public class DataExportController extends AbstractAsyncController {
 		}
 
 		// collect data from request
-		final ArrayNode jn = (ArrayNode) request.body().asJson();
-		if (jn == null || jn.size() == 0) {
+		final JsonNode bodyJson = request.body().asJson();
+		if (bodyJson == null || !bodyJson.isArray() || bodyJson.size() == 0) {
 			return CompletableFuture.completedFuture(ok());
 		}
+		final ArrayNode jn = (ArrayNode) bodyJson;
 
 		final Map<String, List<String[]>> dats = new LinkedHashMap<String, List<String[]>>();
 		final Map<String, List<String[]>> cols = new LinkedHashMap<String, List<String[]>>();
@@ -143,9 +144,15 @@ public class DataExportController extends AbstractAsyncController {
 		final List<String> projection = new LinkedList<String>();
 
 		for (JsonNode jsonNode : jn) {
-			if (jsonNode.isObject()) {
-				final String id = ((ObjectNode) jsonNode).get("id").asText();
+			if (jsonNode != null && jsonNode.isObject() && jsonNode.hasNonNull("id")) {
+				final String id = jsonNode.get("id").asText();
+				if (!id.startsWith("column_")) {
+					continue;
+				}
 				final String[] idComp = id.substring("column_".length()).split("_", 2);
+				if (idComp.length < 2) {
+					continue;
+				}
 				final String dsId = idComp[0];
 				final String colName = idComp[1];
 
@@ -398,10 +405,11 @@ public class DataExportController extends AbstractAsyncController {
 				redirect(LANDING).addingToSession(request, "error", "Please log in first to use this tool."));
 
 		// collect data from request
-		ArrayNode jn = (ArrayNode) request.body().asJson();
-		if (jn == null || jn.size() == 0 || name == null || name.isEmpty()) {
+		final JsonNode bodyJson = request.body().asJson();
+		if (bodyJson == null || !bodyJson.isArray() || bodyJson.size() == 0 || name == null || name.isEmpty()) {
 			return badRequest();
 		}
+		final ArrayNode jn = (ArrayNode) bodyJson;
 
 		// let's create a new dataset for this
 
@@ -411,9 +419,15 @@ public class DataExportController extends AbstractAsyncController {
 		// find a project to add this to
 		long projectId = -1;
 		for (JsonNode jsonNode : jn) {
-			if (jsonNode.isObject()) {
-				String id = ((ObjectNode) jsonNode).get("id").asText();
+			if (jsonNode != null && jsonNode.isObject() && jsonNode.hasNonNull("id")) {
+				String id = jsonNode.get("id").asText();
+				if (!id.startsWith("column_")) {
+					continue;
+				}
 				String[] idComp = id.substring("column_".length()).split("_", 2);
+				if (idComp.length < 1) {
+					continue;
+				}
 				String dsId = idComp[0];
 
 				// check the contents of the dsId and colName for SQL injections

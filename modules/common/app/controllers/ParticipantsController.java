@@ -365,7 +365,7 @@ public class ParticipantsController extends AbstractAsyncController {
 
 			// console output for manual unlock
 			String token = tokenResolverUtil.getParticipationToken(project.getId(), participant.getId());
-			logger.info(routes.ParticipationController.confirm(token).absoluteURL(true, request.host()));
+			logger.info("Generated participation token for participant " + participant.getId() + " in project " + project.getId());
 		}
 
 		return redirect(routes.ProjectsController.viewResources(id)).addingToSession(request, "message",
@@ -499,7 +499,7 @@ public class ParticipantsController extends AbstractAsyncController {
 
 				// console output for manual unlock
 				String token = tokenResolverUtil.getParticipationToken(project.getId(), participant.getId());
-				logger.info(routes.ParticipationController.confirm(token).absoluteURL(true, request.host()));
+				logger.info("Generated participation token for participant " + participant.getId() + " in project " + project.getId());
 				quantity++;
 			}
 		}

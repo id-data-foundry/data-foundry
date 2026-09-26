@@ -42,10 +42,12 @@ public class GenericApiServiceStripedLockTest {
 		assertNotNull(nullLock);
 		assertSame(nullLock, emptyLock);
 
-		// Identical tokens always resolve to the exact same lock instance
+		// Identical tokens always resolve to the exact same lock instance, even across distinct service instances
+		TestGenericApiService service2 = new TestGenericApiService();
 		String tokenA1 = new String("df-token-user-123");
 		String tokenA2 = new String("df-token-user-123");
 		assertSame(service.getLockForToken(tokenA1), service.getLockForToken(tokenA2));
+		assertSame(service.getLockForToken(tokenA1), service2.getLockForToken(tokenA1));
 
 		// Distinct tokens distribute across multiple stripes
 		Set<ReentrantLock> observedLocks = new HashSet<>();

@@ -821,7 +821,7 @@ public class ProjectsController extends AbstractAsyncController {
 
 		String collaboratorEmail = tokenResolverUtil.getCollaboratorEmailFromCollaborationToken(token);
 		if (!collaborator.getEmail().equals(collaboratorEmail)) {
-			logger.warn("Collab-Token problem: " + tokenResolverUtil.getRawCollabToken(token));
+			logger.warn("Collab-Token problem: email mismatch for user " + collaborator.getId());
 			return redirect(HOME).addingToSession(request, "error", "Something went wrong with your invite token.");
 		}
 
@@ -919,7 +919,7 @@ public class ProjectsController extends AbstractAsyncController {
 		Long subscriberId = tokenResolverUtil.getSubscriberIdFromSubscriptionToken(token);
 		Person subscriber = Person.find.byId(subscriberId);
 		if (subscriber == null) {
-			logger.warn("Subscription-Token problem: " + tokenResolverUtil.getRawSubscriptionToken(token));
+			logger.warn("Subscription-Token problem: subscriber not found for id " + subscriberId);
 			return redirect(HOME).addingToSession(request, "error",
 					"Something went wrong with the confirmation token.");
 		}

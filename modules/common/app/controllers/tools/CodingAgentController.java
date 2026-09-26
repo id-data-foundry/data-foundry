@@ -303,8 +303,9 @@ public class CodingAgentController extends AbstractAsyncController {
 						exportHistory.forEach(arr::add);
 						String content = Json.stringify(arr);
 
+						File tempFile = null;
 						try {
-							File tempFile = File.createTempFile("codingagent-export-", ".tmp");
+							tempFile = File.createTempFile("codingagent-export-", ".tmp");
 							FileUtils.writeStringToFile(tempFile, content, Charset.defaultCharset());
 
 							Optional<String> storedFileOpt = context.cpds().storeFile(tempFile, filename);
@@ -320,9 +321,12 @@ public class CodingAgentController extends AbstractAsyncController {
 									Source.single((JsonNode) syncMsg).runWith(context.sink(), materializer);
 								}
 							}
-							tempFile.delete();
 						} catch (IOException e) {
 							logger.error("Error exporting session", e);
+						} finally {
+							if (tempFile != null && tempFile.exists()) {
+								tempFile.delete();
+							}
 						}
 					}
 

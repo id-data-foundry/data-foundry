@@ -614,6 +614,28 @@ public class TelegramBotClient extends TelegramLongPollingBot {
 
 	void replyMessage(String chatId, Long activeProjectId, String text) {
 		try {
+			if (chatId == null || activeProjectId == null) {
+				logger.warn("Missing chatId or activeProjectId for replyMessage");
+				return;
+			}
+			long parsedChatId;
+			try {
+				parsedChatId = Long.parseLong(chatId);
+			} catch (NumberFormatException e) {
+				logger.warn("Invalid chatId format for replyMessage: {}", chatId);
+				return;
+			}
+
+			// Verify that the chat session belongs to this active project
+			Optional<TelegramSession> tsOpt = TelegramSession.find.query().setMaxRows(1).where()
+			        .eq("chatId", parsedChatId)
+			        .eq("activeProjectId", activeProjectId)
+			        .findOneOrEmpty();
+			if (!tsOpt.isPresent()) {
+				logger.warn("TelegramSession not found or project mismatch for chatId: {} and project: {}", chatId, activeProjectId);
+				return;
+			}
+
 			// sleep a little
 			Thread.sleep(2000);
 
