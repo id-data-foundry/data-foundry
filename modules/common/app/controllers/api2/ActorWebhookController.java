@@ -1,5 +1,7 @@
 package controllers.api2;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Map;
 import java.util.Optional;
 
@@ -37,7 +39,10 @@ public class ActorWebhookController extends AbstractAsyncController {
 			return notFound("script not found");
 		}
 
-		if (token == null || !token.equals(ds.getApiToken())) {
+		String expectedToken = ds.getApiToken();
+		if (token == null || expectedToken == null || !MessageDigest.isEqual(
+				expectedToken.getBytes(StandardCharsets.UTF_8),
+				token.getBytes(StandardCharsets.UTF_8))) {
 			return forbidden("not authorized");
 		}
 

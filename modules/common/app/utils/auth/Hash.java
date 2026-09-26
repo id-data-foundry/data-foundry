@@ -88,4 +88,17 @@ public class Hash {
 		return password.startsWith(BCRYPT_PREFIX) || password.startsWith(HASH_PREFIX) || password.startsWith("$2a$")
 				|| password.startsWith("$2b$") || password.startsWith("$2y$");
 	}
+
+	/**
+	 * check if stored hash uses legacy SHA-512 scheme
+	 * 
+	 * @param storedHash
+	 * @return
+	 */
+	public static boolean isLegacyHash(String storedHash) {
+		if (storedHash == null) {
+			return false;
+		}
+		return storedHash.startsWith(HASH_PREFIX);
+	}
 }

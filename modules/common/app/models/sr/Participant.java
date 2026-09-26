@@ -268,10 +268,30 @@ public class Participant extends DataResource {
 			return false;
 		}
 		if (Hash.isHashed(this.passwordHash)) {
-			return Hash.checkPassword(password, this.passwordHash);
+			boolean matches = Hash.checkPassword(password, this.passwordHash);
+			if (matches && Hash.isLegacyHash(this.passwordHash) && this.getId() != null) {
+				try {
+					setPassword(password);
+					update();
+					logger.info("Transparently upgraded password hash to BCrypt for participant {}", this.getId());
+				} catch (Exception e) {
+					logger.error("Failed to upgrade legacy password hash for participant {}", this.getId(), e);
+				}
+			}
+			return matches;
 		}
 		// Fallback for legacy unhashed participant passwords
-		return MessageDigest.isEqual(this.passwordHash.getBytes(StandardCharsets.UTF_8), password.getBytes(StandardCharsets.UTF_8));
+		boolean matches = MessageDigest.isEqual(this.passwordHash.getBytes(StandardCharsets.UTF_8), password.getBytes(StandardCharsets.UTF_8));
+		if (matches && this.getId() != null) {
+			try {
+				setPassword(password);
+				update();
+				logger.info("Transparently upgraded plaintext password to BCrypt for participant {}", this.getId());
+			} catch (Exception e) {
+				logger.error("Failed to upgrade plaintext password for participant {}", this.getId(), e);
+			}
+		}
+		return matches;
 	}
 
 	public String gender() {
@@ -417,6 +437,10 @@ public class Participant extends DataResource {
 
 	public String getPasswordHash() {
 		return passwordHash;
+	}
+
+	public void setPasswordHash(String passwordHash) {
+		this.passwordHash = passwordHash;
 	}
 
 	public Date getCreation() {

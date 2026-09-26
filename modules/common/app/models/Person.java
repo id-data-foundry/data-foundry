@@ -1,5 +1,6 @@
 package models;
 
+import java.util.Collections;
 import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
@@ -116,7 +117,17 @@ public class Person extends Model {
 	 * @return
 	 */
 	public boolean checkPassword(String password) {
-		return Hash.checkPassword(password, this.passwordHash);
+		boolean matches = Hash.checkPassword(password, this.passwordHash);
+		if (matches && Hash.isLegacyHash(this.passwordHash) && this.id != null) {
+			try {
+				setPassword(password);
+				update();
+				logger.info("Transparently upgraded password hash to BCrypt for user {}", this.id);
+			} catch (Exception e) {
+				logger.error("Failed to upgrade legacy password hash for user {}", this.id, e);
+			}
+		}
+		return matches;
 	}
 
 	/**
@@ -376,10 +387,19 @@ public class Person extends Model {
 	/**
 	 * list all actors in this project belonging to this user
 	 * 
+	 * @param projectId the project id
 	 * @return
 	 */
-	public List<Dataset> getUserActors(Long userId) {
-		return Project.find.byId(userId).getDatasets().stream().filter(d -> d.isScript()).collect(Collectors.toList());
+	public List<Dataset> getUserActors(Long projectId) {
+		if (projectId == null) {
+			return Collections.emptyList();
+		}
+		Project project = Project.find.byId(projectId);
+		if (project == null || !this.canEdit(project)) {
+			logger.warn("Project {} not found or not accessible by user {}", projectId, this.id);
+			return Collections.emptyList();
+		}
+		return project.getDatasets().stream().filter(d -> d.isScript()).collect(Collectors.toList());
 	}
 
 	/**
