@@ -42,36 +42,23 @@ public class FileUtil {
 
 		File root = environment.rootPath();
 		File canonicalRoot;
-		File parent;
-		String rootCanon;
-		String parentCanon;
+		List<String> allowedPrefixes = new java.util.ArrayList<>();
+		List<File> candidates = new java.util.ArrayList<>();
 		try {
 			canonicalRoot = root.getCanonicalFile();
-			parent = canonicalRoot.getParentFile();
-			rootCanon = canonicalRoot.getCanonicalPath();
-			if (!rootCanon.endsWith(File.separator)) {
-				rootCanon += File.separator;
-			}
-			if (parent != null) {
-				parentCanon = parent.getCanonicalPath();
-				if (!parentCanon.endsWith(File.separator)) {
-					parentCanon += File.separator;
+			for (File cur = canonicalRoot; cur != null && allowedPrefixes.size() < 4; cur = cur.getParentFile()) {
+				String canon = cur.getCanonicalPath();
+				if (!canon.endsWith(File.separator)) {
+					canon += File.separator;
 				}
-			} else {
-				parentCanon = rootCanon;
+				allowedPrefixes.add(canon);
+				candidates.add(new File(cur, "dist/" + cleanFolderName));
+				candidates.add(new File(cur, "DataFoundry/dist/" + cleanFolderName));
+				candidates.add(new File(cur, cleanFolderName));
 			}
 		} catch (IOException e) {
 			return Optional.empty();
 		}
-
-		List<File> candidates = Arrays.asList(
-				new File(canonicalRoot, "dist/" + cleanFolderName),
-				new File(canonicalRoot, "DataFoundry/dist/" + cleanFolderName),
-				parent != null ? new File(parent, "dist/" + cleanFolderName) : null,
-				parent != null ? new File(parent, "DataFoundry/dist/" + cleanFolderName) : null,
-				new File(canonicalRoot, cleanFolderName),
-				parent != null ? new File(parent, cleanFolderName) : null
-		);
 
 		for (File candidate : candidates) {
 			if (candidate != null && candidate.exists() && candidate.isDirectory()) {
@@ -80,9 +67,11 @@ public class FileUtil {
 					if (!folderCanon.endsWith(File.separator)) {
 						folderCanon += File.separator;
 					}
-					// Verify folder is within root workspace or its parent
-					if (folderCanon.startsWith(rootCanon) || folderCanon.startsWith(parentCanon)) {
-						return Optional.of(candidate);
+					// Verify folder is within root workspace or its project ancestors
+					for (String prefix : allowedPrefixes) {
+						if (folderCanon.startsWith(prefix)) {
+							return Optional.of(candidate);
+						}
 					}
 				} catch (IOException e) {
 					// continue searching candidates

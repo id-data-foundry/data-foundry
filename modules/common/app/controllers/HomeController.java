@@ -176,8 +176,13 @@ public class HomeController extends AbstractAsyncController {
 		String token = tokenResolverUtil.createEmailResetToken(user.getEmail());
 		cache.set("email_reset_" + user.getEmail(), token, 25 * 60 * 60);
 
-		// switch to link directly (because admin permissions)
-		String actionLink = routes.UsersController.resetPW(token).absoluteURL(request, true);
+		// switch to link directly (using configured baseUrl to prevent Host header poisoning)
+		String baseUrl = configuration.hasPath(ConfigurationUtils.DF_BASEURL)
+				? configuration.getString(ConfigurationUtils.DF_BASEURL).replaceAll("/+$", "")
+				: "";
+		String actionLink = (!baseUrl.isEmpty())
+				? (baseUrl + routes.UsersController.resetPW(token).url())
+				: routes.UsersController.resetPW(token).absoluteURL(request, true);
 
 		// send email to user about password reset
 		Html htmlBody = views.html.emails.invite.render("Password reset",

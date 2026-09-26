@@ -48,6 +48,7 @@ import services.telegrambot.TelegramBotService;
 import utils.DataUtils;
 import utils.auth.TokenResolverUtil;
 import utils.components.OnboardingSupport;
+import utils.conf.ConfigurationUtils;
 import utils.conf.Configurator;
 
 public class ParticipantsController extends AbstractAsyncController {
@@ -837,16 +838,30 @@ public class ParticipantsController extends AbstractAsyncController {
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	public String getParticipantViewLink(Project project, Long participant_id, String host) {
+		String baseUrl = configurator != null && configurator.isDefined(ConfigurationUtils.DF_BASEURL)
+				? configurator.getString(ConfigurationUtils.DF_BASEURL).replaceAll("/+$", "")
+				: "";
+		if (!baseUrl.isEmpty()) {
+			return baseUrl + routes.ParticipationController
+					.view(tokenResolverUtil.getParticipationToken(project.getId(), participant_id)).url();
+		}
 		return routes.ParticipationController
-		        .view(tokenResolverUtil.getParticipationToken(project.getId(), participant_id)).absoluteURL(true, host);
+				.view(tokenResolverUtil.getParticipationToken(project.getId(), participant_id)).absoluteURL(true, host);
 	}
 
 	public String getParticipantDiaryEntryLink(Project project, Long participant_id, String host) {
 		Dataset ds = project.getDiaryDataset();
 		if (ds != null) {
+			String baseUrl = configurator != null && configurator.isDefined(ConfigurationUtils.DF_BASEURL)
+					? configurator.getString(ConfigurationUtils.DF_BASEURL).replaceAll("/+$", "")
+					: "";
+			if (!baseUrl.isEmpty()) {
+				return baseUrl + routes.ParticipationController
+						.recordForm(ds.getId(), tokenResolverUtil.getParticipationToken(project.getId(), participant_id)).url();
+			}
 			return routes.ParticipationController
-			        .recordForm(ds.getId(), tokenResolverUtil.getParticipationToken(project.getId(), participant_id))
-			        .absoluteURL(true, host);
+					.recordForm(ds.getId(), tokenResolverUtil.getParticipationToken(project.getId(), participant_id))
+					.absoluteURL(true, host);
 		} else {
 			return "";
 		}

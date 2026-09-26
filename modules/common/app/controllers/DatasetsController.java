@@ -1473,7 +1473,8 @@ public class DatasetsController extends AbstractAsyncController {
 
 			// check the file for special website properties
 			File file = requestedFile.get();
-			if (filename.endsWith(".md") && file.length() < 1024 * 1024) {
+			String lowerFilename = filename.toLowerCase();
+			if ((lowerFilename.endsWith(".md") || lowerFilename.endsWith(".markdown")) && file.length() < 1024 * 1024) {
 				// read file contents
 				try {
 					String contents = new String(Files.readAllBytes(Paths.get(file.getAbsolutePath())));
@@ -1488,19 +1489,22 @@ public class DatasetsController extends AbstractAsyncController {
 							.withHeader("Content-Security-Policy", WEB_CSP_HEADER)
 							.withHeader("X-Content-Type-Options", "nosniff");
 				}
-			} else if (filename.endsWith(".html") || filename.endsWith(".htm")) {
+			} else if (lowerFilename.endsWith(".html") || lowerFilename.endsWith(".htm")) {
 				return ok(file).as("text/html; charset=utf-8")
 						.withHeader("Content-Security-Policy", WEB_CSP_HEADER)
 						.withHeader("X-Content-Type-Options", "nosniff");
 			} else {
 				String mimeType = getWebAssetMimeType(filename, file);
 				Result res = ok(file).as(mimeType).withHeader("X-Content-Type-Options", "nosniff");
-				if (filename.endsWith(".min.js") || filename.endsWith(".min.css")) {
+				if (lowerFilename.endsWith(".svg")) {
+					res = res.withHeader("Content-Security-Policy", WEB_CSP_HEADER);
+				}
+				if (lowerFilename.endsWith(".min.js") || lowerFilename.endsWith(".min.css")) {
 					return res.withHeader("Cache-Control", "max-age=3600");
-				} else if (filename.endsWith(".js") || filename.endsWith(".css")) {
+				} else if (lowerFilename.endsWith(".js") || lowerFilename.endsWith(".css")) {
 					return res.withHeader("Cache-Control", "max-age=60");
-				} else if (FileTypeUtils.looksLikeImageFile(file) || filename.endsWith(".woff")
-						|| filename.endsWith(".woff2") || filename.endsWith(".ttf") || filename.endsWith(".otf")) {
+				} else if (FileTypeUtils.looksLikeImageFile(file) || lowerFilename.endsWith(".woff")
+						|| lowerFilename.endsWith(".woff2") || lowerFilename.endsWith(".ttf") || lowerFilename.endsWith(".otf")) {
 					return res.withHeader("Cache-Control", "max-age=3600");
 				} else {
 					return res;
@@ -1605,7 +1609,8 @@ public class DatasetsController extends AbstractAsyncController {
 
 			// check the file for special website properties
 			File file = requestedFile.get();
-			if (filename.endsWith(".md") && file.length() < 1024 * 1024) {
+			String lowerFilename = filename.toLowerCase();
+			if ((lowerFilename.endsWith(".md") || lowerFilename.endsWith(".markdown")) && file.length() < 1024 * 1024) {
 				// read file contents
 				try {
 					String contents = new String(Files.readAllBytes(Paths.get(file.getAbsolutePath())));
@@ -1620,19 +1625,22 @@ public class DatasetsController extends AbstractAsyncController {
 							.withHeader("Content-Security-Policy", WEB_CSP_HEADER)
 							.withHeader("X-Content-Type-Options", "nosniff");
 				}
-			} else if (filename.endsWith(".html") || filename.endsWith(".htm")) {
+			} else if (lowerFilename.endsWith(".html") || lowerFilename.endsWith(".htm")) {
 				return ok(file).as("text/html; charset=utf-8")
 						.withHeader("Content-Security-Policy", WEB_CSP_HEADER)
 						.withHeader("X-Content-Type-Options", "nosniff");
 			} else {
 				String mimeType = getWebAssetMimeType(filename, file);
 				Result res = ok(file).as(mimeType).withHeader("X-Content-Type-Options", "nosniff");
-				if (filename.endsWith(".min.js") || filename.endsWith(".min.css")) {
+				if (lowerFilename.endsWith(".svg")) {
+					res = res.withHeader("Content-Security-Policy", WEB_CSP_HEADER);
+				}
+				if (lowerFilename.endsWith(".min.js") || lowerFilename.endsWith(".min.css")) {
 					return res.withHeader("Cache-Control", "max-age=3600");
-				} else if (filename.endsWith(".js") || filename.endsWith(".css")) {
+				} else if (lowerFilename.endsWith(".js") || lowerFilename.endsWith(".css")) {
 					return res.withHeader("Cache-Control", "max-age=60");
-				} else if (FileTypeUtils.looksLikeImageFile(file) || filename.endsWith(".woff")
-						|| filename.endsWith(".woff2") || filename.endsWith(".ttf") || filename.endsWith(".otf")) {
+				} else if (FileTypeUtils.looksLikeImageFile(file) || lowerFilename.endsWith(".woff")
+						|| lowerFilename.endsWith(".woff2") || lowerFilename.endsWith(".ttf") || lowerFilename.endsWith(".otf")) {
 					return res.withHeader("Cache-Control", "max-age=3600");
 				} else {
 					return res;
