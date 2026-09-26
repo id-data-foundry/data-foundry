@@ -56,8 +56,11 @@ public class QRCode extends Controller {
 			url = url.replace("http:/", "http://");
 		}
 
-		// generate caching key
-		String cachingKey = key.length() < 6 ? url : ("cached_qrcode_" + key);
+		// generate caching key (strictly namespaced to prevent Play cache poisoning)
+		String keyStr = (key != null && key.trim().length() >= 6) ? key.trim()
+				: com.google.common.hash.Hashing.sha256().hashString(url, java.nio.charset.StandardCharsets.UTF_8)
+						.toString();
+		String cachingKey = "cached_qrcode_" + keyStr;
 
 		// generate QR code and cache for 5 minutes
 		String pathStr = qrCodeUtil.generateCachedQRCode(url, cachingKey, 300);
