@@ -137,6 +137,11 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	protected RemoteApiRequest createModelsRequestForRefresh() {
+		return new RemoteApiRequest(REQUEST_TASK_MODELS, ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, "SYSTEM",
+				getInternalDocumentationAPIKey(), -1L);
+	}
+
 	@Override
 	public void refresh() {
 		if (!ConfigurationUtils.checkConfiguration(configuration, ConfigurationUtils.DF_AI_BASEURL)) {
@@ -145,9 +150,7 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 
 		// start request to discover available models
 		try {
-			RemoteApiRequest internalAPIRequest = new RemoteApiRequest(REQUEST_TASK_MODELS,
-					ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, "", "", -1L);
-			internalAPIRequest.setUserApiKey(getInternalDocumentationAPIKey());
+			RemoteApiRequest internalAPIRequest = createModelsRequestForRefresh();
 
 			// submit and wait for timeout
 			submitApiRequest(internalAPIRequest).get(ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS,
@@ -188,6 +191,10 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 
 		} catch (Exception e) {
 			logger.error("❌ Failed to fetch models from AI backend: " + e.getMessage());
+			if (e.getMessage() != null && e.getMessage().contains("401")) {
+				logger.warn("⚠️ HTTP 401 Unauthorized received from AI backend. Please verify that "
+						+ ConfigurationUtils.DF_AI_API_KEY + " is configured with a valid API key.");
+			}
 			localModelMetadata.clearModels();
 
 			int failures = consecutiveFailures.incrementAndGet();
@@ -204,17 +211,22 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 	}
 
 	/**
-	 * ping the given endpoint path and check for availability (anything but 404 or connection error)
+	 * ping the given endpoint path and check for availability (anything but 404, 401, 403 or connection error)
 	 *
 	 * @param path
 	 * @return
 	 */
-	private CompletableFuture<Boolean> pingEndpoint(String path) {
+	protected CompletableFuture<Boolean> pingEndpoint(String path) {
 		if (wsClient == null) {
 			return CompletableFuture.completedFuture(false);
 		}
-		return wsClient.url(aiBaseUrl + path).setRequestTimeout(Duration.ofSeconds(2)).get().thenApply(res -> {
-			return res.getStatus() != 404;
+		WSRequest req = prepareWSRequest(path, Duration.ofSeconds(2));
+		if (req == null) {
+			return CompletableFuture.completedFuture(false);
+		}
+		return req.get().thenApply(res -> {
+			int status = res.getStatus();
+			return status != 404 && status != 401 && status != 403;
 		}).exceptionally(e -> {
 			return false;
 		}).toCompletableFuture();
@@ -387,8 +399,17 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 			params.set("stream_options", Json.newObject().put("include_usage", true));
 		}
 
-		return wsClient.url(aiBaseUrl + request.getPath()).setRequestTimeout(streamMaxDuration)
-				.setMethod(REQUEST_METHOD_POST).setBody(params)
+		WSRequest wsReq = prepareWSRequest(request.getPath(), streamMaxDuration);
+		if (wsReq == null) {
+			try {
+				permit.close();
+			} catch (Exception ex) {
+				// ignore
+			}
+			return CompletableFuture.completedFuture(Source.single(sseError("WSClient is not available")));
+		}
+
+		return wsReq.setMethod(REQUEST_METHOD_POST).setBody(params)
 				.addHeader(ApiServiceConstants.X_API_MODEL, nss(request.getModel())).stream().thenApply(res -> {
 					if (res.getStatus() != Http.Status.OK) {
 						try {
@@ -560,15 +581,33 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 				List<Object> ll = new LinkedList<>();
 				ll.addAll(fileParts);
 				ll.addAll(dataParts);
-				requestCompletionStage = prepareWSRemoteAPIRequest(request).post(Source.from(ll));
+				WSRequest multipartReq = prepareWSRemoteAPIRequest(request);
+				if (multipartReq == null) {
+					request.setOutcome(Outcome.UPSTREAM_ERROR);
+					request.setResult(Optional.of(request.errorMessage("WSClient is not available").toString()));
+					return CompletableFuture.completedFuture(null);
+				}
+				requestCompletionStage = multipartReq.post(Source.from(ll));
 			}
 			// otherwise we post the request params
 			else {
-				requestCompletionStage = prepareWSRemoteAPIRequest(request).post(request.getParams());
+				WSRequest postReq = prepareWSRemoteAPIRequest(request);
+				if (postReq == null) {
+					request.setOutcome(Outcome.UPSTREAM_ERROR);
+					request.setResult(Optional.of(request.errorMessage("WSClient is not available").toString()));
+					return CompletableFuture.completedFuture(null);
+				}
+				requestCompletionStage = postReq.post(request.getParams());
 			}
 		} else {
 			// GET request
-			requestCompletionStage = prepareWSRemoteAPIRequest(request).get();
+			WSRequest getReq = prepareWSRemoteAPIRequest(request);
+			if (getReq == null) {
+				request.setOutcome(Outcome.UPSTREAM_ERROR);
+				request.setResult(Optional.of(request.errorMessage("WSClient is not available").toString()));
+				return CompletableFuture.completedFuture(null);
+			}
+			requestCompletionStage = getReq.get();
 		}
 
 		// run request asynchronously without blocking threads
@@ -599,7 +638,8 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 				return res.getBody(WSBodyReadables.instance.source())
 						.runWith(FileIO.toPath(tempImageFile.toPath()), materializer).thenAccept(ioResult -> {
 							// cache for 1 minute
-							cache.set("ai_image_" + token, tempImageFile.getAbsolutePath(), (int) Duration.ofMinutes(1).toSeconds());
+							cache.set("ai_image_" + token, tempImageFile.getAbsolutePath(),
+									(int) Duration.ofMinutes(1).toSeconds());
 							request.setOutcome(Outcome.OK);
 							request.setResult(Optional.of(Json.newObject().put("image_id", token)
 									.put("prompt", request.getParams().path(REQUEST_PROMPT).asText("")).toString()));
@@ -664,9 +704,25 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 		return laneLimiter;
 	}
 
-	private WSRequest prepareWSRemoteAPIRequest(RemoteApiRequest request) {
-		return wsClient.url(aiBaseUrl + request.getPath()).setRequestTimeout(Duration.ofMillis(request.getMsTimeout()))
-				.addHeader(ApiServiceConstants.X_API_MODEL, nss(request.getModel()));
+	protected WSRequest prepareWSRequest(String path, Duration timeout) {
+		if (wsClient == null) {
+			return null;
+		}
+		WSRequest req = wsClient.url(aiBaseUrl + path).setRequestTimeout(timeout);
+		if (localAIAPIKey != null && !localAIAPIKey.trim().isEmpty()) {
+			String trimmedKey = localAIAPIKey.trim();
+			String authHeader = trimmedKey.startsWith("Bearer ") ? trimmedKey : "Bearer " + trimmedKey;
+			req = req.addHeader("Authorization", authHeader);
+		}
+		return req;
+	}
+
+	protected WSRequest prepareWSRemoteAPIRequest(RemoteApiRequest request) {
+		WSRequest req = prepareWSRequest(request.getPath(), Duration.ofMillis(request.getMsTimeout()));
+		if (req != null) {
+			req = req.addHeader(ApiServiceConstants.X_API_MODEL, nss(request.getModel()));
+		}
+		return req;
 	}
 
 	public List<List<Double>> dispatchEmbeddingRequest(String username, List<String> contentToEmbed) {
@@ -677,9 +733,13 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 		jsonPayload.set("input", Json.toJson(contentToEmbed));
 
 		try {
-			WSResponse res = wsClient.url(aiBaseUrl + "/embeddings")
-					.setRequestTimeout(Duration.ofMillis(ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS))
-					.post(jsonPayload).toCompletableFuture()
+			WSRequest req = prepareWSRequest("/embeddings",
+					Duration.ofMillis(ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS));
+			if (req == null) {
+				logger.error("❌ Failed to fetch embeddings from AI backend: wsClient is null");
+				return new LinkedList<>();
+			}
+			WSResponse res = req.post(jsonPayload).toCompletableFuture()
 					.get(ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS + 1000, TimeUnit.MILLISECONDS);
 
 			if (res.getStatus() == Http.Status.OK) {

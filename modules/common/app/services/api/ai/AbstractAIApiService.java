@@ -102,8 +102,11 @@ public class AbstractAIApiService extends GenericApiService {
 		return aiBaseUrl;
 	}
 
+	public String getLocalAIAPIKey() {
+		return localAIAPIKey;
+	}
+
 	public int getDefaultMaxTokens() {
 		return defaultMaxTokens;
 	}
-
 }
