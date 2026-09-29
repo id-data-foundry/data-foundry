@@ -1,0 +1,11 @@
+@(ds : Dataset, token: String = "")
+<div class="row card" style="border: #ff9100 solid 2px; margin: 8rem 0 4rem; padding: 1rem;">
+	<div class="col s12">
+
+        <h5 class="red-text">DUPLICATE DATASET</h5>
+        <a href="@routes.DatasetsController.duplicate(ds.getId())" class="btn white-text col s2" style="background-color: #ff9100;">APPLY</a>
+        <p>
+            &emsp;Duplicate the dataset with the same configuration.
+        </p>
+	</div>
+</div>

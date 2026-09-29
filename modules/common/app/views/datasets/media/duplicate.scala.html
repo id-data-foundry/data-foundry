@@ -1,0 +1,13 @@
+@(token : String, dataset : Dataset)
+@main("Duplicate dataset", "profile") {
+  @elements.dataset.datasetDuplicateTitlebar(dataset)
+  <div class="row">
+    <form class="col s12" onsubmit="return checkDate()" method="POST"
+        action="@api.routes.MediaDSController.addMe(dataset.getProject().getId())">
+      @elements.dataset.duplicateForm(dataset, token)
+    </form>
+  </div>
+
+  @elements.dataset.datasetMetaData(dataset)
+
+}

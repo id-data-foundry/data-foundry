@@ -178,6 +178,9 @@ GET 		/datasets/download/:id/participant/:participant_id			controllers.DatasetsC
 GET 		/datasets/downloadPublic/*token								controllers.DatasetsController.downloadPublic(request: Request, token: String, cluster_id: Long ?= -1L, limit: Long ?= -1L, start: Long ?= -1L, end: Long ?= -1L)
 GET         /download/*token											controllers.DatasetsController.downloadTemporaryFile(request: Request, token: String)
 
+GET        /datasets/duplicate/:id                                     controllers.DatasetsController.duplicate(request: Request, id: Long)
+GET        /duplicate/:id                                              controllers.DatasetsController.duplicate(request: Request, id: Long)
+
 # reviews -------------------------------------------------------------------------------------------------------------
 
 GET			/review/						 					controllers.ReviewController.view(request: Request, invite_token: String ?= "")
@@ -419,13 +422,13 @@ GET			/datasets/survey/raw/:id.csv						controllers.api.SurveyDSController.downl
 GET			/datasets/survey/record/:id/*invite_token			controllers.api.SurveyDSController.recordForm(request: Request, id: Long, invite_token: String)
 POST		/datasets/survey/record/:id/*invite_token			controllers.api.SurveyDSController.record(request: Request, id: Long, invite_token: String)
 
-# fitbit data 
+# fitbit data
 GET			/datasets/fitbit/add/:id							controllers.api.FitbitDSController.add(request: Request, id: Long)
 POST		/datasets/fitbit/addMe/:id							controllers.api.FitbitDSController.addMe(request: Request, id: Long)
 POST		/datasets/fitbit/editMe/:id							controllers.api.FitbitDSController.editMe(request: Request, id: Long)
 GET 		/datasets/fitbit/heartrate/:id 						controllers.api.FitbitDSController.heartrate(request: Request, id: Long)
 
-# googlefit data 
+# googlefit data
 GET			/datasets/googlefit/add/:id							controllers.api.GoogleFitDSController.add(request: Request, id: Long)
 POST		/datasets/googlefit/addMe/:id						controllers.api.GoogleFitDSController.addMe(request: Request, id: Long)
 POST		/datasets/googlefit/editMe/:id						controllers.api.GoogleFitDSController.editMe(request: Request, id: Long)
