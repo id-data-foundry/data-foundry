@@ -112,7 +112,7 @@ libraryDependencies ++= Seq(
   "com.squareup.okhttp3" % "okhttp" % "4.10.0",
 
   // OpenDataLoader for PDF text extraction
-  "org.opendataloader" % "opendataloader-pdf-core" % "2.2.0" excludeAll(ExclusionRule(organization = "com.fasterxml.jackson.core")),
+  "org.opendataloader" % "opendataloader-pdf-core" % "2.5.11" excludeAll(ExclusionRule(organization = "com.fasterxml.jackson.core")),
 
   // Apache Tika to check file uploads
   "org.apache.tika" % "tika-core" % "3.2.3",
