@@ -115,7 +115,6 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 					.completedFuture(badRequest(err("Expecting a JSON object with a model", "bad_request")));
 		}
 		ApiCall call = callOpt.get();
-		((ObjectNode) json).put(REQUEST_API_TOKEN, call.apiKey());
 
 		// ---- streaming: piped straight through, no actor, no buffer ----
 		if (json.path(REQUEST_STREAM).asBoolean(false)) {

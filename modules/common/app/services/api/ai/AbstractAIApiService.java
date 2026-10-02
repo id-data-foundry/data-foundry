@@ -96,6 +96,10 @@ public class AbstractAIApiService extends GenericApiService {
 				json.put(REQUEST_MAX_TOKENS, defaultMaxTokens);
 			}
 		}
+
+		// remove internal parameters not supported by upstream OpenAI-compatible backends
+		json.remove(REQUEST_API_TOKEN);
+		json.remove(REQUEST_TASK);
 	}
 
 	public String getAiBaseUrl() {
