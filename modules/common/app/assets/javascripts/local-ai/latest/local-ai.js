@@ -17,6 +17,12 @@
  * limitations under the License.
  */
 const foundry = {
+  resolveServer: function (server) {
+    if (server && typeof server === "string" && server.trim().length > 0) {
+      return server.trim().replace(/\/+$/, "");
+    }
+    return typeof document !== "undefined" && document.location ? document.location.origin : "";
+  },
   textToText: async function (options) {
     const result = await foundry.textToTextWithUsage(options);
     return result ? result.text : undefined;
@@ -38,6 +44,7 @@ const foundry = {
     loadingElementSelector,
     resultElementSelector,
   }) {
+    server = foundry.resolveServer(server);
     if (!api_token) {
       // Do not run the function when no API key is given
       console.error("No API key provided.");
@@ -225,6 +232,7 @@ const foundry = {
     loadingElementSelector,
     resultElementSelector,
   }) {
+    server = foundry.resolveServer(server);
     if (!api_token) {
       console.error("No API key provided.");
       return;
@@ -312,6 +320,7 @@ const foundry = {
     loadingElementSelector,
     resultElementSelector
   }) {
+    server = foundry.resolveServer(server);
     if (logging) {
       console.log("Running text-to-image function");
     }
@@ -396,6 +405,7 @@ const foundry = {
     resultElementSelector,
     logging = true,
   }) {
+    server = foundry.resolveServer(server);
     if (!api_token) {
       // Do not run the function when no API key has been provided
       console.error("No API key provided.");
@@ -470,6 +480,7 @@ const foundry = {
     resultElementSelector,
     logging = true,
   }) {
+    server = foundry.resolveServer(server);
     if (!api_token) {
       // Do not run the function when no API key has been provided
       console.error("No API key provided.");
@@ -559,6 +570,7 @@ const foundry = {
     loadingElementSelector,
     resultElementSelector,
   }) {
+    server = foundry.resolveServer(server);
     if (!api_token) {
       // Do not run the function when no API key has been provided
       console.error("No API key provided.");
@@ -754,6 +766,7 @@ const foundry = {
     logging = true, // Set to false to remove console logging
     stopRec = false, // In order to stop the recording, pass isRecording = true
   }) {
+    server = foundry.resolveServer(server);
     // Start the loading indicator
     let loadingElement;
     if (loadingElementSelector) {
@@ -980,6 +993,7 @@ const foundry = {
     });
   },
   models: async function (api_token, server = document.location.origin) {
+    server = foundry.resolveServer(server);
     if (!api_token) {
       console.error("No api token provided!");
       return "No api token provided!";

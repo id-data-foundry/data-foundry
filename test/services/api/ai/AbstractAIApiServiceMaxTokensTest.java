@@ -113,7 +113,8 @@ public class AbstractAIApiServiceMaxTokensTest {
 
 		ObjectNode params = Json.newObject().put("model", "test-model")
 				.put(ApiServiceConstants.REQUEST_API_TOKEN, "secret-token")
-				.put(ApiServiceConstants.REQUEST_TASK, "chat_completion");
+				.put(ApiServiceConstants.REQUEST_TASK, "chat_completion")
+				.put(ApiServiceConstants.REQUEST_SERVER, "https://data-foundry.net");
 		RemoteApiRequest request = new RemoteApiRequest("chat", 1000, "user", "key", 1L, params);
 
 		service.testPreProcess(request);
@@ -122,5 +123,7 @@ public class AbstractAIApiServiceMaxTokensTest {
 				params.has(ApiServiceConstants.REQUEST_API_TOKEN));
 		assertFalse("task must be stripped before forwarding to upstream OpenAI-compatible LLM",
 				params.has(ApiServiceConstants.REQUEST_TASK));
+		assertFalse("server must be stripped before forwarding to upstream OpenAI-compatible LLM",
+				params.has(ApiServiceConstants.REQUEST_SERVER));
 	}
 }
