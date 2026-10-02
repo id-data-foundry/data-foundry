@@ -9,6 +9,7 @@ import models.Person;
 import play.Logger;
 import play.mvc.Http.Request;
 import play.mvc.Result;
+import utils.auth.Hash;
 import utils.auth.TokenResolverUtil;
 import utils.conf.ConfigurationUtils;
 
@@ -61,7 +62,7 @@ public class V2UserApiAuth extends AbstractApiAuth {
 
 		// check if this token is still set as _the_ access token for the particular user
 		Person user = Person.find.byId(userId);
-		if (user == null || user.getAccesscode() == null || !apiToken.equals(user.getAccesscode())) {
+		if (user == null || user.getAccesscode() == null || !Hash.constantTimeEquals(apiToken, user.getAccesscode())) {
 			logger.error("API token auth failed (user access token not set in user entity)");
 			return Optional.empty();
 		}
@@ -95,7 +96,7 @@ public class V2UserApiAuth extends AbstractApiAuth {
 
 		// check if this token is still set as _the_ access token for the particular user
 		Person user = Person.find.byId(userId);
-		if (user == null || user.getAccesscode() == null || !apiToken.equals(user.getAccesscode())) {
+		if (user == null || user.getAccesscode() == null || !Hash.constantTimeEquals(apiToken, user.getAccesscode())) {
 			return forbidden(errorJSONResponseObject(
 					"The API-Token was withdrawn from your user profile. Generate a new one if you want access again."));
 		}

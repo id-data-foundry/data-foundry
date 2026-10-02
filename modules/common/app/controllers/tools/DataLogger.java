@@ -38,6 +38,7 @@ import play.cache.SyncCacheApi;
 import play.filters.csrf.AddCSRFToken;
 import play.libs.Files.TemporaryFile;
 import play.libs.Json;
+import utils.auth.Hash;
 import play.mvc.Http.MultipartFormData;
 import play.mvc.Http.MultipartFormData.FilePart;
 import play.mvc.Http.Request;
@@ -110,7 +111,7 @@ public class DataLogger extends AbstractAsyncController {
 
 		// check whether dataset exists, belongs to project and is active
 		if (ds == null || !ds.getProject().getId().equals(project.getId()) || !ds.isActive()
-				|| !datasetToken.equals(ds.configuration(Dataset.API_TOKEN, ""))) {
+				|| !Hash.constantTimeEquals(datasetToken, ds.configuration(Dataset.API_TOKEN, ""))) {
 			return redirect(HOME);
 		}
 
@@ -154,7 +155,8 @@ public class DataLogger extends AbstractAsyncController {
 		// check API token (both internal and configuration)
 		String checkToken = token;
 		String internalToken = ds.getConfiguration().get(Dataset.API_TOKEN);
-		if (checkToken == null || (!ds.getApiToken().equals(checkToken) && !checkToken.equals(internalToken))) {
+		if (checkToken == null || (!Hash.constantTimeEquals(ds.getApiToken(), checkToken)
+				&& !Hash.constantTimeEquals(checkToken, internalToken))) {
 			return forbidden("Api token is not correct");
 		}
 
@@ -206,7 +208,8 @@ public class DataLogger extends AbstractAsyncController {
 			// check API token (both internal and configuration)
 			String checkToken = token;
 			String internalToken = ds.getConfiguration().get(Dataset.API_TOKEN);
-			if (checkToken == null || (!ds.getApiToken().equals(checkToken) && !checkToken.equals(internalToken))) {
+			if (checkToken == null || (!Hash.constantTimeEquals(ds.getApiToken(), checkToken)
+					&& !Hash.constantTimeEquals(checkToken, internalToken))) {
 				return forbidden("Api token is not correct");
 			}
 
@@ -317,7 +320,8 @@ public class DataLogger extends AbstractAsyncController {
 			// check API token (both internal and configuration)
 			String checkToken = token;
 			String internalToken = ds.getConfiguration().get(Dataset.API_TOKEN);
-			if (checkToken == null || (!ds.getApiToken().equals(checkToken) && !checkToken.equals(internalToken))) {
+			if (checkToken == null || (!Hash.constantTimeEquals(ds.getApiToken(), checkToken)
+					&& !Hash.constantTimeEquals(checkToken, internalToken))) {
 				return forbidden("Api token is not correct");
 			}
 
@@ -431,7 +435,8 @@ public class DataLogger extends AbstractAsyncController {
 			// check API token (both internal and configuration)
 			String checkToken = token;
 			String internalToken = ds.getConfiguration().get(Dataset.API_TOKEN);
-			if (checkToken == null || (!ds.getApiToken().equals(checkToken) && !checkToken.equals(internalToken))) {
+			if (checkToken == null || (!Hash.constantTimeEquals(ds.getApiToken(), checkToken)
+					&& !Hash.constantTimeEquals(checkToken, internalToken))) {
 				return forbidden("Api token is not correct");
 			}
 

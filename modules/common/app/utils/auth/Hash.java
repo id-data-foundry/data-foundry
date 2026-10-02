@@ -101,4 +101,18 @@ public class Hash {
 		}
 		return storedHash.startsWith(HASH_PREFIX);
 	}
+
+	/**
+	 * Constant-time comparison between two strings to mitigate timing attacks against sensitive tokens.
+	 * 
+	 * @param a
+	 * @param b
+	 * @return true if strings are equal, false otherwise
+	 */
+	public static boolean constantTimeEquals(String a, String b) {
+		if (a == null || b == null) {
+			return a == b;
+		}
+		return MessageDigest.isEqual(a.getBytes(StandardCharsets.UTF_8), b.getBytes(StandardCharsets.UTF_8));
+	}
 }

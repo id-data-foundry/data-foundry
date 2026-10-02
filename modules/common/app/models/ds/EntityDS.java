@@ -32,6 +32,7 @@ import play.Logger;
 import play.libs.Json;
 import services.notifications.Notifications;
 import services.outlets.OOCSIStreamOutService;
+import utils.auth.Hash;
 
 public class EntityDS extends LinkedDS {
 
@@ -253,7 +254,7 @@ public class EntityDS extends LinkedDS {
 		Optional<String> internalItemToken = internalGetItemToken(resource_id);
 		if (internalItemToken.isPresent()) {
 			// we have a token set, is the request token set AND same as the internal one?
-			if (token.isEmpty() || !token.get().equals(internalItemToken.get())) {
+			if (token.isEmpty() || !Hash.constantTimeEquals(token.get(), internalItemToken.get())) {
 				return Optional.empty();
 			}
 		}

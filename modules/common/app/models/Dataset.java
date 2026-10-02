@@ -36,6 +36,7 @@ import play.data.format.Formats;
 import play.libs.Json;
 import utils.DataUtils;
 import utils.DateUtils;
+import utils.auth.Hash;
 
 @Cache(enableBeanCache = true, naturalKey = { "refId" })
 @Entity
@@ -395,7 +396,7 @@ public class Dataset extends Model {
 	 */
 	public boolean isAuthorized(String apiToken) {
 		return this.isOpenParticipation() && apiToken != null && apiToken.length() > 10
-				&& apiToken.equals(this.getApiToken());
+				&& Hash.constantTimeEquals(apiToken, this.getApiToken());
 	}
 
 	/**
@@ -408,7 +409,7 @@ public class Dataset extends Model {
 	 */
 	public boolean isAuthorized(String sourceId, String apiToken) {
 		return (this.openParticipation || getProject().hasDevice(sourceId)) && apiToken != null
-				&& apiToken.length() > 10 && apiToken.equals(this.getApiToken());
+				&& apiToken.length() > 10 && Hash.constantTimeEquals(apiToken, this.getApiToken());
 	}
 
 	/**

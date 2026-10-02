@@ -42,6 +42,7 @@ import services.api.ai.UnmanagedAIApiService;
 import services.email.NotificationService;
 import services.search.SearchService;
 import utils.DateUtils;
+import utils.auth.Hash;
 import utils.auth.Roles;
 import utils.auth.TokenResolverUtil;
 import utils.components.OnboardingSupport;
@@ -326,7 +327,7 @@ public class UsersController extends AbstractAsyncController {
 
 		// check token correctness from cache
 		Optional<String> cachedToken = cache.get("email_reset_" + username);
-		if (!cachedToken.isPresent() || !token.equals(cachedToken.get())) {
+		if (!cachedToken.isPresent() || !Hash.constantTimeEquals(token, cachedToken.get())) {
 			logger.info("Reset token for " + username + " is invalid or expired.");
 			return redirect(LANDING).addingToSession(request, "error", "Your reset token is invalid or expired.");
 		}
@@ -351,7 +352,7 @@ public class UsersController extends AbstractAsyncController {
 
 		// check token correctness
 		Optional<String> cachedToken = cache.get("email_reset_" + username);
-		if (!cachedToken.isPresent() || !token.equals(cachedToken.get())) {
+		if (!cachedToken.isPresent() || !Hash.constantTimeEquals(token, cachedToken.get())) {
 			logger.info("Reset token for " + username + " is invalid or expired.");
 			return redirect(LANDING).addingToSession(request, "error", "Password reset token is invalid or expired.");
 		}
