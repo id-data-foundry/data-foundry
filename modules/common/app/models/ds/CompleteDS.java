@@ -633,7 +633,7 @@ public class CompleteDS extends LinkedDS {
 	}
 
 	private Optional<String> readFileContentFromDisk(Long fileId) {
-		Optional<File> fileOpt = getFile(fileId);
+		Optional<File> fileOpt = getFileInternal(fileId, dataTableName);
 		if (fileOpt.isPresent()) {
 			try {
 				return Optional.of(FileUtils.readFileToString(fileOpt.get(), Charset.defaultCharset()));
