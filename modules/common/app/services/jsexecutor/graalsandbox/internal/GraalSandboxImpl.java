@@ -8,6 +8,9 @@ import javax.script.ScriptException;
 
 import org.graalvm.polyglot.Context;
 import org.graalvm.polyglot.HostAccess;
+import org.graalvm.polyglot.PolyglotException;
+import org.graalvm.polyglot.ResourceLimits;
+import org.graalvm.polyglot.Source;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -18,6 +21,7 @@ import delight.nashornsandbox.exceptions.ScriptCPUAbuseException;
 import delight.nashornsandbox.internal.EvaluateOperation;
 import delight.nashornsandbox.internal.JsSanitizer;
 import delight.nashornsandbox.internal.NashornSandboxImpl;
+import delight.nashornsandbox.internal.ScriptEngineOperation;
 import services.jsexecutor.graalsandbox.GraalSandbox;
 
 /**
@@ -41,13 +45,19 @@ public class GraalSandboxImpl extends NashornSandboxImpl implements GraalSandbox
 		        .allowPolyglotAccess(org.graalvm.polyglot.PolyglotAccess.NONE)
 		        .allowHostClassLookup(s -> false)
 		        .allowHostAccess(HostAccess.ALL)
+		        .resourceLimits(ResourceLimits.newBuilder().statementLimit(50000, src -> {
+		            if (src == null || src.isInternal()) {
+		                return false;
+		            }
+		            // Exclude large library scripts like js-beautify (5900+ lines) from statement limits
+		            if (src.getLineCount() > 2000 || src.getLength() > 50000) {
+		                return false;
+		            }
+		            return true;
+		        }).build())
 		), params);
 		isStrict = Arrays.asList(params).contains("-strict");
 		Bindings bindings = this.scriptEngine.getBindings(ScriptContext.ENGINE_SCOPE);
-		// allow the lookup of Java classes via the (deprecated) ClassFilter
-//		bindings.put("polyglot.js.allowHostClassLookup",
-//		        (Predicate<String>) s -> sandboxClassFilter.getStringCache().contains(s));
-//		bindings.put("polyglot.js.allowHostAccess", true);
 		bindings.put("__it", new GraalInterruptTest());
 	}
 
@@ -101,6 +111,38 @@ public class GraalSandboxImpl extends NashornSandboxImpl implements GraalSandbox
 		return bindings;
 	}
 
+	@Override
+	protected Object executeSandboxedOperation(ScriptEngineOperation op)
+	        throws ScriptCPUAbuseException, ScriptException {
+		try {
+			if (this.scriptEngine instanceof GraalJSScriptEngine) {
+				Context polyglotContext = ((GraalJSScriptEngine) this.scriptEngine).getPolyglotContext();
+				if (polyglotContext != null) {
+					polyglotContext.resetLimits();
+				}
+			}
+		} catch (Exception e) {
+			LOG.warn("Could not reset resource limits before execution", e);
+		}
+
+		try {
+			return super.executeSandboxedOperation(op);
+		} catch (PolyglotException pe) {
+			if (pe.isResourceExhausted()) {
+				throw new ScriptCPUAbuseException("Script exceeded resource limits: " + pe.getMessage(), false, pe);
+			}
+			throw pe;
+		} catch (Exception e) {
+			if (e.getCause() instanceof PolyglotException) {
+				PolyglotException pe = (PolyglotException) e.getCause();
+				if (pe.isResourceExhausted()) {
+					throw new ScriptCPUAbuseException("Script exceeded resource limits: " + pe.getMessage(), false, pe);
+				}
+			}
+			throw e;
+		}
+	}
+
 	/**
 	 * If a script context is provided, its bindings will be evaluated inside the script engine itself and merged into
 	 * the engine bindings. Nashorn checks against globals but Graal seems to override global entries if the same key is
@@ -111,31 +153,46 @@ public class GraalSandboxImpl extends NashornSandboxImpl implements GraalSandbox
 	@Override
 	public Object eval(final String js, final SandboxScriptContext scriptContext, final Bindings bindings)
 	        throws ScriptCPUAbuseException, ScriptException {
-		produceSecureBindings(); // We need this here for bindings
-		final JsSanitizer sanitizer = getSanitizer();
-		// see https://github.com/javadelight/delight-nashorn-sandbox/issues/73
-		final String blockAccessToEngine = "Object.defineProperty(this, 'engine', {});"
-		        + "Object.defineProperty(this, 'context', {});delete this.__noSuchProperty__;";
-		String securedJs;
-		if (scriptContext == null) {
-			securedJs = blockAccessToEngine + sanitizer.secureJs(js);
-		} else {
-			// Unfortunately, blocking access to the engine property interferes with setting
-			// a script context needs further investigation
-			securedJs = sanitizer.secureJs(js);
-		}
+		try {
+			produceSecureBindings(); // We need this here for bindings
+			final JsSanitizer sanitizer = getSanitizer();
+			// see https://github.com/javadelight/delight-nashorn-sandbox/issues/73
+			final String blockAccessToEngine = "Object.defineProperty(this, 'engine', {});"
+			        + "Object.defineProperty(this, 'context', {});delete this.__noSuchProperty__;";
+			String securedJs;
+			if (scriptContext == null) {
+				securedJs = blockAccessToEngine + sanitizer.secureJs(js);
+			} else {
+				// Unfortunately, blocking access to the engine property interferes with setting
+				// a script context needs further investigation
+				securedJs = sanitizer.secureJs(js);
+			}
 
-		// remove linked class, because we have it injected in bindings earlier
-		securedJs = securedJs.replace("var __it=Java.type('delight.nashornsandbox.internal.InterruptTest');", "");
+			// remove linked class, because we have it injected in bindings earlier
+			securedJs = securedJs.replace("var __it=Java.type('delight.nashornsandbox.internal.InterruptTest');", "");
 
-		EvaluateOperation op;
-		final Bindings securedBindings = secureBindings(bindings);
-		if (scriptContext != null) {
-			op = new EvaluateOperation(isStrict ? "'use strict';" + securedJs : securedJs, scriptContext.getContext(),
-			        securedBindings);
-		} else {
-			op = new EvaluateOperation(isStrict ? "'use strict';" + securedJs : securedJs, null, securedBindings);
+			EvaluateOperation op;
+			final Bindings securedBindings = secureBindings(bindings);
+			if (scriptContext != null) {
+				op = new EvaluateOperation(isStrict ? "'use strict';" + securedJs : securedJs, scriptContext.getContext(),
+				        securedBindings);
+			} else {
+				op = new EvaluateOperation(isStrict ? "'use strict';" + securedJs : securedJs, null, securedBindings);
+			}
+			return executeSandboxedOperation(op);
+		} catch (PolyglotException pe) {
+			if (pe.isResourceExhausted()) {
+				throw new ScriptCPUAbuseException("Script exceeded resource limits: " + pe.getMessage(), false, pe);
+			}
+			throw pe;
+		} catch (Exception e) {
+			if (e.getCause() instanceof PolyglotException) {
+				PolyglotException pe = (PolyglotException) e.getCause();
+				if (pe.isResourceExhausted()) {
+					throw new ScriptCPUAbuseException("Script exceeded resource limits: " + pe.getMessage(), false, pe);
+				}
+			}
+			throw e;
 		}
-		return executeSandboxedOperation(op);
 	}
 }

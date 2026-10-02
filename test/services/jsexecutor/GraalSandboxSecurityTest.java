@@ -61,4 +61,27 @@ public class GraalSandboxSecurityTest {
 			assertTrue(true);
 		}
 	}
+
+	@Test
+	public void testStatementLimitTripsOnInfiniteLoop() {
+		GraalSandbox sandbox = GraalSandboxes.create();
+		try {
+			sandbox.eval("var i = 0; while(true) { i++; }");
+			fail("Infinite loop should trip statement or CPU resource limits");
+		} catch (Exception e) {
+			// Expected: ScriptCPUAbuseException or PolyglotException with resource limit exceeded
+			assertTrue(e.getMessage() != null && (e.getMessage().toLowerCase().contains("statement") || e.getMessage().toLowerCase().contains("limit") || e.getMessage().toLowerCase().contains("cpu") || e.getMessage().toLowerCase().contains("resource")));
+		}
+	}
+
+	@Test
+	public void testSuccessiveEvaluationsResetLimits() throws Exception {
+		GraalSandbox sandbox = GraalSandboxes.create();
+		// Run multiple evaluations that each perform loops, ensuring limits are reset per execution
+		for (int i = 0; i < 20; i++) {
+			Object result = sandbox.eval("var count = 0; for (var j = 0; j < 500; j++) { count += j; }; count;");
+			assertNotNull(result);
+			assertEquals(124750, ((Number) result).intValue());
+		}
+	}
 }
