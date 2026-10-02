@@ -50,7 +50,6 @@ COPY project ./project
 COPY public ./public
 COPY dist ./dist
 COPY documentation ./documentation
-COPY lib ./lib
 
 RUN cd ./documentation && \
     bundle config set jobs 1 && \
@@ -77,18 +76,23 @@ WORKDIR /app
 # Copy the built JAR file from the build stage
 COPY --from=builder /app/target/universal/datafoundry-*.zip app.zip
 
-# Unpack application and rename
-RUN microdnf install unzip && \
+# Unpack application, configure non-root user, and rename
+RUN microdnf install -y unzip shadow-utils && \
     unzip app.zip && \
     mv datafoundry* datafoundry && \
     rm app.zip && \
-    microdnf remove unzip
+    groupadd -r datafoundry -g 10001 && \
+    useradd -r -u 10001 -g datafoundry -d /app datafoundry && \
+    chown -R datafoundry:datafoundry /app && \
+    microdnf remove -y unzip shadow-utils && \
+    microdnf clean all
 
 # Expose the application port
 EXPOSE 9000
 
-# Switch to DF directory
+# Switch to DF directory and unprivileged user
 WORKDIR /app/datafoundry
+USER datafoundry:datafoundry
 CMD ["bin/datafoundry", "-Dplay.evolutions.autoApply=true", "-Dconfig.file=/app/datafoundry/conf/application.conf", "-Dlogger.file=/app/datafoundry/conf/logback.xml"]
 
 ## ---------------------------------------------------------------------------
