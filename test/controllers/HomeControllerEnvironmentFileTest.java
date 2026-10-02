@@ -50,15 +50,17 @@ public class HomeControllerEnvironmentFileTest extends WithApplication {
 	private static final List<File> createdDirs = new ArrayList<>();
 
 	@BeforeClass
-	public static void setUpDocumentationFixtures() {
+	public static void setUpEnvironmentFixtures() {
 		try {
-			ensureDocumentationFixtures(new File(".").getCanonicalFile());
+			File root = new File(".").getCanonicalFile();
+			ensureDocumentationFixtures(root);
+			ensureContentFixtures(root);
 		} catch (Exception ignored) {
 		}
 	}
 
 	@AfterClass
-	public static void cleanupDocumentationFixtures() {
+	public static void cleanupEnvironmentFixtures() {
 		for (File f : createdFiles) {
 			try {
 				if (f.exists()) {
@@ -119,6 +121,29 @@ public class HomeControllerEnvironmentFileTest extends WithApplication {
 				"<html><body><h1>Data Protection</h1></body></html>");
 	}
 
+	private static void ensureContentFixtures(File root) {
+		if (root == null) {
+			return;
+		}
+
+		File distContent;
+		File dataFoundryDist = new File(root, "DataFoundry/dist");
+		if (dataFoundryDist.exists() && dataFoundryDist.isDirectory()) {
+			distContent = new File(dataFoundryDist, "content");
+		} else {
+			distContent = new File(root, "dist/content");
+		}
+
+		File contactFile = new File(distContent, "contact.md");
+		if (contactFile.exists()) {
+			return; // Fixtures or real content already present
+		}
+
+		createDir(distContent);
+		createFile(contactFile, "# Contact\n\nContact us at info@example.com\n");
+		createFile(new File(distContent, "data-protection.md"), "# Data Protection\n\nPrivacy guidelines\n");
+	}
+
 	private static void createDir(File dir) {
 		if (!dir.exists()) {
 			if (dir.mkdirs()) {
@@ -154,6 +179,7 @@ public class HomeControllerEnvironmentFileTest extends WithApplication {
 		sessionStore = app.injector().instanceOf(SessionStore.class);
 
 		ensureDocumentationFixtures(environment.rootPath());
+		ensureContentFixtures(environment.rootPath());
 
 		testUser = new Person();
 		testUser.setFirstname("Test");
