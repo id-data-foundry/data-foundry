@@ -223,7 +223,7 @@ public class ActivityLoggerController extends AbstractAsyncController {
 					.filter(d -> d.getRefId().equals(participantId)).findFirst();
 
 			if (participantOpt.isEmpty() && !ds.isOpenParticipation()) {
-				cache.set("ActivityLogger_httpPostDiagnostics_" + datasetId,
+				cache.set("DatasetsController_httpPostDiagnostics_" + datasetId,
 						"Participant " + participantId + " not found at " + new Date(), 300);
 				return notFound("Source participant not registered");
 			}
@@ -246,7 +246,7 @@ public class ActivityLoggerController extends AbstractAsyncController {
 				diaryDS.addRecord(participantId, new Date(), activity, text);
 			}
 
-			cache.set("ActivityLogger_httpPostDiagnostics_" + datasetId,
+			cache.set("DatasetsController_httpPostDiagnostics_" + datasetId,
 					"Participant " + participantId + " logged activity at " + new Date(), 300);
 
 			return ok("Activity logged successfully.");

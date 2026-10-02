@@ -416,9 +416,6 @@ public class DatasetsController extends AbstractAsyncController {
 	@Authenticated(UserAuth.class)
 	public Result downloadTemporaryFile(Request request, String token) {
 		Optional<String> filePath = cache.get("cachedTemporaryFile_" + token);
-		if (!filePath.isPresent()) {
-			filePath = cache.get("publishingStatus_" + token);
-		}
 		if (filePath.isPresent()) {
 			File file = new File(filePath.get());
 			if (file.exists()) {
