@@ -82,6 +82,9 @@ public class Dataset extends Model {
 	public static final String CHATBOT_RAG_SCORE_THRESHOLD = "chatbot_rag_score_threshold";
 	public static final String CHATBOT_STORE_CHATS = "chatbot_store_chats";
 	public static final String CHATBOT_SHOW_SOURCES = "chatbot_show_sources";
+	public static final String CHATBOT_ENABLE_AGENTIC = "chatbot_enable_agentic";
+	public static final String CHATBOT_ENABLE_MULTISESSION = "chatbot_enable_multisession";
+	public static final String CHATBOT_ENABLE_USER_MEMORY = "chatbot_enable_user_memory";
 
 	// Activity Logger
 	public static final String DIRECT_EVENT_ACTIVITIES = "direct_event_activities";

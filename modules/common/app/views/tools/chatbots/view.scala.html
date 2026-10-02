@@ -1,4 +1,4 @@
-@(user: Person, dataset: Dataset, files: List[controllers.tools.ChatbotController.FileWithIndexStatus], localModelMetadata: services.api.ai.LocalModelMetadata, csrfToken: String)
+@(user: Person, dataset: Dataset, files: List[controllers.tools.ChatbotController.FileWithIndexStatus], localModelMetadata: services.api.ai.LocalModelMetadata, agentsMdContent: String = "", csrfToken: String)
 @main(dataset.getName(), "profile") {
 
   <style>
@@ -99,6 +99,9 @@
               }
             </select>
             <label>AI Model</label>
+            <div id="agentic-model-notice" style="margin-top: 6px; @if(!dataset.configuration(Dataset.CHATBOT_ENABLE_AGENTIC, "false").equals("true")){display:none;}">
+              <small style="color: #0284c7; font-weight: 500;">🤖 In Agentic mode, the smart coding agent model with full tool support is automatically used.</small>
+            </div>
           </div>
           <div class="col s12">
             <p>
@@ -126,6 +129,48 @@
                 <input type="checkbox" name="@Dataset.CHATBOT_STORE_CHATS" @if(!dataset.configuration(Dataset.CHATBOT_STORE_CHATS, "").isEmpty()){checked}>
                 <span class="lever"></span>
                 Save all chats
+              </label>
+            </div>
+          </div>
+          <div class="col s12">
+             <br><b>Agentic Engine (AgentScope)</b><br>
+             <small style="color: #666;">Runs the bot as an autonomous agent supporting tool calls, custom guidelines (<code>AGENTS.md</code>), and memory tools. Uses a smart tool-calling model.</small>
+          </div>
+          <div class="input-field col s12">
+            <div class="switch">
+              <label>
+                Standard (Legacy)
+                <input type="checkbox" name="@Dataset.CHATBOT_ENABLE_AGENTIC" @if(dataset.configuration(Dataset.CHATBOT_ENABLE_AGENTIC, "false").equals("true")){checked}>
+                <span class="lever"></span>
+                Agentic (AgentScope)
+              </label>
+            </div>
+          </div>
+          <div class="col s12">
+             <br><b>User Memory & Notes</b><br>
+             <small style="color: #666;">Allows the bot to retain key user profile facts across sessions and edit markdown files in the user's private notes space.</small>
+          </div>
+          <div class="input-field col s12">
+            <div class="switch">
+              <label>
+                Disabled
+                <input type="checkbox" name="@Dataset.CHATBOT_ENABLE_USER_MEMORY" @if(dataset.configuration(Dataset.CHATBOT_ENABLE_USER_MEMORY, "false").equals("true")){checked}>
+                <span class="lever"></span>
+                Enabled
+              </label>
+            </div>
+          </div>
+          <div class="col s12">
+             <br><b>Multi-Session Support</b><br>
+             <small style="color: #666;">Allows users to maintain, label, and switch between multiple chat sessions.</small>
+          </div>
+          <div class="input-field col s12">
+            <div class="switch">
+              <label>
+                Single Session
+                <input type="checkbox" name="@Dataset.CHATBOT_ENABLE_MULTISESSION" @if(dataset.configuration(Dataset.CHATBOT_ENABLE_MULTISESSION, "false").equals("true")){checked}>
+                <span class="lever"></span>
+                Multiple Sessions
               </label>
             </div>
           </div>
@@ -205,6 +250,38 @@
       <div class="col s12" id="results"></div>
     </div>
   </form>
+
+  <hr>
+
+  <!-- AGENTS.md Editor Card -->
+  <div class="row">
+    <div class="col s12">
+      <div class="card" style="border: 1px solid #e0e0e0; border-radius: 6px;">
+        <div class="card-content">
+          <span class="card-title" style="font-size: 1.2rem; font-weight: 600;">🤖 Agent Guidelines & Memory Configuration (<code>AGENTS.md</code>)</span>
+          <p style="margin-bottom: 12px; color: #555;">
+            Define the persona, reasoning directives, memory guidelines, and operational rules for the AgentScope agent. Changes are hot-reloaded automatically.
+          </p>
+          <form hx-post="@controllers.tools.routes.ChatbotController.saveAgentsMd(dataset.getId())"
+                hx-target="#agents-md-status"
+                hx-swap="innerHTML"
+                hx-disabled-elt="button"
+                hx-indicator="#agents-md-indicator">
+            <input type="hidden" name="csrfToken" value="@csrfToken">
+            <textarea name="agents_md" style="height: 18rem; background: white; padding: 0.75rem; font-family: monospace; font-size: 0.85rem; border: 1px solid #ccc; border-radius: 4px;">@agentsMdContent</textarea>
+            <div style="margin-top: 10px; display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+              <button type="submit" class="btn">Save AGENTS.md</button>
+              <button type="button" id="insert-agents-template-btn" class="btn-flat" style="border: 1px solid #94a3b8; font-size: 0.85rem;">📋 Insert Memory & Guidelines Starter</button>
+              <div id="agents-md-indicator" class="progress htmx-indicator" style="width: 150px; margin: 0;">
+                <div class="indeterminate"></div>
+              </div>
+              <span id="agents-md-status"></span>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <hr>
 
@@ -471,6 +548,46 @@ fetch("[HOST]/api/v1/chatbots/@dataset.getId()/file", {
       const dataTransfer = new DataTransfer();
       files.forEach(file => dataTransfer.items.add(file));
       return dataTransfer.files;
+    }
+
+    // Toggle agentic model notice when agentic engine switch is clicked
+    const agenticSwitch = document.querySelector('input[name="@Dataset.CHATBOT_ENABLE_AGENTIC"]');
+    if (agenticSwitch) {
+      agenticSwitch.addEventListener('change', () => {
+        const notice = document.getElementById('agentic-model-notice');
+        if (notice) {
+          notice.style.display = agenticSwitch.checked ? 'block' : 'none';
+        }
+      });
+    }
+
+    // Insert starter AGENTS.md template
+    const insertTemplateBtn = document.getElementById('insert-agents-template-btn');
+    const agentsMdTextarea = document.querySelector('textarea[name="agents_md"]');
+    if (insertTemplateBtn && agentsMdTextarea) {
+      insertTemplateBtn.addEventListener('click', () => {
+        if (!agentsMdTextarea.value.trim() || confirm('Replace current AGENTS.md with the recommended memory & guidelines starter template?')) {
+          agentsMdTextarea.value = `# Persona & Role
+You are an intelligent, proactive assistant with persistent memory and note-taking capabilities.
+
+# Memory & Long-Term Knowledge Directives
+1. **Proactive Fact Extraction**:
+   - Whenever the user mentions their name, academic discipline, research topics, project goals, personal background, or technical preferences, **immediately call \`update_user_memory\`**.
+   - Keep the \`topic\` concise and lowercase with underscores (e.g. \`user_name\`, \`research_topic\`, \`academic_field\`, \`preferred_language\`, \`project_deadline\`).
+   - Keep the \`note\` factual and clear.
+
+2. **Notes & Document Management**:
+   - When the user asks you to take notes, write an outline, draft a study guide, or summarize decisions, use \`write_user_file\` to write the content into a markdown file (e.g. \`notes.md\` or \`study_guide.md\`).
+   - When the user asks what notes they have, call \`read_user_file\`.
+
+3. **Knowledge Base Search**:
+   - If the user asks about dataset reference materials, policies, or technical papers uploaded to this bot, call \`search_knowledge_base\` with a targeted query.
+
+# Conversational Style
+- When you store a memory, briefly acknowledge it in your response (e.g. "I've noted your research topic on Wearable Sensors in your profile.").
+- Be concise, helpful, and organized.`;
+        }
+      });
     }
   </script>
 }

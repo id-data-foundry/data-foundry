@@ -1,4 +1,4 @@
-@(user: Person, dataset: Dataset, conversationId: String, csrfToken: String)
+@(user: Person, dataset: Dataset, conversationId: String, csrfToken: String, files: java.util.List[controllers.tools.ChatbotController.FileWithIndexStatus] = java.util.Collections.emptyList())
 @main(dataset.getName(), "profile") {
 
   <style>
@@ -66,6 +66,32 @@
         <div class="card-content">
           <details>
             <summary style="cursor: pointer; font-weight: 500;">How it works (Workflow Diagram)</summary>
+            @if(dataset.configuration(Dataset.CHATBOT_ENABLE_AGENTIC, "false").equals("true")) {
+            <div class="mermaid" style="margin-top: 20px; display: flex; justify-content: center;">
+              sequenceDiagram
+                participant User
+                participant Agent as AgentScope Harness
+                participant Tools as Agent Toolkit
+                participant Memory as Sandboxed Memory
+                participant KB as Knowledge Base (RAG)
+                participant LLM as Model Proxy
+
+                User->>Agent: Prompt (with Zero-Hop Profile)
+                loop ReAct Agentic Loop
+                    Agent->>LLM: Reason & Plan Action
+                    LLM-->>Agent: Action (Tool Call or Final Answer)
+                    opt On-Demand Knowledge Retrieval
+                        Agent->>KB: search_knowledge_base(query)
+                        KB-->>Agent: Matching document chunks
+                    end
+                    opt User Memory Retention
+                        Agent->>Memory: update_user_memory / write_user_file
+                        Memory-->>Agent: File update status
+                    end
+                end
+                Agent-->>User: Assistant Response + Activity Badges + Citations
+            </div>
+            } else {
             <div class="mermaid" style="margin-top: 20px; display: flex; justify-content: center;">
               sequenceDiagram
                 participant User
@@ -74,20 +100,72 @@
                 participant AI as AI Service
 
                 User->>Chatbot: Send message
-                
                 Chatbot->>AI: Optimize message for searching
                 AI-->>Chatbot: Searchable query
-                
                 rect rgb(245, 245, 245)
                     Note over Chatbot, KB: Retrieval Phase
                     Chatbot->>KB: Search for relevant context
                     KB-->>Chatbot: Provide matching data
                 end
-
                 Chatbot->>AI: Process request (Query + Context + History)
                 AI-->>Chatbot: Generated response
                 Chatbot-->>User: Deliver response
             </div>
+            }
+          </details>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  @if(dataset.configuration(Dataset.CHATBOT_ENABLE_USER_MEMORY, "false").equals("true")) {
+  <div class="row">
+    <div class="col s12">
+      <div class="card" style="border: 1px solid #e2e8f0; border-radius: 6px;">
+        <div class="card-content">
+          <details open>
+            <summary style="cursor: pointer; font-weight: 600; color: #0369a1;">🧠 Live User Memory & Notes Inspection</summary>
+            <div id="test-memory-inspection" class="user-memory-container" style="margin-top: 12px;" hx-get="@controllers.tools.routes.ChatbotController.getUserMemory(dataset.getId())" hx-trigger="load, htmx:afterRequest from:form">
+              <p style="color: #64748b;">Loading memory snapshot...</p>
+            </div>
+          </details>
+        </div>
+      </div>
+    </div>
+  </div>
+  }
+
+  <div class="row">
+    <div class="col s12">
+      <div class="card" style="border: 1px solid #e2e8f0; border-radius: 6px;">
+        <div class="card-content" style="padding: 12px 20px;">
+          <details>
+            <summary style="cursor: pointer; font-weight: 600; color: #334155;">
+              📚 Dataset Knowledge Base: 
+              @if(files.isEmpty()) {
+                <span style="color: #64748b; font-weight: 400;">No documents uploaded (search_knowledge_base inactive)</span>
+              } else {
+                <span style="color: #059669; font-weight: 600;">@files.size() document(s) available for on-demand search</span>
+              }
+            </summary>
+            @if(!files.isEmpty()) {
+              <div style="margin-top: 10px; font-size: 0.85rem;">
+                <ul style="margin: 0; padding-left: 20px;">
+                @for(fileWithStatus <- files) {
+                  @if(!fileWithStatus.file.link.startsWith("chat_")) {
+                    <li>
+                      <code>@fileWithStatus.file.link</code>
+                      @if(fileWithStatus.hasIndex) {
+                        <span style="color: #16a34a;">(indexed ✓)</span>
+                      } else {
+                        <span style="color: #d97706;">(pending index ⚙️)</span>
+                      }
+                    </li>
+                  }
+                }
+                </ul>
+              </div>
+            }
           </details>
         </div>
       </div>
@@ -109,6 +187,33 @@
     hx-indicator=".htmx-indicator"
     hx-disabled-elt="button,a">
     <input type="hidden" name="csrfToken" value="@csrfToken">
+
+    <div class="row" style="margin-bottom: 8px;">
+      <div class="col s12">
+        <span style="font-size: 0.8rem; font-weight: 600; color: #475569;">💡 Quick-test prompts:</span>
+        <div style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 6px;">
+          <button type="button" class="quick-prompt-btn" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 14px; padding: 2px 10px; font-size: 0.75rem; cursor: pointer; color: #334155;"
+                  data-prompt="Hi! Please remember that my name is Alice, and my research topic is wearable haptics.">
+            🧠 Remember my topic (update_user_memory)
+          </button>
+          <button type="button" class="quick-prompt-btn" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 14px; padding: 2px 10px; font-size: 0.75rem; cursor: pointer; color: #334155;"
+                  data-prompt="Please write a 3-bullet research plan for my wearable haptics project and save it to notes.md.">
+            📝 Write notes.md (write_user_file)
+          </button>
+          <button type="button" class="quick-prompt-btn" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 14px; padding: 2px 10px; font-size: 0.75rem; cursor: pointer; color: #334155;"
+                  data-prompt="What is my research topic and what notes do I have?">
+            🔍 Recall facts & notes
+          </button>
+          @if(!files.isEmpty()) {
+          <button type="button" class="quick-prompt-btn" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 14px; padding: 2px 10px; font-size: 0.75rem; cursor: pointer; color: #334155;"
+                  data-prompt="What do the uploaded knowledge documents say about the main research questions?">
+            📚 Search Knowledge Base
+          </button>
+          }
+        </div>
+      </div>
+    </div>
+
     <div class="row">
       <div class="col s12">
         Please enter your user prompt to test: <br>
@@ -129,6 +234,14 @@
       const form = textarea ? textarea.closest('form') : null; // Get the parent form
 
       if (textarea && form) {
+        // Quick-prompt buttons fill textarea
+        document.querySelectorAll('.quick-prompt-btn').forEach(btn => {
+          btn.addEventListener('click', () => {
+            textarea.value = btn.getAttribute('data-prompt');
+            textarea.focus();
+          });
+        });
+
         // Existing keydown listener for Enter
         textarea.addEventListener('keydown', function(event) {
           if (event.key === 'Enter' && !event.shiftKey) {
@@ -141,6 +254,23 @@
         // New listener for HTMX after request
         form.addEventListener('htmx:afterRequest', function() {
           textarea.value = ''; // Clear the textarea after any form submission via HTMX
+        });
+
+        // Automatically fold previous chat turns so only the latest request/response is open
+        document.body.addEventListener('htmx:afterSwap', function(evt) {
+          if (evt.detail.target && evt.detail.target.id === 'results') {
+            const turns = document.querySelectorAll('#results details.chat-turn');
+            turns.forEach((turn, idx) => {
+              if (idx < turns.length - 1) {
+                turn.removeAttribute('open');
+              } else {
+                turn.setAttribute('open', '');
+              }
+            });
+            if (turns.length > 0) {
+              turns[turns.length - 1].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+          }
         });
       }
     });

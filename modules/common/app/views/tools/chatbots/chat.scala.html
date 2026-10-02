@@ -1,4 +1,4 @@
-@(user: Person, dataset: Dataset, conversationId: String, history: controllers.tools.ChatbotController.ConversationHistory, csrfToken: String)
+@(user: Person, dataset: Dataset, conversationId: String, history: controllers.tools.ChatbotController.ConversationHistory, userSessions: List[utils.tools.ChatbotMemoryUtils.UserSessionSummary] = java.util.Collections.emptyList(), csrfToken: String)
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -16,6 +16,27 @@
           --pico-primary: var(--pico-color-grey-600);
           --pico-primary-border: var(--pico-color-grey-700);
           --pico-color: #111;
+      }
+
+      .memory-activity-chips {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+          margin-bottom: 8px;
+      }
+      .memory-activity-chip {
+          display: inline-flex;
+          align-items: center;
+          background: #e0f2fe;
+          color: #0369a1;
+          border-radius: 12px;
+          padding: 2px 8px;
+          font-size: 0.75rem;
+          font-weight: 500;
+      }
+      #memory-modal-content {
+          max-height: 65vh;
+          overflow-y: auto;
       }
 
       #chat {
@@ -140,7 +161,21 @@
     @if(dataset.editableBy(user)) {
     <a href="@controllers.tools.routes.ChatbotController.view(dataset.getId())">Edit bot</a> | 
     } 
-    <a href="@controllers.tools.routes.ChatbotController.chat(dataset.getId())">New conversation</a>
+    @if(dataset.configuration(Dataset.CHATBOT_ENABLE_MULTISESSION, "false").equals("true")) {
+      @if(!userSessions.isEmpty) {
+        <select onchange="if(this.value) window.location.href='@controllers.tools.routes.ChatbotController.chat(dataset.getId())?conversationId=' + this.value" style="display:inline-block; width:auto; margin:0 4px; padding:2px 8px; font-size:0.8rem; height:auto;">
+          @for(s <- userSessions) {
+            <option value="@s.id()" @if(s.id() == conversationId){selected}>@s.title() (@s.formattedDate())</option>
+          }
+        </select>
+      }
+      <a href="@controllers.tools.routes.ChatbotController.chat(dataset.getId())">+ New Chat</a> |
+    } else {
+      <a href="@controllers.tools.routes.ChatbotController.chat(dataset.getId())">New conversation</a> |
+    }
+    @if(dataset.configuration(Dataset.CHATBOT_ENABLE_USER_MEMORY, "false").equals("true")) {
+      <a href="#" onclick="openMemoryModal(); return false;">🧠 My Notes & Memory</a>
+    }
     <br>
     ---
   </p>
@@ -203,6 +238,19 @@
         <div id="modal-content"></div>
       </article>
     </dialog>
+
+    <!-- user memory modal -->
+    <dialog id="user-memory-modal">
+      <article style="max-width: 650px; width: 90%;">
+        <header>
+          <button aria-label="Close" rel="prev" onclick="closeMemoryModal()"></button>
+          <span>🧠 My Notes & Memory</span>
+        </header>
+        <div id="memory-modal-content" class="user-memory-container">
+          <p style="color: #666;">Loading your stored memory & notes...</p>
+        </div>
+      </article>
+    </dialog>
     <!-- assistant typing indicator -->
     <section class="container">
       <div id="load" class="typing-indicator htmx-indicator">
@@ -255,6 +303,19 @@
       document.getElementById('source-modal').addEventListener('click', (event) => {
         if (event.target.id === 'source-modal') {
           closeModal();
+        }
+      });
+
+      function openMemoryModal() {
+        document.getElementById('user-memory-modal').showModal();
+        htmx.ajax('GET', '@controllers.tools.routes.ChatbotController.getUserMemory(dataset.getId())', '#memory-modal-content');
+      }
+      function closeMemoryModal() {
+        document.getElementById('user-memory-modal').close();
+      }
+      document.getElementById('user-memory-modal').addEventListener('click', (event) => {
+        if (event.target.id === 'user-memory-modal') {
+          closeMemoryModal();
         }
       });
 

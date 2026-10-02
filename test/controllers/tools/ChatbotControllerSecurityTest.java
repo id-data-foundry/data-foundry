@@ -43,6 +43,7 @@ import models.DatasetType;
 import models.Person;
 import models.Project;
 import models.ds.CompleteDS;
+import utils.tools.ChatbotMemoryUtils;
 import play.Application;
 import play.cache.SyncCacheApi;
 import play.inject.guice.GuiceApplicationBuilder;
@@ -223,5 +224,161 @@ public class ChatbotControllerSecurityTest extends WithApplication {
 		executor.shutdown();
 		assertTrue("All concurrent modifications must complete without exception", completed);
 		assertEquals(numThreads * itemsPerThread, history.items().size());
+	}
+
+	@Test
+	public void testSaveAgentsMdSecurity() throws Exception {
+		// Non-owner / unauthorized user cannot edit AGENTS.md
+		Http.Request forbiddenReq = createAuthenticatedRequest(POST,
+				"/tools/chatbots/" + completeDataset.getId() + "/agents-md", participantUser);
+		Result forbiddenRes = chatbotController.saveAgentsMd(forbiddenReq, completeDataset.getId());
+		assertEquals(FORBIDDEN, forbiddenRes.status());
+
+		// Owner can save AGENTS.md
+		java.util.Map<String, String> formData = new java.util.HashMap<>();
+		formData.put("agents_md", "# Custom Test Agents Directive\n- Rule 1");
+		Http.Request ownerReq = new Http.RequestBuilder()
+				.method(POST)
+				.uri("/tools/chatbots/" + completeDataset.getId() + "/agents-md")
+				.bodyForm(formData)
+				.attr(Security.USERNAME, ownerUser.getEmail())
+				.build();
+		PlayWebContext context = new PlayWebContext(ownerReq);
+		ProfileManager manager = new ProfileManager(context, sessionStore);
+		CommonProfile profile = new CommonProfile();
+		profile.setId(ownerUser.getEmail());
+		profile.addAttribute(Person.USER_NAME, ownerUser.getEmail());
+		profile.addAttribute(Person.USER_ID, ownerUser.getId());
+		manager.save(true, profile, false);
+		Http.Request supplementedReq = context.supplementRequest(ownerReq);
+
+		Result ownerRes = chatbotController.saveAgentsMd(supplementedReq, completeDataset.getId());
+		assertEquals(OK, ownerRes.status());
+	}
+
+	@Test
+	public void testUserMemoryEndpoints() {
+		final models.ds.CompleteDS cpds = (models.ds.CompleteDS) datasetConnector.getDatasetDS(completeDataset);
+		ChatbotMemoryUtils.saveUserProfileEntry(cpds.getFolder(), ownerUser.getEmail(), "thesis", "My AI Project");
+		ChatbotMemoryUtils.writeUserFile(cpds.getFolder(), ownerUser.getEmail(), "test_notes.md", "# Notes");
+
+		Http.Request getMemReq = createAuthenticatedRequest(GET,
+				"/tools/chatbots/" + completeDataset.getId() + "/memory", ownerUser);
+		Result getMemRes = chatbotController.getUserMemory(getMemReq, completeDataset.getId());
+		assertEquals(OK, getMemRes.status());
+		assertTrue(play.test.Helpers.contentAsString(getMemRes).contains("user-memory-container"));
+		assertTrue(play.test.Helpers.contentAsString(getMemRes).contains("test_notes.md"));
+		assertTrue(play.test.Helpers.contentAsString(getMemRes).contains("thesis"));
+
+		// Delete user file
+		Http.Request delFileReq = createAuthenticatedRequest(POST,
+				"/tools/chatbots/" + completeDataset.getId() + "/memory/file/delete", ownerUser);
+		Result delFileRes = chatbotController.deleteUserFile(delFileReq, completeDataset.getId(), "test_notes.md");
+		assertEquals(OK, delFileRes.status());
+		String delFileContent = play.test.Helpers.contentAsString(delFileRes);
+		assertTrue(delFileContent.contains("test_notes.md") && delFileContent.contains("deleted"));
+		assertTrue(delFileContent.contains("No private notes files created yet."));
+
+		// Delete user profile entry
+		Http.Request delProfReq = createAuthenticatedRequest(POST,
+				"/tools/chatbots/" + completeDataset.getId() + "/memory/profile/delete", ownerUser);
+		Result delProfRes = chatbotController.deleteUserProfileEntry(delProfReq, completeDataset.getId(), "thesis");
+		assertEquals(OK, delProfRes.status());
+		String delProfContent = play.test.Helpers.contentAsString(delProfRes);
+		assertTrue(delProfContent.contains("thesis") && delProfContent.contains("deleted"));
+		assertTrue(delProfContent.contains("No profile facts stored yet."));
+
+		// Reset memory
+		Http.Request resetMemReq = createAuthenticatedRequest(POST,
+				"/tools/chatbots/" + completeDataset.getId() + "/memory/reset", ownerUser);
+		Result resetMemRes = chatbotController.resetUserMemory(resetMemReq, completeDataset.getId());
+		assertEquals(OK, resetMemRes.status());
+		assertTrue(play.test.Helpers.contentAsString(resetMemRes).contains("user-memory-container"));
+		assertTrue(play.test.Helpers.contentAsString(resetMemRes).contains("cleared"));
+	}
+
+	@Test
+	public void testConversationContextToString_SafeBoundaries() {
+		// Empty content should not throw StringIndexOutOfBoundsException
+		ChatbotController.ConversationContext emptyCtx = new ChatbotController.ConversationContext("", "doc.pdf", 0.85f);
+		assertEquals("(doc.pdf): 85% match", emptyCtx.toString());
+
+		// Null content should not throw NullPointerException
+		ChatbotController.ConversationContext nullCtx = new ChatbotController.ConversationContext(null, "doc.pdf", 0.5f);
+		assertEquals("(doc.pdf): 50% match", nullCtx.toString());
+
+		// 1-character string should not drop character or throw exception
+		ChatbotController.ConversationContext singleCharCtx = new ChatbotController.ConversationContext("A", "doc.pdf", 0.9f);
+		assertEquals("A (doc.pdf): 90% match", singleCharCtx.toString());
+
+		// Short string (< 45 chars) should preserve all characters without trailing ellipsis
+		ChatbotController.ConversationContext shortCtx = new ChatbotController.ConversationContext("Hello World", "doc.pdf", 0.75f);
+		assertEquals("Hello World (doc.pdf): 75% match", shortCtx.toString());
+
+		// Exactly 45 chars
+		String exactly45 = "123456789012345678901234567890123456789012345";
+		ChatbotController.ConversationContext exactCtx = new ChatbotController.ConversationContext(exactly45, "doc.pdf", 1.0f);
+		assertEquals(exactly45 + " (doc.pdf): 100% match", exactCtx.toString());
+
+		// > 45 chars should truncate to 45 with ellipsis
+		String longContent = "12345678901234567890123456789012345678901234567890";
+		ChatbotController.ConversationContext longCtx = new ChatbotController.ConversationContext(longContent, "doc.pdf", 0.95f);
+		assertEquals(exactly45 + "... (doc.pdf): 95% match", longCtx.toString());
+	}
+
+	@Test
+	public void testConversationItemEmptyContextHandling() {
+		// Instantiating ConversationItem with empty or null context should produce empty context list
+		ConversationItem itemEmpty = new ConversationItem(ConversationItem.ASSISTANT, "Hello", "", "<p>Hello</p>");
+		assertTrue(itemEmpty.context().isEmpty());
+		assertEquals("", itemEmpty.contextStr());
+
+		ConversationItem itemNull = new ConversationItem(ConversationItem.USER, "Hi", (String) null, "<p>Hi</p>");
+		assertTrue(itemNull.context().isEmpty());
+		assertEquals("", itemNull.contextStr());
+
+		// Non-empty context string wraps as single context
+		ConversationItem itemWithCtx = new ConversationItem(ConversationItem.USER, "Query", "Sample text", "<p>Query</p>");
+		assertEquals(1, itemWithCtx.context().size());
+		assertEquals("Sample text", itemWithCtx.contextStr());
+	}
+
+	@Test
+	public void testAgenticModePresetsCodingModel() {
+		// 1. Initially set a legacy / arbitrary model
+		completeDataset.getConfiguration().put(Dataset.CHATBOT_MODEL, "legacy-custom-model-7b");
+		completeDataset.getConfiguration().remove(Dataset.CHATBOT_ENABLE_AGENTIC);
+		completeDataset.update();
+
+		// 2. Save settings enabling agentic mode
+		java.util.Map<String, String> formData = new java.util.HashMap<>();
+		formData.put(Dataset.CHATBOT_ENABLE_AGENTIC, "true");
+		formData.put(Dataset.CHATBOT_MODEL, "legacy-custom-model-7b");
+
+		Http.Request saveReq = new Http.RequestBuilder()
+				.method(POST)
+				.uri("/tools/chatbots/" + completeDataset.getId() + "/save")
+				.bodyForm(formData)
+				.attr(Security.USERNAME, ownerUser.getEmail())
+				.build();
+		PlayWebContext context = new PlayWebContext(saveReq);
+		ProfileManager manager = new ProfileManager(context, sessionStore);
+		CommonProfile profile = new CommonProfile();
+		profile.setId(ownerUser.getEmail());
+		profile.addAttribute(Person.USER_NAME, ownerUser.getEmail());
+		profile.addAttribute(Person.USER_ID, ownerUser.getId());
+		manager.save(true, profile, false);
+		Http.Request supplementedReq = context.supplementRequest(saveReq);
+
+		Result res = chatbotController.save(supplementedReq, completeDataset.getId(), "save");
+		assertEquals(204, res.status());
+
+		// 3. Verify dataset configuration has preset to coding model
+		Dataset updatedDs = Dataset.find.byId(completeDataset.getId());
+		assertNotNull(updatedDs);
+		assertEquals("true", updatedDs.configuration(Dataset.CHATBOT_ENABLE_AGENTIC, "false"));
+		// Model must be preset to coding model, not the legacy custom model
+		assertFalse("legacy-custom-model-7b".equals(updatedDs.configuration(Dataset.CHATBOT_MODEL, "")));
+		assertFalse(updatedDs.configuration(Dataset.CHATBOT_MODEL, "").isEmpty());
 	}
 }

@@ -472,6 +472,11 @@ POST		/api/v1/chatbots/:id/file								controllers.tools.ChatbotController.uploa
 POST		/tools/chatbots/:id/save/:route						controllers.tools.ChatbotController.save(request: Request, id: Long, route: String)
 POST		/tools/chatbots/:id/file								controllers.tools.ChatbotController.uploadFile(request: Request, id: Long)
 DELETE		/tools/chatbots/:id/file								controllers.tools.ChatbotController.deleteFile(request: Request, id: Long, fileId: Long)
+POST		/tools/chatbots/:id/agents-md							controllers.tools.ChatbotController.saveAgentsMd(request: Request, id: Long)
+GET			/tools/chatbots/:id/memory								controllers.tools.ChatbotController.getUserMemory(request: Request, id: Long)
+POST		/tools/chatbots/:id/memory/reset						controllers.tools.ChatbotController.resetUserMemory(request: Request, id: Long)
+POST		/tools/chatbots/:id/memory/file/delete				controllers.tools.ChatbotController.deleteUserFile(request: Request, id: Long, filename: String ?= "")
+POST		/tools/chatbots/:id/memory/profile/delete			controllers.tools.ChatbotController.deleteUserProfileEntry(request: Request, id: Long, topic: String ?= "")
 GET			/tools/chatbots/:id									controllers.tools.ChatbotController.view(request: Request, id: Long)
 
 # tools: speech to text
