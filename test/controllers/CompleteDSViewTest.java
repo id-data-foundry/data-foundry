@@ -157,14 +157,20 @@ public class CompleteDSViewTest extends WithApplication {
 		completeDS.addRecord("script.js", "JS", new Date());
 		jsFile.delete();
 
-		// 1. Verify index.html contains allow-same-origin in CSP
+		// 1. Verify index.html contains allow-same-origin, frame-ancestors, connect-src, form-action, base-uri in CSP
 		Http.Request htmlRequest = createAuthenticatedRequest(GET, "/datasets/web/" + dataset.getId() + "/index.html", ownerUser);
 		Result htmlResult = datasetsController.web(htmlRequest, dataset.getId(), "index.html").toCompletableFuture().get();
 		assertEquals(OK, htmlResult.status());
 		assertTrue(htmlResult.contentType().isPresent());
 		assertTrue(htmlResult.contentType().get().contains("text/html"));
 		assertTrue(htmlResult.header("Content-Security-Policy").isPresent());
-		assertTrue(htmlResult.header("Content-Security-Policy").get().contains("allow-same-origin"));
+		String htmlCsp = htmlResult.header("Content-Security-Policy").get();
+		assertTrue(htmlCsp.contains("allow-same-origin"));
+		assertTrue(htmlCsp.contains("allow-popups"));
+		assertTrue(htmlCsp.contains("frame-ancestors 'self'"));
+		assertTrue(htmlCsp.contains("connect-src 'self' https: wss:"));
+		assertTrue(htmlCsp.contains("form-action 'self'"));
+		assertTrue(htmlCsp.contains("base-uri 'self'"));
 		assertEquals("nosniff", htmlResult.header("X-Content-Type-Options").orElse(""));
 
 		// 2. Verify styles.css returns text/css and nosniff
@@ -208,5 +214,18 @@ public class CompleteDSViewTest extends WithApplication {
 		Http.Request tokenMissingRequest = createAuthenticatedRequest(GET, "/web/" + webToken + "/missing.css", null);
 		Result tokenMissingResult = datasetsController.webToken(tokenMissingRequest, webToken, "missing.css").toCompletableFuture().get();
 		assertEquals(NOT_FOUND, tokenMissingResult.status());
+
+		// 7. Verify webToken serving of index.html enforces connect-src and sandbox but omits frame-ancestors
+		Http.Request tokenHtmlRequest = createAuthenticatedRequest(GET, "/web/" + webToken + "/index.html", null);
+		Result tokenHtmlResult = datasetsController.webToken(tokenHtmlRequest, webToken, "index.html").toCompletableFuture().get();
+		assertEquals(OK, tokenHtmlResult.status());
+		assertTrue(tokenHtmlResult.header("Content-Security-Policy").isPresent());
+		String tokenCsp = tokenHtmlResult.header("Content-Security-Policy").get();
+		assertTrue(tokenCsp.contains("allow-same-origin"));
+		assertTrue(tokenCsp.contains("allow-popups"));
+		assertTrue(tokenCsp.contains("connect-src 'self' https: wss:"));
+		assertTrue(tokenCsp.contains("form-action 'self'"));
+		assertTrue(tokenCsp.contains("base-uri 'self'"));
+		assertTrue(!tokenCsp.contains("frame-ancestors"));
 	}
 }

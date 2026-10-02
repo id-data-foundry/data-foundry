@@ -1219,7 +1219,14 @@ public class DatasetsController extends AbstractAsyncController {
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	private static final String WEB_CSP_HEADER = "sandbox allow-scripts allow-forms allow-same-origin allow-downloads allow-modals";
+	private static final String WEB_CSP_SANDBOX = "sandbox allow-scripts allow-forms allow-same-origin allow-downloads allow-modals allow-popups";
+	private static final String WEB_CSP_COMMON = "connect-src 'self' https: wss:; form-action 'self'; base-uri 'self'";
+
+	// For internal authenticated access: includes frame-ancestors 'self' to prevent clickjacking
+	private static final String WEB_CSP_HEADER = WEB_CSP_SANDBOX + "; frame-ancestors 'self'; " + WEB_CSP_COMMON;
+
+	// For public web token access: omits frame-ancestors to permit embedding in external research/portfolio sites
+	private static final String WEB_TOKEN_CSP_HEADER = WEB_CSP_SANDBOX + "; " + WEB_CSP_COMMON;
 
 	private static boolean isWebAsset(String filename) {
 		if (filename == null) {
@@ -1616,24 +1623,24 @@ public class DatasetsController extends AbstractAsyncController {
 					String contents = new String(Files.readAllBytes(Paths.get(file.getAbsolutePath())));
 					return ok(views.html.datasets.complete.webmd.render(project, ds, FormMarkdown.renderHtml(contents)))
 							.as("text/html; charset=utf-8")
-							.withHeader("Content-Security-Policy", WEB_CSP_HEADER)
+							.withHeader("Content-Security-Policy", WEB_TOKEN_CSP_HEADER)
 							.withHeader("X-Content-Type-Options", "nosniff");
 				} catch (IOException e) {
 					// log and return the file
 					logger.error("Markdown transformation failed: " + file.getAbsolutePath());
 					return ok(file).as("text/html; charset=utf-8")
-							.withHeader("Content-Security-Policy", WEB_CSP_HEADER)
+							.withHeader("Content-Security-Policy", WEB_TOKEN_CSP_HEADER)
 							.withHeader("X-Content-Type-Options", "nosniff");
 				}
 			} else if (lowerFilename.endsWith(".html") || lowerFilename.endsWith(".htm")) {
 				return ok(file).as("text/html; charset=utf-8")
-						.withHeader("Content-Security-Policy", WEB_CSP_HEADER)
+						.withHeader("Content-Security-Policy", WEB_TOKEN_CSP_HEADER)
 						.withHeader("X-Content-Type-Options", "nosniff");
 			} else {
 				String mimeType = getWebAssetMimeType(filename, file);
 				Result res = ok(file).as(mimeType).withHeader("X-Content-Type-Options", "nosniff");
 				if (lowerFilename.endsWith(".svg")) {
-					res = res.withHeader("Content-Security-Policy", WEB_CSP_HEADER);
+					res = res.withHeader("Content-Security-Policy", WEB_TOKEN_CSP_HEADER);
 				}
 				if (lowerFilename.endsWith(".min.js") || lowerFilename.endsWith(".min.css")) {
 					return res.withHeader("Cache-Control", "max-age=3600");
