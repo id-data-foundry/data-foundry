@@ -9,13 +9,19 @@ import static play.mvc.Http.Status.OK;
 import static play.mvc.Http.Status.SEE_OTHER;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
 import org.apache.pekko.stream.Materializer;
+import org.junit.AfterClass;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.pac4j.core.context.session.SessionStore;
 import org.pac4j.core.profile.CommonProfile;
@@ -40,6 +46,97 @@ public class HomeControllerEnvironmentFileTest extends WithApplication {
 	private SessionStore sessionStore;
 	private Person testUser;
 
+	private static final List<File> createdFiles = new ArrayList<>();
+	private static final List<File> createdDirs = new ArrayList<>();
+
+	@BeforeClass
+	public static void setUpDocumentationFixtures() {
+		try {
+			ensureDocumentationFixtures(new File(".").getCanonicalFile());
+		} catch (Exception ignored) {
+		}
+	}
+
+	@AfterClass
+	public static void cleanupDocumentationFixtures() {
+		for (File f : createdFiles) {
+			try {
+				if (f.exists()) {
+					f.delete();
+				}
+			} catch (Exception ignored) {
+			}
+		}
+		createdFiles.clear();
+
+		for (int i = createdDirs.size() - 1; i >= 0; i--) {
+			File d = createdDirs.get(i);
+			try {
+				if (d.exists() && d.isDirectory()) {
+					String[] entries = d.list();
+					if (entries == null || entries.length == 0) {
+						d.delete();
+					}
+				}
+			} catch (Exception ignored) {
+			}
+		}
+		createdDirs.clear();
+	}
+
+	private static void ensureDocumentationFixtures(File root) {
+		if (root == null) {
+			return;
+		}
+
+		File distDocs;
+		File dataFoundryDist = new File(root, "DataFoundry/dist");
+		if (dataFoundryDist.exists() && dataFoundryDist.isDirectory()) {
+			distDocs = new File(dataFoundryDist, "documentation");
+		} else {
+			distDocs = new File(root, "dist/documentation");
+		}
+
+		File guidesDir = new File(distDocs, "Guides");
+		if (guidesDir.exists() && guidesDir.isDirectory()) {
+			return; // Fixtures or pre-existing built documentation present
+		}
+
+		createDir(distDocs);
+		createFile(new File(distDocs, "index.html"), "<html><body><h1>Documentation</h1></body></html>");
+
+		File guidesExamplesDir = new File(guidesDir, "Examples");
+		createDir(guidesDir);
+		createDir(guidesExamplesDir);
+		createFile(new File(guidesDir, "index.html"), "<html><body><h1>Guides</h1></body></html>");
+		createFile(new File(guidesDir, "developerGuide.html"), "<html><body><h1>Developer Guide</h1></body></html>");
+		createFile(new File(guidesExamplesDir, "index.html"), "<html><body><h1>Examples</h1></body></html>");
+
+		File learningDataFoundryDir = new File(distDocs, "Learning/DataFoundry");
+		createDir(new File(distDocs, "Learning"));
+		createDir(learningDataFoundryDir);
+		createFile(new File(learningDataFoundryDir, "DataProtection.html"),
+				"<html><body><h1>Data Protection</h1></body></html>");
+	}
+
+	private static void createDir(File dir) {
+		if (!dir.exists()) {
+			if (dir.mkdirs()) {
+				createdDirs.add(dir);
+			}
+		}
+	}
+
+	private static void createFile(File file, String content) {
+		if (!file.exists()) {
+			try {
+				Files.writeString(file.toPath(), content, StandardCharsets.UTF_8);
+				createdFiles.add(file);
+			} catch (IOException ignored) {
+			}
+		}
+	}
+
 	@Override
 	protected Application provideApplication() {
 		return new GuiceApplicationBuilder()
@@ -55,6 +152,8 @@ public class HomeControllerEnvironmentFileTest extends WithApplication {
 		projectsController = app.injector().instanceOf(ProjectsController.class);
 		environment = app.injector().instanceOf(Environment.class);
 		sessionStore = app.injector().instanceOf(SessionStore.class);
+
+		ensureDocumentationFixtures(environment.rootPath());
 
 		testUser = new Person();
 		testUser.setFirstname("Test");
