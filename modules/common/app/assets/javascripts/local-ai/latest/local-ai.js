@@ -30,7 +30,7 @@ const foundry = {
   textToTextWithUsage: async function ({
     api_token,
     server = document.location.origin,
-    model = "hermes-2-pro-llama-3-8b",
+    model = "default",
     prompt,
     messages,
     temperature = 0.9,
@@ -554,7 +554,7 @@ const foundry = {
   imageToTextWithUsage: async function ({
     api_token,
     server = document.location.origin,
-    model = "llava-llama-3-8b-v1_1",
+    model = "vision",
     prompt = '',
     systemPrompt = '',
     image,
