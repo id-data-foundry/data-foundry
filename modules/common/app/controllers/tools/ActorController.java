@@ -194,7 +194,7 @@ public class ActorController extends AbstractAsyncController {
 
 		// try to set an compile the code, return depending on compilation result
 		if (actor.setCode(code, user)) {
-			return ok();
+			return noContent();
 		} else {
 			return badRequest("Problem in code.");
 		}
@@ -264,7 +264,7 @@ public class ActorController extends AbstractAsyncController {
 				"Script installed: " + ds.getName() + " on " + (channelName.isEmpty() ? "none (disabled)" : channelName),
 				ds.getProject(), ds);
 
-		return ok();
+		return noContent();
 	}
 
 	public Result log(Request request, long id) {

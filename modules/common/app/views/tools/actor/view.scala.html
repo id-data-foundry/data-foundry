@@ -478,12 +478,20 @@ else {
       @Html(utils.StringUtils.scrambleTransport("content"))
       let r = jsRoutes.controllers.tools.ActorController.save(@dataset.getId());
       htmx.ajax(r.type, r.url, {
+        source: this,
+        swap: 'none',
         values: { code: content, csrfToken: '@csrfToken' },
-        headers: { 'Csrf-Token': '@csrfToken' }
-      }).then(function() {
-        M.toast({html: 'Script saved.', classes: 'green darken-2'});
-        updateFileList();
-        $('#saveBtn').addClass('disabled');
+        headers: { 'Csrf-Token': '@csrfToken' },
+        handler: function(elt, info) {
+          if (info.xhr.status >= 200 && info.xhr.status < 300) {
+            M.toast({html: 'Script saved.', classes: 'green darken-2'});
+            updateFileList();
+            $('#saveBtn').addClass('disabled');
+          } else {
+            M.toast({html: 'Problem in script code or during compilation.', classes: 'red darken-2'});
+            $('#saveBtn').removeClass('disabled');
+          }
+        }
       }).catch(function() {
         M.toast({html: 'Problem in script code or during compilation.', classes: 'red darken-2'});
         $('#saveBtn').removeClass('disabled');
@@ -532,11 +540,20 @@ else {
         @Html(utils.StringUtils.scrambleTransport("content"))
         let r = jsRoutes.controllers.tools.ActorController.install(@dataset.getId(), channelName);
         htmx.ajax(r.type, r.url, {
+          source: this,
+          swap: 'none',
           values: { code: content, csrfToken: '@csrfToken' },
-          headers: { 'Csrf-Token': '@csrfToken' }
-        }).then(function() {
-          M.toast({html: 'Script will be ready in 10 seconds.', classes: 'green darken-2'});
-          $('#installBtn').attr('disabled', false);
+          headers: { 'Csrf-Token': '@csrfToken' },
+          handler: function(elt, info) {
+            if (info.xhr.status >= 200 && info.xhr.status < 300) {
+              M.toast({html: 'Script will be ready in 10 seconds.', classes: 'green darken-2'});
+              $('#installBtn').attr('disabled', false);
+            } else {
+              let msg = (info && info.xhr && info.xhr.responseText) ? info.xhr.responseText : 'Problem installing script.';
+              M.toast({html: msg, classes: 'red darken-2'});
+              $('#installBtn').attr('disabled', false);
+            }
+          }
         }).catch(function(err) {
           let msg = (err && err.responseText) ? err.responseText : 'Problem installing script.';
           M.toast({html: msg, classes: 'red darken-2'});
@@ -640,12 +657,20 @@ else {
       @Html(utils.StringUtils.scrambleTransport("content"))
       let r = jsRoutes.controllers.tools.ActorController.install(@dataset.getId(), '');
       htmx.ajax(r.type, r.url, {
+        source: this,
+        swap: 'none',
         values: { code: content, csrfToken: '@csrfToken' },
-        headers: { 'Csrf-Token': '@csrfToken' }
-      }).then(function() {
-        $('#input_channel').val('');
-        M.toast({html: 'Script will be removed from channel in 10 seconds.', classes: 'green darken-2'});
-        $('#deinstallBtn').attr('disabled', false);
+        headers: { 'Csrf-Token': '@csrfToken' },
+        handler: function(elt, info) {
+          if (info.xhr.status >= 200 && info.xhr.status < 300) {
+            $('#input_channel').val('');
+            M.toast({html: 'Script will be removed from channel in 10 seconds.', classes: 'green darken-2'});
+            $('#deinstallBtn').attr('disabled', false);
+          } else {
+            M.toast({html: 'Problem removing script from channel.', classes: 'red darken-2'});
+            $('#deinstallBtn').attr('disabled', false);
+          }
+        }
       }).catch(function() {
         $('#deinstallBtn').attr('disabled', false);
       });
