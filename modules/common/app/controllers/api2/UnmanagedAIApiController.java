@@ -27,6 +27,7 @@ import play.mvc.Security.Authenticated;
 import services.api.ApiServiceConstants;
 import services.api.ai.AiLane;
 import services.api.ai.AiLaneLimiter;
+import services.api.ai.LocalModelMetadata;
 import services.api.ai.UnmanagedAIApiService;
 import services.api.remoting.RemoteApiRequest;
 import services.api.remoting.RemoteApiRequest.Outcome;
@@ -110,16 +111,21 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 					.completedFuture(badRequest(err("Authorization header missing or invalid", "unauthorized")));
 		}
 		JsonNode json = request.body().asJson();
-		if (json == null || !json.isObject() || !json.has(REQUEST_MODEL)) {
+		if (json == null || !json.isObject()) {
 			return CompletableFuture
-					.completedFuture(badRequest(err("Expecting a JSON object with a model", "bad_request")));
+					.completedFuture(badRequest(err("Expecting a JSON object", "bad_request")));
 		}
 		ApiCall call = callOpt.get();
 
+		ObjectNode requestParams = (ObjectNode) json;
+		String requestedModel = requestParams.path(REQUEST_MODEL).asText("");
+		String resolvedModel = aiApiService.resolveModel(requestedModel, LocalModelMetadata.PLACEHOLDER_DEFAULT);
+		requestParams.put(REQUEST_MODEL, resolvedModel);
+
 		// ---- streaming: piped straight through, no actor, no buffer ----
-		if (json.path(REQUEST_STREAM).asBoolean(false)) {
+		if (requestParams.path(REQUEST_STREAM).asBoolean(false)) {
 			RemoteApiRequest streamRequest = new RemoteApiRequest(REQUEST_TASK_CHAT_COMPLETION, AiLane.LLM.timeoutMs(),
-					call.username(), call.apiKey(), -1L, (ObjectNode) json);
+					call.username(), call.apiKey(), -1L, requestParams);
 			return aiApiService.openStream(streamRequest)
 					.thenApply(body -> ok().chunked(body).as("text/event-stream")
 							.withHeader("Cache-Control", "no-cache").withHeader("X-Accel-Buffering", "no")
@@ -129,7 +135,7 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 
 		// ---- buffered request ----
 		RemoteApiRequest req = new RemoteApiRequest(REQUEST_TASK_CHAT_COMPLETION, AiLane.LLM.timeoutMs(),
-				call.username(), call.apiKey(), -1L, (ObjectNode) json);
+				call.username(), call.apiKey(), -1L, requestParams);
 		return aiApiService.submitApiRequest(req).orTimeout(AiLane.LLM.timeoutMs(), TimeUnit.MILLISECONDS)
 				.handle((v, err) -> respond(req, err, "application/json"));
 	}
@@ -165,6 +171,11 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 		}
 		ApiCall call = callOpt.get();
 		ObjectNode requestParams = (ObjectNode) json;
+		if (requestParams.has(REQUEST_MODEL)) {
+			String requestedModel = requestParams.path(REQUEST_MODEL).asText("");
+			String resolvedModel = aiApiService.resolveModel(requestedModel, LocalModelMetadata.PLACEHOLDER_IMAGE);
+			requestParams.put(REQUEST_MODEL, resolvedModel);
+		}
 		RemoteApiRequest req = new RemoteApiRequest(REQUEST_TASK_IMAGE_GENERATION, AiLane.IMAGE.timeoutMs(),
 				call.username(), call.apiKey(), -1L, requestParams);
 
@@ -217,6 +228,11 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 		}
 		ApiCall call = callOpt.get();
 		ObjectNode requestParams = (ObjectNode) json;
+		if (requestParams.has(REQUEST_MODEL)) {
+			String requestedModel = requestParams.path(REQUEST_MODEL).asText("");
+			String resolvedModel = aiApiService.resolveModel(requestedModel, LocalModelMetadata.PLACEHOLDER_TTS);
+			requestParams.put(REQUEST_MODEL, resolvedModel);
+		}
 		RemoteApiRequest req = new RemoteApiRequest(REQUEST_TASK_SPEECH_GENERATION, AiLane.TTS.timeoutMs(),
 				call.username(), call.apiKey(), -1L, requestParams);
 

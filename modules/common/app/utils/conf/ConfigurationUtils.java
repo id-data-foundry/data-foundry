@@ -81,11 +81,17 @@ public class ConfigurationUtils {
 	public static final String DF_AI_DEFAULT_MAX_TOKENS = "df.processing.ai.default_max_tokens";
 	public static final String DF_AI_AGENT_MAX_TOKENS = "df.processing.ai.agent_max_tokens";
 
+	public static final String DF_AI_MODELS = "df.processing.ai.models";
 	public static final String DF_AI_MODEL_DEFAULT = "df.processing.ai.models.default";
+	public static final String DF_AI_MODEL_CHAT = "df.processing.ai.models.chat";
+	public static final String DF_AI_MODEL_VISION = "df.processing.ai.models.vision";
 	public static final String DF_AI_MODEL_CODING = "df.processing.ai.models.coding";
 	public static final String DF_AI_MODEL_CODING_SUBAGENT = "df.processing.ai.models.coding_subagent";
 	public static final String DF_AI_MODEL_TEXT = "df.processing.ai.models.text";
 	public static final String DF_AI_MODEL_TRANSLATE = "df.processing.ai.models.translate";
+	public static final String DF_AI_MODEL_IMAGE = "df.processing.ai.models.image";
+	public static final String DF_AI_MODEL_STT = "df.processing.ai.models.stt";
+	public static final String DF_AI_MODEL_TTS = "df.processing.ai.models.tts";
 
 	// ----------------------------------------------------------------------------------------------------------------
 
@@ -176,6 +182,13 @@ public class ConfigurationUtils {
 		defaultValueFormat.put(DF_NOTIFICATIONS_PUSHOVER_USER, "\"\"");
 
 		defaultValueFormat.put(DF_AI_BASEURL, "\"http://localhost:9191/v1\"");
+		defaultValueFormat.put(DF_AI_MODEL_DEFAULT, "\"hermes-2-pro-llama-3-8b\"");
+		defaultValueFormat.put(DF_AI_MODEL_CHAT, "\"hermes-2-pro-llama-3-8b\"");
+		defaultValueFormat.put(DF_AI_MODEL_VISION, "\"llava-llama-3-8b-v1_1\"");
+		defaultValueFormat.put(DF_AI_MODEL_CODING, "\"qwen/qwen3.6-27b\"");
+		defaultValueFormat.put(DF_AI_MODEL_TEXT, "\"openai/gpt-oss-20b\"");
+		defaultValueFormat.put(DF_AI_MODEL_TRANSLATE, "\"apertus-8b\"");
+		defaultValueFormat.put(DF_AI_MODEL_IMAGE, "\"Flux-schnell\"");
 
 		defaultValueFormat.put(DF_VENDOR_FITBIT_ID, "xxxxxxx");
 		defaultValueFormat.put(DF_VENDOR_FITBIT_SECRET, "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");

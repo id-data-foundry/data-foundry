@@ -325,6 +325,15 @@ public class RemoteApiRequest extends ApiRequest<String> implements ApiServiceCo
 		return getTask().equals(REQUEST_TASK_MODELS) || getType().equals(REQUEST_TASK_MODELS);
 	}
 
+	/**
+	 * check whether this request is a chat completion request
+	 * 
+	 * @return
+	 */
+	public boolean isChatCompletionRequest() {
+		return getTask().equals(REQUEST_TASK_CHAT_COMPLETION) || getType().equals(REQUEST_TASK_CHAT_COMPLETION);
+	}
+
 	public int getRequestedTokens() {
 		return requestedTokens;
 	}

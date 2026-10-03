@@ -67,4 +67,82 @@ public class LocalModelMetadataTest {
 		// In litellm-format.json, type is not present under model_info or root
 		assertEquals(null, model.type());
 	}
+
+	@Test
+	public void testResolvePlaceholdersFromConfig() {
+		com.typesafe.config.Config config = com.typesafe.config.ConfigFactory.parseMap(java.util.Map.of(
+				"df.processing.ai.models.default", "my-default-model",
+				"df.processing.ai.models.chat", "my-chat-model",
+				"df.processing.ai.models.vision", "my-vision-model",
+				"df.processing.ai.models.coding", "my-coding-model",
+				"df.processing.ai.models.translate", "my-translate-model",
+				"df.processing.ai.models.image", "my-image-model"
+		));
+
+		LocalModelMetadata metadata = new LocalModelMetadata(config);
+
+		assertEquals("my-default-model", metadata.mapModelId("default"));
+		assertEquals("my-default-model", metadata.mapModelId("DEFAULT"));
+		assertEquals("my-default-model", metadata.mapModelId(null));
+		assertEquals("my-default-model", metadata.mapModelId(""));
+		assertEquals("my-chat-model", metadata.mapModelId("chat"));
+		assertEquals("my-chat-model", metadata.mapModelId("CHAT"));
+		assertEquals("my-vision-model", metadata.mapModelId("vision"));
+		assertEquals("my-vision-model", metadata.mapModelId("VISION"));
+		assertEquals("my-vision-model", metadata.mapModelId("image-to-text"));
+		assertEquals("my-coding-model", metadata.mapModelId("coding"));
+		assertEquals("my-coding-model", metadata.mapModelId("code"));
+		assertEquals("my-translate-model", metadata.mapModelId("translate"));
+		assertEquals("my-translate-model", metadata.mapModelId("translation"));
+		assertEquals("my-image-model", metadata.mapModelId("image"));
+		assertEquals("my-image-model", metadata.mapModelId("text-to-image"));
+
+		// Non-placeholder literal model IDs pass through untouched
+		assertEquals("custom-unknown-model", metadata.mapModelId("custom-unknown-model"));
+		assertEquals("openai/gpt-4o", metadata.mapModelId("openai/gpt-4o"));
+
+		assertTrue(metadata.isPlaceholder("default"));
+		assertTrue(metadata.isPlaceholder("vision"));
+		assertTrue(metadata.isPlaceholder("coding"));
+		org.junit.Assert.assertFalse(metadata.isPlaceholder("openai/gpt-4o"));
+	}
+
+	@Test
+	public void testFallbackWhenSpecificPlaceholderOmitted() {
+		com.typesafe.config.Config config = com.typesafe.config.ConfigFactory.parseMap(java.util.Map.of(
+				"df.processing.ai.models.default", "fallback-default"
+		));
+
+		LocalModelMetadata metadata = new LocalModelMetadata(config);
+
+		// Text/LLM placeholders fall back to default
+		assertEquals("fallback-default", metadata.mapModelId("chat"));
+		assertEquals("fallback-default", metadata.mapModelId("coding"));
+		assertEquals("fallback-default", metadata.mapModelId("text"));
+		assertEquals("fallback-default", metadata.mapModelId("translate"));
+
+		// Modality-specific placeholders strictly DO NOT fall back to text models!
+		assertEquals("vision", metadata.mapModelId("vision"));
+		assertEquals("image", metadata.mapModelId("image"));
+		assertEquals("stt", metadata.mapModelId("stt"));
+		assertEquals("tts", metadata.mapModelId("tts"));
+	}
+
+	@Test
+	public void testPlaceholdersCombinedWithDiscoveredModelAliases() {
+		com.typesafe.config.Config config = com.typesafe.config.ConfigFactory.parseMap(java.util.Map.of(
+				"df.processing.ai.models.default", "alias-default",
+				"df.processing.ai.models.vision", "alias-vision"
+		));
+
+		LocalModelMetadata metadata = new LocalModelMetadata(config);
+
+		String mockModelsJson = "[{\"id\": \"canonical-default\", \"alias\": [\"alias-default\"]},"
+				+ "{\"id\": \"canonical-vision\", \"alias\": [\"alias-vision\"]}]";
+		metadata.updateModels(mockModelsJson);
+
+		// Placeholder resolves to alias, which then resolves to canonical model ID
+		assertEquals("canonical-default", metadata.mapModelId("default"));
+		assertEquals("canonical-vision", metadata.mapModelId("vision"));
+	}
 }
