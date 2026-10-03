@@ -509,6 +509,34 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 	}
 
 	/**
+	 * resolve a model ID or placeholder (such as "default", "chat", "coding", "vision") to the actual model ID
+	 * 
+	 * @param modelId
+	 * @return resolved model ID
+	 */
+	public String resolveModel(String modelId) {
+		return localModelMetadata.mapModelId(modelId);
+	}
+
+	/**
+	 * resolve a model ID with a fallback placeholder if the provided modelId is null or empty
+	 * 
+	 * @param modelId
+	 * @param fallbackPlaceholder
+	 * @return resolved model ID
+	 */
+	public String resolveModel(String modelId, String fallbackPlaceholder) {
+		if (modelId == null || modelId.trim().isEmpty()) {
+			modelId = fallbackPlaceholder;
+		}
+		return localModelMetadata.mapModelId(modelId);
+	}
+
+	public LocalModelMetadata getLocalModelMetadata() {
+		return localModelMetadata;
+	}
+
+	/**
 	 * Check if the given API key is valid (either internal documentation key or valid in the datastore)
 	 *
 	 * @param apiKey

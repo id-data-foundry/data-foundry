@@ -17,6 +17,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import javax.inject.Inject;
@@ -219,48 +220,18 @@ public class CodingAgentController extends AbstractAsyncController {
 	private Flow<JsonNode, JsonNode, ?> getDatasetFlow(play.mvc.Http.RequestHeader request, Long datasetId,
 			String username, String userEmail) {
 		final String sessionId = datasetId + "-session";
-		DatasetContext context = datasetContexts.computeIfAbsent(datasetId, id -> {
-			// Hub for broadcasting messages to all users in this dataset
-			Pair<Sink<JsonNode, NotUsed>, Source<JsonNode, NotUsed>> hub = MergeHub.of(JsonNode.class, 16)
-					.toMat(BroadcastHub.of(JsonNode.class, 256), Keep.both()).run(materializer);
-
-			Sink<JsonNode, ?> sink = hub.first();
-			Source<JsonNode, ?> source = hub.second();
-
-			Dataset ds = Dataset.find.byId(datasetId);
-			CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
-
-			// Seed knowledge files into workspace
-			File agentscopeDir = new File(cpds.getFolder(), ".agentscope");
-			File knowledgeDir = new File(agentscopeDir, "knowledge");
-			if (!knowledgeDir.exists()) {
-				knowledgeDir.mkdirs();
+		DatasetContext ctx = datasetContexts.get(datasetId);
+		if (ctx == null) {
+			synchronized (this) {
+				ctx = datasetContexts.get(datasetId);
+				if (ctx == null) {
+					ctx = createDatasetContext(datasetId, sessionId, userEmail);
+					datasetContexts.put(datasetId, ctx);
+				}
 			}
-
-			try {
-				FileUtils.writeStringToFile(new File(knowledgeDir, "KNOWLEDGE.md"),
-						views.html.tools.codingagent.knowledge.index.render().body(), Charset.defaultCharset());
-				FileUtils.writeStringToFile(new File(knowledgeDir, "OOCSI.md"),
-						views.html.tools.codingagent.knowledge.oocsi.render().body(), Charset.defaultCharset());
-				FileUtils.writeStringToFile(new File(knowledgeDir, "DF-iot-dataset.md"),
-						views.html.tools.codingagent.knowledge.iot.render().body(), Charset.defaultCharset());
-				FileUtils.writeStringToFile(new File(knowledgeDir, "DF-entity-dataset.md"),
-						views.html.tools.codingagent.knowledge.entity.render().body(), Charset.defaultCharset());
-				FileUtils.writeStringToFile(new File(knowledgeDir, "DF-media-dataset.md"),
-						views.html.tools.codingagent.knowledge.media.render().body(), Charset.defaultCharset());
-				FileUtils.writeStringToFile(new File(knowledgeDir, "Local-AI.md"),
-						views.html.tools.codingagent.knowledge.local_ai.render().body(), Charset.defaultCharset());
-			} catch (Exception e) {
-				logger.error("Could not seed knowledge files", e);
-			}
-
-			UncompactedHistory history = new UncompactedHistory(cpds.getFolder(), sessionId);
-
-			DatasetContext ctx = new DatasetContext(sink, source, materializer, null, null, new Toolkit(), cpds,
-					history);
-			checkAndReloadAgent(ctx, datasetId, sessionId, userEmail);
-			return ctx;
-		});
+		}
+		final DatasetContext context = ctx;
+		context.incrementConnections();
 
 		// Fetch and replay history for this session
 		List<JsonNode> historyNodes = context.history().load();
@@ -289,7 +260,7 @@ public class CodingAgentController extends AbstractAsyncController {
 
 		Source<JsonNode, ?> historySource = Source.from(historyNodes);
 
-		return Flow.fromSinkAndSource(Sink.foreach(json -> {
+		Flow<JsonNode, JsonNode, ?> flow = Flow.fromSinkAndSource(Sink.foreach(json -> {
 			if (json.has("type") && "chat".equals(json.get("type").asText())) {
 				String message = json.get("message").asText();
 
@@ -449,6 +420,59 @@ public class CodingAgentController extends AbstractAsyncController {
 				}
 			}
 		}), historySource.concat(context.source()));
+
+		return flow.watchTermination((mat, done) -> {
+			done.whenComplete((res, err) -> {
+				if (context.decrementConnections() <= 0) {
+					datasetContexts.remove(datasetId, context);
+					logger.info("Evicted CodingAgent DatasetContext for dataset {}", datasetId);
+				}
+			});
+			return mat;
+		});
+	}
+
+	private DatasetContext createDatasetContext(Long datasetId, String sessionId, String userEmail) {
+		// Hub for broadcasting messages to all users in this dataset
+		Pair<Sink<JsonNode, NotUsed>, Source<JsonNode, NotUsed>> hub = MergeHub.of(JsonNode.class, 16)
+				.toMat(BroadcastHub.of(JsonNode.class, 256), Keep.both()).run(materializer);
+
+		Sink<JsonNode, ?> sink = hub.first();
+		Source<JsonNode, ?> source = hub.second();
+
+		Dataset ds = Dataset.find.byId(datasetId);
+		CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
+
+		// Seed knowledge files into workspace
+		File agentscopeDir = new File(cpds.getFolder(), ".agentscope");
+		File knowledgeDir = new File(agentscopeDir, "knowledge");
+		if (!knowledgeDir.exists()) {
+			knowledgeDir.mkdirs();
+		}
+
+		try {
+			FileUtils.writeStringToFile(new File(knowledgeDir, "KNOWLEDGE.md"),
+					views.html.tools.codingagent.knowledge.index.render().body(), Charset.defaultCharset());
+			FileUtils.writeStringToFile(new File(knowledgeDir, "OOCSI.md"),
+					views.html.tools.codingagent.knowledge.oocsi.render().body(), Charset.defaultCharset());
+			FileUtils.writeStringToFile(new File(knowledgeDir, "DF-iot-dataset.md"),
+					views.html.tools.codingagent.knowledge.iot.render().body(), Charset.defaultCharset());
+			FileUtils.writeStringToFile(new File(knowledgeDir, "DF-entity-dataset.md"),
+					views.html.tools.codingagent.knowledge.entity.render().body(), Charset.defaultCharset());
+			FileUtils.writeStringToFile(new File(knowledgeDir, "DF-media-dataset.md"),
+					views.html.tools.codingagent.knowledge.media.render().body(), Charset.defaultCharset());
+			FileUtils.writeStringToFile(new File(knowledgeDir, "Local-AI.md"),
+					views.html.tools.codingagent.knowledge.local_ai.render().body(), Charset.defaultCharset());
+		} catch (Exception e) {
+			logger.error("Could not seed knowledge files", e);
+		}
+
+		UncompactedHistory history = new UncompactedHistory(cpds.getFolder(), sessionId);
+
+		DatasetContext ctx = new DatasetContext(sink, source, materializer, null, null, new Toolkit(), cpds,
+				history);
+		checkAndReloadAgent(ctx, datasetId, sessionId, userEmail);
+		return ctx;
 	}
 
 	private void checkAndReloadAgent(DatasetContext context, Long datasetId, String sessionId,
@@ -599,13 +623,26 @@ public class CodingAgentController extends AbstractAsyncController {
 		private final Sink<JsonNode, ?> sink;
 		private final Source<JsonNode, ?> source;
 		private final Materializer materializer;
-		private HarnessAgent agent;
-		private HarnessAgent subAgent;
+		private volatile HarnessAgent agent;
+		private volatile HarnessAgent subAgent;
 		private final Toolkit toolkit;
 		private final CompleteDS cpds;
 		private final UncompactedHistory history;
-		private long agentsMdLastModified = -1L;
+		private volatile long agentsMdLastModified = -1L;
 		private volatile boolean isThinking = false;
+		private final AtomicInteger activeConnections = new AtomicInteger(0);
+
+		public int incrementConnections() {
+			return activeConnections.incrementAndGet();
+		}
+
+		public int decrementConnections() {
+			return activeConnections.decrementAndGet();
+		}
+
+		public int getActiveConnections() {
+			return activeConnections.get();
+		}
 
 		public DatasetContext(Sink<JsonNode, ?> sink, Source<JsonNode, ?> source, Materializer materializer,
 				HarnessAgent agent, HarnessAgent subAgent, Toolkit toolkit, CompleteDS cpds,

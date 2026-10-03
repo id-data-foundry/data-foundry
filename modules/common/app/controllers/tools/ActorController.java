@@ -15,6 +15,8 @@ import datasets.DatasetConnector;
 import datasets.DatasetUpdateQueue;
 import models.Dataset;
 import models.DatasetType;
+import models.LabNotesEntry;
+import models.LabNotesEntry.LabNotesEntryType;
 import models.Person;
 import models.Project;
 import models.ds.CompleteDS;
@@ -104,6 +106,29 @@ public class ActorController extends AbstractAsyncController {
 				"Script " + ds.getName() + " created in project " + p.getName());
 	}
 
+	private String extractCodeFromBody(Request request) {
+		String text = request.body().asText();
+		if (text != null && !text.isEmpty()) {
+			return StringUtils.unscrambleTransport(nss(text));
+		}
+		if (request.body().asFormUrlEncoded() != null) {
+			String[] vals = request.body().asFormUrlEncoded().get("code");
+			if (vals != null && vals.length > 0) {
+				return StringUtils.unscrambleTransport(nss(vals[0]));
+			}
+		}
+		try {
+			DynamicForm df = formFactory.form().bindFromRequest(request);
+			if (df != null && df.get("code") != null) {
+				return StringUtils.unscrambleTransport(nss(df.get("code")));
+			}
+		} catch (Exception e) {
+			// ignore
+		}
+		return "";
+	}
+
+	@AddCSRFToken
 	public Result view(Request request, long id) {
 		Person user = getAuthenticatedUserOrReturn(request, redirect(LANDING));
 
@@ -112,9 +137,10 @@ public class ActorController extends AbstractAsyncController {
 			return redirect(routes.ActorController.index());
 		}
 
-		return ok(views.html.tools.actor.view.render(user, ds));
+		return ok(views.html.tools.actor.view.render(user, ds, csrfToken(request)));
 	}
 
+	@RequireCSRFCheck
 	public CompletionStage<Result> execute(Request request, long id) {
 
 		String username = getAuthenticatedUserNameOrReturn(request, redirect(LANDING));
@@ -131,14 +157,16 @@ public class ActorController extends AbstractAsyncController {
 			actor = jsExecService.addTrialActor(ds);
 		}
 
-		String codeTmp = nss(request.body().asText());
-		// unscramble the contents if necessary
-		String code = StringUtils.unscrambleTransport(codeTmp);
+		String code = extractCodeFromBody(request);
+
+		LabNotesEntry.log(ActorController.class, LabNotesEntryType.DATA, "Script trial executed: " + ds.getName(),
+				ds.getProject(), ds);
 
 		final JSActor finalActor = actor;
 		return CompletableFuture.supplyAsync(() -> finalActor.runTrial(code)).thenApplyAsync(output -> ok(output));
 	}
 
+	@RequireCSRFCheck
 	public Result save(Request request, long id) {
 		Person user = getAuthenticatedUserOrReturn(request, redirect(LANDING));
 
@@ -147,9 +175,7 @@ public class ActorController extends AbstractAsyncController {
 			return redirect(routes.ActorController.index());
 		}
 
-		String code = nss(request.body().asText());
-		// unscramble the contents if necessary
-		code = StringUtils.unscrambleTransport(code);
+		String code = extractCodeFromBody(request);
 
 		// update dataset
 		ds.getConfiguration().put(Dataset.ACTOR_CODE, code);
@@ -163,9 +189,12 @@ public class ActorController extends AbstractAsyncController {
 			actor = jsExecService.addActor(ds);
 		}
 
+		LabNotesEntry.log(ActorController.class, LabNotesEntryType.MODIFY, "Script saved: " + ds.getName(),
+				ds.getProject(), ds);
+
 		// try to set an compile the code, return depending on compilation result
 		if (actor.setCode(code, user)) {
-			return ok();
+			return noContent();
 		} else {
 			return badRequest("Problem in code.");
 		}
@@ -179,6 +208,7 @@ public class ActorController extends AbstractAsyncController {
 	 * @param channelName
 	 * @return
 	 */
+	@RequireCSRFCheck
 	public Result install(Request request, long id, String channelName) {
 		Person user = getAuthenticatedUserOrReturn(request, redirect(LANDING));
 
@@ -212,9 +242,7 @@ public class ActorController extends AbstractAsyncController {
 			}
 		}
 
-		String code = nss(request.body().asText());
-		// unscramble the contents if necessary
-		code = StringUtils.unscrambleTransport(code);
+		String code = extractCodeFromBody(request);
 
 		// update dataset
 		ds.getConfiguration().put(Dataset.ACTOR_CHANNEL, channelName);
@@ -232,7 +260,11 @@ public class ActorController extends AbstractAsyncController {
 		actor.messages.clear();
 		actor.setCode(code, user);
 
-		return ok();
+		LabNotesEntry.log(ActorController.class, LabNotesEntryType.CONFIGURE,
+				"Script installed: " + ds.getName() + " on " + (channelName.isEmpty() ? "none (disabled)" : channelName),
+				ds.getProject(), ds);
+
+		return noContent();
 	}
 
 	public Result log(Request request, long id) {

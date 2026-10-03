@@ -1,6 +1,7 @@
-@(user: Person, dataset : Dataset)
+@(user: Person, dataset : Dataset, csrfToken: String)
 
 @main("Data Foundry") {
+  <input type="hidden" id="csrfToken" name="csrfToken" value="@csrfToken">
   <script src='@routes.Assets.versioned("javascripts/codeflask.min.js")' type="text/javascript"></script>
   <script src='@routes.Assets.versioned("javascripts/mermaid.min.js")' type="text/javascript"></script>
   <script src="@routes.DatasetsController.jsRoutes()" type="text/javascript"></script>
@@ -443,31 +444,29 @@ else {
 
     ////////////////////////////////////////////////////////////////////////////////
 
+    document.body.addEventListener('htmx:configRequest', function(evt) {
+      evt.detail.headers['Csrf-Token'] = '@csrfToken';
+    });
+
     $('#testProgress').hide();
     $('#testBtn').click(function(e) {
-      $('#testBtn').attr('disabled', true)
+      $('#testBtn').attr('disabled', true);
       $('#testProgress').show();
       let content = flaskData.getCode() + '\n' + flask.getCode();
       @Html(utils.StringUtils.scrambleTransport("content"))
       let r = jsRoutes.controllers.tools.ActorController.execute(@dataset.getId());
-      $.ajax({
-        url: r.url,
-        type: r.type,
-        headers: {
-          'HX-Request': true
-        },
-        contentType: 'text/plain;charset=utf-8',
-        data: content,
-        success: function(e) {
-          $('#testOutput').html(e);
-          $('#testProgress').hide();
-          $('#testBtn').attr('disabled', false)
-        },
-        error: function(e) {
-          $('#testOutput').html("");
-          $('#testProgress').hide();
-          $('#testBtn').attr('disabled', false)
-        }
+      htmx.ajax(r.type, r.url, {
+        target: '#testOutput',
+        swap: 'innerHTML',
+        values: { code: content, csrfToken: '@csrfToken' },
+        headers: { 'Csrf-Token': '@csrfToken' }
+      }).then(function() {
+        $('#testProgress').hide();
+        $('#testBtn').attr('disabled', false);
+      }).catch(function() {
+        $('#testOutput').html("");
+        $('#testProgress').hide();
+        $('#testBtn').attr('disabled', false);
       });
 
       e.preventDefault();
@@ -478,28 +477,32 @@ else {
       let content = flask.getCode();
       @Html(utils.StringUtils.scrambleTransport("content"))
       let r = jsRoutes.controllers.tools.ActorController.save(@dataset.getId());
-      $.ajax({
-        url: r.url,
-        type: r.type,
-        contentType: 'text/plain;charset=utf-8',
-        data: content,
-        success: function(e) {
-          M.toast({html: 'Script saved.', classes: 'green darken-2'});
-          updateFileList();
-        },
-        error: function(e) {
-          M.toast({html: 'Problem in script code or during compilation.', classes: 'red darken-2'})
+      htmx.ajax(r.type, r.url, {
+        source: this,
+        swap: 'none',
+        values: { code: content, csrfToken: '@csrfToken' },
+        headers: { 'Csrf-Token': '@csrfToken' },
+        handler: function(elt, info) {
+          if (info.xhr.status >= 200 && info.xhr.status < 300) {
+            M.toast({html: 'Script saved.', classes: 'green darken-2'});
+            updateFileList();
+            $('#saveBtn').addClass('disabled');
+          } else {
+            M.toast({html: 'Problem in script code or during compilation.', classes: 'red darken-2'});
+            $('#saveBtn').removeClass('disabled');
+          }
         }
+      }).catch(function() {
+        M.toast({html: 'Problem in script code or during compilation.', classes: 'red darken-2'});
+        $('#saveBtn').removeClass('disabled');
       });
-
-      $('#saveBtn').addClass('disabled');
 
       e.preventDefault();
       return false;
     });
 
     $('#installBtn').click(function(e) {
-      $('#installBtn').attr('disabled', true)
+      $('#installBtn').attr('disabled', true);
       
       let triggerType = $('#trigger_type').val();
       let channelName = "";
@@ -536,19 +539,25 @@ else {
         let content = flask.getCode();
         @Html(utils.StringUtils.scrambleTransport("content"))
         let r = jsRoutes.controllers.tools.ActorController.install(@dataset.getId(), channelName);
-        $.ajax({
-          url: r.url,
-          type: r.type,
-          contentType: 'text/plain;charset=utf-8',
-          data: content,
-          success: function(e) {
-            M.toast({html: 'Script will be ready in 10 seconds.', classes: 'green darken-2'})
-            $('#installBtn').attr('disabled', false)
-          },
-          error: function(e) {
-            M.toast({html: e.responseText, classes: 'red darken-2'})
-            $('#installBtn').attr('disabled', false)
+        htmx.ajax(r.type, r.url, {
+          source: this,
+          swap: 'none',
+          values: { code: content, csrfToken: '@csrfToken' },
+          headers: { 'Csrf-Token': '@csrfToken' },
+          handler: function(elt, info) {
+            if (info.xhr.status >= 200 && info.xhr.status < 300) {
+              M.toast({html: 'Script will be ready in 10 seconds.', classes: 'green darken-2'});
+              $('#installBtn').attr('disabled', false);
+            } else {
+              let msg = (info && info.xhr && info.xhr.responseText) ? info.xhr.responseText : 'Problem installing script.';
+              M.toast({html: msg, classes: 'red darken-2'});
+              $('#installBtn').attr('disabled', false);
+            }
           }
+        }).catch(function(err) {
+          let msg = (err && err.responseText) ? err.responseText : 'Problem installing script.';
+          M.toast({html: msg, classes: 'red darken-2'});
+          $('#installBtn').attr('disabled', false);
         });
       } else {
         $('#installBtn').attr('disabled', false);
@@ -643,23 +652,27 @@ else {
     });
 
     $('#deinstallBtn').click(function(e) {
-      $('#deinstallBtn').attr('disabled', true)
+      $('#deinstallBtn').attr('disabled', true);
       let content = flask.getCode();
       @Html(utils.StringUtils.scrambleTransport("content"))
       let r = jsRoutes.controllers.tools.ActorController.install(@dataset.getId(), '');
-      $.ajax({
-        url: r.url,
-        type: r.type,
-        contentType: 'text/plain;charset=utf-8',
-        data: content,
-        success: function(e) {
-          $('#input_channel').val('')
-          M.toast({html: 'Script will be removed from channel in 10 seconds.', classes: 'green darken-2'})
-          $('#deinstallBtn').attr('disabled', false)
-        },
-        error: function(e) {
-          $('#deinstallBtn').attr('disabled', false)
+      htmx.ajax(r.type, r.url, {
+        source: this,
+        swap: 'none',
+        values: { code: content, csrfToken: '@csrfToken' },
+        headers: { 'Csrf-Token': '@csrfToken' },
+        handler: function(elt, info) {
+          if (info.xhr.status >= 200 && info.xhr.status < 300) {
+            $('#input_channel').val('');
+            M.toast({html: 'Script will be removed from channel in 10 seconds.', classes: 'green darken-2'});
+            $('#deinstallBtn').attr('disabled', false);
+          } else {
+            M.toast({html: 'Problem removing script from channel.', classes: 'red darken-2'});
+            $('#deinstallBtn').attr('disabled', false);
+          }
         }
+      }).catch(function() {
+        $('#deinstallBtn').attr('disabled', false);
       });
 
       e.preventDefault();
@@ -668,15 +681,9 @@ else {
 
     function updateFileList() {
       let r = jsRoutes.controllers.tools.ActorController.fileList(@dataset.getId());
-      $.ajax({
-        url: r.url,
-        type: r.type,
-        success: function(e) {
-          $('#codeFileList').html(e)
-        },
-        error: function(e) {
-          console.log(e)
-        }
+      htmx.ajax(r.type, r.url, {
+        target: '#codeFileList',
+        swap: 'innerHTML'
       });
     }
 

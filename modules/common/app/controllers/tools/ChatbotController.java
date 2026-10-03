@@ -100,6 +100,7 @@ import services.api.remoting.RemoteApiRequest;
 import services.processing.MediaProcessingService;
 import utils.DataUtils;
 import utils.auth.TokenResolverUtil;
+import utils.concurrent.DatabaseExecutionContext;
 import utils.rendering.MarkdownRenderer;
 import utils.validators.FileTypeUtils;
 
@@ -119,6 +120,7 @@ public class ChatbotController extends AbstractAsyncController {
 	private final SyncCacheApi cache;
 	private final LocalModelMetadata localModelMetadata;
 	private final TokenResolverUtil tokenResolver;
+	private final DatabaseExecutionContext databaseExecutionContext;
 
 	private static final Logger.ALogger logger = Logger.of(ChatbotController.class);
 
@@ -131,7 +133,7 @@ public class ChatbotController extends AbstractAsyncController {
 	public ChatbotController(FormFactory formFactory, DatasetConnector datasetConnector,
 			CompleteDSController completeDSController, UnmanagedAIApiService aiAPIService,
 			MediaProcessingService mediaProcessingService, SyncCacheApi cache, LocalModelMetadata lmmd,
-			TokenResolverUtil tokenResolver, Config config) {
+			TokenResolverUtil tokenResolver, Config config, DatabaseExecutionContext databaseExecutionContext) {
 		this.formFactory = formFactory;
 		this.datasetConnector = datasetConnector;
 		this.completeDSController = completeDSController;
@@ -141,6 +143,7 @@ public class ChatbotController extends AbstractAsyncController {
 		this.localModelMetadata = lmmd;
 		this.tokenResolver = tokenResolver;
 		this.config = config;
+		this.databaseExecutionContext = databaseExecutionContext;
 	}
 
 	public static class RequestScopeTracker {
@@ -1184,7 +1187,7 @@ You are an intelligent assistant running on the AgentScope harness.
 					""".formatted(escapeHtml(promptSnippet), escapeHtml(assistantSnippet), turnContent);
 
 			return ok(wrappedTurn);
-		});
+		}, databaseExecutionContext);
 	}
 
 	/**
@@ -1313,7 +1316,7 @@ You are an intelligent assistant running on the AgentScope harness.
 					<p class="role">assistant</p>
 					<article>%s</article>
 					</div>""".formatted(responseHtml));
-		});
+		}, databaseExecutionContext);
 	}
 
 	/**
@@ -1397,7 +1400,7 @@ You are an intelligent assistant running on the AgentScope harness.
 			usage.put("total_tokens", 0); // Placeholder
 
 			return ok(response);
-		});
+		}, databaseExecutionContext);
 	}
 
 	/**
@@ -1505,7 +1508,7 @@ You are an intelligent assistant running on the AgentScope harness.
 				logger.error("Error uploading API file", e);
 				return internalServerError(Json.newObject().put("error", "Internal server error"));
 			}
-		});
+		}, databaseExecutionContext);
 	}
 
 	private ConversationFragment internalChatProcess(String conversationId, Person user, Dataset ds,
@@ -1975,7 +1978,7 @@ You are an intelligent assistant running on the AgentScope harness.
 			indexAllDocuments(cpds);
 
 			return view(request, dsId);
-		});
+		}, databaseExecutionContext);
 	}
 
 	/**
@@ -2019,7 +2022,7 @@ You are an intelligent assistant running on the AgentScope harness.
 			indexAllDocuments(cpds);
 
 			return ok("");
-		});
+		}, databaseExecutionContext);
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////

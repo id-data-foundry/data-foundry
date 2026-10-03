@@ -32,6 +32,7 @@ import play.mvc.Http.Request;
 import play.mvc.Result;
 import play.mvc.Security.Authenticated;
 import utils.StringUtils;
+import utils.auth.Hash;
 import utils.components.OnboardingSupport;
 
 public class EntityDSController extends AbstractDSController {
@@ -664,7 +665,7 @@ public class EntityDSController extends AbstractDSController {
 
 		// check if the token is current
 		String pat = ds.getConfiguration().get(Dataset.PUBLIC_ACCESS_TOKEN);
-		if (!token.equals(pat)) {
+		if (!Hash.constantTimeEquals(token, pat)) {
 			return cs(() -> redirect(HOME).addingToSession(request, "error", "Dataset access token is incorrect."));
 		}
 

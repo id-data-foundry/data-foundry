@@ -14,6 +14,7 @@ public interface ApiServiceConstants {
 	String REQUEST_METHOD_GET = "GET";
 
 	String REQUEST_API_TOKEN = "api_token";
+	String REQUEST_SERVER = "server";
 	String REQUEST_MODEL = "model";
 	String REQUEST_TASK = "task";
 	String REQUEST_PROMPT = "prompt";

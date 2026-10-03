@@ -106,7 +106,7 @@ public class NtfyNotificationChannel implements NotificationChannel {
 			WSRequest request = wsClient.url(url).setRequestTimeout(Duration.ofSeconds(5));
 
 			// Title
-			String title = message.getTitle() != null ? message.getTitle() : "";
+			String title = message.getTitle() != null ? message.getTitle().replaceAll("[\\r\\n]", " ").trim() : "";
 			request.addHeader("Title", title);
 
 			// Priority mapping
@@ -120,7 +120,15 @@ public class NtfyNotificationChannel implements NotificationChannel {
 			request.addHeader("Priority", priorityHeader);
 
 			// Tags
-			Set<String> tags = new LinkedHashSet<>(message.getTags());
+			Set<String> tags = new LinkedHashSet<>();
+			for (String t : message.getTags()) {
+				if (t != null) {
+					String cleanTag = t.replaceAll("[\\r\\n,]", "").trim();
+					if (!cleanTag.isEmpty()) {
+						tags.add(cleanTag);
+					}
+				}
+			}
 			if (message.getLevel() == NotificationLevel.CRITICAL) {
 				tags.add("rotating_light");
 			} else if (message.getLevel() == NotificationLevel.ERROR) {

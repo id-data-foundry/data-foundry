@@ -11,6 +11,7 @@ import models.DatasetType;
 import models.Project;
 import play.mvc.Http.Request;
 import play.mvc.Result;
+import utils.auth.Hash;
 import utils.auth.TokenResolverUtil;
 import utils.tools.QRCodeUtil;
 
@@ -35,7 +36,7 @@ public class MobileDashboard extends AbstractAsyncController {
 
 		// check if the token is current
 		String pat = ds.getConfiguration().get(Dataset.PUBLIC_ACCESS_TOKEN);
-		if (!token.equals(pat)) {
+		if (!Hash.constantTimeEquals(token, pat)) {
 			return badRequest(views.html.tools.mobile.error.render());
 		}
 
@@ -65,7 +66,7 @@ public class MobileDashboard extends AbstractAsyncController {
 
 		// check if the token is current
 		String pat = ds.getConfiguration().get(Dataset.PUBLIC_ACCESS_TOKEN);
-		if (!token.equals(pat)) {
+		if (!Hash.constantTimeEquals(token, pat)) {
 			return badRequest();
 		}
 

@@ -28,6 +28,7 @@ import play.libs.Json;
 import play.mvc.Http.Request;
 import play.mvc.Result;
 import play.mvc.Security.Authenticated;
+import utils.auth.Hash;
 import utils.auth.TokenResolverUtil;
 
 public class ActivityLoggerController extends AbstractAsyncController {
@@ -119,7 +120,7 @@ public class ActivityLoggerController extends AbstractAsyncController {
 
 		// Basic authorization checks
 		if (ds == null || !ds.getProject().getId().equals(projectId) || !ds.isActive()
-				|| !datasetToken.equals(ds.configuration(Dataset.API_TOKEN, ""))) {
+				|| !Hash.constantTimeEquals(datasetToken, ds.configuration(Dataset.API_TOKEN, ""))) {
 			logger.warn("Access denied for activity logger: datasetId={}, projectId={}, participantId={}", datasetId,
 					projectId, participantId);
 			return redirect(HOME);
@@ -213,7 +214,7 @@ public class ActivityLoggerController extends AbstractAsyncController {
 			if (!ds.canAppend()) {
 				return forbidden("Dataset not accessible for appending data.");
 			}
-			if (!datasetToken.equals(ds.configuration(Dataset.API_TOKEN, ""))) {
+			if (!Hash.constantTimeEquals(datasetToken, ds.configuration(Dataset.API_TOKEN, ""))) {
 				return forbidden("Api token is not correct.");
 			}
 
@@ -222,7 +223,7 @@ public class ActivityLoggerController extends AbstractAsyncController {
 					.filter(d -> d.getRefId().equals(participantId)).findFirst();
 
 			if (participantOpt.isEmpty() && !ds.isOpenParticipation()) {
-				cache.set("ActivityLogger_httpPostDiagnostics_" + datasetId,
+				cache.set("DatasetsController_httpPostDiagnostics_" + datasetId,
 						"Participant " + participantId + " not found at " + new Date(), 300);
 				return notFound("Source participant not registered");
 			}
@@ -245,7 +246,7 @@ public class ActivityLoggerController extends AbstractAsyncController {
 				diaryDS.addRecord(participantId, new Date(), activity, text);
 			}
 
-			cache.set("ActivityLogger_httpPostDiagnostics_" + datasetId,
+			cache.set("DatasetsController_httpPostDiagnostics_" + datasetId,
 					"Participant " + participantId + " logged activity at " + new Date(), 300);
 
 			return ok("Activity logged successfully.");

@@ -65,6 +65,7 @@ import services.inlets.OOCSIService.OOCSIDiagnostics;
 import services.outlets.OOCSIStreamOutService;
 import utils.DataUtils;
 import utils.DatasetUtils;
+import utils.auth.Hash;
 import utils.auth.TokenResolverUtil;
 import utils.rendering.FormMarkdown;
 import utils.validators.AbstractValidator;
@@ -415,9 +416,6 @@ public class DatasetsController extends AbstractAsyncController {
 	@Authenticated(UserAuth.class)
 	public Result downloadTemporaryFile(Request request, String token) {
 		Optional<String> filePath = cache.get("cachedTemporaryFile_" + token);
-		if (!filePath.isPresent()) {
-			filePath = cache.get("publishingStatus_" + token);
-		}
 		if (filePath.isPresent()) {
 			File file = new File(filePath.get());
 			if (file.exists()) {
@@ -687,7 +685,7 @@ public class DatasetsController extends AbstractAsyncController {
 
 		// check if the token is current
 		String pat = ds.getConfiguration().get(Dataset.PUBLIC_ACCESS_TOKEN);
-		if (!token.equals(pat)) {
+		if (!Hash.constantTimeEquals(token, pat)) {
 			return cs(() -> redirect(HOME).addingToSession(request, "error", "The dataset is not accessible."));
 		}
 
@@ -1182,7 +1180,7 @@ public class DatasetsController extends AbstractAsyncController {
 
 		// check if the token is current
 		String pat = ds.getConfiguration().get(Dataset.PUBLIC_ACCESS_TOKEN);
-		if (!token.equals(pat)) {
+		if (!Hash.constantTimeEquals(token, pat)) {
 			return cs(() -> redirect(HOME).addingToSession(request, "error", "The dataset is not accessible."));
 		}
 
@@ -1559,7 +1557,7 @@ public class DatasetsController extends AbstractAsyncController {
 
 			// check token existance and correctness
 			if (ds.configuration(Dataset.WEB_ACCESS_TOKEN, "").isEmpty()
-					|| !ds.configuration(Dataset.WEB_ACCESS_TOKEN, "").equals(webTokenStr)) {
+					|| !Hash.constantTimeEquals(ds.configuration(Dataset.WEB_ACCESS_TOKEN, ""), webTokenStr)) {
 				return notFound();
 			}
 

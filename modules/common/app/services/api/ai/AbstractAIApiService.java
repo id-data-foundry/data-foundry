@@ -78,16 +78,20 @@ public class AbstractAIApiService extends GenericApiService {
 		// check and map requested model
 		if (json.has(REQUEST_MODEL)) {
 			String requestedModel = json.get(REQUEST_MODEL).asText("");
-			if (!requestedModel.isEmpty()) {
-				// map the model and replace it in the request json
-				String mappedModelId = this.localModelMetadata.mapModelId(requestedModel);
-				json.put(REQUEST_MODEL, mappedModelId);
+			// map the model and replace it in the request json
+			String mappedModelId = this.localModelMetadata.mapModelId(requestedModel);
+			json.put(REQUEST_MODEL, mappedModelId);
+			request.setModel(mappedModelId);
 
-				// log if a mapping took place
-				if (!requestedModel.equals(mappedModelId)) {
-					logger.info("Model mapped: " + requestedModel + " -> " + mappedModelId);
-				}
+			// log if a mapping took place
+			if (!requestedModel.equals(mappedModelId)) {
+				logger.info("Model mapped: " + requestedModel + " -> " + mappedModelId);
 			}
+		} else if (request.isChatCompletionRequest()) {
+			String mappedModelId = this.localModelMetadata.mapModelId(LocalModelMetadata.PLACEHOLDER_DEFAULT);
+			json.put(REQUEST_MODEL, mappedModelId);
+			request.setModel(mappedModelId);
+			logger.info("Default model mapped: -> " + mappedModelId);
 		}
 
 		// set default max_tokens if neither max_tokens nor max_completion_tokens is specified
@@ -96,6 +100,11 @@ public class AbstractAIApiService extends GenericApiService {
 				json.put(REQUEST_MAX_TOKENS, defaultMaxTokens);
 			}
 		}
+
+		// remove internal parameters not supported by upstream OpenAI-compatible backends
+		json.remove(REQUEST_API_TOKEN);
+		json.remove(REQUEST_TASK);
+		json.remove(REQUEST_SERVER);
 	}
 
 	public String getAiBaseUrl() {

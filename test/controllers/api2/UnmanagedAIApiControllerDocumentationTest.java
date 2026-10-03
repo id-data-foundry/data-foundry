@@ -32,8 +32,23 @@ public class UnmanagedAIApiControllerDocumentationTest {
 	}
 
 	static class TestableAiService extends UnmanagedAIApiService {
+		services.api.remoting.RemoteApiRequest lastRequest;
+
+		public TestableAiService(com.typesafe.config.Config config) {
+			super(config != null ? config : ConfigFactory.empty(), null, null, null, null, null, null, null,
+					new LocalModelMetadata(config != null ? config : ConfigFactory.empty()), null);
+		}
+
 		public TestableAiService() {
-			super(ConfigFactory.empty(), null, null, null, null, null, null, null, new LocalModelMetadata(), null);
+			this(ConfigFactory.empty());
+		}
+
+		@Override
+		public java.util.concurrent.CompletableFuture<Void> submitApiRequest(services.api.remoting.RemoteApiRequest request) {
+			this.lastRequest = request;
+			request.setOutcome(services.api.remoting.RemoteApiRequest.Outcome.OK);
+			request.setResult(Optional.of(play.libs.Json.newObject().put("result", "ok").toString()));
+			return java.util.concurrent.CompletableFuture.completedFuture(null);
 		}
 	}
 
@@ -224,5 +239,79 @@ public class UnmanagedAIApiControllerDocumentationTest {
 
 		String resolvedKey = controller.checkDocumentationAPIKey(request, "dummy_key");
 		assertEquals("Must not grant documentation key when unauthenticated", "dummy_key", resolvedKey);
+	}
+
+	@Test
+	public void testChatCompletionModelPlaceholderResolution() throws Exception {
+		com.typesafe.config.Config config = ConfigFactory.parseMap(java.util.Map.of(
+				"df.processing.ai.models.default", "hermes-default-3-8b",
+				"df.processing.ai.models.chat", "hermes-chat-3-8b",
+				"df.processing.ai.models.vision", "llava-vision-v1",
+				"df.processing.ai.models.coding", "qwen-coding-27b"
+		));
+		TestableAiService testAi = new TestableAiService(config);
+		controller.aiApiService = testAi;
+
+		// 1. "default" placeholder
+		Request req1 = new Http.RequestBuilder()
+				.method("POST")
+				.uri("/v1/chat/completions")
+				.header("Host", "localhost:9000")
+				.header("Referer", "http://localhost:9000/documentation/index.html")
+				.bodyJson(play.libs.Json.newObject().put("model", "default"))
+				.build();
+		play.mvc.Result res1 = controller.chatCompletion(req1).toCompletableFuture().get();
+		assertEquals(200, res1.status());
+		assertEquals("hermes-default-3-8b", testAi.lastRequest.getModel());
+		assertEquals("hermes-default-3-8b", testAi.lastRequest.getParams().get("model").asText());
+
+		// 2. "vision" placeholder
+		Request req2 = new Http.RequestBuilder()
+				.method("POST")
+				.uri("/v1/chat/completions")
+				.header("Host", "localhost:9000")
+				.header("Referer", "http://localhost:9000/documentation/index.html")
+				.bodyJson(play.libs.Json.newObject().put("model", "vision"))
+				.build();
+		play.mvc.Result res2 = controller.chatCompletion(req2).toCompletableFuture().get();
+		assertEquals(200, res2.status());
+		assertEquals("llava-vision-v1", testAi.lastRequest.getModel());
+		assertEquals("llava-vision-v1", testAi.lastRequest.getParams().get("model").asText());
+
+		// 3. "coding" placeholder
+		Request req3 = new Http.RequestBuilder()
+				.method("POST")
+				.uri("/v1/chat/completions")
+				.header("Host", "localhost:9000")
+				.header("Referer", "http://localhost:9000/documentation/index.html")
+				.bodyJson(play.libs.Json.newObject().put("model", "coding"))
+				.build();
+		play.mvc.Result res3 = controller.chatCompletion(req3).toCompletableFuture().get();
+		assertEquals(200, res3.status());
+		assertEquals("qwen-coding-27b", testAi.lastRequest.getModel());
+
+		// 4. Missing/omitted model parameter defaults to default placeholder
+		Request req4 = new Http.RequestBuilder()
+				.method("POST")
+				.uri("/v1/chat/completions")
+				.header("Host", "localhost:9000")
+				.header("Referer", "http://localhost:9000/documentation/index.html")
+				.bodyJson(play.libs.Json.newObject())
+				.build();
+		play.mvc.Result res4 = controller.chatCompletion(req4).toCompletableFuture().get();
+		assertEquals(200, res4.status());
+		assertEquals("hermes-default-3-8b", testAi.lastRequest.getModel());
+
+		// 5. Literal concrete model ID passes through
+		Request req5 = new Http.RequestBuilder()
+				.method("POST")
+				.uri("/v1/chat/completions")
+				.header("Host", "localhost:9000")
+				.header("Referer", "http://localhost:9000/documentation/index.html")
+				.bodyJson(play.libs.Json.newObject().put("model", "openai/gpt-4o"))
+				.build();
+		play.mvc.Result res5 = controller.chatCompletion(req5).toCompletableFuture().get();
+		assertEquals(200, res5.status());
+		assertEquals("openai/gpt-4o", testAi.lastRequest.getModel());
 	}
 }

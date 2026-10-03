@@ -40,6 +40,7 @@ import play.mvc.Result;
 import play.mvc.Security.Authenticated;
 import utils.DateUtils;
 import utils.StringUtils;
+import utils.auth.Hash;
 import utils.components.OnboardingMessage;
 import utils.components.OnboardingSupport;
 
@@ -286,8 +287,10 @@ public class TimeseriesDSController extends AbstractDSController {
 			// check API token (both internal and configuration)
 			final String checkToken = dsApiToken;
 			final String internalToken = ds.getConfiguration().get(Dataset.API_TOKEN);
-			if (checkToken == null || (!ds.getApiToken().equals(checkToken) && !checkToken.equals(internalToken))) {
-				if (!ds.getApiToken().equals(checkBodyToken) && !checkBodyToken.equals(internalToken)) {
+			if (checkToken == null || (!Hash.constantTimeEquals(ds.getApiToken(), checkToken)
+					&& !Hash.constantTimeEquals(checkToken, internalToken))) {
+				if (!Hash.constantTimeEquals(ds.getApiToken(), checkBodyToken)
+						&& !Hash.constantTimeEquals(checkBodyToken, internalToken)) {
 					return testing ? redirect(controllers.routes.DatasetsController.view(id))
 							: forbidden("Api token is not correct");
 				}
@@ -393,7 +396,8 @@ public class TimeseriesDSController extends AbstractDSController {
 			// check API token (both internal and configuration)
 			String checkToken = dsApiToken;
 			String internalToken = ds.getConfiguration().get(Dataset.API_TOKEN);
-			if (checkToken == null || (!ds.getApiToken().equals(checkToken) && !checkToken.equals(internalToken))) {
+			if (checkToken == null || (!Hash.constantTimeEquals(ds.getApiToken(), checkToken)
+					&& !Hash.constantTimeEquals(checkToken, internalToken))) {
 				return forbidden("Api token is not correct");
 			}
 
@@ -526,7 +530,8 @@ public class TimeseriesDSController extends AbstractDSController {
 			// check API token (both internal and configuration)
 			String checkToken = dsApiToken;
 			String internalToken = ds.getConfiguration().get(Dataset.API_TOKEN);
-			if (checkToken == null || (!ds.getApiToken().equals(checkToken) && !checkToken.equals(internalToken))) {
+			if (checkToken == null || (!Hash.constantTimeEquals(ds.getApiToken(), checkToken)
+					&& !Hash.constantTimeEquals(checkToken, internalToken))) {
 				logger.warn(" - api token not correct for dataset " + id);
 				return forbidden("Api token is not correct");
 			}
@@ -694,7 +699,7 @@ public class TimeseriesDSController extends AbstractDSController {
 
 		// check if the token is current
 		String pat = ds.getConfiguration().get(Dataset.PUBLIC_ACCESS_TOKEN);
-		if (!token.equals(pat)) {
+		if (!Hash.constantTimeEquals(token, pat)) {
 			return redirectCS(HOME);
 		}
 

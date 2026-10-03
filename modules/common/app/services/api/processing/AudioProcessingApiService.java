@@ -158,16 +158,10 @@ public class AudioProcessingApiService extends GenericApiService {
 		try {
 			processingResult = mediaProcessor
 					.scheduleMediaToTextProcess(file, "en_sm", "audio", r.getUsername(), UUID.randomUUID().toString())
-					.thenApply(token -> {
-						String textFromAudio;
-						do {
-							textFromAudio = (String) cache.get(token).orElse("");
-							try {
-								Thread.sleep(500);
-							} catch (InterruptedException e) {
-							}
-						} while (!textFromAudio.contains("[ERROR]") && !textFromAudio.contains("[END]"));
-
+					.thenApply(textFromAudio -> {
+						if (textFromAudio == null) {
+							return "";
+						}
 						// post-process the text output
 						textFromAudio = textFromAudio.replace("[END]", "");
 						textFromAudio = textFromAudio.replace("\n", " - ");

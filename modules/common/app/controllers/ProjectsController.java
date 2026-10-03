@@ -18,6 +18,8 @@ import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
+import utils.concurrent.DatabaseExecutionContext;
+
 import org.pac4j.core.util.Pac4jConstants;
 
 import com.typesafe.config.Config;
@@ -90,6 +92,7 @@ public class ProjectsController extends AbstractAsyncController {
 	private final UnmanagedAIApiService aiAPIService;
 	private final ProjectLifecycleService lifeCycleService;
 	private final DatasetUpdateQueue datasetUpdateQueue;
+	private final DatabaseExecutionContext databaseExecutionContext;
 	private static final Logger.ALogger logger = Logger.of(ProjectsController.class);
 	private final int MAX_ACTIVE_PROJECTS;
 
@@ -99,7 +102,7 @@ public class ProjectsController extends AbstractAsyncController {
 			NotificationService notificationService, TokenResolverUtil tokenResolverUtil,
 			OnboardingSupport onboardingSupport, TelegramBotService telegramBotService, SearchService searchService,
 			UnmanagedAIApiService aiAPIService, ProjectLifecycleService lifeCycleService,
-			DatasetUpdateQueue datasetUpdateQueue) {
+			DatasetUpdateQueue datasetUpdateQueue, DatabaseExecutionContext databaseExecutionContext) {
 		this.config = config;
 		this.configurator = configurator;
 		this.environment = environment;
@@ -115,6 +118,7 @@ public class ProjectsController extends AbstractAsyncController {
 		this.aiAPIService = aiAPIService;
 		this.lifeCycleService = lifeCycleService;
 		this.datasetUpdateQueue = datasetUpdateQueue;
+		this.databaseExecutionContext = databaseExecutionContext;
 
 		this.MAX_ACTIVE_PROJECTS = ConfigurationUtils.configureInt(config, ConfigurationUtils.DF_MAX_ACTIVE_PROJECTS,
 				20);
@@ -1783,7 +1787,7 @@ public class ProjectsController extends AbstractAsyncController {
 						<div hx-get="%s" hx-trigger="every 500ms" hx-swap="innerHTML"></div>
 						""".formatted(routes.ProjectsController.publishStatus(token, id)));
 			}
-		});
+		}, databaseExecutionContext);
 	}
 
 	/**

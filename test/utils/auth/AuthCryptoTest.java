@@ -107,4 +107,32 @@ public class AuthCryptoTest {
 		assertFalse("Result hash must not be equal to input pseudo-hash", pseudoHash.equals(resultHash));
 		assertTrue("Password must verify against the newly generated bcrypt hash", Hash.checkPassword(pseudoHash, resultHash));
 	}
+
+	@Test
+	public void testConstantTimeEquals() {
+		// Identical strings
+		assertTrue("Identical strings must return true",
+				Hash.constantTimeEquals("secretToken1234567890", "secretToken1234567890"));
+		assertTrue("Empty strings must return true",
+				Hash.constantTimeEquals("", ""));
+
+		// Null handling
+		assertTrue("Both null must return true",
+				Hash.constantTimeEquals(null, null));
+		assertFalse("First null must return false",
+				Hash.constantTimeEquals(null, "secretToken1234567890"));
+		assertFalse("Second null must return false",
+				Hash.constantTimeEquals("secretToken1234567890", null));
+
+		// Different strings same length
+		assertFalse("Different string same length must return false",
+				Hash.constantTimeEquals("secretToken1234567890", "secretToken1234567891"));
+
+		// Different strings different length
+		assertFalse("Prefix match different length must return false",
+				Hash.constantTimeEquals("secretToken", "secretToken1234567890"));
+		assertFalse("Empty vs non-empty must return false",
+				Hash.constantTimeEquals("", "secret"));
+	}
 }
+
