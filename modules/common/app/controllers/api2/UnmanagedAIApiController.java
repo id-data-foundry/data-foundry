@@ -112,8 +112,7 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 		}
 		JsonNode json = request.body().asJson();
 		if (json == null || !json.isObject()) {
-			return CompletableFuture
-					.completedFuture(badRequest(err("Expecting a JSON object", "bad_request")));
+			return CompletableFuture.completedFuture(badRequest(err("Expecting a JSON object", "bad_request")));
 		}
 		ApiCall call = callOpt.get();
 

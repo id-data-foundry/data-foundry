@@ -7,7 +7,6 @@ import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -469,14 +468,12 @@ public class CodingAgentController extends AbstractAsyncController {
 
 		UncompactedHistory history = new UncompactedHistory(cpds.getFolder(), sessionId);
 
-		DatasetContext ctx = new DatasetContext(sink, source, materializer, null, null, new Toolkit(), cpds,
-				history);
+		DatasetContext ctx = new DatasetContext(sink, source, materializer, null, null, new Toolkit(), cpds, history);
 		checkAndReloadAgent(ctx, datasetId, sessionId, userEmail);
 		return ctx;
 	}
 
-	private void checkAndReloadAgent(DatasetContext context, Long datasetId, String sessionId,
-			String userEmail) {
+	private void checkAndReloadAgent(DatasetContext context, Long datasetId, String sessionId, String userEmail) {
 		synchronized (context) {
 			Optional<File> sourceAgentsMdOpt = context.cpds().getFile("AGENTS.md");
 			if (sourceAgentsMdOpt.isEmpty()) {
@@ -538,15 +535,16 @@ public class CodingAgentController extends AbstractAsyncController {
 
 					GenerateOptions mainOptions = GenerateOptions.builder()
 //							.additionalBodyParam("preserve_thinking", true)
-							.maxTokens(agentMaxTokens)
-							.additionalHeader(ApiServiceConstants.X_API_MODEL, mainModelName)
-							.additionalHeader(ApiServiceConstants.X_API_USER, userEmail != null ? userEmail : "").build();
+							.maxTokens(agentMaxTokens).additionalHeader(ApiServiceConstants.X_API_MODEL, mainModelName)
+							.additionalHeader(ApiServiceConstants.X_API_USER, userEmail != null ? userEmail : "")
+							.build();
 
 					GenerateOptions subAgentOptions = GenerateOptions.builder()
 //							.additionalBodyParam("preserve_thinking", true)
 							.maxTokens(agentMaxTokens)
 							.additionalHeader(ApiServiceConstants.X_API_MODEL, subAgentModelName)
-							.additionalHeader(ApiServiceConstants.X_API_USER, userEmail != null ? userEmail : "").build();
+							.additionalHeader(ApiServiceConstants.X_API_USER, userEmail != null ? userEmail : "")
+							.build();
 
 					String localProxyUrl = CodingAgentUtils.resolveLocalProxyUrl(config);
 
@@ -568,7 +566,8 @@ public class CodingAgentController extends AbstractAsyncController {
 					subAgentToolkit.registerTool(readOnlyTool);
 					subAgentToolkit.registerTool(mutationTool);
 
-					String subAgentSysPrompt = views.html.tools.codingagent.subagent_system_prompt.render().body().trim();
+					String subAgentSysPrompt = views.html.tools.codingagent.subagent_system_prompt.render().body()
+							.trim();
 					HarnessAgent subAgent = HarnessAgent.builder() //
 							.name("CodingSubAgent").model(subAgentModel) //
 							.toolkit(subAgentToolkit).disableShellTool().disableFilesystemTools() //

@@ -11,7 +11,6 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
-import java.util.Optional;
 
 import org.apache.commons.io.FileUtils;
 
@@ -23,8 +22,8 @@ import play.Logger;
 import play.libs.Json;
 
 /**
- * Utility methods for managing sandboxed user memory, user-specific files,
- * and user chat sessions for DataFoundry custom chatbots.
+ * Utility methods for managing sandboxed user memory, user-specific files, and user chat sessions for DataFoundry
+ * custom chatbots.
  */
 public class ChatbotMemoryUtils {
 
@@ -40,7 +39,8 @@ public class ChatbotMemoryUtils {
 		}
 	}
 
-	public record UserMemorySnapshot(java.util.Map<String, String> profileAttributes, java.util.Map<String, String> userFiles) {
+	public record UserMemorySnapshot(java.util.Map<String, String> profileAttributes,
+			java.util.Map<String, String> userFiles) {
 	}
 
 	/**
@@ -53,9 +53,7 @@ public class ChatbotMemoryUtils {
 		if (rawUserId == null || rawUserId.trim().isEmpty()) {
 			return "user_unknown";
 		}
-		String clean = rawUserId.trim().toLowerCase(Locale.ROOT)
-				.replace("@", "_at_")
-				.replaceAll("[^a-z0-9_-]", "_");
+		String clean = rawUserId.trim().toLowerCase(Locale.ROOT).replace("@", "_at_").replaceAll("[^a-z0-9_-]", "_");
 		return "user_" + clean;
 	}
 
@@ -76,7 +74,7 @@ public class ChatbotMemoryUtils {
 	 * Resolve the strictly sandboxed directory for a given user within a dataset's .agentscope directory.
 	 *
 	 * @param datasetFolder dataset directory on disk
-	 * @param rawUserId raw user ID/email
+	 * @param rawUserId     raw user ID/email
 	 * @return verified user directory
 	 */
 	public static File getUserDirectory(File datasetFolder, String rawUserId) {
@@ -93,7 +91,7 @@ public class ChatbotMemoryUtils {
 	 * Read the user's persistent profile markdown if it exists.
 	 *
 	 * @param datasetFolder dataset directory
-	 * @param rawUserId user identifier
+	 * @param rawUserId     user identifier
 	 * @return profile markdown or empty string
 	 */
 	public static String loadUserProfile(File datasetFolder, String rawUserId) {
@@ -113,9 +111,9 @@ public class ChatbotMemoryUtils {
 	 * Save or append a structured fact/topic entry to the user's profile.md.
 	 *
 	 * @param datasetFolder dataset directory
-	 * @param rawUserId user identifier
-	 * @param topic memory topic
-	 * @param note memory fact/note
+	 * @param rawUserId     user identifier
+	 * @param topic         memory topic
+	 * @param note          memory fact/note
 	 * @return success boolean
 	 */
 	public static boolean saveUserProfileEntry(File datasetFolder, String rawUserId, String topic, String note) {
@@ -130,7 +128,8 @@ public class ChatbotMemoryUtils {
 		String today = LocalDate.now().format(DateTimeFormatter.ISO_LOCAL_DATE);
 
 		try {
-			String existing = profileFile.exists() ? FileUtils.readFileToString(profileFile, StandardCharsets.UTF_8) : "";
+			String existing = profileFile.exists() ? FileUtils.readFileToString(profileFile, StandardCharsets.UTF_8)
+					: "";
 			String lineMarker = "- **" + cleanTopic + "**:";
 
 			if (existing.contains(lineMarker)) {
@@ -139,8 +138,8 @@ public class ChatbotMemoryUtils {
 				StringBuilder sb = new StringBuilder();
 				for (String line : lines) {
 					if (line.trim().startsWith(lineMarker)) {
-						sb.append("- **").append(cleanTopic).append("**: ").append(cleanNote)
-								.append(" (Updated: ").append(today).append(")\n");
+						sb.append("- **").append(cleanTopic).append("**: ").append(cleanNote).append(" (Updated: ")
+								.append(today).append(")\n");
 					} else {
 						sb.append(line).append("\n");
 					}
@@ -148,8 +147,8 @@ public class ChatbotMemoryUtils {
 				FileUtils.writeStringToFile(profileFile, sb.toString().trim() + "\n", StandardCharsets.UTF_8);
 			} else {
 				// Append entry
-				String entry = (existing.isEmpty() ? "# User Profile\n" : "")
-						+ "- **" + cleanTopic + "**: " + cleanNote + " (Updated: " + today + ")\n";
+				String entry = (existing.isEmpty() ? "# User Profile\n" : "") + "- **" + cleanTopic + "**: " + cleanNote
+						+ " (Updated: " + today + ")\n";
 				FileUtils.writeStringToFile(profileFile, entry, StandardCharsets.UTF_8, true);
 			}
 			return true;
@@ -163,9 +162,9 @@ public class ChatbotMemoryUtils {
 	 * Safely write content to a file inside the user's sandboxed directory.
 	 *
 	 * @param datasetFolder dataset directory
-	 * @param rawUserId user identifier
-	 * @param filename target file name (must be flat markdown file)
-	 * @param content text content to write
+	 * @param rawUserId     user identifier
+	 * @param filename      target file name (must be flat markdown file)
+	 * @param content       text content to write
 	 * @return success or error message
 	 */
 	public static String writeUserFile(File datasetFolder, String rawUserId, String filename, String content) {
@@ -195,8 +194,8 @@ public class ChatbotMemoryUtils {
 	 * Safely read a file from the user's sandboxed directory.
 	 *
 	 * @param datasetFolder dataset directory
-	 * @param rawUserId user identifier
-	 * @param filename filename to read
+	 * @param rawUserId     user identifier
+	 * @param filename      filename to read
 	 * @return file content or error message
 	 */
 	public static String readUserFile(File datasetFolder, String rawUserId, String filename) {
@@ -223,12 +222,12 @@ public class ChatbotMemoryUtils {
 	}
 
 	/**
-	 * Safely delete an individual user file (e.g. 'notes.md').
-	 * Profile markdown is protected from deletion via this method.
+	 * Safely delete an individual user file (e.g. 'notes.md'). Profile markdown is protected from deletion via this
+	 * method.
 	 *
 	 * @param datasetFolder dataset directory
-	 * @param rawUserId user identifier
-	 * @param filename filename to delete
+	 * @param rawUserId     user identifier
+	 * @param filename      filename to delete
 	 * @return success or error message
 	 */
 	public static String deleteUserFile(File datasetFolder, String rawUserId, String filename) {
@@ -251,7 +250,8 @@ public class ChatbotMemoryUtils {
 				return "File '" + filename + "' does not exist.";
 			}
 			boolean deleted = targetFile.delete();
-			return deleted ? "Success: File '" + filename + "' deleted." : "Error: Could not delete file '" + filename + "'.";
+			return deleted ? "Success: File '" + filename + "' deleted."
+					: "Error: Could not delete file '" + filename + "'.";
 		} catch (IOException e) {
 			logger.error("Error deleting user file {} for {}", filename, rawUserId, e);
 			return "Error: Could not delete file: " + e.getMessage();
@@ -262,8 +262,8 @@ public class ChatbotMemoryUtils {
 	 * Delete a specific topic/attribute from user's profile.md.
 	 *
 	 * @param datasetFolder dataset directory
-	 * @param rawUserId user identifier
-	 * @param topic memory topic to remove
+	 * @param rawUserId     user identifier
+	 * @param topic         memory topic to remove
 	 * @return true if deleted or not found
 	 */
 	public static boolean deleteUserProfileEntry(File datasetFolder, String rawUserId, String topic) {
@@ -292,7 +292,8 @@ public class ChatbotMemoryUtils {
 			}
 
 			if (found) {
-				boolean hasAttributes = remaining.stream().anyMatch(l -> l.trim().startsWith("- **") && l.contains("**:"));
+				boolean hasAttributes = remaining.stream()
+						.anyMatch(l -> l.trim().startsWith("- **") && l.contains("**:"));
 				if (!hasAttributes) {
 					profileFile.delete();
 				} else {
@@ -310,7 +311,7 @@ public class ChatbotMemoryUtils {
 	 * Clear the user's profile and notes files (wipes memory while preserving session index).
 	 *
 	 * @param datasetFolder dataset directory
-	 * @param rawUserId user identifier
+	 * @param rawUserId     user identifier
 	 * @return true if reset succeeded
 	 */
 	public static boolean resetUserMemory(File datasetFolder, String rawUserId) {
@@ -332,7 +333,7 @@ public class ChatbotMemoryUtils {
 	 * Retrieve a complete snapshot of the user's profile attributes and custom notes.
 	 *
 	 * @param datasetFolder dataset directory
-	 * @param rawUserId user identifier
+	 * @param rawUserId     user identifier
 	 * @return memory snapshot
 	 */
 	public static UserMemorySnapshot getUserMemorySnapshot(File datasetFolder, String rawUserId) {
@@ -375,7 +376,7 @@ public class ChatbotMemoryUtils {
 	 * Load the user's active chat session summaries for this bot.
 	 *
 	 * @param datasetFolder dataset directory
-	 * @param rawUserId user identifier
+	 * @param rawUserId     user identifier
 	 * @return list of session summaries
 	 */
 	public static List<UserSessionSummary> loadUserSessions(File datasetFolder, String rawUserId) {
@@ -411,9 +412,9 @@ public class ChatbotMemoryUtils {
 	 * Save or update a session summary in the user's sessions.json index.
 	 *
 	 * @param datasetFolder dataset directory
-	 * @param rawUserId user identifier
-	 * @param sessionId session UUID
-	 * @param sessionTitle title (e.g. derived from first prompt)
+	 * @param rawUserId     user identifier
+	 * @param sessionId     session UUID
+	 * @param sessionTitle  title (e.g. derived from first prompt)
 	 */
 	public static synchronized void saveUserSession(File datasetFolder, String rawUserId, String sessionId,
 			String sessionTitle) {
@@ -425,7 +426,8 @@ public class ChatbotMemoryUtils {
 
 		List<UserSessionSummary> existing = new ArrayList<>(loadUserSessions(datasetFolder, rawUserId));
 		long now = System.currentTimeMillis();
-		String cleanTitle = sessionTitle != null && !sessionTitle.trim().isEmpty() ? sessionTitle.trim() : "Chat Session";
+		String cleanTitle = sessionTitle != null && !sessionTitle.trim().isEmpty() ? sessionTitle.trim()
+				: "Chat Session";
 		if (cleanTitle.length() > 50) {
 			cleanTitle = cleanTitle.substring(0, 47) + "...";
 		}
@@ -436,8 +438,8 @@ public class ChatbotMemoryUtils {
 		for (UserSessionSummary s : existing) {
 			if (s.id().equals(sessionId)) {
 				// Update title only if existing has default title and new has custom title
-				String finalTitle = (!s.title().equals("Chat Session") && cleanTitle.equals("Chat Session"))
-						? s.title() : cleanTitle;
+				String finalTitle = (!s.title().equals("Chat Session") && cleanTitle.equals("Chat Session")) ? s.title()
+						: cleanTitle;
 				updated.add(new UserSessionSummary(sessionId, finalTitle, s.createdAt(), now));
 				found = true;
 			} else {

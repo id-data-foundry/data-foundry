@@ -2,8 +2,10 @@ package controllers.tools;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -11,17 +13,19 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
@@ -37,40 +41,25 @@ import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.FSDirectory;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Paths;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-
-import org.apache.commons.io.FileUtils;
-
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.google.inject.Inject;
 import com.typesafe.config.Config;
 
+import controllers.AbstractAsyncController;
+import controllers.api.CompleteDSController;
+import controllers.auth.UserAuth;
+import datasets.DatasetConnector;
 import io.agentscope.core.agent.RuntimeContext;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.message.MsgRole;
-import io.agentscope.core.model.ChatUsage;
 import io.agentscope.core.model.GenerateOptions;
 import io.agentscope.core.tool.Tool;
 import io.agentscope.core.tool.ToolParam;
 import io.agentscope.core.tool.Toolkit;
 import io.agentscope.extensions.model.openai.OpenAIChatModel;
 import io.agentscope.harness.agent.HarnessAgent;
-import utils.conf.ConfigurationUtils;
-import utils.tools.ChatbotMemoryUtils;
-import utils.tools.ChatbotMemoryUtils.UserSessionSummary;
-import utils.tools.CodingAgentUtils;
-
-import controllers.AbstractAsyncController;
-import controllers.api.CompleteDSController;
-import controllers.auth.UserAuth;
-import datasets.DatasetConnector;
 import models.Dataset;
 import models.DatasetType;
 import models.LabNotesEntry;
@@ -101,7 +90,10 @@ import services.processing.MediaProcessingService;
 import utils.DataUtils;
 import utils.auth.TokenResolverUtil;
 import utils.concurrent.DatabaseExecutionContext;
+import utils.conf.ConfigurationUtils;
 import utils.rendering.MarkdownRenderer;
+import utils.tools.ChatbotMemoryUtils;
+import utils.tools.CodingAgentUtils;
 import utils.validators.FileTypeUtils;
 
 public class ChatbotController extends AbstractAsyncController {
@@ -125,7 +117,6 @@ public class ChatbotController extends AbstractAsyncController {
 	private static final Logger.ALogger logger = Logger.of(ChatbotController.class);
 
 	private final Config config;
-	private final ExecutorService agentExecutor = Executors.newWorkStealingPool();
 	private final Map<Long, ChatbotAgentContext> agentContexts = new ConcurrentHashMap<>();
 	private static final ThreadLocal<RequestScopeTracker> CURRENT_TRACKER = new ThreadLocal<>();
 
@@ -180,6 +171,7 @@ public class ChatbotController extends AbstractAsyncController {
 		public static ExecutionTraceStep toolCall(String toolName, String args, String result) {
 			return new ExecutionTraceStep("tool", toolName, args, result);
 		}
+
 		public static ExecutionTraceStep thinking(String content) {
 			return new ExecutionTraceStep("think", "Reasoning", content, "");
 		}
@@ -205,8 +197,8 @@ public class ChatbotController extends AbstractAsyncController {
 			RequestScopeTracker tracker = CURRENT_TRACKER.get();
 			if (tracker != null) {
 				tracker.recordCitations(hits);
-				tracker.recordTraceStep(ExecutionTraceStep.toolCall("search_knowledge_base",
-						"query=\"" + query + "\"", hits.size() + " chunks retrieved"));
+				tracker.recordTraceStep(ExecutionTraceStep.toolCall("search_knowledge_base", "query=\"" + query + "\"",
+						hits.size() + " chunks retrieved"));
 			}
 
 			if (hits.isEmpty()) {
@@ -254,8 +246,8 @@ public class ChatbotController extends AbstractAsyncController {
 				if (res.startsWith("Success:")) {
 					tracker.recordMemoryActivity("Updated **" + filename + "**");
 				}
-				tracker.recordTraceStep(ExecutionTraceStep.toolCall("write_user_file",
-						"filename=\"" + filename + "\"", res));
+				tracker.recordTraceStep(
+						ExecutionTraceStep.toolCall("write_user_file", "filename=\"" + filename + "\"", res));
 			}
 			return res;
 		}
@@ -266,8 +258,8 @@ public class ChatbotController extends AbstractAsyncController {
 			String res = ChatbotMemoryUtils.readUserFile(datasetFolder, context.getUserId(), filename);
 			RequestScopeTracker tracker = CURRENT_TRACKER.get();
 			if (tracker != null) {
-				tracker.recordTraceStep(ExecutionTraceStep.toolCall("read_user_file",
-						"filename=\"" + filename + "\"", res.startsWith("Error:") ? res : res.length() + " chars"));
+				tracker.recordTraceStep(ExecutionTraceStep.toolCall("read_user_file", "filename=\"" + filename + "\"",
+						res.startsWith("Error:") ? res : res.length() + " chars"));
 			}
 			return res;
 		}
@@ -281,8 +273,8 @@ public class ChatbotController extends AbstractAsyncController {
 				if (res.startsWith("Success:")) {
 					tracker.recordMemoryActivity("Deleted **" + filename + "**");
 				}
-				tracker.recordTraceStep(ExecutionTraceStep.toolCall("delete_user_file",
-						"filename=\"" + filename + "\"", res));
+				tracker.recordTraceStep(
+						ExecutionTraceStep.toolCall("delete_user_file", "filename=\"" + filename + "\"", res));
 			}
 			return res;
 		}
@@ -296,10 +288,11 @@ public class ChatbotController extends AbstractAsyncController {
 				if (ok) {
 					tracker.recordMemoryActivity("Removed **" + topic + "** from profile");
 				}
-				tracker.recordTraceStep(ExecutionTraceStep.toolCall("delete_user_memory",
-						"topic=\"" + topic + "\"", ok ? "Success" : "Failed"));
+				tracker.recordTraceStep(ExecutionTraceStep.toolCall("delete_user_memory", "topic=\"" + topic + "\"",
+						ok ? "Success" : "Failed"));
 			}
-			return ok ? "Successfully removed topic '" + topic + "' from user memory." : "Error removing topic from memory.";
+			return ok ? "Successfully removed topic '" + topic + "' from user memory."
+					: "Error removing topic from memory.";
 		}
 
 		@Tool(description = "Reset and clear all stored profile facts and notes files for the current user.")
@@ -310,7 +303,8 @@ public class ChatbotController extends AbstractAsyncController {
 				if (ok) {
 					tracker.recordMemoryActivity("Reset all user memory and notes files");
 				}
-				tracker.recordTraceStep(ExecutionTraceStep.toolCall("reset_user_memory", "", ok ? "Success" : "Failed"));
+				tracker.recordTraceStep(
+						ExecutionTraceStep.toolCall("reset_user_memory", "", ok ? "Success" : "Failed"));
 			}
 			return ok ? "Successfully reset all stored user memory and files." : "Error resetting user memory.";
 		}
@@ -424,19 +418,14 @@ public class ChatbotController extends AbstractAsyncController {
 						agentMaxTokens = config.getInt(ConfigurationUtils.DF_AI_AGENT_MAX_TOKENS);
 					}
 
-					GenerateOptions mainOptions = GenerateOptions.builder()
-							.maxTokens(agentMaxTokens)
-							.additionalHeader(ApiServiceConstants.X_API_MODEL, mainModelName)
-							.build();
+					GenerateOptions mainOptions = GenerateOptions.builder().maxTokens(agentMaxTokens)
+							.additionalHeader(ApiServiceConstants.X_API_MODEL, mainModelName).build();
 
 					String localProxyUrl = CodingAgentUtils.resolveLocalProxyUrl(config);
 
-					OpenAIChatModel mainModel = OpenAIChatModel.builder()
-							.modelName(mainModelName)
-							.apiKey(aiAPIService.getInternalDocumentationAPIKey())
-							.baseUrl(localProxyUrl)
-							.generateOptions(mainOptions)
-							.build();
+					OpenAIChatModel mainModel = OpenAIChatModel.builder().modelName(mainModelName)
+							.apiKey(aiAPIService.getInternalDocumentationAPIKey()).baseUrl(localProxyUrl)
+							.generateOptions(mainOptions).build();
 
 					Toolkit toolkit = new Toolkit();
 					if (cpds.getFiles() != null && !cpds.getFiles().isEmpty()) {
@@ -446,8 +435,7 @@ public class ChatbotController extends AbstractAsyncController {
 						toolkit.registerTool(new UserMemoryTool(cpds.getFolder()));
 					}
 
-					String mainSysPrompt = ds.configuration(Dataset.CHATBOT_SYSTEM_PROMPT,
-							"""
+					String mainSysPrompt = ds.configuration(Dataset.CHATBOT_SYSTEM_PROMPT, """
 							You are an intelligent, helpful assistant.
 							Current date: $DATE
 							""");
@@ -456,38 +444,34 @@ public class ChatbotController extends AbstractAsyncController {
 
 					StringBuilder promptBuilder = new StringBuilder(mainSysPrompt);
 					if ("true".equals(ds.configuration(Dataset.CHATBOT_ENABLE_USER_MEMORY, "true"))) {
-						promptBuilder.append("""
+						promptBuilder
+								.append("""
 
 
-								## Memory & Long-Term Knowledge Directives:
-								You have access to persistent user memory tools:
-								- `update_user_memory(topic, note)`: Proactively record any personal facts, background, academic discipline, research topics, preferences, or project details the user mentions.
-								- `delete_user_memory(topic)`: Remove a specific remembered topic when requested by the user.
-								- `write_user_file(filename, content)`: Write or update user notes files (e.g., 'notes.md') when asked to take notes, save summaries, or track plans.
-								- `read_user_file(filename)`: Read existing notes files.
-								- `delete_user_file(filename)`: Delete a specific notes file when requested by the user.
-								- `reset_user_memory()`: Reset all user memory and notes files when explicitly instructed by the user.
-								""");
+										## Memory & Long-Term Knowledge Directives:
+										You have access to persistent user memory tools:
+										- `update_user_memory(topic, note)`: Proactively record any personal facts, background, academic discipline, research topics, preferences, or project details the user mentions.
+										- `delete_user_memory(topic)`: Remove a specific remembered topic when requested by the user.
+										- `write_user_file(filename, content)`: Write or update user notes files (e.g., 'notes.md') when asked to take notes, save summaries, or track plans.
+										- `read_user_file(filename)`: Read existing notes files.
+										- `delete_user_file(filename)`: Delete a specific notes file when requested by the user.
+										- `reset_user_memory()`: Reset all user memory and notes files when explicitly instructed by the user.
+										""");
 					}
 					if (cpds.getFiles() != null && !cpds.getFiles().isEmpty()) {
-						promptBuilder.append("""
+						promptBuilder
+								.append("""
 
 
-								## Knowledge Base Retrieval Directives:
-								- `search_knowledge_base(query)`: Call this tool whenever the user asks questions that relate to documents or reference materials uploaded to this dataset's knowledge base.
-								""");
+										## Knowledge Base Retrieval Directives:
+										- `search_knowledge_base(query)`: Call this tool whenever the user asks questions that relate to documents or reference materials uploaded to this dataset's knowledge base.
+										""");
 					}
 					mainSysPrompt = promptBuilder.toString();
 
-					HarnessAgent agent = HarnessAgent.builder()
-							.name("Agent")
-							.model(mainModel)
-							.toolkit(toolkit)
-							.disableShellTool()
-							.disableFilesystemTools()
-							.sysPrompt(mainSysPrompt)
-							.workspace(Paths.get(cpds.getFolder().getAbsolutePath(), ".agentscope"))
-							.build();
+					HarnessAgent agent = HarnessAgent.builder().name("Agent").model(mainModel).toolkit(toolkit)
+							.disableShellTool().disableFilesystemTools().sysPrompt(mainSysPrompt)
+							.workspace(Paths.get(cpds.getFolder().getAbsolutePath(), ".agentscope")).build();
 
 					context.setAgent(agent);
 					logger.info("Recreated Chatbot HarnessAgent (model: {}) for dataset {}", mainModelName, ds.getId());
@@ -556,10 +540,9 @@ public class ChatbotController extends AbstractAsyncController {
 		ds.getConfiguration().put(Dataset.CHATBOT_ENABLE_AGENTIC, "true");
 		ds.getConfiguration().put(Dataset.CHATBOT_ENABLE_MULTISESSION, "true");
 		ds.getConfiguration().put(Dataset.CHATBOT_ENABLE_USER_MEMORY, "true");
-		ds.getConfiguration().put(Dataset.CHATBOT_SYSTEM_PROMPT,
-				"""
-						You are DataFoundryGPT, an intelligent assistant powered by AgentScope.
-						Current date: $DATE""");
+		ds.getConfiguration().put(Dataset.CHATBOT_SYSTEM_PROMPT, """
+				You are DataFoundryGPT, an intelligent assistant powered by AgentScope.
+				Current date: $DATE""");
 		ds.update();
 
 		// create initial starter AGENTS.md in dataset folder if absent
@@ -573,23 +556,23 @@ public class ChatbotController extends AbstractAsyncController {
 			if (!targetAgentsMd.exists()) {
 				try {
 					String starterAgentsMd = """
-# Agent Guidelines & Memory Configuration
+							# Agent Guidelines & Memory Configuration
 
-You are an intelligent assistant running on the AgentScope harness.
+							You are an intelligent assistant running on the AgentScope harness.
 
-## Behavioral Directives
-- Respond directly, helpfully, and concisely unless in-depth reasoning is requested.
-- Maintain a professional and friendly tone.
+							## Behavioral Directives
+							- Respond directly, helpfully, and concisely unless in-depth reasoning is requested.
+							- Maintain a professional and friendly tone.
 
-## Memory Guidelines
-- When the user shares facts about themselves (preferences, role, goals, background), call `update_user_memory(topic, note)`.
-- Use `write_user_file(filename, content)` to create or update personal notes or logs for the user.
-- Read private user files using `read_user_file(filename)` when needed.
+							## Memory Guidelines
+							- When the user shares facts about themselves (preferences, role, goals, background), call `update_user_memory(topic, note)`.
+							- Use `write_user_file(filename, content)` to create or update personal notes or logs for the user.
+							- Read private user files using `read_user_file(filename)` when needed.
 
-## Knowledge Base Guidelines
-- Only call `search_knowledge_base(query)` when the user's question requires information from uploaded documents.
-- Do NOT perform vector searches for general conversational queries.
-""";
+							## Knowledge Base Guidelines
+							- Only call `search_knowledge_base(query)` when the user's question requires information from uploaded documents.
+							- Do NOT perform vector searches for general conversational queries.
+							""";
 					Files.writeString(targetAgentsMd.toPath(), starterAgentsMd, StandardCharsets.UTF_8);
 					File rootAgentsMd = new File(cpdsNew.getFolder(), "AGENTS.md");
 					Files.writeString(rootAgentsMd.toPath(), starterAgentsMd, StandardCharsets.UTF_8);
@@ -657,8 +640,8 @@ You are an intelligent assistant running on the AgentScope harness.
 		}
 
 		// show chatbot configuration interface
-		return ok(views.html.tools.chatbots.view.render(user, ds, filesWithStatus, localModelMetadata,
-				agentsMdContent, csrfToken(request)));
+		return ok(views.html.tools.chatbots.view.render(user, ds, filesWithStatus, localModelMetadata, agentsMdContent,
+				csrfToken(request)));
 	}
 
 	/**
@@ -810,7 +793,8 @@ You are an intelligent assistant running on the AgentScope harness.
 				File rootAgentsMd = new File(cpds.getFolder(), "AGENTS.md");
 				Files.writeString(rootAgentsMd.toPath(), content, StandardCharsets.UTF_8);
 				agentContexts.remove(ds.getId());
-				return ok("<span style=\"color: #16a34a; font-weight: 600;\">✓ AGENTS.md saved and agent reloaded!</span>");
+				return ok(
+						"<span style=\"color: #16a34a; font-weight: 600;\">✓ AGENTS.md saved and agent reloaded!</span>");
 			} catch (Exception e) {
 				logger.error("Error saving AGENTS.md", e);
 				return internalServerError("Error saving AGENTS.md: " + e.getMessage());
@@ -827,16 +811,18 @@ You are an intelligent assistant running on the AgentScope harness.
 		html.append("<div class=\"user-memory-container\" style=\"font-size: 0.9rem;\">");
 
 		if (statusBanner != null && !statusBanner.trim().isEmpty()) {
-			html.append("<div style=\"background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; padding: 6px 12px; border-radius: 4px; margin-bottom: 12px; font-weight: 500;\">")
+			html.append(
+					"<div style=\"background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; padding: 6px 12px; border-radius: 4px; margin-bottom: 12px; font-weight: 500;\">")
 					.append(escapeHtml(statusBanner)).append("</div>");
 		}
 
-		html.append("<p style=\"color: #64748b; margin-bottom: 12px;\">User: <strong>")
-				.append(escapeHtml(userEmail)).append("</strong></p>");
+		html.append("<p style=\"color: #64748b; margin-bottom: 12px;\">User: <strong>").append(escapeHtml(userEmail))
+				.append("</strong></p>");
 
 		html.append("<h6 style=\"margin-top: 12px; margin-bottom: 6px;\">Profile Attributes</h6>");
 		if (snapshot.profileAttributes().isEmpty()) {
-			html.append("<p style=\"color: #94a3b8; font-style: italic;\">No profile facts stored yet. The bot will automatically remember key facts you share.</p>");
+			html.append(
+					"<p style=\"color: #94a3b8; font-style: italic;\">No profile facts stored yet. The bot will automatically remember key facts you share.</p>");
 		} else {
 			html.append("<table style=\"width: 100%; border-collapse: collapse; margin-bottom: 16px;\">");
 			html.append("<thead><tr style=\"border-bottom: 1px solid #cbd5e1; text-align: left;\">")
@@ -846,16 +832,16 @@ You are an intelligent assistant running on the AgentScope harness.
 					.append("</tr></thead><tbody>");
 			for (Map.Entry<String, String> entry : snapshot.profileAttributes().entrySet()) {
 				html.append("<tr style=\"border-bottom: 1px solid #f1f5f9;\">");
-				html.append("<td style=\"padding: 4px 8px; font-weight: 600;\">")
-						.append(escapeHtml(entry.getKey())).append("</td>");
-				html.append("<td style=\"padding: 4px 8px;\">")
-						.append(escapeHtml(entry.getValue())).append("</td>");
-				html.append("<td style=\"padding: 4px 8px; text-align: center;\">")
-						.append("<button type=\"button\" class=\"outline danger\" style=\"padding: 2px 6px; font-size: 0.75rem; border: none; background: transparent; cursor: pointer;\" title=\"Delete this topic\" ")
-						.append("hx-post=\"").append(controllers.tools.routes.ChatbotController.deleteUserProfileEntry(dsId, entry.getKey())).append("\" ")
-						.append("hx-target=\"closest .user-memory-container\" ")
-						.append("hx-confirm=\"Forget memory for topic '").append(escapeHtml(entry.getKey())).append("'?\">❌</button>")
+				html.append("<td style=\"padding: 4px 8px; font-weight: 600;\">").append(escapeHtml(entry.getKey()))
 						.append("</td>");
+				html.append("<td style=\"padding: 4px 8px;\">").append(escapeHtml(entry.getValue())).append("</td>");
+				html.append("<td style=\"padding: 4px 8px; text-align: center;\">").append(
+						"<button type=\"button\" class=\"outline danger\" style=\"padding: 2px 6px; font-size: 0.75rem; border: none; background: transparent; cursor: pointer;\" title=\"Delete this topic\" ")
+						.append("hx-post=\"")
+						.append(controllers.tools.routes.ChatbotController.deleteUserProfileEntry(dsId, entry.getKey()))
+						.append("\" ").append("hx-target=\"closest .user-memory-container\" ")
+						.append("hx-confirm=\"Forget memory for topic '").append(escapeHtml(entry.getKey()))
+						.append("'?\">❌</button>").append("</td>");
 				html.append("</tr>");
 			}
 			html.append("</tbody></table>");
@@ -866,24 +852,33 @@ You are an intelligent assistant running on the AgentScope harness.
 			html.append("<p style=\"color: #94a3b8; font-style: italic;\">No private notes files created yet.</p>");
 		} else {
 			for (Map.Entry<String, String> entry : snapshot.userFiles().entrySet()) {
-				html.append("<details style=\"margin-bottom: 8px; border: 1px solid #e2e8f0; border-radius: 4px; padding: 6px;\">");
-				html.append("<summary style=\"cursor: pointer; font-weight: 600; display: flex; justify-content: space-between; align-items: center;\">");
+				html.append(
+						"<details style=\"margin-bottom: 8px; border: 1px solid #e2e8f0; border-radius: 4px; padding: 6px;\">");
+				html.append(
+						"<summary style=\"cursor: pointer; font-weight: 600; display: flex; justify-content: space-between; align-items: center;\">");
 				html.append("<span>📄 ").append(escapeHtml(entry.getKey())).append("</span>");
-				html.append("<button type=\"button\" class=\"outline danger\" style=\"padding: 2px 8px; font-size: 0.75rem; border-radius: 4px; cursor: pointer;\" ")
-						.append("hx-post=\"").append(controllers.tools.routes.ChatbotController.deleteUserFile(dsId, entry.getKey())).append("\" ")
-						.append("hx-target=\"closest .user-memory-container\" ")
-						.append("hx-confirm=\"Are you sure you want to delete file '").append(escapeHtml(entry.getKey())).append("'?\" ")
+				html.append(
+						"<button type=\"button\" class=\"outline danger\" style=\"padding: 2px 8px; font-size: 0.75rem; border-radius: 4px; cursor: pointer;\" ")
+						.append("hx-post=\"")
+						.append(controllers.tools.routes.ChatbotController.deleteUserFile(dsId, entry.getKey()))
+						.append("\" ").append("hx-target=\"closest .user-memory-container\" ")
+						.append("hx-confirm=\"Are you sure you want to delete file '")
+						.append(escapeHtml(entry.getKey())).append("'?\" ")
 						.append("onclick=\"event.stopPropagation();\">🗑️ Delete</button>");
 				html.append("</summary>");
-				html.append("<pre style=\"background: #f8fafc; padding: 8px; margin-top: 6px; font-size: 0.8rem; max-height: 200px; overflow-y: auto;\">")
+				html.append(
+						"<pre style=\"background: #f8fafc; padding: 8px; margin-top: 6px; font-size: 0.8rem; max-height: 200px; overflow-y: auto;\">")
 						.append(escapeHtml(entry.getValue())).append("</pre>");
 				html.append("</details>");
 			}
 		}
 
-		html.append("<div style=\"margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 12px; text-align: right;\">");
-		html.append("<button type=\"button\" class=\"outline secondary\" style=\"padding: 4px 12px; font-size: 0.8rem;\" ");
-		html.append("hx-post=\"").append(controllers.tools.routes.ChatbotController.resetUserMemory(dsId)).append("\" ");
+		html.append(
+				"<div style=\"margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 12px; text-align: right;\">");
+		html.append(
+				"<button type=\"button\" class=\"outline secondary\" style=\"padding: 4px 12px; font-size: 0.8rem;\" ");
+		html.append("hx-post=\"").append(controllers.tools.routes.ChatbotController.resetUserMemory(dsId))
+				.append("\" ");
 		html.append("hx-target=\"closest .user-memory-container\" ");
 		html.append("hx-confirm=\"Are you sure you want to reset all your stored memory and notes for this bot?\">");
 		html.append("🗑️ Reset All Memory & Files</button>");
@@ -915,8 +910,8 @@ You are an intelligent assistant running on the AgentScope harness.
 
 		final CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
 		ChatbotMemoryUtils.resetUserMemory(cpds.getFolder(), user.getEmail());
-		return ok(renderUserMemoryHtml(cpds, user.getEmail(), ds.getId(), "✓ All memory facts and files have been cleared."))
-				.as("text/html");
+		return ok(renderUserMemoryHtml(cpds, user.getEmail(), ds.getId(),
+				"✓ All memory facts and files have been cleared.")).as("text/html");
 	}
 
 	@Authenticated(UserAuth.class)
@@ -969,8 +964,8 @@ You are an intelligent assistant running on the AgentScope harness.
 		if (text == null) {
 			return "";
 		}
-		return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
-				.replace("'", "&#39;");
+		return text.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;").replace("'",
+				"&#39;");
 	}
 
 	private static String stripHtml(String html) {
@@ -1070,27 +1065,36 @@ You are an intelligent assistant running on the AgentScope harness.
 			RequestScopeTracker tracker = resultFragment.tracker();
 			StringBuilder traceHtml = new StringBuilder();
 			if (tracker != null && (!tracker.getTraceSteps().isEmpty() || !tracker.getMemoryActivities().isEmpty())) {
-				traceHtml.append("<hr><div role=\"trace\" style=\"background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; margin-bottom: 12px;\">");
-				traceHtml.append("<div style=\"font-weight: 700; color: #0f172a; margin-bottom: 8px;\">🤖 AgentScope Execution Trace</div>");
+				traceHtml.append(
+						"<hr><div role=\"trace\" style=\"background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; margin-bottom: 12px;\">");
+				traceHtml.append(
+						"<div style=\"font-weight: 700; color: #0f172a; margin-bottom: 8px;\">🤖 AgentScope Execution Trace</div>");
 
 				if (!tracker.getMemoryActivities().isEmpty()) {
 					traceHtml.append("<div style=\"margin-bottom: 8px;\">");
 					for (String act : tracker.getMemoryActivities()) {
-						traceHtml.append("<span style=\"display: inline-block; background: #e0f2fe; color: #0369a1; border-radius: 12px; padding: 2px 8px; font-size: 0.75rem; margin-right: 6px;\">🧠 ")
+						traceHtml.append(
+								"<span style=\"display: inline-block; background: #e0f2fe; color: #0369a1; border-radius: 12px; padding: 2px 8px; font-size: 0.75rem; margin-right: 6px;\">🧠 ")
 								.append(escapeHtml(act)).append("</span>");
 					}
 					traceHtml.append("</div>");
 				}
 
 				if (!tracker.getTraceSteps().isEmpty()) {
-					traceHtml.append("<details open><summary style=\"cursor: pointer; font-weight: 600;\">Steps & Tool Calls (").append(tracker.getTraceSteps().size()).append(")</summary>");
-					traceHtml.append("<ul style=\"margin: 6px 0 0 0; padding-left: 20px; font-family: monospace; font-size: 0.8rem;\">");
+					traceHtml.append(
+							"<details open><summary style=\"cursor: pointer; font-weight: 600;\">Steps & Tool Calls (")
+							.append(tracker.getTraceSteps().size()).append(")</summary>");
+					traceHtml.append(
+							"<ul style=\"margin: 6px 0 0 0; padding-left: 20px; font-family: monospace; font-size: 0.8rem;\">");
 					for (ExecutionTraceStep step : tracker.getTraceSteps()) {
 						traceHtml.append("<li style=\"margin-bottom: 4px;\">");
-						traceHtml.append("<strong style=\"color: #2563eb;\">[").append(escapeHtml(step.name())).append("]</strong> ");
-						traceHtml.append("<span style=\"color: #475569;\">").append(escapeHtml(step.details())).append("</span>");
+						traceHtml.append("<strong style=\"color: #2563eb;\">[").append(escapeHtml(step.name()))
+								.append("]</strong> ");
+						traceHtml.append("<span style=\"color: #475569;\">").append(escapeHtml(step.details()))
+								.append("</span>");
 						if (step.result() != null && !step.result().isEmpty()) {
-							traceHtml.append(" &rarr; <span style=\"color: #059669;\">").append(escapeHtml(step.result())).append("</span>");
+							traceHtml.append(" &rarr; <span style=\"color: #059669;\">")
+									.append(escapeHtml(step.result())).append("</span>");
 						}
 						traceHtml.append("</li>");
 					}
@@ -1184,7 +1188,8 @@ You are an intelligent assistant running on the AgentScope harness.
 							%s
 						</div>
 					</details>
-					""".formatted(escapeHtml(promptSnippet), escapeHtml(assistantSnippet), turnContent);
+					"""
+					.formatted(escapeHtml(promptSnippet), escapeHtml(assistantSnippet), turnContent);
 
 			return ok(wrappedTurn);
 		}, databaseExecutionContext);
@@ -1240,7 +1245,8 @@ You are an intelligent assistant running on the AgentScope harness.
 		}
 
 		// show the chat interface for this chatbot
-		return ok(views.html.tools.chatbots.chat.render(user, ds, conversationId, ch, userSessions, csrfToken(request)));
+		return ok(
+				views.html.tools.chatbots.chat.render(user, ds, conversationId, ch, userSessions, csrfToken(request)));
 	}
 
 	/**
@@ -1276,9 +1282,11 @@ You are an intelligent assistant running on the AgentScope harness.
 
 			RequestScopeTracker tracker = resultFragment.tracker();
 			if (tracker != null && !tracker.getMemoryActivities().isEmpty()) {
-				StringBuilder badges = new StringBuilder("<div class=\"memory-activity-chips\" style=\"margin-bottom: 8px;\">");
+				StringBuilder badges = new StringBuilder(
+						"<div class=\"memory-activity-chips\" style=\"margin-bottom: 8px;\">");
 				for (String act : tracker.getMemoryActivities()) {
-					badges.append("<span class=\"memory-activity-chip\">🧠 ").append(escapeHtml(act)).append("</span> ");
+					badges.append("<span class=\"memory-activity-chip\">🧠 ").append(escapeHtml(act))
+							.append("</span> ");
 				}
 				badges.append("</div>");
 				responseHtml = badges.toString() + responseHtml;
@@ -1297,10 +1305,10 @@ You are an intelligent assistant running on the AgentScope harness.
 
 						// Render markdown for the modal with HTML escaping enabled (DF-23)
 						String renderedSource = new MarkdownRenderer(true).render(ctx.content());
-						String b64Content = java.util.Base64.getEncoder().encodeToString(
-								renderedSource.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-						String b64Title = java.util.Base64.getEncoder().encodeToString(
-								ctx.document().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+						String b64Content = java.util.Base64.getEncoder()
+								.encodeToString(renderedSource.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+						String b64Title = java.util.Base64.getEncoder()
+								.encodeToString(ctx.document().getBytes(java.nio.charset.StandardCharsets.UTF_8));
 
 						refs.append(String.format(
 								"<a href=\"#\" data-content=\"%s\" data-title=\"%s\" onclick=\"showSourceFromEl(this); return false;\">[%d]</a> ",
@@ -1563,8 +1571,7 @@ You are an intelligent assistant running on the AgentScope harness.
 					}
 				}
 
-				Msg input = Msg.builder().role(MsgRole.USER).name("User")
-						.textContent(userPromptWithProfile).build();
+				Msg input = Msg.builder().role(MsgRole.USER).name("User").textContent(userPromptWithProfile).build();
 
 				RuntimeContext runtimeCtx = RuntimeContext.builder().userId(user.getEmail()).sessionId(conversationId)
 						.build();
@@ -1578,8 +1585,8 @@ You are an intelligent assistant running on the AgentScope harness.
 						.map(sr -> new ConversationContext(sr.content(), sr.file(), sr.score()))
 						.collect(Collectors.toList());
 
-				ConversationItem promptItem = new ConversationItem(ConversationItem.USER, originalUserPrompt,
-						contexts, originalUserPrompt);
+				ConversationItem promptItem = new ConversationItem(ConversationItem.USER, originalUserPrompt, contexts,
+						originalUserPrompt);
 				ConversationItem responseItem = new ConversationItem(ConversationItem.ASSISTANT, cleanedResult, "",
 						new MarkdownRenderer(true).render(cleanedResult));
 
@@ -1781,10 +1788,8 @@ You are an intelligent assistant running on the AgentScope harness.
 		public static final String USER = "user";
 
 		public ConversationItem(String actor, String content, String context, String renderedContent) {
-			this(actor, content,
-					(context == null || context.trim().isEmpty()) ? Collections.emptyList()
-							: Collections.singletonList(new ConversationContext(context, "", 1.0f)),
-					renderedContent);
+			this(actor, content, (context == null || context.trim().isEmpty()) ? Collections.emptyList()
+					: Collections.singletonList(new ConversationContext(context, "", 1.0f)), renderedContent);
 		}
 
 		public boolean isAssistant() {

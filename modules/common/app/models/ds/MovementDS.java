@@ -1,11 +1,8 @@
 package models.ds;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.InputStreamReader;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -39,8 +36,8 @@ import models.sr.Participant;
 import models.vm.TimedMedia;
 import play.Logger;
 import play.libs.Json;
-import services.outlets.OOCSIStreamOutService;
 import services.notifications.Notifications;
+import services.outlets.OOCSIStreamOutService;
 import utils.DataUtils;
 
 public class MovementDS extends CompleteDS {

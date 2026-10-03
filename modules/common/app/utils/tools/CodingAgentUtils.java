@@ -14,7 +14,6 @@ import com.typesafe.config.Config;
 import models.DatasetType;
 import play.Logger;
 import play.libs.Json;
-import utils.conf.ConfigurationUtils;
 
 public class CodingAgentUtils {
 
@@ -113,8 +112,7 @@ public class CodingAgentUtils {
 	}
 
 	/**
-	 * Filter out dataset and agent workspace filesystem paths from the text,
-	 * replacing them with a generic "PATH".
+	 * Filter out dataset and agent workspace filesystem paths from the text, replacing them with a generic "PATH".
 	 *
 	 * @param text          the text containing possible filesystem paths
 	 * @param datasetFolder the base File representing the dataset directory
@@ -211,8 +209,8 @@ public class CodingAgentUtils {
 	}
 
 	/**
-	 * Get the standardized string representation of a dataset type for coding agents and metadata.
-	 * COMPLETE dataset types are named as EXISTING to align with the DataFoundry UI.
+	 * Get the standardized string representation of a dataset type for coding agents and metadata. COMPLETE dataset
+	 * types are named as EXISTING to align with the DataFoundry UI.
 	 *
 	 * @param type the dataset type
 	 * @return string representation of dataset type (e.g. EXISTING, IOT, ENTITY, etc.)
@@ -310,8 +308,7 @@ public class CodingAgentUtils {
 	}
 
 	/**
-	 * Resolve the base API path for the Unmanaged AI completions endpoint
-	 * dynamically using the Play reverse router.
+	 * Resolve the base API path for the Unmanaged AI completions endpoint dynamically using the Play reverse router.
 	 *
 	 * @return basePath, e.g. "/v1"
 	 */
@@ -322,14 +319,16 @@ public class CodingAgentUtils {
 				return chatCompletionsPath.replace("/chat/completions", "");
 			}
 		} catch (Throwable t) {
-			logger.warn("Could not resolve basePath via reverse route for UnmanagedAIApiController, falling back to /v1", t);
+			logger.warn(
+					"Could not resolve basePath via reverse route for UnmanagedAIApiController, falling back to /v1",
+					t);
 		}
 		return "/v1";
 	}
 
 	/**
-	 * Resolve the internal local proxy URL for LLM calls by inspecting Play reverse routes,
-	 * the df.base_url configuration key (for host and port), and runtime server port.
+	 * Resolve the internal local proxy URL for LLM calls by inspecting Play reverse routes, the df.base_url
+	 * configuration key (for host and port), and runtime server port.
 	 *
 	 * @param config Play configuration
 	 * @return resolved local proxy URL, e.g. "http://localhost:9000/v1"
@@ -341,7 +340,7 @@ public class CodingAgentUtils {
 	/**
 	 * Resolve the internal local proxy URL for LLM calls with an explicit base path.
 	 *
-	 * @param config Play configuration
+	 * @param config   Play configuration
 	 * @param basePath base URL path, e.g. "/v1"
 	 * @return resolved local proxy URL
 	 */

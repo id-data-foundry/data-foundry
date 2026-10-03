@@ -5,7 +5,6 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
@@ -137,8 +136,8 @@ public class MediaToTextController extends AbstractAsyncController implements Ap
 			return CompletableFuture.completedStage(badRequest("[ERROR] File missing."));
 		}
 
-		mediaProcessingService
-				.scheduleMediaToTextProcess(file, nss(lang), nss(type), user.getName(), internalToken(publicToken));
+		mediaProcessingService.scheduleMediaToTextProcess(file, nss(lang), nss(type), user.getName(),
+				internalToken(publicToken));
 
 		// return token immediately
 		return CompletableFuture.completedStage(ok(publicToken));

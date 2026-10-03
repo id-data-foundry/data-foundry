@@ -67,8 +67,8 @@ public class ParticipantsController extends AbstractAsyncController {
 
 	@Inject
 	public ParticipantsController(Configurator configurator, FormFactory formFactory,
-	        TokenResolverUtil tokenResolverUtil, OnboardingSupport onboardingSupport, DatasetConnector datasetConnector,
-	        NotificationService notificationService, TelegramBotService telegramBotService, WSClient ws) {
+			TokenResolverUtil tokenResolverUtil, OnboardingSupport onboardingSupport, DatasetConnector datasetConnector,
+			NotificationService notificationService, TelegramBotService telegramBotService, WSClient ws) {
 		this.configurator = configurator;
 		this.formFactory = formFactory;
 		this.tokenResolverUtil = tokenResolverUtil;
@@ -95,7 +95,7 @@ public class ParticipantsController extends AbstractAsyncController {
 		project.refresh();
 		if (!project.editableBy(username)) {
 			return redirect(PROJECTS).addingToSession(request, "error",
-			        "You don't have permissions for this action. Need to be project owner or collaborator.");
+					"You don't have permissions for this action. Need to be project owner or collaborator.");
 		}
 
 		List<Device> clusterDevices = participant.getClusterDevices();
@@ -114,7 +114,7 @@ public class ParticipantsController extends AbstractAsyncController {
 				List<TimedText> tts = dds.getDiaryForParticipant(id);
 				for (TimedText tt : tts) {
 					final Optional<TimedAnnotatedMedia> otam = annotatedMedia.stream()
-					        .filter(am -> am.matchTime(tt.timestamp)).findAny();
+							.filter(am -> am.matchTime(tt.timestamp)).findAny();
 					final TimedAnnotatedMedia tam;
 					if (!otam.isPresent()) {
 						tam = new TimedAnnotatedMedia(-1L, tt.timestamp, "", "", "", mediaDS.getId());
@@ -137,10 +137,10 @@ public class ParticipantsController extends AbstractAsyncController {
 
 		// show participant overview: allow for accept and decline options
 		return ok(views.html.sources.participant.view.render(participant, datasets, clusterDevices, clusterWearables,
-		        getParticipantViewLink(project, participant.getId(), request.host()),
-		        getParticipantDiaryEntryLink(project, participant.getId(), request.host()), diaryDS,
-		        tokenResolverUtil.getParticipationToken(project.getId(), participant.getId()), csrfToken(request),
-		        annotatedMedia, configurator));
+				getParticipantViewLink(project, participant.getId(), request.host()),
+				getParticipantDiaryEntryLink(project, participant.getId(), request.host()), diaryDS,
+				tokenResolverUtil.getParticipationToken(project.getId(), participant.getId()), csrfToken(request),
+				annotatedMedia, configurator));
 	}
 
 	@Authenticated(UserAuth.class)
@@ -151,7 +151,7 @@ public class ParticipantsController extends AbstractAsyncController {
 		Project project = Project.find.byId(id);
 		if (project == null || (!project.editableBy(username))) {
 			return redirect(PROJECT(id)).addingToSession(request, "error",
-			        "You need to be project owner or collaborator.");
+					"You need to be project owner or collaborator.");
 		}
 
 		return ok(views.html.sources.participant.add.render(csrfToken(request), project));
@@ -165,7 +165,7 @@ public class ParticipantsController extends AbstractAsyncController {
 		Project project = Project.find.byId(id);
 		if (project == null || (!project.editableBy(username))) {
 			return redirect(PROJECT(id)).addingToSession(request, "error",
-			        "You need to be project owner or collaborator.");
+					"You need to be project owner or collaborator.");
 		}
 
 		DynamicForm df = formFactory.form().bindFromRequest(request);
@@ -177,11 +177,11 @@ public class ParticipantsController extends AbstractAsyncController {
 		final String email = nss(df.get("email")).toLowerCase();
 		if (Participant.existsInProject(email, id)) {
 			return redirect(routes.ProjectsController.viewResources(id)).addingToSession(request, "error",
-			        "We have found a participant with this email address in this project, please choose a different address.");
+					"We have found a participant with this email address in this project, please choose a different address.");
 		}
 
 		Participant participant = new Participant(htmlEscape(nss(df.get("first_name"), 64)),
-		        htmlEscape(nss(df.get("last_name"), 64)));
+				htmlEscape(nss(df.get("last_name"), 64)));
 		participant.setEmail(email);
 		participant.setGender(df.get("gender") == null ? 4 : DataUtils.parseInt(df.get("gender"), 4));
 		participant.setCareer(htmlEscape(nss(df.get("career"))));
@@ -196,7 +196,7 @@ public class ParticipantsController extends AbstractAsyncController {
 		onboardingSupport.updateAfterDone(username, "new_participant");
 
 		return redirect(routes.ProjectsController.viewResources(id)).addingToSession(request, "message",
-		        "New participant:" + participant.getName() + " successfully added.");
+				"New participant:" + participant.getName() + " successfully added.");
 	}
 
 	@Authenticated(UserAuth.class)
@@ -208,7 +208,7 @@ public class ParticipantsController extends AbstractAsyncController {
 		Project project = Project.find.byId(id);
 		if (project == null || (!project.editableBy(username))) {
 			return redirect(PROJECTS).addingToSession(request, "error",
-			        "You don't have permissions for this action. Need to be project owner or collaborator.");
+					"You don't have permissions for this action. Need to be project owner or collaborator.");
 		}
 
 		return ok(views.html.sources.participant.addInBulk.render(csrfToken(request), project, quantity));
@@ -223,7 +223,7 @@ public class ParticipantsController extends AbstractAsyncController {
 		Project project = Project.find.byId(id);
 		if (project == null || (!project.editableBy(username))) {
 			return redirect(PROJECTS).addingToSession(request, "error",
-			        "You don't have permissions for this action. Need to be project owner or collaborator.");
+					"You don't have permissions for this action. Need to be project owner or collaborator.");
 		}
 
 		DynamicForm df = formFactory.form().bindFromRequest(request);
@@ -236,7 +236,7 @@ public class ParticipantsController extends AbstractAsyncController {
 			// .findOne() == null) {
 			// }
 			Participant participant = new Participant(nss(df.get("participants_fname_" + (quantity + 1))),
-			        nss(df.get("participants_lname_" + (quantity + 1))));
+					nss(df.get("participants_lname_" + (quantity + 1))));
 			participant.setEmail(nss(df.get("participants_" + (quantity + 1))).toLowerCase());
 			participant.setProject(project);
 			participant.create();
@@ -255,7 +255,7 @@ public class ParticipantsController extends AbstractAsyncController {
 		Project project = Project.find.byId(id);
 		if (project == null || (!project.editableBy(username))) {
 			return redirect(PROJECTS).addingToSession(request, "error",
-			        "You don't have permissions for this action. Need to be project owner or collaborator.");
+					"You don't have permissions for this action. Need to be project owner or collaborator.");
 		}
 
 		return ok(views.html.sources.participant.addInBulkSeparately.render(csrfToken(request), project, configurator));
@@ -270,7 +270,7 @@ public class ParticipantsController extends AbstractAsyncController {
 		Project project = Project.find.byId(id);
 		if (project == null || (!project.editableBy(username))) {
 			return redirect(PROJECTS).addingToSession(request, "error",
-			        "You need to be project owner or collaborator.");
+					"You need to be project owner or collaborator.");
 		}
 
 		DynamicForm df = formFactory.form().bindFromRequest(request);
@@ -279,7 +279,7 @@ public class ParticipantsController extends AbstractAsyncController {
 		}
 		String participants = df.get("participant_quantity");
 		int participant_quantity = participants == null || participants.equals("") ? 0
-		        : DataUtils.parseInt(participants, 0);
+				: DataUtils.parseInt(participants, 0);
 
 		String devices = df.get("devices_quantity");
 		int devices_quantity = devices == null || devices.equals("") ? 0 : DataUtils.parseInt(devices, 0);
@@ -329,7 +329,7 @@ public class ParticipantsController extends AbstractAsyncController {
 			Wearable fbWearable = null, gfWearable = null;
 			if (addFitbitWearable) {
 				long fbds_id = df.get("fitbitDataset") == null ? -1l
-				        : DataUtils.parseLong(df.get("fitbitDataset"), -1L);
+						: DataUtils.parseLong(df.get("fitbitDataset"), -1L);
 				fbWearable = new Wearable();
 				fbWearable.setName(participant.getName() + "_Fitbit_wearable");
 				fbWearable.setBrand(Wearable.FITBIT);
@@ -344,7 +344,7 @@ public class ParticipantsController extends AbstractAsyncController {
 
 			if (addGoogleFitWearable) {
 				long gfds_id = df.get("googleFitDataset") == null ? -1l
-				        : DataUtils.parseLong(df.get("googleFitDataset"), -1L);
+						: DataUtils.parseLong(df.get("googleFitDataset"), -1L);
 				gfWearable = new Wearable();
 				gfWearable.setName(participant.getName() + "_GoogleFit_wearable");
 				gfWearable.setBrand(Wearable.GOOGLEFIT);
@@ -364,12 +364,12 @@ public class ParticipantsController extends AbstractAsyncController {
 			project.update();
 
 			// console output for manual unlock
-			String token = tokenResolverUtil.getParticipationToken(project.getId(), participant.getId());
-			logger.info("Generated participation token for participant " + participant.getId() + " in project " + project.getId());
+			logger.info("Generated participation token for participant " + participant.getId() + " in project "
+					+ project.getId());
 		}
 
 		return redirect(routes.ProjectsController.viewResources(id)).addingToSession(request, "message",
-		        participant_quantity + " participants have been added successfully.");
+				participant_quantity + " participants have been added successfully.");
 	}
 
 	@Authenticated(UserAuth.class)
@@ -381,7 +381,7 @@ public class ParticipantsController extends AbstractAsyncController {
 		Project project = Project.find.byId(id);
 		if (project == null || (!project.editableBy(username))) {
 			return redirect(PROJECTS).addingToSession(request, "error",
-			        "You don't have permissions for this action. Need to be project owner or collaborator.");
+					"You don't have permissions for this action. Need to be project owner or collaborator.");
 		}
 
 		return ok(views.html.sources.participant.addByEmail.render(csrfToken(request), project));
@@ -396,7 +396,7 @@ public class ParticipantsController extends AbstractAsyncController {
 		Project project = Project.find.byId(id);
 		if (project == null || (!project.editableBy(username))) {
 			return redirect(PROJECTS).addingToSession(request, "error",
-			        "You need to be project owner or collaborator.");
+					"You need to be project owner or collaborator.");
 		}
 
 		DynamicForm df = formFactory.form().bindFromRequest(request);
@@ -411,7 +411,7 @@ public class ParticipantsController extends AbstractAsyncController {
 
 		// clean white spaces between emails
 		List<String> emails = Arrays.stream(email_list.split(",")).filter(e -> e != null).map(e -> e.trim())
-		        .filter(e -> e.length() > 0).collect(Collectors.toList());
+				.filter(e -> e.length() > 0).collect(Collectors.toList());
 
 		String devices = df.get("devices_quantity");
 		int devices_quantity = devices == null || devices.equals("") ? 0 : DataUtils.parseInt(devices, 0);
@@ -463,7 +463,7 @@ public class ParticipantsController extends AbstractAsyncController {
 				Wearable fbWearable = null, gfWearable = null;
 				if (addFitbitWearable) {
 					long fbds_id = df.get("fitbitDataset") == null ? -1l
-					        : DataUtils.parseLong(df.get("fitbitDataset"), -1L);
+							: DataUtils.parseLong(df.get("fitbitDataset"), -1L);
 					fbWearable = new Wearable();
 					fbWearable.setName(email + "_Fitbit_wearable");
 					fbWearable.setBrand(Wearable.FITBIT);
@@ -478,7 +478,7 @@ public class ParticipantsController extends AbstractAsyncController {
 
 				if (addGoogleFitWearable) {
 					long gfds_id = df.get("googleFitDataset") == null ? -1l
-					        : DataUtils.parseLong(df.get("googleFitDataset"), -1L);
+							: DataUtils.parseLong(df.get("googleFitDataset"), -1L);
 					gfWearable = new Wearable();
 					gfWearable.setName(email + "_GoogleFit_wearable");
 					gfWearable.setBrand(Wearable.GOOGLEFIT);
@@ -498,14 +498,14 @@ public class ParticipantsController extends AbstractAsyncController {
 				project.update();
 
 				// console output for manual unlock
-				String token = tokenResolverUtil.getParticipationToken(project.getId(), participant.getId());
-				logger.info("Generated participation token for participant " + participant.getId() + " in project " + project.getId());
+				logger.info("Generated participation token for participant " + participant.getId() + " in project "
+						+ project.getId());
 				quantity++;
 			}
 		}
 
 		return redirect(routes.ProjectsController.viewResources(id)).addingToSession(request, "message",
-		        quantity + " emails has been added successfully.");
+				quantity + " emails has been added successfully.");
 	}
 
 	@Authenticated(UserAuth.class)
@@ -523,7 +523,7 @@ public class ParticipantsController extends AbstractAsyncController {
 		project.refresh();
 		if (!project.editableBy(username)) {
 			return redirect(PROJECTS).addingToSession(request, "error",
-			        "You need to be project owner or collaborator.");
+					"You need to be project owner or collaborator.");
 		}
 
 		return ok(views.html.sources.participant.edit.render(csrfToken(request), participant));
@@ -544,22 +544,22 @@ public class ParticipantsController extends AbstractAsyncController {
 		project.refresh();
 		if (!project.editableBy(username)) {
 			return redirect(PROJECTS).addingToSession(request, "error",
-			        "You need to be project owner or collaborator.");
+					"You need to be project owner or collaborator.");
 		}
 
 		DynamicForm df = formFactory.form().bindFromRequest(request);
 		if (df == null) {
 			return redirect(routes.ParticipantsController.edit(id)).addingToSession(request, "error",
-			        "Expecting some data.");
+					"Expecting some data.");
 		}
 
 		final String email = nss(df.get("email")).toLowerCase();
 
 		// check for double registration in the same project with a new email
 		if (!email.equals(participant.getEmail())
-		        && project.getParticipants().stream().anyMatch(pt -> pt.getEmail().equals(email))) {
+				&& project.getParticipants().stream().anyMatch(pt -> pt.getEmail().equals(email))) {
 			return redirect(routes.ParticipantsController.edit(id)).addingToSession(request, "error",
-			        "We have found a participant with this email address in this project, please choose a different address.");
+					"We have found a participant with this email address in this project, please choose a different address.");
 		}
 		// email cannot be changed into an empty or NULL email
 		else if (!email.isEmpty()) {
@@ -579,10 +579,10 @@ public class ParticipantsController extends AbstractAsyncController {
 		participant.update();
 
 		LabNotesEntry.log(Participant.class, LabNotesEntryType.MODIFY, "Participant changed: " + participant.getName(),
-		        project);
+				project);
 
 		return redirect(routes.ParticipantsController.view(participant.getId())).addingToSession(request, "message",
-		        "We have changed the participant details.");
+				"We have changed the participant details.");
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -602,16 +602,16 @@ public class ParticipantsController extends AbstractAsyncController {
 		project.refresh();
 		if (!project.editableBy(username)) {
 			return redirect(PROJECTS).addingToSession(request, "error",
-			        "You need to be project owner or collaborator.");
+					"You need to be project owner or collaborator.");
 		}
 
 		Dataset ds = project.getDiaryDataset();
 		if (ds == null) {
 			return redirect(PROJECT(participant.getProject().getId())).addingToSession(request, "error",
-			        "Dataset not found.");
+					"Dataset not found.");
 		} else if (!ds.canAppend()) {
 			return redirect(PROJECT(participant.getProject().getId())).addingToSession(request, "error",
-			        "Dataset inaccessible.");
+					"Dataset inaccessible.");
 		}
 
 		return ok(views.html.sources.participant.record.render(participant, csrfToken(request), ds));
@@ -639,22 +639,22 @@ public class ParticipantsController extends AbstractAsyncController {
 		project.refresh();
 		if (!project.editableBy(username)) {
 			return redirect(PROJECTS).addingToSession(request, "error",
-			        "You don't have permissions for this action. Need to be project owner or collaborator.");
+					"You don't have permissions for this action. Need to be project owner or collaborator.");
 		}
 
 		final Dataset ds = Dataset.find.byId(datasetId);
 		if (ds == null) {
 			return redirect(PROJECT(participant.getProject().getId())).addingToSession(request, "error",
-			        "Dataset not found.");
+					"Dataset not found.");
 		} else if (!ds.canAppend()) {
 			return redirect(PROJECT(participant.getProject().getId())).addingToSession(request, "error",
-			        "Dataset inaccessible.");
+					"Dataset inaccessible.");
 		}
 
 		// check dataset type
 		if (ds.getDsType() != DatasetType.DIARY) {
 			return redirect(PROJECT(participant.getProject().getId())).addingToSession(request, "error",
-			        "Wrong dataset type.");
+					"Wrong dataset type.");
 		}
 
 		DynamicForm df = formFactory.form().bindFromRequest(request);
@@ -670,7 +670,7 @@ public class ParticipantsController extends AbstractAsyncController {
 
 		// text
 		String text = nss(df.get("text")).replace("\n", "<br>").replaceAll("[\\p{Cntrl}\\p{Cc}\\p{Cf}\\p{Co}\\p{Cn}]",
-		        "");
+				"");
 
 		// TODO Is Markdown formatting needed?
 
@@ -691,7 +691,7 @@ public class ParticipantsController extends AbstractAsyncController {
 
 		// flash and redirect
 		return redirect(controllers.routes.ParticipantsController.view(id)).addingToSession(request, "message",
-		        "Diary entry recorded, thanks!");
+				"Diary entry recorded, thanks!");
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -714,7 +714,7 @@ public class ParticipantsController extends AbstractAsyncController {
 		Project project = Project.find.byId(id);
 		if (!project.editableBy(username)) {
 			return redirect(PROJECTS).addingToSession(request, "error",
-			        "You don't have permissions for this action. Need to be project owner or collaborator.");
+					"You don't have permissions for this action. Need to be project owner or collaborator.");
 		}
 
 		DynamicForm df = formFactory.form().bindFromRequest(request);
@@ -727,29 +727,29 @@ public class ParticipantsController extends AbstractAsyncController {
 
 		// message text
 		String message = nss(df.get("message")).replace("\n", " ")
-		        .replaceAll("[\\p{Cntrl}\\p{Cc}\\p{Cf}\\p{Co}\\p{Cn}]", "");
+				.replaceAll("[\\p{Cntrl}\\p{Cc}\\p{Cf}\\p{Co}\\p{Cn}]", "");
 
 		if (pid == -1) {
 			// send instant message to all participants
 			project.getParticipants().forEach(p -> {
 				ExecutorService newSingleThreadExecutor = Executors.newSingleThreadExecutor();
 				telegramBotUtils.sendMessageToParticipant(project.getId(), p.getEmail(), message,
-				        newSingleThreadExecutor);
+						newSingleThreadExecutor);
 			});
 			return redirect(routes.ProjectsController.viewResources(id)).addingToSession(request, "message",
-			        "Telegram message sent out successfully.");
+					"Telegram message sent out successfully.");
 		} else {
 			TelegramSession ts = TelegramSession.find.byId(pid);
 			if (ts != null) {
 				// send instant message to one participant
 				ExecutorService newSingleThreadExecutor = Executors.newSingleThreadExecutor();
 				telegramBotUtils.sendMessageToParticipant(project.getId(), ts.getEmail(), message,
-				        newSingleThreadExecutor);
+						newSingleThreadExecutor);
 				return redirect(routes.ProjectsController.viewResources(id)).addingToSession(request, "message",
-				        "Telegram message sent out successfully.");
+						"Telegram message sent out successfully.");
 			} else {
 				return redirect(routes.ProjectsController.viewResources(id)).addingToSession(request, "error",
-				        "Participant could not be found.");
+						"Participant could not be found.");
 			}
 		}
 	}
@@ -772,13 +772,13 @@ public class ParticipantsController extends AbstractAsyncController {
 
 		// https://api.telegram.org/file/bot<token>/<file_path>
 		return ws.url("https://api.telegram.org/file/bot" + telegramBotUtils.getBotToken() + "/" + fileId)
-		        .setFollowRedirects(false).get().toCompletableFuture().thenApply(res -> {
-			        if (res.getStatus() != 200) {
-				        return notFound();
-			        }
-			        String contentType = res.getSingleHeader("Content-Type").orElse("image/jpeg");
-			        return ok(res.asByteArray()).as(contentType).withHeader("X-Content-Type-Options", "nosniff");
-		        });
+				.setFollowRedirects(false).get().toCompletableFuture().thenApply(res -> {
+					if (res.getStatus() != 200) {
+						return notFound();
+					}
+					String contentType = res.getSingleHeader("Content-Type").orElse("image/jpeg");
+					return ok(res.asByteArray()).as(contentType).withHeader("X-Content-Type-Options", "nosniff");
+				});
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -808,31 +808,31 @@ public class ParticipantsController extends AbstractAsyncController {
 		// check the project permissions
 		if (!project.editableBy(username)) {
 			logger.info("User, " + username + ", is not available to send invite link to participant in project - "
-			        + project.getName() + ".");
+					+ project.getName() + ".");
 			return redirect(routes.ParticipantsController.view(id)).addingToSession(request, "error",
-			        "You don't have permissions for this action. Need to be project owner or collaborator.");
+					"You don't have permissions for this action. Need to be project owner or collaborator.");
 		}
 
 		// create invite link
 
 		// send email to participant with invite link
 		Html htmlBody = views.html.emails.invite.render("Participation link", String.format("Hi "
-		        + Participant.find.byId(participant.getId()).getRealName() + ","
-		        + "\n\nThe following is the participation link for you to join the project:" + project.getName() + ","
-		        + "please finish the consent form and your basic information to complete the participation process."
-		        + "If you change your mind not to join this project, feel free to DECLINE this invitation by the link."),
-		        getParticipantViewLink(project, participant.getId(), request.host()));
+				+ Participant.find.byId(participant.getId()).getRealName() + ","
+				+ "\n\nThe following is the participation link for you to join the project:" + project.getName() + ","
+				+ "please finish the consent form and your basic information to complete the participation process."
+				+ "If you change your mind not to join this project, feel free to DECLINE this invitation by the link."),
+				getParticipantViewLink(project, participant.getId(), request.host()));
 		String textBody = "Hello! \n\nWe send you this email for your participation in DataFondry."
-		        + "Just click the link below to be forwarded to a form where you can finish the participation process."
-		        + "If you change your mind not to join this project, feel free to DECLINE this invitation by the link. \n\n"
-		        + getParticipantViewLink(project, participant.getId(), request.host()) + "\n\n";
+				+ "Just click the link below to be forwarded to a form where you can finish the participation process."
+				+ "If you change your mind not to join this project, feel free to DECLINE this invitation by the link. \n\n"
+				+ getParticipantViewLink(project, participant.getId(), request.host()) + "\n\n";
 
 		notificationService.sendMail(participant.getEmail(), textBody, htmlBody,
-		        getParticipantViewLink(project, participant.getId(), request.host()), "[ID Data Foundry] Invitation",
-		        "Invitation link: " + getParticipantViewLink(project, participant.getId(), request.host()));
+				getParticipantViewLink(project, participant.getId(), request.host()), "[ID Data Foundry] Invitation",
+				"Invitation link: " + getParticipantViewLink(project, participant.getId(), request.host()));
 
 		return redirect(routes.ParticipantsController.view(participant.getId())).addingToSession(request, "message",
-		        "Ok, we sent an invite link to participant " + participant.getName());
+				"Ok, we sent an invite link to participant " + participant.getName());
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -856,8 +856,8 @@ public class ParticipantsController extends AbstractAsyncController {
 					? configurator.getString(ConfigurationUtils.DF_BASEURL).replaceAll("/+$", "")
 					: "";
 			if (!baseUrl.isEmpty()) {
-				return baseUrl + routes.ParticipationController
-						.recordForm(ds.getId(), tokenResolverUtil.getParticipationToken(project.getId(), participant_id)).url();
+				return baseUrl + routes.ParticipationController.recordForm(ds.getId(),
+						tokenResolverUtil.getParticipationToken(project.getId(), participant_id)).url();
 			}
 			return routes.ParticipationController
 					.recordForm(ds.getId(), tokenResolverUtil.getParticipationToken(project.getId(), participant_id))
