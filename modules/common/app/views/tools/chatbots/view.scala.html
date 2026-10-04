@@ -1,25 +1,32 @@
 @(user: Person, dataset: Dataset, files: List[controllers.tools.ChatbotController.FileWithIndexStatus], localModelMetadata: services.api.ai.LocalModelMetadata, agentsMdContent: String = "", csrfToken: String)
+@import models.Dataset
+
+@isAgentic = @{ dataset.configuration(Dataset.CHATBOT_ENABLE_AGENTIC, "false").equals("true") }
+@isPublic = @{ !dataset.configuration(Dataset.CHATBOT_PUBLIC, "").isEmpty() }
+@isStoreChats = @{ !dataset.configuration(Dataset.CHATBOT_STORE_CHATS, "").isEmpty() }
+@isMemoryEnabled = @{ dataset.configuration(Dataset.CHATBOT_ENABLE_USER_MEMORY, "false").equals("true") }
+@isMultiSession = @{ dataset.configuration(Dataset.CHATBOT_ENABLE_MULTISESSION, "false").equals("true") }
+@docFiles = @{ files.filter(!_.file.link.startsWith("chat_")) }
+@chatFiles = @{ files.filter(_.file.link.startsWith("chat_")) }
+
 @main(dataset.getName(), "profile") {
 
   <style>
     .file-uploader {
-      border: 2px dashed #aaa;
-      padding: 30px;
+      border: 2px dashed #94a3b8;
+      padding: 30px 20px;
       text-align: center;
-      border-radius: 8px;
+      border-radius: 6px;
       cursor: pointer;
-      margin-bottom: 1em;
+      background: #fafafa;
+      transition: all 0.2s ease-in-out;
     }
     .file-uploader.dragover {
-      border-color: #333;
-      background: #f0f0f0;
+      border-color: #0284c7;
+      background: #f0f9ff;
     }
     input[type="file"] {
       display: none;
-    }
-    #file-list p a[download] {
-      color: black;
-      text-decoration: underline;
     }
     pre {
       background: #fff;
@@ -27,10 +34,22 @@
       border-radius: 4px;
       overflow-x: auto;
       font-family: monospace;
+      border: 1px solid #e2e8f0;
+    }
+    .tabs .tab a {
+      font-weight: normal;
+    }
+    .card .card-content {
+      padding: 1.5rem;
+    }
+    .card .card-title {
+      font-size: 1.2rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
     }
   </style>
 
-  <!-- navigation -->
+  <!-- Navigation breadcrumbs -->
   <nav class="">
     <div class="row">
       <div class="col s12">
@@ -41,226 +60,285 @@
     </div>
   </nav>
 
-  <div class="row">
-    <div class="col s12">
-      <h2>@dataset.getName()</h2>
+  <!-- Header & Status Bar -->
+  <div class="row" style="margin-top: 1.5rem; margin-bottom: 1rem; align-items: center;">
+    <div class="col s12 m7">
+      <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+        <h3 style="margin: 0; font-size: 2rem; font-weight: 600; text-transform: none;">@dataset.getName()</h3>
+        <span id="header-mode-badge" class="chip @if(isAgentic){blue lighten-5 blue-text text-darken-3}else{grey lighten-3 grey-text text-darken-3}" style="font-weight: 600;">
+          @if(isAgentic){🤖 Agentic}else{⚡ Standard}
+        </span>
+        <span class="chip @if(isPublic){green lighten-5 green-text text-darken-3}else{grey lighten-4 grey-text text-darken-2}">
+          @if(isPublic){🌐 Public}else{🔒 Private}
+        </span>
+        <span class="chip grey lighten-4 grey-text text-darken-3">
+          📚 @docFiles.size @if(docFiles.size == 1){Doc}else{Docs}
+        </span>
+      </div>
+    </div>
+    <div class="col s12 m5 right-align" style="margin-top: 0.5rem;">
+      <a href="@controllers.tools.routes.ChatbotController.chat(dataset.getId())" class="btn green waves-effect waves-light" style="margin-right: 6px;">
+        <i class="left" style="margin-right: 6px;">@elements.icon("chat")</i>Start Chat
+      </a>
+      <a href="@controllers.tools.routes.ChatbotController.test(dataset.getId())" class="btn blue darken-1 waves-effect waves-light">
+        <i class="left" style="margin-right: 6px;">@elements.icon("build")</i>Test Bot
+      </a>
+      @if(isPublic){
+        <a href="@controllers.tools.routes.ChatbotController.chat(dataset.getId())" target="_blank" class="btn-flat waves-effect" title="Direct Public Chat Link" style="margin-left: 4px;">
+          <i class="left" style="margin-right: 4px;">@elements.icon("share")</i>Share
+        </a>
+      }
     </div>
   </div>
 
-  <form hx-post="@controllers.tools.routes.ChatbotController.save(dataset.getId(), "save")"
-    hx-target="#results"
-    hx-swap="innerHTML"
-    hx-disabled-elt="button,a"
-    hx-indicator="#settings-indicator">
-    <input type="hidden" name="csrfToken" value="@csrfToken">
-    <div class="row">
-      <div class="col s12 m2" style="line-height: 5rem;">
-        <b>Bot Name:</b>
-      </div>
-      <div class="input-field col s12 m6">
-        <input name="@Dataset.CHATBOT_NAME" style="font-family: monospace;" value="@dataset.getName()">
-      </div>
-      <div class="input-field col s12 m4" style="text-align: right;">
-        <a href="@controllers.tools.routes.ChatbotController.test(dataset.getId())" class="btn">Test Bot</a>
-        <a href="@controllers.tools.routes.ChatbotController.chat(dataset.getId())" class="btn">Start Chat</a>
-      </div>
-      <div class="input-field col s12">
-        <p>
-          <b>Description:</b><br>
-          Briefly describe what this bot does (for yourself and other users).
-        </p>
-        <textarea name="@Dataset.CHATBOT_INTRODUCTION" style="height: 10rem; background: white; padding: 0.5rem; font-family: monospace;">@dataset.configuration(Dataset.CHATBOT_INTRODUCTION, "")</textarea>
-      </div>
-    </div>
-    <div class="row">
-      <div class="col s12">
-        <p>
-          <b>Instructions (System Prompt):</b><br>
-          Define how the bot should behave, what its role is, and how it should answer. <br>
-          <small>Need inspiration? Check <a href="https://github.com/LouisShark/chatgpt_system_prompt" target="_blank">this repository</a>.</small>
-        </p>
-        <textarea name="@Dataset.CHATBOT_SYSTEM_PROMPT" style="height: 20rem; background: white; padding: 0.5rem; font-family: monospace;">@dataset.configuration(Dataset.CHATBOT_SYSTEM_PROMPT, "")</textarea>
-      </div>
-    </div>
-    <div class="row">
-      <div class="col s12 m6">
-        <p>
-          <b>AI Model</b>
-        </p>
-        <div class="row">
-          <div class="col s12">
-            Choose the AI brain for your bot:
-          </div>
-          <div class="input-field col s12">
-            <select id="model" name="@Dataset.CHATBOT_MODEL" required="required" class="validate">
-              <option value="" disabled>Choose AI model</option>
-              @for(model <- localModelMetadata.getModelNames()) {
-                <option @option(model._1)>@model._2</option>
-              }
-            </select>
-            <label>AI Model</label>
-            <div id="agentic-model-notice" style="margin-top: 6px; @if(!dataset.configuration(Dataset.CHATBOT_ENABLE_AGENTIC, "false").equals("true")){display:none;}">
-              <small style="color: #0284c7; font-weight: 500;">🤖 In Agentic mode, the smart coding agent model with full tool support is automatically used.</small>
-            </div>
-          </div>
-          <div class="col s12">
-            <p>
-            <b>Access Control</b><br>
-            If you make this bot public, anyone logged into Data Foundry can use it via <a href="@controllers.tools.routes.ChatbotController.chat(dataset.getId())" target="_blank">this link</a>.
-            </p>
-          </div>
-          <div class="input-field col s12">
-            <div class="switch">
-              <label>
-                Private (Only me)
-                <input type="checkbox" name="@Dataset.CHATBOT_PUBLIC" @if(!dataset.configuration(Dataset.CHATBOT_PUBLIC, "").isEmpty()){checked}>
-                <span class="lever"></span>
-                Public (Shared)
-              </label>
-            </div>
-          </div>
-          <div class="col s12">
-             <br><b>Conversation History</b>
-          </div>
-          <div class="input-field col s12">
-            <div class="switch">
-              <label>
-                Don't save
-                <input type="checkbox" name="@Dataset.CHATBOT_STORE_CHATS" @if(!dataset.configuration(Dataset.CHATBOT_STORE_CHATS, "").isEmpty()){checked}>
-                <span class="lever"></span>
-                Save all chats
-              </label>
-            </div>
-          </div>
-          <div class="col s12">
-             <br><b>Agentic Engine (AgentScope)</b><br>
-             <small style="color: #666;">Runs the bot as an autonomous agent supporting tool calls, custom guidelines (<code>AGENTS.md</code>), and memory tools. Uses a smart tool-calling model.</small>
-          </div>
-          <div class="input-field col s12">
-            <div class="switch">
-              <label>
-                Standard (Legacy)
-                <input type="checkbox" name="@Dataset.CHATBOT_ENABLE_AGENTIC" @if(dataset.configuration(Dataset.CHATBOT_ENABLE_AGENTIC, "false").equals("true")){checked}>
-                <span class="lever"></span>
-                Agentic (AgentScope)
-              </label>
-            </div>
-          </div>
-          <div class="col s12">
-             <br><b>User Memory & Notes</b><br>
-             <small style="color: #666;">Allows the bot to retain key user profile facts across sessions and edit markdown files in the user's private notes space.</small>
-          </div>
-          <div class="input-field col s12">
-            <div class="switch">
-              <label>
-                Disabled
-                <input type="checkbox" name="@Dataset.CHATBOT_ENABLE_USER_MEMORY" @if(dataset.configuration(Dataset.CHATBOT_ENABLE_USER_MEMORY, "false").equals("true")){checked}>
-                <span class="lever"></span>
-                Enabled
-              </label>
-            </div>
-          </div>
-          <div class="col s12">
-             <br><b>Multi-Session Support</b><br>
-             <small style="color: #666;">Allows users to maintain, label, and switch between multiple chat sessions.</small>
-          </div>
-          <div class="input-field col s12">
-            <div class="switch">
-              <label>
-                Single Session
-                <input type="checkbox" name="@Dataset.CHATBOT_ENABLE_MULTISESSION" @if(dataset.configuration(Dataset.CHATBOT_ENABLE_MULTISESSION, "false").equals("true")){checked}>
-                <span class="lever"></span>
-                Multiple Sessions
-              </label>
-            </div>
-          </div>
-        </div>
-      </div>
-      <div class="col s12 m6">
-        <details open>
-          <summary><b>Advanced Options (Model temperature & Knowledge Base)</b></summary>
-          <div>
-            <p>
-              <b>Model temperature</b><br>              
-            </p>
-          </div>
-          <div class="input-field">
-            <input type="number" name="@Dataset.CHATBOT_TEMPERATURE" min="0.0" max="2.0" step="0.1" value="@dataset.configuration(Dataset.CHATBOT_TEMPERATURE, "")">
-            <label>
-              Model Temperature (higher is more "creative")
-            </label>
-          </div>
-          <div>
-            <p>
-              <b>Knowledge Base (RAG)</b><br>
-              You can upload PDF documents below to create a knowledge base. The bot will search these files to find relevant information for its answers.
-            </p>
-          </div>
-          <div class="input-field">
-            <input type="number" name="@Dataset.CHATBOT_RAG_MAX_HITS" min="1" max="50" value="@dataset.configuration(Dataset.CHATBOT_RAG_MAX_HITS, "")">
-            <label>
-              Max References (Chunks to read)
-            </label>
-          </div>
-          <div class="input-field">
-            <input type="number" name="@Dataset.CHATBOT_RAG_SCORE_THRESHOLD" min="0.0" max="1.0" step="0.05" value="@dataset.configuration(Dataset.CHATBOT_RAG_SCORE_THRESHOLD, "")">
-            <label>
-              Relevance Threshold (0.0 - 1.0)
-            </label>
-          </div>
-          <div class="input-field">
-            <div class="switch">
-              <label>
-                Hide Sources
-                <input type="checkbox" name="@Dataset.CHATBOT_SHOW_SOURCES" @if(!dataset.configuration(Dataset.CHATBOT_SHOW_SOURCES, "").isEmpty()){checked}>
-                <span class="lever"></span>
-                Show Sources
-              </label>
-            </div>
-          </div>
-        </details>
-        <details>
-          <summary><b>Behavior options</b></summary>
-          <p>
-            <b>Greeting Message</b><br>
-            Optional: The first message the bot sends to start the conversation.
-          </p>
-          <textarea name="@Dataset.CHATBOT_ASSISTANT_PROMPT" style="height: 10rem; background: white; padding: 0.5rem; font-family: monospace;">@dataset.configuration(Dataset.CHATBOT_ASSISTANT_PROMPT, "")</textarea>
-          <p>
-            <b>Suggested User Input</b><br>
-            Optional: Text that will appear in the user's input box, ready to be sent or edited.
-          </p>
-          <textarea name="@Dataset.CHATBOT_USER_PROMPT" style="height: 10rem; background: white; padding: 0.5rem; font-family: monospace;">@dataset.configuration(Dataset.CHATBOT_USER_PROMPT, "")</textarea>
-
-        </details>
-      </div>
-    </div>
-
-    <div class="row">
-      <div class="col s12">
-        <button type="submit" class="btn">Save Settings</button>
-      </div>
-    </div>
-    <div class="row">
-      <div class="col s12">
-        <div id="settings-indicator" class="progress htmx-indicator">
-          <div class="indeterminate"></div>
-        </div>
-      </div>
-      <div class="col s12" id="results"></div>
-    </div>
-  </form>
-
-  <hr>
-
-  <!-- AGENTS.md Editor Card -->
-  <div class="row">
+  <!-- Workspace Tabs and Content in single Row (Strict Materialize Standards) -->
+  <div class="row" style="margin-bottom: 1.5rem;">
     <div class="col s12">
-      <div class="card" style="border: 1px solid #e0e0e0; border-radius: 6px;">
+      <ul class="tabs" id="chatbot-tabs">
+        <li class="tab col s3"><a class="active" href="#tab-config">⚙️ Configuration & Prompts</a></li>
+        <li class="tab col s3"><a href="#tab-kb">📚 Knowledge Base (@docFiles.size)</a></li>
+        <li class="tab col s3"><a href="#tab-history">💬 Conversations</a></li>
+        <li class="tab col s3"><a href="#tab-api">🔌 API Integration</a></li>
+      </ul>
+    </div>
+
+    <!-- TAB 1: Configuration & Prompts -->
+    <div id="tab-config" class="col s12" style="margin-top: 1rem;">
+      <form hx-post="@controllers.tools.routes.ChatbotController.save(dataset.getId(), "save")"
+        hx-target="#results"
+        hx-swap="innerHTML"
+        hx-disabled-elt="button,a"
+        hx-indicator="#settings-indicator">
+        <input type="hidden" name="csrfToken" value="@csrfToken">
+
+        <!-- Engine Selector Card -->
+        <div class="card" style="border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 1.5rem;">
+          <div class="card-content" style="padding: 1.25rem 1.5rem;">
+            <div class="row" style="margin-bottom: 0; align-items: center;">
+              <div class="col s12 m8">
+                <span class="card-title" style="font-size: 1.2rem; font-weight: 600; margin-bottom: 4px;">
+                  Chatbot Engine Mode
+                </span>
+                <p id="engine-mode-desc" class="grey-text text-darken-1" style="font-size: 0.9rem; margin: 0;">
+                  @if(isAgentic){
+                    <strong style="color: #0284c7;">🤖 Agentic:</strong> Autonomous reasoning agent with tool execution (knowledge base querying, long-term memory fact extraction, notes management) and custom operational guidelines (<code>AGENTS.md</code>).
+                  } else {
+                    <strong style="color: #475569;">⚡ Standard:</strong> Direct completion assistant using prompt injection with Lucene vector search retrieval across uploaded knowledge base documents.
+                  }
+                </p>
+              </div>
+              <div class="col s12 m4 right-align" style="margin-top: 0.5rem;">
+                <div class="switch">
+                  <label style="font-size: 0.9rem; font-weight: 500;">
+                    Standard
+                    <input type="checkbox" id="engine-mode-switch" name="@Dataset.CHATBOT_ENABLE_AGENTIC" @if(isAgentic){checked}>
+                    <span class="lever"></span>
+                    Agentic
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- General Bot Profile Card -->
+        <div class="card" style="border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 1.5rem;">
+          <div class="card-content">
+            <span class="card-title">General Information</span>
+            <div class="row" style="margin-bottom: 0;">
+              <div class="input-field col s12">
+                <input id="bot-name" name="@Dataset.CHATBOT_NAME" type="text" value="@dataset.getName()" required style="font-family: monospace;">
+                <label for="bot-name" class="active"><b>Bot Name</b></label>
+              </div>
+              <div class="input-field col s12" style="margin-top: 10px;">
+                <textarea id="bot-desc" name="@Dataset.CHATBOT_INTRODUCTION" class="materialize-textarea" style="min-height: 4rem; padding: 8px; font-family: monospace; background: #fff; border: 1px solid #e2e8f0; border-radius: 4px;">@dataset.configuration(Dataset.CHATBOT_INTRODUCTION, "")</textarea>
+                <label for="bot-desc" class="active"><b>Description</b> (Briefly describe what this bot does for yourself and others)</label>
+              </div>
+              <div class="input-field col s12 m6" style="margin-top: 15px;">
+                <div class="switch">
+                  <label>
+                    Private (Only me)
+                    <input type="checkbox" name="@Dataset.CHATBOT_PUBLIC" @if(isPublic){checked}>
+                    <span class="lever"></span>
+                    Public (Shared)
+                  </label>
+                </div>
+                <small class="grey-text">If public, anyone logged into Data Foundry can chat with this bot.</small>
+              </div>
+              <div class="input-field col s12 m6" style="margin-top: 15px;">
+                <div class="switch">
+                  <label>
+                    Don't save history
+                    <input type="checkbox" name="@Dataset.CHATBOT_STORE_CHATS" @if(isStoreChats){checked}>
+                    <span class="lever"></span>
+                    Save chat transcripts
+                  </label>
+                </div>
+                <small class="grey-text">Save conversation sessions as downloadable files.</small>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Legacy-Specific Section (Hidden in Agentic Mode) -->
+        <div id="legacy-settings" style="@if(isAgentic){display: none;}">
+          <div class="card" style="border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 1.5rem;">
+            <div class="card-content">
+              <span class="card-title">AI Brain & Model Selection</span>
+              <p class="grey-text text-darken-1" style="font-size: 0.85rem; margin-bottom: 12px;">Choose the LLM model to power your standard completion bot:</p>
+              <div class="row" style="margin-bottom: 0;">
+                <div class="input-field col s12 m8">
+                  <select id="model" name="@Dataset.CHATBOT_MODEL">
+                    <option value="" disabled>Choose AI model</option>
+                    @for(model <- localModelMetadata.getModelNames()) {
+                      <option @option(model._1)>@model._2</option>
+                    }
+                  </select>
+                  <label>Selected AI Model</label>
+                </div>
+                <div class="input-field col s12 m4">
+                  <input id="temperature" type="number" name="@Dataset.CHATBOT_TEMPERATURE" min="0.0" max="2.0" step="0.1" value="@dataset.configuration(Dataset.CHATBOT_TEMPERATURE, "0.7")">
+                  <label for="temperature" class="active">Temperature (0.0 - 2.0)</label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Agentic-Specific Section (Hidden in Legacy Mode) -->
+        <div id="agentic-settings" style="@if(!isAgentic){display: none;}">
+          <div class="card" style="border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 1.5rem;">
+            <div class="card-content" style="padding: 1.25rem 1.5rem;">
+              <div style="display: flex; align-items: flex-start; gap: 12px;">
+                <span style="font-size: 1.8rem; line-height: 1;">🤖</span>
+                <div>
+                  <h6 style="margin: 0 0 6px 0; font-weight: 700;">Agentic mode</h6>
+                </div>
+              </div>
+              <div class="row">
+                <div class="col s12">
+                  <p>
+                    In Agentic mode, the bot runs as an autonomous agent using a smart tool-calling model. It dynamically invokes tools to search the knowledge base, proactively records user profile facts, and manages private user notes.
+                  </p>
+                </div>
+              </div>
+
+              <div class="row">
+                <div class="col s12 m6">
+                  <b>User Memory & Notes</b><br>
+                  <small class="grey-text">Enables <code>update_user_memory</code>, <code>write_user_file</code>, and <code>read_user_file</code> tools.</small>
+                  <div class="switch" style="margin-top: 8px;">
+                    <label>
+                      Disabled
+                      <input type="checkbox" id="user-memory-switch" name="@Dataset.CHATBOT_ENABLE_USER_MEMORY" @if(isMemoryEnabled){checked}>
+                      <span class="lever"></span>
+                      Enabled
+                    </label>
+                  </div>
+                </div>
+                <div class="col s12 m6" style="margin-bottom: 1rem;">
+                  <b>Multi-Session Support</b><br>
+                  <small class="grey-text">Allows users to create, switch, and maintain multiple conversation threads.</small>
+                  <div class="switch" style="margin-top: 8px;">
+                    <label>
+                      Single Session
+                      <input type="checkbox" name="@Dataset.CHATBOT_ENABLE_MULTISESSION" @if(isMultiSession){checked}>
+                      <span class="lever"></span>
+                      Multi-Session
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Instructions & Persona Card (Common to both modes) -->
+        <div class="card" style="border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 1.5rem;">
+          <div class="card-content">
+            <span class="card-title">Instructions (System Prompt)</span>
+            <p id="prompt-desc" class="grey-text text-darken-1" style="font-size: 0.85rem; margin-bottom: 10px;">
+              @if(isAgentic){
+                Base system prompt establishing the agent's baseline identity and context. Use <code>$DATE</code> to inject the current date.
+              } else {
+                Define how the bot should behave, what its role is, and how it should answer. Use <code>$DATE</code> to inject the current date.
+              }
+            </p>
+            <div class="input-field" style="margin-top: 0;">
+              <textarea id="system-prompt" name="@Dataset.CHATBOT_SYSTEM_PROMPT" class="materialize-textarea" style="min-height: 12rem; padding: 10px; font-family: monospace; font-size: 0.9rem; background: #fff; border: 1px solid #e2e8f0; border-radius: 4px;">@dataset.configuration(Dataset.CHATBOT_SYSTEM_PROMPT, "")</textarea>
+            </div>
+          </div>
+        </div>
+        
+        <div class="card" style="border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 1.5rem;">
+          <div class="card-content">
+            <span class="card-title">Knowledge Base Retrieval (RAG)</span>
+            <p class="grey-text text-darken-1" style="font-size: 0.85rem; margin-bottom: 12px;">Tune how matching document chunks are searched and injected into prompt context:</p>
+            <div class="row" style="margin-bottom: 0;">
+              <div class="input-field col s12 m4">
+                <input id="rag-hits" type="number" name="@Dataset.CHATBOT_RAG_MAX_HITS" min="1" max="50" value="@dataset.configuration(Dataset.CHATBOT_RAG_MAX_HITS, "10")">
+                <label for="rag-hits" class="active">Max Reference Chunks</label>
+              </div>
+              <div class="input-field col s12 m4">
+                <input id="rag-threshold" type="number" name="@Dataset.CHATBOT_RAG_SCORE_THRESHOLD" min="0.0" max="1.0" step="0.05" value="@dataset.configuration(Dataset.CHATBOT_RAG_SCORE_THRESHOLD, "0.7")">
+                <label for="rag-threshold" class="active">Relevance Threshold (0.0 - 1.0)</label>
+              </div>
+              <div class="input-field col s12 m4">
+                <div class="switch" style="padding-top: 15px;">
+                  <label>
+                    Hide Sources
+                    <input type="checkbox" name="@Dataset.CHATBOT_SHOW_SOURCES" @if(!dataset.configuration(Dataset.CHATBOT_SHOW_SOURCES, "").isEmpty()){checked}>
+                    <span class="lever"></span>
+                    Show Sources
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Behavior Options (Collapsible) -->
+        <div class="card" style="border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 1.5rem;">
+          <div class="card-content" style="padding: 1.25rem 1.5rem;">
+            <details>
+              <summary style="cursor: pointer; font-weight: 600; font-size: 1.05rem; display: flex; align-items: center; justify-content: space-between;">
+                <span>💬 Behavior & Starter Prompts</span>
+                <span class="grey-text" style="font-size: 0.85rem; font-weight: normal;">Optional greeting and suggested input</span>
+              </summary>
+              <div style="margin-top: 15px;">
+                <div class="input-field">
+                  <textarea id="assistant-prompt" name="@Dataset.CHATBOT_ASSISTANT_PROMPT" class="materialize-textarea" style="min-height: 4rem; padding: 8px; font-family: monospace; background: #fff; border: 1px solid #e2e8f0; border-radius: 4px;">@dataset.configuration(Dataset.CHATBOT_ASSISTANT_PROMPT, "")</textarea>
+                  <label for="assistant-prompt" class="active"><b>Greeting Message:</b> First message sent by the bot to start the chat</label>
+                </div>
+                <div class="input-field" style="margin-top: 20px;">
+                  <textarea id="user-prompt" name="@Dataset.CHATBOT_USER_PROMPT" class="materialize-textarea" style="min-height: 4rem; padding: 8px; font-family: monospace; background: #fff; border: 1px solid #e2e8f0; border-radius: 4px;">@dataset.configuration(Dataset.CHATBOT_USER_PROMPT, "")</textarea>
+                  <label for="user-prompt" class="active"><b>Suggested User Input:</b> Pre-filled starter prompt in user input box</label>
+                </div>
+              </div>
+            </details>
+          </div>
+        </div>
+
+        <!-- Save Settings Button Row (No icon on save button) -->
+        <div class="row" style="margin-bottom: 1.5rem;">
+          <div class="col s12" style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+            <button type="submit" class="btn green waves-effect waves-light">Save Settings</button>
+            <div id="settings-indicator" class="progress htmx-indicator" style="width: 120px; margin: 0;">
+              <div class="indeterminate"></div>
+            </div>
+            <div id="results"></div>
+          </div>
+        </div>
+      </form>
+
+      <!-- AGENTS.md Card (Only shown in Agentic Mode, completely hidden in Legacy Mode, button without icon) -->
+      <div id="agents-md-card" class="card" style="border: 1px solid #bfdbfe; border-radius: 6px; margin-top: 2rem; @if(!isAgentic){display: none;}">
         <div class="card-content">
-          <span class="card-title" style="font-size: 1.2rem; font-weight: 600;">🤖 Agent Guidelines & Memory Configuration (<code>AGENTS.md</code>)</span>
-          <p style="margin-bottom: 12px; color: #555;">
-            Define the persona, reasoning directives, memory guidelines, and operational rules for the AgentScope agent. Changes are hot-reloaded automatically.
+          <span class="card-title">
+            🤖 Agent Guidelines & Memory Configuration (<code>AGENTS.md</code>)
+          </span>
+          <p class="grey-text text-darken-2" style="margin-bottom: 12px; font-size: 0.9rem;">
+            Define the persona, reasoning directives, memory guidelines, and operational rules for the agentic chatbot. Changes are hot-reloaded automatically.
           </p>
           <form hx-post="@controllers.tools.routes.ChatbotController.saveAgentsMd(dataset.getId())"
                 hx-target="#agents-md-status"
@@ -268,11 +346,13 @@
                 hx-disabled-elt="button"
                 hx-indicator="#agents-md-indicator">
             <input type="hidden" name="csrfToken" value="@csrfToken">
-            <textarea name="agents_md" style="height: 18rem; background: white; padding: 0.75rem; font-family: monospace; font-size: 0.85rem; border: 1px solid #ccc; border-radius: 4px;">@agentsMdContent</textarea>
-            <div style="margin-top: 10px; display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
-              <button type="submit" class="btn">Save AGENTS.md</button>
-              <button type="button" id="insert-agents-template-btn" class="btn-flat" style="border: 1px solid #94a3b8; font-size: 0.85rem;">📋 Insert Memory & Guidelines Starter</button>
-              <div id="agents-md-indicator" class="progress htmx-indicator" style="width: 150px; margin: 0;">
+            <textarea name="agents_md" style="height: 16rem; background: #fff; padding: 0.75rem; font-family: monospace; font-size: 0.85rem; border: 1px solid #cbd5e1; border-radius: 4px;">@agentsMdContent</textarea>
+            <div style="margin-top: 12px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+              <button type="submit" class="btn blue darken-1 waves-effect waves-light">Save AGENTS.md</button>
+              <button type="button" id="insert-agents-template-btn" class="btn-flat waves-effect" style="border: 1px solid #94a3b8; font-size: 0.85rem;">
+                📋 Insert Starter Template
+              </button>
+              <div id="agents-md-indicator" class="progress htmx-indicator" style="width: 120px; margin: 0;">
                 <div class="indeterminate"></div>
               </div>
               <span id="agents-md-status"></span>
@@ -281,139 +361,200 @@
         </div>
       </div>
     </div>
-  </div>
 
-  <hr>
-
-  <div class="row">
-    <div class="col s12 m6">
-      <div id="file-list">
-      <p>
-        <b>Knowledge Base Files</b><br>
-        @if(files.isEmpty()) {
-          No knowledge base contents yet. You can upload them on the right side. 👉
-        } else {
-          The bot uses these files to answer questions. It reads the content and uses it as context.
-        }
-      </p>
-      @for(fileWithStatus <- files) {
-        @if(!fileWithStatus.file.link.startsWith("chat_")) {
-        <p>
-          <a href="@api.routes.CompleteDSController.downloadFile(dataset.getId(),fileWithStatus.file.getId())" download>@fileWithStatus.file.link</a>
-          @if(fileWithStatus.hasIndex) {
-            ✅
-          } else {
-            ⚙️
-          }
-          <a hx-delete="@controllers.tools.routes.ChatbotController.deleteFile(dataset.getId(),fileWithStatus.file.getId())"
-            hx-target="closest p"
-            hx-swap="outerHTML"
-            hx-trigger="click"
-            hx-confirm="Are you sure you want to delete this file? This cannot be reversed. Click OK to delete, cancel to abort."
-            hx-vals='{"csrfToken": "@csrfToken"}'
-            class="red-text" style="cursor: pointer;">
-            delete
-          </a>
-        </p>
-        }
-      }
-      </div>
-      <div id="file-list-indicator" class="progress htmx-indicator">
-        <div class="indeterminate"></div>
-      </div>
-    </div>
-    <div class="col s12 m6">
-      <form id="fileUploadForm" hx-encoding="multipart/form-data" hx-post="@controllers.tools.routes.ChatbotController.uploadFile(dataset.getId())"
-        hx-target="#file-list" hx-select="#file-list" hx-swap="outerHTML" hx-trigger="submit" hx-indicator="#file-list-indicator">
-        <p>
-          <b>Upload Documents</b><br>
-          Add PDF, Markdown, or Text files to the knowledge base.
-        </p>
-        <div class="file-uploader">
-          <input type="file" id="file-input" name="file" multiple accept="application/pdf,.md,.txt">
-          <label for="file-input">Drag & drop PDF, Markdown, or Text files here or click to upload</label>
+    <!-- TAB 2: Knowledge Base Documents -->
+    <div id="tab-kb" class="col s12" style="display: none; margin-top: 1rem;">
+      <div class="row">
+        <div class="col s12 m7">
+          <div class="card" style="border: 1px solid #e2e8f0; border-radius: 6px;">
+            <div class="card-content">
+              <span class="card-title">Knowledge Base Documents</span>
+              <p class="grey-text text-darken-1" style="font-size: 0.9rem; margin-bottom: 16px;">
+                Documents uploaded here are indexed for semantic context. In Agentic mode, the agent queries them autonomously via the <code>search_knowledge_base</code> tool. In Legacy mode, they are searched prior to completion prompt generation.
+              </p>
+              <div id="file-list">
+                @if(docFiles.isEmpty()) {
+                  <div class="center-align grey-text" style="padding: 2.5rem 0;">
+                    <i style="font-size: 2.5rem;">📁</i>
+                    <p>No knowledge base documents uploaded yet.<br>Upload PDF, Markdown, or Text files using the uploader on the right.</p>
+                  </div>
+                } else {
+                  <table class="striped responsive-table" style="font-size: 0.9rem;">
+                    <thead>
+                      <tr>
+                        <th>Document</th>
+                        <th>Status</th>
+                        <th class="right-align">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for(fileWithStatus <- docFiles) {
+                        <tr>
+                          <td>
+                            <strong>@fileWithStatus.file.link</strong>
+                          </td>
+                          <td>
+                            @if(fileWithStatus.hasIndex) {
+                              <span class="chip green lighten-5 green-text text-darken-3" style="height: 24px; line-height: 24px; font-size: 0.75rem;">Indexed ✅</span>
+                            } else {
+                              <span class="chip amber lighten-5 amber-text text-darken-3" style="height: 24px; line-height: 24px; font-size: 0.75rem;">Processing ⚙️</span>
+                            }
+                          </td>
+                          <td class="right-align">
+                            <a href="@api.routes.CompleteDSController.downloadFile(dataset.getId(),fileWithStatus.file.getId())" download class="btn-flat waves-effect" style="padding: 0 8px;" title="Download">
+                              <i class="left" style="margin: 0;">@elements.icon("file_download")</i>
+                            </a>
+                            <button class="btn-flat red-text waves-effect waves-red" style="padding: 0 8px;" title="Delete file"
+                              hx-delete="@controllers.tools.routes.ChatbotController.deleteFile(dataset.getId(),fileWithStatus.file.getId())"
+                              hx-target="closest tr"
+                              hx-swap="outerHTML"
+                              hx-trigger="click"
+                              hx-confirm="Are you sure you want to delete this document? This cannot be reversed."
+                              hx-vals='{"csrfToken": "@csrfToken"}'>
+                              <i class="left" style="margin: 0;">@elements.icon("delete")</i>
+                            </button>
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                }
+              </div>
+              <div id="file-list-indicator" class="progress htmx-indicator" style="margin-top: 12px;">
+                <div class="indeterminate"></div>
+              </div>
+            </div>
+          </div>
         </div>
-      </form>
-    </div>
-  </div>
 
-  <hr>
-
-  <div class="row">
-    <div class="col s12">
-      <p>
-        <b>Saved Conversations</b><br>
-        Below are the archived chat sessions.
-      </p>
-      <div id="chat-list">
-      @for(fileWithStatus <- files) {
-        @if(fileWithStatus.file.link.startsWith("chat_")) {
-        <p>
-          <a href="@api.routes.CompleteDSController.downloadFile(dataset.getId(),fileWithStatus.file.getId())" download>@fileWithStatus.file.link</a>
-          (@if(fileWithStatus.file.timestamp != null) {@fileWithStatus.file.timestamp.format("yyyy-MM-dd HH:mm")} else {unknown date})
-          <a hx-delete="@controllers.tools.routes.ChatbotController.deleteFile(dataset.getId(),fileWithStatus.file.getId())"
-            hx-target="closest p"
-            hx-swap="outerHTML"
-            hx-trigger="click"
-            hx-confirm="Are you sure you want to delete this chat log? This cannot be reversed. Click OK to delete, cancel to abort."
-            hx-vals='{"csrfToken": "@csrfToken"}'
-            class="red-text" style="cursor: pointer;">
-            delete
-          </a>
-        </p>
-        }
-      }
+        <div class="col s12 m5">
+          <div class="card" style="border: 1px solid #e2e8f0; border-radius: 6px;">
+            <div class="card-content">
+              <span class="card-title">Upload Reference Documents</span>
+              <p class="grey-text text-darken-1" style="font-size: 0.9rem; margin-bottom: 16px;">
+                Add reference materials to expand the bot's knowledge. Supported: <strong>PDF</strong>, <strong>Markdown (.md)</strong>, <strong>Text (.txt)</strong>.
+              </p>
+              <form id="fileUploadForm" hx-encoding="multipart/form-data" hx-post="@controllers.tools.routes.ChatbotController.uploadFile(dataset.getId())"
+                hx-target="#file-list" hx-select="#file-list" hx-swap="outerHTML" hx-trigger="submit" hx-indicator="#file-list-indicator">
+                <div class="file-uploader">
+                  <input type="file" id="file-input" name="file" multiple accept="application/pdf,.md,.txt">
+                  <div style="font-size: 2.2rem; margin-bottom: 6px;">📄</div>
+                  <label for="file-input" style="cursor: pointer; color: #0284c7; font-weight: 600; display: block; font-size: 0.95rem;">
+                    Drag & drop files here or click to browse
+                  </label>
+                  <span class="grey-text" style="font-size: 0.8rem;">Uploaded files are automatically indexed for search</span>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
 
-  <hr>
-
-  <div class="row">
-    <div class="col s12">
-      <p>
-	    <b>API Documentation</b><br>
-        Integrate this chatbot into your own applications or automate knowledge base updates using the Data Foundry API.
-      </p>
-
-      <p>
-        The API uses <b>Bearer Token</b> authentication. To obtain your API key:
-        <ol>
-          <li>Go to the <a href="@routes.ProjectsController.view(dataset.getProject().getId())">Project Dashboard</a>.</li>
-          <li>Find the <b>API Access</b> section.</li>
-          <li>Copy the <b>Participation Token</b> (e.g., <code>df-your-token-here</code>).</li>
-        </ol>
-        Include this token in the <code>Authorization</code> header of your requests: <code>Authorization: Bearer df-...</code>
-      </p>
-
+    <!-- TAB 3: Saved Conversations (No individual user memory) -->
+    <div id="tab-history" class="col s12" style="display: none; margin-top: 1rem;">
       <div class="row">
         <div class="col s12">
-          <ul class="tabs">
-            <li class="tab col s4"><a class="active" href="#curl-doc">cURL</a></li>
-            <li class="tab col s4"><a href="#python-doc">Python</a></li>
-            <li class="tab col s4"><a href="#js-doc">JavaScript</a></li>
-          </ul>
+          <div class="card" style="border: 1px solid #e2e8f0; border-radius: 6px;">
+            <div class="card-content">
+              <span class="card-title">Saved Chat Sessions</span>
+              <p class="grey-text text-darken-1" style="font-size: 0.9rem; margin-bottom: 16px;">
+                Conversations archived when <em>Save chat transcripts</em> is enabled:
+              </p>
+              <div id="chat-list">
+                @if(chatFiles.isEmpty()) {
+                  <p class="grey-text" style="font-style: italic;">No saved conversations yet.</p>
+                } else {
+                  <table class="striped responsive-table" style="font-size: 0.85rem;">
+                    <thead>
+                      <tr>
+                        <th>Transcript File</th>
+                        <th>Date</th>
+                        <th class="right-align">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for(fileWithStatus <- chatFiles) {
+                        <tr>
+                          <td>
+                            <a href="@api.routes.CompleteDSController.downloadFile(dataset.getId(),fileWithStatus.file.getId())" download>
+                              @fileWithStatus.file.link
+                            </a>
+                          </td>
+                          <td class="grey-text">
+                            @if(fileWithStatus.file.timestamp != null) {@fileWithStatus.file.timestamp.format("yyyy-MM-dd HH:mm")} else {unknown}
+                          </td>
+                          <td class="right-align">
+                            <button class="btn-flat red-text waves-effect waves-red" style="padding: 0 6px;" title="Delete log"
+                              hx-delete="@controllers.tools.routes.ChatbotController.deleteFile(dataset.getId(),fileWithStatus.file.getId())"
+                              hx-target="closest tr"
+                              hx-swap="outerHTML"
+                              hx-trigger="click"
+                              hx-confirm="Are you sure you want to delete this chat log? This cannot be reversed."
+                              hx-vals='{"csrfToken": "@csrfToken"}'>
+                              <i class="left" style="margin: 0;">@elements.icon("delete")</i>
+                            </button>
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                }
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
+    </div>
 
-        <!-- cURL -->
-        <div id="curl-doc" class="col s12">
-          <p><b>Chat API (OpenAI Compatible)</b></p>
-          <pre><code class="api-snippet">curl -X POST "[HOST]/api/v1/chatbots/@dataset.getId()/chat" \
+    <!-- TAB 4: API Integration -->
+    <div id="tab-api" class="col s12" style="display: none; margin-top: 1rem;">
+      <div class="card" style="border: 1px solid #e2e8f0; border-radius: 6px;">
+        <div class="card-content">
+          <span class="card-title">API Integration & Documentation</span>
+          <p class="grey-text text-darken-2" style="font-size: 0.95rem; margin-bottom: 16px;">
+            Integrate this chatbot into external applications or automated workflows using the Data Foundry API.
+          </p>
+
+          <!-- API Steps (No card-panel class) -->
+          <div style="background: #f8fafc; border-left: 4px solid #0284c7; padding: 12px 16px; margin-bottom: 20px; border-radius: 2px;">
+            <strong>Bearer Token Authentication:</strong>
+            <ol style="margin: 8px 0 0 18px; padding: 0;">
+              <li>Go to the <a href="@routes.ProjectsController.view(dataset.getProject().getId())">Project Dashboard</a>.</li>
+              <li>Locate the <strong>API Access</strong> section.</li>
+              <li>Copy your <strong>Participation Token</strong> (e.g., <code>df-your-token-here</code>).</li>
+            </ol>
+            Include this token in the <code>Authorization: Bearer YOUR_API_KEY</code> HTTP header.
+          </div>
+
+          <div class="row">
+            <div class="col s12">
+              <ul class="tabs" id="api-code-tabs">
+                <li class="tab col s4"><a class="active" href="#curl-doc">cURL</a></li>
+                <li class="tab col s4"><a href="#python-doc">Python</a></li>
+                <li class="tab col s4"><a href="#js-doc">JavaScript</a></li>
+              </ul>
+            </div>
+
+            <!-- cURL -->
+            <div id="curl-doc" class="col s12" style="margin-top: 15px;">
+              <p><b>Chat API (OpenAI Compatible)</b></p>
+              <pre><code class="api-snippet">curl -X POST "[HOST]/api/v1/chatbots/@dataset.getId()/chat" \
      -H "Authorization: Bearer YOUR_API_KEY" \
      -H "Content-Type: application/json" \
      -d '{"message": "Hello!", "conversationId": "optional-id"}'</code></pre>
 
-          <p><b>Upload Knowledge Base File</b></p>
-          <pre><code class="api-snippet">curl -X POST "[HOST]/api/v1/chatbots/@dataset.getId()/file" \
+              <p style="margin-top: 15px;"><b>Upload Knowledge Base File</b></p>
+              <pre><code class="api-snippet">curl -X POST "[HOST]/api/v1/chatbots/@dataset.getId()/file" \
      -H "Authorization: Bearer YOUR_API_KEY" \
      -F "file=@@/path/to/document.md" \
      -F "description=My document"</code></pre>
-        </div>
+            </div>
 
-        <!-- Python -->
-        <div id="python-doc" class="col s12">
-          <p><b>Chat API (OpenAI Compatible)</b></p>
-          <pre><code class="api-snippet">import requests
+            <!-- Python -->
+            <div id="python-doc" class="col s12" style="margin-top: 15px;">
+              <p><b>Chat API (OpenAI Compatible)</b></p>
+              <pre><code class="api-snippet">import requests
 
 url = "[HOST]/api/v1/chatbots/@dataset.getId()/chat"
 headers = {
@@ -428,8 +569,8 @@ data = {
 response = requests.post(url, headers=headers, json=data)
 print(response.json())</code></pre>
 
-          <p><b>Upload Knowledge Base File</b></p>
-          <pre><code class="api-snippet">import requests
+              <p style="margin-top: 15px;"><b>Upload Knowledge Base File</b></p>
+              <pre><code class="api-snippet">import requests
 
 url = "[HOST]/api/v1/chatbots/@dataset.getId()/file"
 headers = {"Authorization": "Bearer YOUR_API_KEY"}
@@ -438,12 +579,12 @@ data = {"description": "My document"}
 
 response = requests.post(url, headers=headers, files=files, data=data)
 print(response.json())</code></pre>
-        </div>
+            </div>
 
-        <!-- JavaScript -->
-        <div id="js-doc" class="col s12">
-          <p><b>Chat API (OpenAI Compatible)</b></p>
-          <pre><code class="api-snippet">fetch("[HOST]/api/v1/chatbots/@dataset.getId()/chat", {
+            <!-- JavaScript -->
+            <div id="js-doc" class="col s12" style="margin-top: 15px;">
+              <p><b>Chat API (OpenAI Compatible)</b></p>
+              <pre><code class="api-snippet">fetch("[HOST]/api/v1/chatbots/@dataset.getId()/chat", {
   method: "POST",
   headers: {
     "Authorization": "Bearer YOUR_API_KEY",
@@ -457,8 +598,8 @@ print(response.json())</code></pre>
 .then(res => res.json())
 .then(console.log);</code></pre>
 
-          <p><b>Upload Knowledge Base File</b></p>
-          <pre><code class="api-snippet">const formData = new FormData();
+              <p style="margin-top: 15px;"><b>Upload Knowledge Base File</b></p>
+              <pre><code class="api-snippet">const formData = new FormData();
 formData.append("file", fileInput.files[0]);
 formData.append("description", "My document");
 
@@ -471,103 +612,135 @@ fetch("[HOST]/api/v1/chatbots/@dataset.getId()/file", {
 })
 .then(res => res.json())
 .then(console.log);</code></pre>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 
   <script>
-    const uploader = document.querySelector('.file-uploader');
-    const input = document.getElementById('file-input');
-    const uploadForm = document.getElementById('fileUploadForm');
-
-    // Initialize tabs and inject host
     document.addEventListener('DOMContentLoaded', function() {
-      var el = document.querySelectorAll('.tabs');
-      M.Tabs.init(el);
+      // Initialize Materialize Tabs
+      var tabElements = document.querySelectorAll('.tabs');
+      M.Tabs.init(tabElements);
 
-      // Inject current host into API snippets
+      // Initialize Materialize Selects
+      var selectElements = document.querySelectorAll('select');
+      M.FormSelect.init(selectElements);
+
+      // Inject host into API snippets
       const host = window.location.protocol + "//" + window.location.host;
       document.querySelectorAll('.api-snippet').forEach(code => {
         code.innerHTML = code.innerHTML.replace(/\[HOST\]/g, host);
       });
-    });
 
-    // Helper to filter valid file types (PDF, Markdown, Text)
-    function filterValidFiles(files) {
-      const validTypes = ['application/pdf', 'text/plain', 'text/markdown'];
-      const validExts = ['.pdf', '.txt', '.md'];
-      return files.filter(file => validTypes.includes(file.type) || validExts.some(ext => file.name.toLowerCase().endsWith(ext)));
-    }
+      // Mode Switcher elements
+      const engineSwitch = document.getElementById('engine-mode-switch');
+      const legacySection = document.getElementById('legacy-settings');
+      const agenticSection = document.getElementById('agentic-settings');
+      const agentsMdCard = document.getElementById('agents-md-card');
+      const engineDesc = document.getElementById('engine-mode-desc');
+      const headerModeBadge = document.getElementById('header-mode-badge');
+      const promptDesc = document.getElementById('prompt-desc');
 
-    // Allow clicking anywhere on the drop zone to open the file dialog
-    uploader.addEventListener('click', (e) => {
-      if (e.target !== input && e.target.tagName !== 'LABEL') {
-        input.click();
-      }
-    });
+      function updateEngineView() {
+        if (!engineSwitch) return;
+        const isAgentic = engineSwitch.checked;
 
-    // Highlight on drag
-    uploader.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      uploader.classList.add('dragover');
-    });
-    uploader.addEventListener('dragleave', () => {
-      uploader.classList.remove('dragover');
-    });
-    uploader.addEventListener('drop', (e) => {
-      e.preventDefault();
-      uploader.classList.remove('dragover');
-      const files = Array.from(e.dataTransfer.files);
-      const kbFiles = filterValidFiles(files);
-      if (kbFiles.length > 0) {
-        input.files = createFileList(kbFiles);
-        htmx.trigger('#fileUploadForm', 'submit');
-      }
-    });
+        if (legacySection) legacySection.style.display = isAgentic ? 'none' : 'block';
+        if (agenticSection) agenticSection.style.display = isAgentic ? 'block' : 'none';
+        if (agentsMdCard) agentsMdCard.style.display = isAgentic ? 'block' : 'none'; // Completely hidden in legacy mode!
 
-    // Trigger upload when files are selected via dialog
-    input.addEventListener('change', () => {
-      const files = Array.from(input.files);
-      const kbFiles = filterValidFiles(files);
-      if (kbFiles.length > 0) {
-        input.files = createFileList(kbFiles);
-        htmx.trigger('#fileUploadForm', 'submit');
-      } else {
-        input.value = '';
-      }
-    });
-
-    // Reset form after upload request finishes so the same file can be re-uploaded if desired
-    uploadForm.addEventListener('htmx:afterRequest', () => {
-      uploadForm.reset();
-    });
-
-    // Helper to create a FileList from an array of Files
-    function createFileList(files) {
-      const dataTransfer = new DataTransfer();
-      files.forEach(file => dataTransfer.items.add(file));
-      return dataTransfer.files;
-    }
-
-    // Toggle agentic model notice when agentic engine switch is clicked
-    const agenticSwitch = document.querySelector('input[name="@Dataset.CHATBOT_ENABLE_AGENTIC"]');
-    if (agenticSwitch) {
-      agenticSwitch.addEventListener('change', () => {
-        const notice = document.getElementById('agentic-model-notice');
-        if (notice) {
-          notice.style.display = agenticSwitch.checked ? 'block' : 'none';
+        if (engineDesc) {
+          engineDesc.innerHTML = isAgentic
+            ? '<strong style="color: #0284c7;">🤖 Agentic:</strong> Autonomous reasoning agent with tool execution (knowledge base querying, long-term memory fact extraction, notes management) and custom operational guidelines (<code>AGENTS.md</code>).'
+            : '<strong style="color: #475569;">⚡ Standard:</strong> Direct completion assistant using prompt injection with Lucene vector search retrieval across uploaded knowledge base documents.';
         }
-      });
-    }
 
-    // Insert starter AGENTS.md template
-    const insertTemplateBtn = document.getElementById('insert-agents-template-btn');
-    const agentsMdTextarea = document.querySelector('textarea[name="agents_md"]');
-    if (insertTemplateBtn && agentsMdTextarea) {
-      insertTemplateBtn.addEventListener('click', () => {
-        if (!agentsMdTextarea.value.trim() || confirm('Replace current AGENTS.md with the recommended memory & guidelines starter template?')) {
-          agentsMdTextarea.value = `# Persona & Role
+        if (headerModeBadge) {
+          headerModeBadge.className = isAgentic ? 'chip blue lighten-5 blue-text text-darken-3' : 'chip grey lighten-3 grey-text text-darken-3';
+          headerModeBadge.textContent = isAgentic ? '🤖 Agentic' : '⚡ Standard';
+        }
+
+        if (promptDesc) {
+          promptDesc.innerHTML = isAgentic
+            ? 'Base system prompt establishing the agent\'s baseline identity and context. Use <code>$DATE</code> to inject the current date.'
+            : 'Define how the bot should behave, what its role is, and how it should answer. Use <code>$DATE</code> to inject the current date.';
+        }
+      }
+
+      if (engineSwitch) {
+        engineSwitch.addEventListener('change', updateEngineView);
+      }
+
+      // Drag and drop file upload
+      const uploader = document.querySelector('.file-uploader');
+      const input = document.getElementById('file-input');
+      const uploadForm = document.getElementById('fileUploadForm');
+
+      function filterValidFiles(files) {
+        const validTypes = ['application/pdf', 'text/plain', 'text/markdown'];
+        const validExts = ['.pdf', '.txt', '.md'];
+        return files.filter(file => validTypes.includes(file.type) || validExts.some(ext => file.name.toLowerCase().endsWith(ext)));
+      }
+
+      if (uploader && input && uploadForm) {
+        uploader.addEventListener('click', (e) => {
+          if (e.target !== input && e.target.tagName !== 'LABEL') {
+            input.click();
+          }
+        });
+
+        uploader.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          uploader.classList.add('dragover');
+        });
+
+        uploader.addEventListener('dragleave', () => {
+          uploader.classList.remove('dragover');
+        });
+
+        uploader.addEventListener('drop', (e) => {
+          e.preventDefault();
+          uploader.classList.remove('dragover');
+          const files = Array.from(e.dataTransfer.files);
+          const kbFiles = filterValidFiles(files);
+          if (kbFiles.length > 0) {
+            input.files = createFileList(kbFiles);
+            htmx.trigger('#fileUploadForm', 'submit');
+          }
+        });
+
+        input.addEventListener('change', () => {
+          const files = Array.from(input.files);
+          const kbFiles = filterValidFiles(files);
+          if (kbFiles.length > 0) {
+            input.files = createFileList(kbFiles);
+            htmx.trigger('#fileUploadForm', 'submit');
+          } else {
+            input.value = '';
+          }
+        });
+
+        uploadForm.addEventListener('htmx:afterRequest', () => {
+          uploadForm.reset();
+        });
+      }
+
+      function createFileList(files) {
+        const dataTransfer = new DataTransfer();
+        files.forEach(file => dataTransfer.items.add(file));
+        return dataTransfer.files;
+      }
+
+      // Insert starter AGENTS.md template
+      const insertTemplateBtn = document.getElementById('insert-agents-template-btn');
+      const agentsMdTextarea = document.querySelector('textarea[name="agents_md"]');
+      if (insertTemplateBtn && agentsMdTextarea) {
+        insertTemplateBtn.addEventListener('click', () => {
+          if (!agentsMdTextarea.value.trim() || confirm('Replace current AGENTS.md with the recommended memory & guidelines starter template?')) {
+            agentsMdTextarea.value = `# Persona & Role
 You are an intelligent, proactive assistant with persistent memory and note-taking capabilities.
 
 # Memory & Long-Term Knowledge Directives
@@ -586,14 +759,29 @@ You are an intelligent, proactive assistant with persistent memory and note-taki
 # Conversational Style
 - When you store a memory, briefly acknowledge it in your response (e.g. "I've noted your research topic on Wearable Sensors in your profile.").
 - Be concise, helpful, and organized.`;
-        }
-      });
-    }
+          }
+        });
+      }
+
+      // Feedback handler for settings form
+      const configForm = document.querySelector('form[hx-post*="/save/"]');
+      if (configForm) {
+        configForm.addEventListener('htmx:afterRequest', function(evt) {
+          if (evt.detail.successful) {
+            const results = document.getElementById('results');
+            if (results) {
+              results.innerHTML = '<div class="chip green lighten-4 green-text text-darken-4" style="margin: 0; font-weight: 500;">✓ Settings saved successfully</div>';
+              setTimeout(function() {
+                results.innerHTML = '';
+              }, 4000);
+            }
+          }
+        });
+      }
+    });
   </script>
 }
-
 
 @option(o: String) = {
   value="@o" @if(dataset.configuration(Dataset.CHATBOT_MODEL, "").equals(o)) {selected}
 }
-
