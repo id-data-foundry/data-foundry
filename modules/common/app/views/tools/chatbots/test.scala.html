@@ -10,30 +10,191 @@
       margin: 0;
       padding: 0;
     }
-    #results div > div {
+    /* Chat turn rows and layout in test view */
+    #results .chat-turn-content {
       display: flex;
+      flex-direction: column;
+      gap: 12px;
     }
-    #results div > div.user, #results div > div.assistant {
+    #results div[role="prompt"],
+    #results div[role="response"] {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    #results div[role="trace"] {
+      display: block;
+    }
+
+    #results .conversation-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 10px 14px;
+      border-radius: 6px;
+      border: 1px solid #e2e8f0;
+      background: #ffffff;
+    }
+    #results .conversation-row.user {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+    }
+    #results .conversation-row.internal {
+      background: #fdfefe;
+      border-color: #e2e8f0;
+    }
+    #results .conversation-row.assistant {
+      background: #ffffff;
+      border-color: #cbd5e1;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+    }
+
+    #results .conversation-row > .role-label {
+      flex: 0 0 140px;
+      width: 140px;
+      min-width: 140px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      line-height: 1.5;
+      padding-top: 2px;
+      word-break: break-word;
+    }
+    #results .conversation-row.user > .role-label {
+      color: #0369a1;
+    }
+    #results .conversation-row.assistant > .role-label {
+      color: #0f766e;
+    }
+    #results .conversation-row.internal > .role-label {
+      color: #64748b;
+      font-weight: 600;
+      font-style: italic;
+    }
+
+    #results .conversation-row > article {
+      flex: 1;
+      min-width: 0;
+      overflow-x: auto;
+      font-size: 0.875rem;
+      line-height: 1.5;
+      color: #1e293b;
+    }
+    #results .conversation-row > article p {
+      margin: 0 0 6px 0;
+    }
+    #results .conversation-row > article p:last-child {
+      margin-bottom: 0;
+    }
+    #results .conversation-row > article pre {
+      margin: 4px 0;
+      font-size: 0.75rem;
+    }
+
+    /* Fallback styles for backward compatibility */
+    #results div.user, #results div.assistant {
       background: white;
     }
-    #results div > div.user > span.role, #results div > div.assistant > span.role {
+    #results div.user > span.role, #results div.assistant > span.role {
       font-weight: 700;
     }
 
-    #results span {
-      flex: 1;
-      font-style: italic;
+    .activity-chips-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
     }
-    #results div > pre {
-      flex: 6;
-      max-width: 84%;
-      margin: 0;
+    .memory-activity-chip, .knowledge-activity-chip {
+      display: inline-flex !important;
+      flex: 0 1 auto !important;
+      font-style: normal !important;
+      align-items: center;
+      border-radius: 12px;
+      padding: 2px 10px;
       font-size: 0.75rem;
+      font-weight: 500;
+      line-height: 1.4;
     }
-    #results div > article {
-      flex: 6;
-      max-width: 84%;
-      overflow: scroll;
+    .memory-activity-chip {
+      background: #e0f2fe;
+      color: #0369a1;
+      border: 1px solid #bae6fd;
+    }
+    .knowledge-activity-chip {
+      background: #ecfdf5;
+      color: #047857;
+      border: 1px solid #a7f3d0;
+    }
+    .source-tag {
+      display: inline-flex !important;
+      flex: 0 1 auto !important;
+      font-style: normal !important;
+      align-items: center;
+      background: #f1f5f9;
+      color: #0f766e !important;
+      border: 1px solid #cbd5e1;
+      border-radius: 4px;
+      padding: 2px 8px;
+      margin: 2px 4px 2px 0;
+      text-decoration: none;
+      font-size: 0.75rem;
+      font-weight: 500;
+      transition: all 0.15s ease;
+    }
+    .source-tag:hover {
+      background: #ccfbf1;
+      color: #115e59 !important;
+      border-color: #5eead4;
+      text-decoration: none;
+    }
+
+    /* Modal styling for source viewer */
+    dialog#source-modal {
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+      padding: 0;
+      max-width: 650px;
+      width: 90%;
+    }
+    dialog#source-modal::backdrop {
+      background: rgba(15, 23, 42, 0.4);
+      backdrop-filter: blur(2px);
+    }
+    dialog#source-modal article {
+      margin: 0;
+      padding: 16px 20px;
+      background: #fff;
+    }
+    dialog#source-modal header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid #e2e8f0;
+      padding-bottom: 10px;
+      margin-bottom: 14px;
+      font-weight: 600;
+      font-size: 1rem;
+      color: #0f172a;
+    }
+    dialog#source-modal #modal-content {
+      max-height: 60vh;
+      overflow-y: auto;
+      font-size: 0.85rem;
+      line-height: 1.5;
+      color: #334155;
+    }
+    dialog#source-modal button.modal-close-btn {
+      background: none;
+      border: none;
+      font-size: 1.25rem;
+      cursor: pointer;
+      color: #64748b;
+      padding: 0 4px;
+      line-height: 1;
+    }
+    dialog#source-modal button.modal-close-btn:hover {
+      color: #0f172a;
     }
   </style>
 
@@ -59,59 +220,49 @@
     </div>
   </div>
 
-  <!-- chatbot workflow diagram -->
+  <!-- chatbot visual workflow overview -->
   <div class="row">
     <div class="col s12">
-      <div class="card">
+      <div class="card" style="border: 1px solid #e2e8f0; border-radius: 6px;">
         <div class="card-content">
           <details>
-            <summary style="cursor: pointer; font-weight: 500;">How it works (Workflow Diagram)</summary>
+            <summary style="cursor: pointer; font-weight: 600;">
+              💡 How this Assistant Works (Visual Overview)
+            </summary>
             @if(dataset.configuration(Dataset.CHATBOT_ENABLE_AGENTIC, "false").equals("true")) {
-            <div class="mermaid" style="margin-top: 20px; display: flex; justify-content: center;">
-              sequenceDiagram
-                participant User
-                participant Agent as AgentScope Harness
-                participant Tools as Agent Toolkit
-                participant Memory as Sandboxed Memory
-                participant KB as Knowledge Base (RAG)
-                participant LLM as Model Proxy
-
-                User->>Agent: Prompt (with Zero-Hop Profile)
-                loop ReAct Agentic Loop
-                    Agent->>LLM: Reason & Plan Action
-                    LLM-->>Agent: Action (Tool Call or Final Answer)
-                    opt On-Demand Knowledge Retrieval
-                        Agent->>KB: search_knowledge_base(query)
-                        KB-->>Agent: Matching document chunks
-                    end
-                    opt User Memory Retention
-                        Agent->>Memory: update_user_memory / write_user_file
-                        Memory-->>Agent: File update status
-                    end
-                end
-                Agent-->>User: Assistant Response + Activity Badges + Citations
+            <div class="mermaid" style="margin-top: 16px; display: flex; justify-content: center;">
+              flowchart LR
+                User["👤 You\nAsk question or give task"] --> Assistant["🤖 Smart Assistant\nReads prompt & plans actions"]
+                Assistant -->|"Searches when asking about docs"| KB["📚 Knowledge Base\nUploaded PDFs & notes"]
+                Assistant -->|"Saves when learning about you"| Memory["🧠 Memory & Notes\nSaved user facts & files"]
+                KB -.->|"Returns relevant quotes"| Assistant
+                Memory -.->|"Recalls personal context"| Assistant
+                Assistant --> Output["✨ Answer\nResponse with sources & activity chips"]
             </div>
             } else {
-            <div class="mermaid" style="margin-top: 20px; display: flex; justify-content: center;">
-              sequenceDiagram
-                participant User
-                participant Chatbot
-                participant KB as Knowledge Base
-                participant AI as AI Service
-
-                User->>Chatbot: Send message
-                Chatbot->>AI: Optimize message for searching
-                AI-->>Chatbot: Searchable query
-                rect rgb(245, 245, 245)
-                    Note over Chatbot, KB: Retrieval Phase
-                    Chatbot->>KB: Search for relevant context
-                    KB-->>Chatbot: Provide matching data
-                end
-                Chatbot->>AI: Process request (Query + Context + History)
-                AI-->>Chatbot: Generated response
-                Chatbot-->>User: Deliver response
+            <div class="mermaid" style="margin-top: 16px; display: flex; justify-content: center;">
+              flowchart LR
+                User["👤 You\nAsk question"] --> Search["🔍 Search\nFinds relevant document sections"]
+                Search --> KB["📚 Knowledge Base\nUploaded PDFs & notes"]
+                KB --> AI["🤖 Chatbot\nAnswers using your files & prompt"]
+                User --> AI
+                AI --> Output["✨ Answer\nResponse with document sources"]
             </div>
             }
+            <div style="margin-top: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 14px;">
+                <strong style="color: #0284c7; font-size: 0.85rem;">💬 1. Conversational Understanding</strong>
+                <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #64748b; line-height: 1.4;">The assistant reads your prompt and previous messages to maintain a coherent conversation.</p>
+              </div>
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 14px;">
+                <strong style="color: #059669; font-size: 0.85rem;">📚 2. Smart Knowledge Retrieval (RAG)</strong>
+                <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #64748b; line-height: 1.4;">When questions relate to uploaded files, relevant sections are searched on-demand and cited with confidence scores.</p>
+              </div>
+              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 14px;">
+                <strong style="color: #7c3aed; font-size: 0.85rem;">🧠 3. Adaptive User Memory</strong>
+                <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #64748b; line-height: 1.4;">The assistant automatically remembers facts about you and manages private notes across sessions.</p>
+              </div>
+            </div>
           </details>
         </div>
       </div>
@@ -124,7 +275,7 @@
       <div class="card" style="border: 1px solid #e2e8f0; border-radius: 6px;">
         <div class="card-content">
           <details open>
-            <summary style="cursor: pointer; font-weight: 600; color: #0369a1;">🧠 Live User Memory & Notes Inspection</summary>
+            <summary style="cursor: pointer; font-weight: 600;">🧠 Live User Memory & Notes</summary>
             <div id="test-memory-inspection" class="user-memory-container" style="margin-top: 12px;" hx-get="@controllers.tools.routes.ChatbotController.getUserMemory(dataset.getId())" hx-trigger="load, htmx:afterRequest from:form">
               <p style="color: #64748b;">Loading memory snapshot...</p>
             </div>
@@ -134,43 +285,6 @@
     </div>
   </div>
   }
-
-  <div class="row">
-    <div class="col s12">
-      <div class="card" style="border: 1px solid #e2e8f0; border-radius: 6px;">
-        <div class="card-content" style="padding: 12px 20px;">
-          <details>
-            <summary style="cursor: pointer; font-weight: 600; color: #334155;">
-              📚 Dataset Knowledge Base: 
-              @if(files.isEmpty()) {
-                <span style="color: #64748b; font-weight: 400;">No documents uploaded (search_knowledge_base inactive)</span>
-              } else {
-                <span style="color: #059669; font-weight: 600;">@files.size() document(s) available for on-demand search</span>
-              }
-            </summary>
-            @if(!files.isEmpty()) {
-              <div style="margin-top: 10px; font-size: 0.85rem;">
-                <ul style="margin: 0; padding-left: 20px;">
-                @for(fileWithStatus <- files) {
-                  @if(!fileWithStatus.file.link.startsWith("chat_")) {
-                    <li>
-                      <code>@fileWithStatus.file.link</code>
-                      @if(fileWithStatus.hasIndex) {
-                        <span style="color: #16a34a;">(indexed ✓)</span>
-                      } else {
-                        <span style="color: #d97706;">(pending index ⚙️)</span>
-                      }
-                    </li>
-                  }
-                }
-                </ul>
-              </div>
-            }
-          </details>
-        </div>
-      </div>
-    </div>
-  </div>
 
   <div class="row">
     <div class="col s12" id="results"></div>
@@ -204,7 +318,7 @@
                   data-prompt="What is my research topic and what notes do I have?">
             🔍 Recall facts & notes
           </button>
-          @if(!files.isEmpty()) {
+          @if(files.stream().anyMatch(f => f != null && f.file != null && f.file.link != null && !f.file.link.startsWith("chat_") && !f.file.link.endsWith(".idx"))) {
           <button type="button" class="quick-prompt-btn" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 14px; padding: 2px 10px; font-size: 0.75rem; cursor: pointer; color: #334155;"
                   data-prompt="What do the uploaded knowledge documents say about the main research questions?">
             📚 Search Knowledge Base
@@ -227,6 +341,98 @@
       </div>
     </div>
   </form>
+
+  @defining(files.stream().filter(f => f != null && f.file != null && f.file.link != null && !f.file.link.startsWith("chat_") && !f.file.link.endsWith(".idx")).collect(java.util.stream.Collectors.toList())) { docFiles =>
+  <div class="row">
+    <div class="col s12">
+      <div class="card" style="border: 1px solid #e2e8f0; border-radius: 6px;">
+        <div class="card-content">
+          <details>
+            <summary style="cursor: pointer; font-weight: 600;">
+              📚 Dataset Knowledge Base: 
+              @if(docFiles.isEmpty()) {
+                <span style="color: #64748b; font-weight: 400;">No documents uploaded (search_knowledge_base inactive)</span>
+              } else {
+                <span style="color: #059669; font-weight: 600;">@docFiles.size() @if(docFiles.size() == 1) {document} else {documents} available for on-demand search</span>
+              }
+            </summary>
+            @if(!docFiles.isEmpty()) {
+              <div style="margin-top: 10px; font-size: 0.85rem;">
+                <ul style="margin: 0; padding-left: 20px;">
+                @for(fileWithStatus <- docFiles) {
+                  <li>
+                    <code>@fileWithStatus.file.link</code>
+                    @if(fileWithStatus.hasIndex) {
+                      <span style="color: #16a34a;">(indexed ✓)</span>
+                    } else {
+                      <span style="color: #d97706;">(pending index ⚙️)</span>
+                    }
+                  </li>
+                }
+                </ul>
+              </div>
+            }
+          </details>
+        </div>
+      </div>
+    </div>
+  </div>
+  }
+
+  <!-- source inspection modal -->
+  <dialog id="source-modal">
+    <article>
+      <header>
+        <span id="modal-title">Source Reference</span>
+        <button type="button" class="modal-close-btn" aria-label="Close" onclick="closeModal()">&times;</button>
+      </header>
+      <div id="modal-content"></div>
+    </article>
+  </dialog>
+
+  <script>
+    function decodeB64(str) {
+      if (!str) return "";
+      try {
+        return new TextDecoder().decode(Uint8Array.from(atob(str), c => c.charCodeAt(0)));
+      } catch(e) {
+        return "";
+      }
+    }
+    function showSourceFromEl(el) {
+      const title = decodeB64(el.getAttribute('data-title')) || "Source Reference";
+      const content = decodeB64(el.getAttribute('data-content'));
+      showSource(content, title);
+    }
+    function showSource(content, title) {
+      const modal = document.getElementById('source-modal');
+      document.getElementById('modal-title').textContent = title || "Source Reference";
+      document.getElementById('modal-content').innerHTML = content;
+      if (typeof modal.showModal === 'function') {
+        modal.showModal();
+      } else {
+        modal.setAttribute('open', '');
+      }
+    }
+    function closeModal() {
+      const modal = document.getElementById('source-modal');
+      if (typeof modal.close === 'function') {
+        modal.close();
+      } else {
+        modal.removeAttribute('open');
+      }
+    }
+    document.addEventListener('DOMContentLoaded', function() {
+      const modal = document.getElementById('source-modal');
+      if (modal) {
+        modal.addEventListener('click', function(event) {
+          if (event.target === modal) {
+            closeModal();
+          }
+        });
+      }
+    });
+  </script>
 
   <script>
     document.addEventListener('DOMContentLoaded', function() {

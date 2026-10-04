@@ -25,6 +25,11 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.lucene.document.Document;
+import org.apache.lucene.index.DirectoryReader;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.store.FSDirectory;
+
 import org.junit.Before;
 import org.junit.Test;
 import org.pac4j.core.context.session.SessionStore;
@@ -380,5 +385,253 @@ public class ChatbotControllerSecurityTest extends WithApplication {
 		// Model must be preset to coding model, not the legacy custom model
 		assertFalse("legacy-custom-model-7b".equals(updatedDs.configuration(Dataset.CHATBOT_MODEL, "")));
 		assertFalse(updatedDs.configuration(Dataset.CHATBOT_MODEL, "").isEmpty());
+	}
+
+	@Test
+	public void testTestViewCollapsesDiagramAndCountsDocumentFilesOnly() throws Exception {
+		final CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(completeDataset);
+		assertNotNull(cpds);
+
+		// Store 1 knowledge base document file
+		File docFile = File.createTempFile("testdoc", ".txt");
+		Files.writeString(docFile.toPath(), "Sample document content");
+		cpds.storeFile(docFile, "sample_guide.txt");
+		cpds.addRecord("sample_guide.txt", "Knowledge guide", new Date());
+		docFile.delete();
+
+		// Store 2 chat session files (simulating test/chat executions)
+		File chat1 = File.createTempFile("chat1", ".json");
+		Files.writeString(chat1.toPath(), "{}");
+		cpds.storeFile(chat1, "chat_123.json");
+		cpds.addRecord("chat_123.json", "Chat session 123", new Date());
+		chat1.delete();
+
+		File chat2 = File.createTempFile("chat2", ".json");
+		Files.writeString(chat2.toPath(), "{}");
+		cpds.storeFile(chat2, "chat_456.json");
+		cpds.addRecord("chat_456.json", "Chat session 456", new Date());
+		chat2.delete();
+
+		// Create request authenticated as owner
+		Http.Request req = new Http.RequestBuilder()
+				.method(GET)
+				.uri("/tools/chatbots/" + completeDataset.getId() + "/test/test-convo-id")
+				.attr(Security.USERNAME, ownerUser.getEmail())
+				.build();
+		PlayWebContext context = new PlayWebContext(req);
+		ProfileManager manager = new ProfileManager(context, sessionStore);
+		CommonProfile profile = new CommonProfile();
+		profile.setId(ownerUser.getEmail());
+		profile.addAttribute(Person.USER_NAME, ownerUser.getEmail());
+		profile.addAttribute(Person.USER_ID, ownerUser.getId());
+		manager.save(true, profile, false);
+		Http.Request supplementedReq = context.supplementRequest(req);
+
+		Result res = chatbotController.test(supplementedReq, completeDataset.getId(), "test-convo-id");
+		assertEquals(OK, res.status());
+
+		String html = play.test.Helpers.contentAsString(res);
+		// 1. Verify accurate document file count: 1 document, not 3
+		assertTrue(html.contains("1 document available for on-demand search"));
+		assertFalse(html.contains("3 documents available for on-demand search"));
+		assertFalse(html.contains("3 document(s) available for on-demand search"));
+
+		// 2. Verify visual overview diagram card has <details> collapsed by default (no open) and is near the top
+		assertTrue(html.contains("💡 How this Assistant Works (Visual Overview)"));
+		int diagramIdx = html.indexOf("💡 How this Assistant Works (Visual Overview)");
+		int submitIdx = html.indexOf("Submit user prompt");
+		int kbIdx = html.indexOf("📚 Dataset Knowledge Base:");
+		assertTrue("Visual overview diagram must precede the prompt submit button", diagramIdx < submitIdx);
+		assertTrue("Submit button must precede the knowledge base card", submitIdx < kbIdx);
+
+		// Check that the details tag wrapping the visual overview is collapsed (no <details open>)
+		int detailsStart = html.lastIndexOf("<details", diagramIdx);
+		assertTrue(detailsStart != -1);
+		String detailsTag = html.substring(detailsStart, diagramIdx);
+		assertFalse("<details> tag for visual overview should not be open", detailsTag.contains("open"));
+
+		// 3. Verify source modal dialog is included for citation inspection
+		assertTrue(html.contains("dialog id=\"source-modal\""));
+	}
+
+	@Test
+	public void testDeleteFileRebuildsCleanSearchIndex() throws Exception {
+		final CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(completeDataset);
+		assertNotNull(cpds);
+
+		// Helper to create an embedding JSON string > 1000 bytes
+		StringBuilder dummyEmbedding = new StringBuilder("[");
+		for (int i = 0; i < 200; i++) {
+			dummyEmbedding.append(0.12345f).append(i < 199 ? "," : "");
+		}
+		dummyEmbedding.append("]");
+
+		// Store fileA
+		File docA = File.createTempFile("docA", ".txt");
+		Files.writeString(docA.toPath(), "Content of file A");
+		cpds.storeFile(docA, "fileA.txt");
+		cpds.addRecord("fileA.txt", "File A", new Date());
+		docA.delete();
+
+		File idxA = new File(cpds.getFolder(), "fileA.txt.idx");
+		String idxContentA = "[{\"file\":\"fileA.txt\",\"content\":\"Content of file A\",\"embedding\":" + dummyEmbedding + "}]";
+		Files.writeString(idxA.toPath(), idxContentA);
+		assertTrue(idxA.length() > 1000);
+
+		// Store fileB
+		File docB = File.createTempFile("docB", ".txt");
+		Files.writeString(docB.toPath(), "Content of file B");
+		cpds.storeFile(docB, "fileB.txt");
+		cpds.addRecord("fileB.txt", "File B", new Date());
+		docB.delete();
+
+		File idxB = new File(cpds.getFolder(), "fileB.txt.idx");
+		String idxContentB = "[{\"file\":\"fileB.txt\",\"content\":\"Content of file B\",\"embedding\":" + dummyEmbedding + "}]";
+		Files.writeString(idxB.toPath(), idxContentB);
+		assertTrue(idxB.length() > 1000);
+
+		// Get file ID of fileA
+		Long fileAId = null;
+		for (models.vm.TimedMedia tm : cpds.getFiles()) {
+			if ("fileA.txt".equals(tm.getLink())) {
+				fileAId = tm.getId();
+				break;
+			}
+		}
+		assertNotNull(fileAId);
+
+		// Authenticated request as owner
+		Http.Request deleteReq = new Http.RequestBuilder()
+				.method("DELETE")
+				.uri("/tools/chatbots/" + completeDataset.getId() + "/files/" + fileAId)
+				.attr(Security.USERNAME, ownerUser.getEmail())
+				.build();
+		PlayWebContext context = new PlayWebContext(deleteReq);
+		ProfileManager manager = new ProfileManager(context, sessionStore);
+		CommonProfile profile = new CommonProfile();
+		profile.setId(ownerUser.getEmail());
+		profile.addAttribute(Person.USER_NAME, ownerUser.getEmail());
+		profile.addAttribute(Person.USER_ID, ownerUser.getId());
+		manager.save(true, profile, false);
+		Http.Request supplementedReq = context.supplementRequest(deleteReq);
+
+		Result res = chatbotController.deleteFile(supplementedReq, completeDataset.getId(), fileAId).toCompletableFuture().get(10, TimeUnit.SECONDS);
+		assertEquals(OK, res.status());
+
+		// 1. Verify fileA.txt.idx was removed
+		assertFalse(idxA.exists());
+		// 2. Verify fileB.txt.idx still exists
+		assertTrue(idxB.exists());
+
+		// 3. Inspect Lucene index directory and verify fileA chunks are completely gone
+		File searchIndexDir = new File(cpds.getFolder(), "_search_index");
+		assertTrue(searchIndexDir.exists());
+		try (FSDirectory dir = FSDirectory.open(searchIndexDir.toPath());
+				DirectoryReader reader = DirectoryReader.open(dir)) {
+			IndexSearcher searcher = new IndexSearcher(reader);
+			assertEquals(1, reader.numDocs());
+			Document doc = searcher.doc(0);
+			assertEquals("fileB.txt", doc.get("file"));
+			assertEquals("Content of file B", doc.get("content"));
+		}
+	}
+
+	@Test
+	public void testTestProcessRendersConversationArtifactsProperly() throws Exception {
+		String conversationId = "test-conv-" + UUID.randomUUID();
+		Http.Request request = createAuthenticatedRequest(POST,
+				"/tools/chatbots/" + completeDataset.getId() + "/testProcess/" + conversationId, ownerUser);
+
+		Result result = chatbotController.testProcess(request, completeDataset.getId(), conversationId)
+				.toCompletableFuture().get(10, TimeUnit.SECONDS);
+
+		assertEquals(OK, result.status());
+		String body = play.test.Helpers.contentAsString(result);
+		assertNotNull(body);
+
+		// Verify turn structure
+		assertTrue("Must contain chat-turn container", body.contains("chat-turn"));
+		assertTrue("Must contain chat-turn-content", body.contains("chat-turn-content"));
+
+		// Verify conversation artifact rows
+		assertTrue("Must contain conversation-row user", body.contains("conversation-row user"));
+		assertTrue("Must contain conversation-row assistant", body.contains("conversation-row assistant"));
+		assertTrue("Must contain conversation-row internal processed-prompt",
+				body.contains("conversation-row internal processed-prompt"));
+		assertTrue("Must contain conversation-row internal prompt-context",
+				body.contains("conversation-row internal prompt-context"));
+		assertTrue("Must contain conversation-row internal internal-messages",
+				body.contains("conversation-row internal internal-messages"));
+
+		// Verify role labels
+		assertTrue("Must contain user prompt label", body.contains("user prompt"));
+		assertTrue("Must contain processed prompt label", body.contains("processed prompt"));
+		assertTrue("Must contain prompt context label", body.contains("prompt context"));
+		assertTrue("Must contain internal messages label", body.contains("internal messages"));
+		assertTrue("Must contain assistant label", body.contains("assistant"));
+		assertTrue("Must contain role-label class", body.contains("role-label"));
+
+		// Verify article content class
+		assertTrue("Must contain convo-content class", body.contains("convo-content"));
+	}
+
+	@Test
+	public void testResolveFallbackForEmptyResult() {
+		// 1. When knowledge base search returned 0 hits
+		ChatbotController.RequestScopeTracker trackerKBEmpty = new ChatbotController.RequestScopeTracker();
+		trackerKBEmpty.recordTraceStep(ChatbotController.ExecutionTraceStep.toolCall("search_knowledge_base", "query=\"quantum\"", "0 chunks"));
+		String fb1 = chatbotController.resolveFallbackForEmptyResult("", trackerKBEmpty);
+		assertEquals("I searched the knowledge base, but could not find any matching documents for your request.", fb1);
+
+		// 2. When knowledge base search returned citations
+		ChatbotController.RequestScopeTracker trackerKBCitations = new ChatbotController.RequestScopeTracker();
+		trackerKBCitations.recordCitations(Collections.singletonList(new ChatbotController.SearchResult("Content", "doc.pdf", 0.9f)));
+		String fb2 = chatbotController.resolveFallbackForEmptyResult("", trackerKBCitations);
+		assertEquals("I found relevant information in the knowledge base.", fb2);
+
+		// 3. When memory activities took place
+		ChatbotController.RequestScopeTracker trackerMemory = new ChatbotController.RequestScopeTracker();
+		trackerMemory.recordMemoryActivity("Saved topic to profile");
+		String fb3 = chatbotController.resolveFallbackForEmptyResult("", trackerMemory);
+		assertEquals("I have updated your memory and notes.", fb3);
+
+		// 4. When read_user_file was executed
+		ChatbotController.RequestScopeTracker trackerRead = new ChatbotController.RequestScopeTracker();
+		trackerRead.recordTraceStep(ChatbotController.ExecutionTraceStep.toolCall("read_user_file", "filename=\"notes.md\"", "100 chars"));
+		String fb4 = chatbotController.resolveFallbackForEmptyResult("", trackerRead);
+		assertEquals("I checked your notes file, but have no additional information to report.", fb4);
+
+		// 5. When delete tool was executed
+		ChatbotController.RequestScopeTracker trackerDelete = new ChatbotController.RequestScopeTracker();
+		trackerDelete.recordTraceStep(ChatbotController.ExecutionTraceStep.toolCall("delete_user_file", "filename=\"notes.md\"", "Success"));
+		String fb5 = chatbotController.resolveFallbackForEmptyResult("", trackerDelete);
+		assertEquals("I have processed your deletion request.", fb5);
+
+		// 6. When raw output had thinking tags that were stripped
+		String fb6 = chatbotController.resolveFallbackForEmptyResult("<think>Reasoning tokens here</think>", null);
+		assertEquals("I processed your request, but was unable to complete the response in time. Please try asking again or simplifying your query.", fb6);
+
+		// 7. Generic fallback for empty string and no tracker
+		String fb7 = chatbotController.resolveFallbackForEmptyResult("", null);
+		assertEquals("I'm sorry, I wasn't able to generate a response. Please let me know how I can help.", fb7);
+	}
+
+	@Test
+	public void testChatProcessNeverReturnsEmptyArticle() throws Exception {
+		String conversationId = "test-conv-chatProcess-" + UUID.randomUUID();
+		Http.Request request = createAuthenticatedRequest(POST,
+				"/tools/chatbots/" + completeDataset.getId() + "/chatProcess/" + conversationId, ownerUser);
+
+		Result result = chatbotController.chatProcess(request, completeDataset.getId(), conversationId)
+				.toCompletableFuture().get(10, TimeUnit.SECONDS);
+
+		assertEquals(OK, result.status());
+		String body = play.test.Helpers.contentAsString(result);
+		assertNotNull(body);
+		assertTrue("chatProcess must wrap message in msg-left", body.contains("msg-left"));
+		assertTrue("chatProcess must contain role assistant", body.contains("<p class=\"role\">assistant</p>"));
+		assertFalse("chatProcess must not return empty article", body.contains("<article></article>"));
+		assertFalse("chatProcess must not return empty whitespace article", body.contains("<article> </article>"));
+		assertTrue("chatProcess must contain an article tag with content", body.contains("<article>"));
 	}
 }

@@ -1,0 +1,68 @@
+@(datasetId: Long, userEmail: String, snapshot: utils.tools.ChatbotMemoryUtils.UserMemorySnapshot, statusBanner: String)
+
+<div class="user-memory-container" style="font-size: 0.9rem;">
+  @if(statusBanner != null && !statusBanner.trim().isEmpty()) {
+    <div style="background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; padding: 6px 12px; border-radius: 4px; margin-bottom: 12px; font-weight: 500;">
+      @statusBanner
+    </div>
+  }
+
+  <p style="color: #64748b; margin-bottom: 12px;">User: <strong>@userEmail</strong></p>
+
+  <h6 style="margin-top: 12px; margin-bottom: 6px;">Profile Attributes</h6>
+  @if(snapshot.profileAttributes().isEmpty()) {
+    <p style="color: #94a3b8; font-style: italic;">No profile facts stored yet. The bot will automatically remember key facts you share.</p>
+  } else {
+    <table style="width: 100%; border-collapse: collapse; margin-bottom: 16px;">
+      <thead>
+        <tr style="border-bottom: 1px solid #cbd5e1; text-align: left;">
+          <th style="padding: 4px 8px;">Topic</th>
+          <th style="padding: 4px 8px;">Detail</th>
+          <th style="padding: 4px 8px; width: 40px; text-align: center;">Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for(entry <- snapshot.profileAttributes().entrySet()) {
+          <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 4px 8px; font-weight: 600;">@entry.getKey()</td>
+            <td style="padding: 4px 8px;">@entry.getValue()</td>
+            <td style="padding: 4px 8px; text-align: center;">
+              <button type="button" class="outline danger" style="padding: 2px 6px; font-size: 0.75rem; border: none; background: transparent; cursor: pointer;" title="Delete this topic"
+                      hx-post="@controllers.tools.routes.ChatbotController.deleteUserProfileEntry(datasetId, entry.getKey())"
+                      hx-target="closest .user-memory-container"
+                      hx-confirm="Forget memory for topic '@entry.getKey()'?">❌</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  }
+
+  <h6 style="margin-top: 12px; margin-bottom: 6px;">Saved Notes & Files</h6>
+  @if(snapshot.userFiles().isEmpty()) {
+    <p style="color: #94a3b8; font-style: italic;">No private notes files created yet.</p>
+  } else {
+    @for(entry <- snapshot.userFiles().entrySet()) {
+      <details style="margin-bottom: 8px; border: 1px solid #e2e8f0; border-radius: 4px; padding: 6px;">
+        <summary style="cursor: pointer; font-weight: 600; display: flex; justify-content: space-between; align-items: center;">
+          <span>📄 @entry.getKey()</span>
+          <button type="button" class="outline danger" style="padding: 2px 6px; font-size: 0.75rem; border: none; background: transparent; cursor: pointer;" title="Delete this file"
+                  hx-post="@controllers.tools.routes.ChatbotController.deleteUserFile(datasetId, entry.getKey())"
+                  hx-target="closest .user-memory-container"
+                  hx-confirm="Are you sure you want to delete file '@entry.getKey()'?"
+                  onclick="event.stopPropagation();">❌</button>
+        </summary>
+        <pre style="background: #f8fafc; padding: 8px; margin-top: 6px; font-size: 0.8rem; max-height: 200px; overflow-y: auto;">@entry.getValue()</pre>
+      </details>
+    }
+  }
+
+  <div style="margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 12px; text-align: right;">
+    <button type="button" class="outline secondary" style="padding: 4px 12px; font-size: 0.8rem;"
+            hx-post="@controllers.tools.routes.ChatbotController.resetUserMemory(datasetId)"
+            hx-target="closest .user-memory-container"
+            hx-confirm="Are you sure you want to reset all your stored memory and notes for this bot?">
+      🗑️ Reset All Memory & Files
+    </button>
+  </div>
+</div>

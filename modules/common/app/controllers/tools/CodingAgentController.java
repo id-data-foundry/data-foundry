@@ -239,9 +239,11 @@ public class CodingAgentController extends AbstractAsyncController {
 			AgentState state = context.agent().getDelegate().getAgentState("global", sessionId);
 			List<Msg> history = state.getContext();
 			historyNodes = history.stream().map(msg -> {
-				String text = CodingAgentUtils.cleanThinkingTags(msg.getTextContent());
+				String text = msg.getTextContent();
 				if (msg.getRole() != MsgRole.USER) {
-					text = CodingAgentUtils.filterDatasetPath(text, context.cpds().getFolder());
+					text = CodingAgentUtils.cleanAgentOutput(text, context.cpds().getFolder());
+				} else {
+					text = CodingAgentUtils.cleanThinkingTags(text);
 				}
 				ObjectNode node = Json.newObject().put("type", "chat")
 						.put("user", msg.getRole() == MsgRole.USER ? username : CodingAgentUtils.BOT_DISPLAY_NAME)
@@ -371,8 +373,7 @@ public class CodingAgentController extends AbstractAsyncController {
 									.build();
 							Msg response = context.agent().call(input, runtimeCtx).block();
 							if (response != null) {
-								String messageContent = CodingAgentUtils.cleanThinkingTags(response.getTextContent());
-								messageContent = CodingAgentUtils.filterDatasetPath(messageContent,
+								String messageContent = CodingAgentUtils.cleanAgentOutput(response.getTextContent(),
 										context.cpds().getFolder());
 								ObjectNode agentMsg = Json.newObject().put("type", "chat")
 										.put("user", CodingAgentUtils.BOT_DISPLAY_NAME).put("message", messageContent)
@@ -1055,14 +1056,13 @@ public class CodingAgentController extends AbstractAsyncController {
 				Source.single((JsonNode) endMsg).runWith(context.sink(), context.materializer());
 
 				if (subResponse != null && subResponse.getTextContent() != null) {
-					String subMsg = CodingAgentUtils.cleanThinkingTags(subResponse.getTextContent());
-					return CodingAgentUtils.filterDatasetPath(subMsg, context.cpds().getFolder());
+					return CodingAgentUtils.cleanAgentOutput(subResponse.getTextContent(), context.cpds().getFolder());
 				}
 				return "Task completed by sub-agent.";
 			} catch (Exception e) {
 				logger.error("Error executing sub-agent coding task", e);
 				String errorMsg = "Error executing sub-agent coding task: " + e.getMessage();
-				return CodingAgentUtils.filterDatasetPath(errorMsg, context.cpds().getFolder());
+				return CodingAgentUtils.cleanAgentOutput(errorMsg, context.cpds().getFolder());
 			}
 		}
 	}

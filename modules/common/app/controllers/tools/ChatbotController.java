@@ -81,6 +81,7 @@ import play.mvc.Http.MultipartFormData.FilePart;
 import play.mvc.Http.Request;
 import play.mvc.Result;
 import play.mvc.Security.Authenticated;
+import play.twirl.api.Html;
 import services.api.ApiServiceConstants;
 import services.api.GenericApiService.ProjectAPIInfo;
 import services.api.ai.LocalModelMetadata;
@@ -93,6 +94,7 @@ import utils.concurrent.DatabaseExecutionContext;
 import utils.conf.ConfigurationUtils;
 import utils.rendering.MarkdownRenderer;
 import utils.tools.ChatbotMemoryUtils;
+import utils.tools.ChatbotMemoryUtils.UserMemorySnapshot;
 import utils.tools.CodingAgentUtils;
 import utils.validators.FileTypeUtils;
 
@@ -140,6 +142,7 @@ public class ChatbotController extends AbstractAsyncController {
 	public static class RequestScopeTracker {
 		private final List<SearchResult> citations = new CopyOnWriteArrayList<>();
 		private final List<String> memoryActivities = new CopyOnWriteArrayList<>();
+		private final List<String> knowledgeActivities = new CopyOnWriteArrayList<>();
 		private final List<ExecutionTraceStep> traceSteps = new CopyOnWriteArrayList<>();
 
 		public void recordCitations(Collection<SearchResult> hits) {
@@ -148,6 +151,10 @@ public class ChatbotController extends AbstractAsyncController {
 
 		public void recordMemoryActivity(String activity) {
 			memoryActivities.add(activity);
+		}
+
+		public void recordKnowledgeActivity(String activity) {
+			knowledgeActivities.add(activity);
 		}
 
 		public void recordTraceStep(ExecutionTraceStep step) {
@@ -160,6 +167,10 @@ public class ChatbotController extends AbstractAsyncController {
 
 		public List<String> getMemoryActivities() {
 			return memoryActivities;
+		}
+
+		public List<String> getKnowledgeActivities() {
+			return knowledgeActivities;
 		}
 
 		public List<ExecutionTraceStep> getTraceSteps() {
@@ -199,6 +210,8 @@ public class ChatbotController extends AbstractAsyncController {
 				tracker.recordCitations(hits);
 				tracker.recordTraceStep(ExecutionTraceStep.toolCall("search_knowledge_base", "query=\"" + query + "\"",
 						hits.size() + " chunks retrieved"));
+				tracker.recordKnowledgeActivity(String.format("Searched Knowledge Base: \"%s\" (%d %s found)", query,
+						hits.size(), hits.size() == 1 ? "chunk" : "chunks"));
 			}
 
 			if (hits.isEmpty()) {
@@ -803,91 +816,6 @@ public class ChatbotController extends AbstractAsyncController {
 		return badRequest("Dataset not found");
 	}
 
-	private String renderUserMemoryHtml(CompleteDS cpds, String userEmail, long dsId, String statusBanner) {
-		ChatbotMemoryUtils.UserMemorySnapshot snapshot = ChatbotMemoryUtils.getUserMemorySnapshot(cpds.getFolder(),
-				userEmail);
-
-		StringBuilder html = new StringBuilder();
-		html.append("<div class=\"user-memory-container\" style=\"font-size: 0.9rem;\">");
-
-		if (statusBanner != null && !statusBanner.trim().isEmpty()) {
-			html.append(
-					"<div style=\"background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; padding: 6px 12px; border-radius: 4px; margin-bottom: 12px; font-weight: 500;\">")
-					.append(escapeHtml(statusBanner)).append("</div>");
-		}
-
-		html.append("<p style=\"color: #64748b; margin-bottom: 12px;\">User: <strong>").append(escapeHtml(userEmail))
-				.append("</strong></p>");
-
-		html.append("<h6 style=\"margin-top: 12px; margin-bottom: 6px;\">Profile Attributes</h6>");
-		if (snapshot.profileAttributes().isEmpty()) {
-			html.append(
-					"<p style=\"color: #94a3b8; font-style: italic;\">No profile facts stored yet. The bot will automatically remember key facts you share.</p>");
-		} else {
-			html.append("<table style=\"width: 100%; border-collapse: collapse; margin-bottom: 16px;\">");
-			html.append("<thead><tr style=\"border-bottom: 1px solid #cbd5e1; text-align: left;\">")
-					.append("<th style=\"padding: 4px 8px;\">Topic</th>")
-					.append("<th style=\"padding: 4px 8px;\">Detail</th>")
-					.append("<th style=\"padding: 4px 8px; width: 40px; text-align: center;\">Action</th>")
-					.append("</tr></thead><tbody>");
-			for (Map.Entry<String, String> entry : snapshot.profileAttributes().entrySet()) {
-				html.append("<tr style=\"border-bottom: 1px solid #f1f5f9;\">");
-				html.append("<td style=\"padding: 4px 8px; font-weight: 600;\">").append(escapeHtml(entry.getKey()))
-						.append("</td>");
-				html.append("<td style=\"padding: 4px 8px;\">").append(escapeHtml(entry.getValue())).append("</td>");
-				html.append("<td style=\"padding: 4px 8px; text-align: center;\">").append(
-						"<button type=\"button\" class=\"outline danger\" style=\"padding: 2px 6px; font-size: 0.75rem; border: none; background: transparent; cursor: pointer;\" title=\"Delete this topic\" ")
-						.append("hx-post=\"")
-						.append(controllers.tools.routes.ChatbotController.deleteUserProfileEntry(dsId, entry.getKey()))
-						.append("\" ").append("hx-target=\"closest .user-memory-container\" ")
-						.append("hx-confirm=\"Forget memory for topic '").append(escapeHtml(entry.getKey()))
-						.append("'?\">❌</button>").append("</td>");
-				html.append("</tr>");
-			}
-			html.append("</tbody></table>");
-		}
-
-		html.append("<h6 style=\"margin-top: 12px; margin-bottom: 6px;\">Saved Notes & Files</h6>");
-		if (snapshot.userFiles().isEmpty()) {
-			html.append("<p style=\"color: #94a3b8; font-style: italic;\">No private notes files created yet.</p>");
-		} else {
-			for (Map.Entry<String, String> entry : snapshot.userFiles().entrySet()) {
-				html.append(
-						"<details style=\"margin-bottom: 8px; border: 1px solid #e2e8f0; border-radius: 4px; padding: 6px;\">");
-				html.append(
-						"<summary style=\"cursor: pointer; font-weight: 600; display: flex; justify-content: space-between; align-items: center;\">");
-				html.append("<span>📄 ").append(escapeHtml(entry.getKey())).append("</span>");
-				html.append(
-						"<button type=\"button\" class=\"outline danger\" style=\"padding: 2px 8px; font-size: 0.75rem; border-radius: 4px; cursor: pointer;\" ")
-						.append("hx-post=\"")
-						.append(controllers.tools.routes.ChatbotController.deleteUserFile(dsId, entry.getKey()))
-						.append("\" ").append("hx-target=\"closest .user-memory-container\" ")
-						.append("hx-confirm=\"Are you sure you want to delete file '")
-						.append(escapeHtml(entry.getKey())).append("'?\" ")
-						.append("onclick=\"event.stopPropagation();\">🗑️ Delete</button>");
-				html.append("</summary>");
-				html.append(
-						"<pre style=\"background: #f8fafc; padding: 8px; margin-top: 6px; font-size: 0.8rem; max-height: 200px; overflow-y: auto;\">")
-						.append(escapeHtml(entry.getValue())).append("</pre>");
-				html.append("</details>");
-			}
-		}
-
-		html.append(
-				"<div style=\"margin-top: 20px; border-top: 1px solid #e2e8f0; padding-top: 12px; text-align: right;\">");
-		html.append(
-				"<button type=\"button\" class=\"outline secondary\" style=\"padding: 4px 12px; font-size: 0.8rem;\" ");
-		html.append("hx-post=\"").append(controllers.tools.routes.ChatbotController.resetUserMemory(dsId))
-				.append("\" ");
-		html.append("hx-target=\"closest .user-memory-container\" ");
-		html.append("hx-confirm=\"Are you sure you want to reset all your stored memory and notes for this bot?\">");
-		html.append("🗑️ Reset All Memory & Files</button>");
-		html.append("</div>");
-		html.append("</div>");
-
-		return html.toString();
-	}
-
 	@Authenticated(UserAuth.class)
 	public Result getUserMemory(Request request, long id) {
 		Person user = getAuthenticatedUserOrReturn(request, redirect(LANDING));
@@ -897,7 +825,7 @@ public class ChatbotController extends AbstractAsyncController {
 		}
 
 		final CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
-		return ok(renderUserMemoryHtml(cpds, user.getEmail(), ds.getId(), null)).as("text/html");
+		return ok(renderUserMemoryHtml(cpds, user.getEmail(), ds.getId(), null));
 	}
 
 	@Authenticated(UserAuth.class)
@@ -911,7 +839,7 @@ public class ChatbotController extends AbstractAsyncController {
 		final CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
 		ChatbotMemoryUtils.resetUserMemory(cpds.getFolder(), user.getEmail());
 		return ok(renderUserMemoryHtml(cpds, user.getEmail(), ds.getId(),
-				"✓ All memory facts and files have been cleared.")).as("text/html");
+				"✓ All memory facts and files have been cleared."));
 	}
 
 	@Authenticated(UserAuth.class)
@@ -934,7 +862,7 @@ public class ChatbotController extends AbstractAsyncController {
 		final CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
 		String res = ChatbotMemoryUtils.deleteUserFile(cpds.getFolder(), user.getEmail(), targetFile);
 		String banner = res.startsWith("Success:") ? "✓ File '" + targetFile + "' deleted." : res;
-		return ok(renderUserMemoryHtml(cpds, user.getEmail(), ds.getId(), banner)).as("text/html");
+		return ok(renderUserMemoryHtml(cpds, user.getEmail(), ds.getId(), banner));
 	}
 
 	@Authenticated(UserAuth.class)
@@ -957,7 +885,7 @@ public class ChatbotController extends AbstractAsyncController {
 		final CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
 		boolean ok = ChatbotMemoryUtils.deleteUserProfileEntry(cpds.getFolder(), user.getEmail(), targetTopic);
 		String banner = ok ? "✓ Memory for topic '" + targetTopic + "' deleted." : "Error deleting topic";
-		return ok(renderUserMemoryHtml(cpds, user.getEmail(), ds.getId(), banner)).as("text/html");
+		return ok(renderUserMemoryHtml(cpds, user.getEmail(), ds.getId(), banner));
 	}
 
 	private static String escapeHtml(String text) {
@@ -1023,6 +951,8 @@ public class ChatbotController extends AbstractAsyncController {
 		final CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
 		List<TimedMedia> rawFiles = cpds != null ? cpds.getFiles() : Collections.emptyList();
 		List<FileWithIndexStatus> filesWithStatus = rawFiles.stream()
+				.filter(file -> file != null && file.link != null && !file.link.startsWith("chat_")
+						&& !file.link.endsWith(".idx"))
 				.map(file -> new FileWithIndexStatus(file, hasIndexFile(cpds, file))).collect(Collectors.toList());
 
 		// show the chat interface for this chatbot
@@ -1056,33 +986,60 @@ public class ChatbotController extends AbstractAsyncController {
 
 			if (resultFragment.response() == null) {
 				return ok("""
-						<div class="msg-left">
-						<p class="role">system</p>
-						<article>%s</article>
-						</div>""".formatted("We have encountered a problem. Perhaps try again later."));
+						<details class="chat-turn error-turn" open style="margin-bottom: 16px; border: 1px solid #fca5a5; border-radius: 6px; padding: 10px 14px; background: #fff5f5;">
+							<summary style="cursor: pointer; font-weight: 600; color: #b91c1c; outline: none; padding: 4px 0;">
+								⚠️ <strong>Error processing turn</strong>
+							</summary>
+							<div class="chat-turn-content" style="margin-top: 10px;">
+								<div class="conversation-row error" style="display: flex; gap: 16px; padding: 10px 14px; background: #fff; border: 1px solid #fecaca; border-radius: 6px;">
+									<span class="role-label" style="flex: 0 0 140px; font-weight: 700; color: #dc2626;">system</span>
+									<article class="convo-content" style="flex: 1; color: #b91c1c;">%s</article>
+								</div>
+							</div>
+						</details>
+						""".formatted("We have encountered a problem. Perhaps try again later."));
 			}
 
 			RequestScopeTracker tracker = resultFragment.tracker();
 			StringBuilder traceHtml = new StringBuilder();
-			if (tracker != null && (!tracker.getTraceSteps().isEmpty() || !tracker.getMemoryActivities().isEmpty())) {
-				traceHtml.append(
-						"<hr><div role=\"trace\" style=\"background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; margin-bottom: 12px;\">");
-				traceHtml.append(
-						"<div style=\"font-weight: 700; color: #0f172a; margin-bottom: 8px;\">🤖 AgentScope Execution Trace</div>");
+			boolean hasTrackerData = tracker != null && (!tracker.getTraceSteps().isEmpty()
+					|| !tracker.getMemoryActivities().isEmpty() || !tracker.getKnowledgeActivities().isEmpty());
 
-				if (!tracker.getMemoryActivities().isEmpty()) {
-					traceHtml.append("<div style=\"margin-bottom: 8px;\">");
+			ConversationItem prompt = resultFragment.prompt();
+			List<ConversationContext> docContexts = (prompt != null && prompt.context() != null) ? prompt.context()
+					.stream()
+					.filter(cc -> cc != null && cc.document() != null && !cc.document().isEmpty() && cc.ranking() > 0)
+					.collect(Collectors.toList()) : Collections.emptyList();
+
+			if (hasTrackerData || !docContexts.isEmpty()) {
+				traceHtml.append(
+						"<div role=\"trace\" class=\"chat-trace\" style=\"background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 12px; margin-bottom: 4px;\">");
+				traceHtml.append(
+						"<div style=\"font-weight: 700; color: #0f172a; margin-bottom: 8px;\">🤖 Assistant Activity & Tool Trace</div>");
+
+				if (tracker != null
+						&& (!tracker.getKnowledgeActivities().isEmpty() || !tracker.getMemoryActivities().isEmpty())) {
+					traceHtml.append("<div style=\"display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;\">");
+					for (String act : tracker.getKnowledgeActivities()) {
+						traceHtml.append(
+								"<span style=\"display: inline-flex; align-items: center; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; border-radius: 12px; padding: 2px 10px; font-size: 0.75rem; font-weight: 500;\">📚 ")
+								.append(escapeHtml(act)).append("</span>");
+					}
 					for (String act : tracker.getMemoryActivities()) {
 						traceHtml.append(
-								"<span style=\"display: inline-block; background: #e0f2fe; color: #0369a1; border-radius: 12px; padding: 2px 8px; font-size: 0.75rem; margin-right: 6px;\">🧠 ")
+								"<span style=\"display: inline-flex; align-items: center; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; border-radius: 12px; padding: 2px 10px; font-size: 0.75rem; font-weight: 500;\">🧠 ")
 								.append(escapeHtml(act)).append("</span>");
 					}
 					traceHtml.append("</div>");
+				} else if (!docContexts.isEmpty()) {
+					traceHtml.append(String.format(
+							"<div style=\"display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;\"><span style=\"display: inline-flex; align-items: center; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; border-radius: 12px; padding: 2px 10px; font-size: 0.75rem; font-weight: 500;\">📚 Knowledge Base consulted (%d %s retrieved)</span></div>",
+							docContexts.size(), docContexts.size() == 1 ? "section" : "sections"));
 				}
 
-				if (!tracker.getTraceSteps().isEmpty()) {
+				if (tracker != null && !tracker.getTraceSteps().isEmpty()) {
 					traceHtml.append(
-							"<details open><summary style=\"cursor: pointer; font-weight: 600;\">Steps & Tool Calls (")
+							"<details open><summary style=\"cursor: pointer; font-weight: 600; color: #334155;\">Steps & Tool Calls (")
 							.append(tracker.getTraceSteps().size()).append(")</summary>");
 					traceHtml.append(
 							"<ul style=\"margin: 6px 0 0 0; padding-left: 20px; font-family: monospace; font-size: 0.8rem;\">");
@@ -1104,71 +1061,94 @@ public class ChatbotController extends AbstractAsyncController {
 			}
 
 			// generate richer output for the testing
-			ConversationItem prompt = resultFragment.prompt();
 			final String input;
 			if (prompt != null) {
 
-				String context = (prompt.context() == null || prompt.context().isEmpty()) ? "-"
-						: prompt.context().stream()
-								.filter(cc -> cc != null && cc.content() != null && !cc.content().trim().isEmpty())
+				String context = docContexts.isEmpty()
+						? "<span style=\"color: #94a3b8; font-style: italic;\">None (no documents searched or matched)</span>"
+						: docContexts.stream()
 								.map(cc -> """
-										<details>
-											<summary>%s</summary>
-											<pre>%s</pre>
+										<details style="margin-bottom: 6px; background: #fff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px 8px;">
+											<summary style="cursor: pointer; font-weight: 600; color: #0f766e;">📄 %s (Relevance: %.0f%%)</summary>
+											<pre style="margin-top: 4px; font-size: 0.75rem; white-space: pre-wrap; max-height: 200px; overflow-y: auto;">%s</pre>
 										</details>
-										""".formatted(cc.toString(), cc.content())).collect(Collectors.joining());
-				if (context.isEmpty()) {
-					context = "-";
-				}
+										"""
+										.formatted(escapeHtml(cc.document().isEmpty() ? "Document" : cc.document()),
+												cc.ranking() * 100f, escapeHtml(cc.content())))
+								.collect(Collectors.joining());
+
+				String renderedUserPrompt = new MarkdownRenderer(true).render(originalUserPrompt);
+				String renderedProcessedPrompt = prompt.content() != null && !prompt.content().trim().isEmpty()
+						? new MarkdownRenderer(true).render(prompt.content())
+						: "-";
 
 				input = """
-						<hr>
-						<div role="prompt">
-						<div class="user">
-						<span class="role">user prompt</span>
-						<article>%s</article>
+						<div role="prompt" class="convo-section prompt-section">
+							<div class="conversation-row user">
+								<span class="role-label role user-label">user prompt</span>
+								<article class="convo-content">%s</article>
+							</div>
+							<div class="conversation-row internal processed-prompt">
+								<span class="role-label internal">processed prompt</span>
+								<article class="convo-content">%s</article>
+							</div>
+							<div class="conversation-row internal prompt-context">
+								<span class="role-label internal">prompt context</span>
+								<article class="convo-content">%s</article>
+							</div>
 						</div>
-						<div>
-						<span class="internal">processed prompt</span>
-						<article>%s</article>
-						</div>
-						<div>
-						<span class="internal">prompt context</span>
-						<article>%s</article>
-						</div>
-						</div>
-						""".formatted(prompt.renderedContent(), prompt.content(), context);
+						""".formatted(renderedUserPrompt, renderedProcessedPrompt, context);
 			} else {
 				input = "";
 			}
 
 			ConversationItem response = resultFragment.response();
-			String context = (response.context() == null || response.context().isEmpty()) ? "-"
+			String context = (response.context() == null || response.context().isEmpty())
+					? "<span style=\"color: #94a3b8; font-style: italic;\">None (direct agent runtime execution &mdash; see activity trace above)</span>"
 					: response.context().stream()
 							.filter(cc -> cc != null && cc.content() != null && !cc.content().trim().isEmpty())
 							.map(cc -> """
-									<details>
-										<summary>messages to LLM</summary>
-										<pre>%s</pre>
+									<details style="margin-bottom: 6px; background: #fff; border: 1px solid #e2e8f0; border-radius: 4px; padding: 4px 8px;">
+										<summary style="cursor: pointer; font-weight: 600; color: #334155;">💬 Messages sent to LLM</summary>
+										<pre style="margin-top: 4px; font-size: 0.75rem; white-space: pre-wrap; max-height: 250px; overflow-y: auto;">%s</pre>
 									</details>
-									""".formatted(cc.content())).collect(Collectors.joining());
+									""".formatted(escapeHtml(cc.content()))).collect(Collectors.joining());
 			if (context.isEmpty()) {
-				context = "-";
+				context = "<span style=\"color: #94a3b8; font-style: italic;\">None</span>";
+			}
+
+			String sourcesFooter = "";
+			if (!docContexts.isEmpty()) {
+				StringBuilder refs = new StringBuilder(
+						"<div class=\"sources-refs\" style=\"margin-top: 10px; border-top: 1px solid #e2e8f0; padding-top: 6px; font-size: 0.8rem; color: #475569;\"><strong style=\"color: #0f766e;\">📚 Sources Used:</strong> ");
+				for (int i = 0; i < docContexts.size(); i++) {
+					ConversationContext ctx = docContexts.get(i);
+					String renderedSource = new MarkdownRenderer(true).render(ctx.content());
+					String b64Content = java.util.Base64.getEncoder()
+							.encodeToString(renderedSource.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+					String b64Title = java.util.Base64.getEncoder()
+							.encodeToString(ctx.document().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+					float relevance = ctx.ranking() * 100f;
+					refs.append(String.format(
+							"<a href=\"#\" class=\"source-tag\" data-content=\"%s\" data-title=\"%s\" onclick=\"showSourceFromEl(this); return false;\" title=\"Relevance: %.0f%%\">[%d] %s (%.0f%%)</a> ",
+							b64Content, b64Title, relevance, i + 1, escapeHtml(ctx.document()), relevance));
+				}
+				refs.append("</div>");
+				sourcesFooter = refs.toString();
 			}
 
 			String turnContent = traceHtml.toString() + input + """
-					<hr>
-					<div role="response">
-					<div>
-					<span class="internal">internal messages</span>
-					<article>%s</article>
+					<div role="response" class="convo-section response-section">
+						<div class="conversation-row internal internal-messages">
+							<span class="role-label internal">internal messages</span>
+							<article class="convo-content">%s</article>
+						</div>
+						<div class="conversation-row assistant">
+							<span class="role-label role assistant-label">assistant</span>
+							<article class="convo-content">%s%s</article>
+						</div>
 					</div>
-					<div class="assistant">
-					<span class="role">assistant</span>
-					<article>%s</article>
-					</div>
-					</div>
-					""".formatted(context, response.renderedContent());
+					""".formatted(context, response.renderedContent(), sourcesFooter);
 
 			String promptSnippet = stripHtml(originalUserPrompt);
 			if (promptSnippet.length() > 45) {
@@ -1279,11 +1259,19 @@ public class ChatbotController extends AbstractAsyncController {
 
 			String responseHtml = resultFragment.response() != null ? resultFragment.response().renderedContent()
 					: "We have encountered a problem. Perhaps try again later.";
+			if (responseHtml == null || responseHtml.trim().isEmpty()) {
+				responseHtml = "I'm sorry, I wasn't able to generate a response. Please try again.";
+			}
 
 			RequestScopeTracker tracker = resultFragment.tracker();
-			if (tracker != null && !tracker.getMemoryActivities().isEmpty()) {
+			if (tracker != null
+					&& (!tracker.getKnowledgeActivities().isEmpty() || !tracker.getMemoryActivities().isEmpty())) {
 				StringBuilder badges = new StringBuilder(
-						"<div class=\"memory-activity-chips\" style=\"margin-bottom: 8px;\">");
+						"<div class=\"activity-chips-container\" style=\"display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;\">");
+				for (String act : tracker.getKnowledgeActivities()) {
+					badges.append("<span class=\"knowledge-activity-chip\">📚 ").append(escapeHtml(act))
+							.append("</span> ");
+				}
 				for (String act : tracker.getMemoryActivities()) {
 					badges.append("<span class=\"memory-activity-chip\">🧠 ").append(escapeHtml(act))
 							.append("</span> ");
@@ -1519,7 +1507,36 @@ public class ChatbotController extends AbstractAsyncController {
 		}, databaseExecutionContext);
 	}
 
-	private ConversationFragment internalChatProcess(String conversationId, Person user, Dataset ds,
+	String resolveFallbackForEmptyResult(String rawResult, RequestScopeTracker tracker) {
+		if (tracker != null) {
+			boolean searchedKB = tracker.getTraceSteps().stream()
+					.anyMatch(step -> "search_knowledge_base".equals(step.name()));
+			boolean readNotes = tracker.getTraceSteps().stream()
+					.anyMatch(step -> "read_user_file".equals(step.name()));
+			boolean deletedItem = tracker.getTraceSteps().stream()
+					.anyMatch(step -> step.name() != null && step.name().startsWith("delete_"));
+
+			if (!tracker.getMemoryActivities().isEmpty()) {
+				return "I have updated your memory and notes.";
+			} else if (!tracker.getCitations().isEmpty()) {
+				return "I found relevant information in the knowledge base.";
+			} else if (searchedKB) {
+				return "I searched the knowledge base, but could not find any matching documents for your request.";
+			} else if (readNotes) {
+				return "I checked your notes file, but have no additional information to report.";
+			} else if (deletedItem) {
+				return "I have processed your deletion request.";
+			}
+		}
+
+		if (rawResult != null && (rawResult.contains("<think>") || rawResult.contains("<thought>"))) {
+			return "I processed your request, but was unable to complete the response in time. Please try asking again or simplifying your query.";
+		}
+
+		return "I'm sorry, I wasn't able to generate a response. Please let me know how I can help.";
+	}
+
+	ConversationFragment internalChatProcess(String conversationId, Person user, Dataset ds,
 			String originalUserPrompt) {
 
 		// check whether the chatbot owner has enough tokens, if not quick abort
@@ -1579,7 +1596,38 @@ public class ChatbotController extends AbstractAsyncController {
 				Msg responseMsg = agent.call(input, runtimeCtx).block();
 
 				String rawResult = responseMsg != null ? responseMsg.getTextContent() : "";
-				String cleanedResult = CodingAgentUtils.cleanThinkingTags(rawResult);
+				String cleanedResult = CodingAgentUtils.cleanAgentOutput(rawResult, cpds.getFolder());
+
+				// 1. If cleanedResult is empty, check if the agent ran tools or internal reasoning that halted before synthesizing a final answer
+				if (cleanedResult.isEmpty()) {
+					boolean hadActivity = tracker != null && (!tracker.getTraceSteps().isEmpty()
+							|| !tracker.getMemoryActivities().isEmpty() || !tracker.getCitations().isEmpty());
+					boolean hadRawContent = rawResult != null && !rawResult.trim().isEmpty();
+
+					if (hadActivity || hadRawContent) {
+						logger.info(
+								"Chatbot agent completed tool/internal execution but returned empty output. Attempting automatic resumption turn for dataset {}",
+								ds.getId());
+						try {
+							Msg resumeInput = Msg.builder().role(MsgRole.USER).name("User").textContent(
+									"Please provide your final answer to the user based on the tool results and reasoning above.")
+									.build();
+							Msg resumeMsg = agent.call(resumeInput, runtimeCtx).block();
+							String resumeRaw = resumeMsg != null ? resumeMsg.getTextContent() : "";
+							String resumeCleaned = CodingAgentUtils.cleanAgentOutput(resumeRaw, cpds.getFolder());
+							if (!resumeCleaned.isEmpty()) {
+								cleanedResult = resumeCleaned;
+							}
+						} catch (Exception e) {
+							logger.warn("Automatic resumption call failed or timed out", e);
+						}
+					}
+				}
+
+				// 2. If cleanedResult is STILL empty, synthesize an informative context-aware fallback based on trace steps and activities
+				if (cleanedResult.isEmpty()) {
+					cleanedResult = resolveFallbackForEmptyResult(rawResult, tracker);
+				}
 
 				List<ConversationContext> contexts = tracker.getCitations().stream()
 						.map(sr -> new ConversationContext(sr.content(), sr.file(), sr.score()))
@@ -1686,10 +1734,14 @@ public class ChatbotController extends AbstractAsyncController {
 			}
 
 			String resultAsText = on.path(ApiServiceConstants.RESPONSE_CONTENT).asText("");
+			String cleanedResult = CodingAgentUtils.cleanAgentOutput(resultAsText, cpds.getFolder());
+			if (cleanedResult.isEmpty()) {
+				cleanedResult = "I'm sorry, I wasn't able to generate a response. Please try rephrasing your prompt.";
+			}
 
 			// generate response item, including the messages (HTML escaping enabled via MarkdownRenderer(true))
-			responseItem = new ConversationItem(ConversationItem.ASSISTANT, resultAsText, messages.toPrettyString(),
-					new MarkdownRenderer(true).render(resultAsText));
+			responseItem = new ConversationItem(ConversationItem.ASSISTANT, cleanedResult, messages.toPrettyString(),
+					new MarkdownRenderer(true).render(cleanedResult));
 
 			synchronized (ch) {
 				ch.items().add(responseItem);
@@ -1748,14 +1800,8 @@ public class ChatbotController extends AbstractAsyncController {
 			}
 
 			String resultAsText = on.path(ApiServiceConstants.RESPONSE_CONTENT).asText("");
-
-			// check whether we have thinking tokens in the result, if so just take what's behind
-			if (resultAsText.contains("final<|message|>")) {
-				resultAsText = resultAsText
-						.substring(resultAsText.indexOf("final<|message|>") + "final<|message|>".length());
-			}
-
-			return Optional.of(resultAsText.trim());
+			String cleaned = CodingAgentUtils.cleanAgentOutput(resultAsText, null);
+			return Optional.of(cleaned);
 		} catch (Exception e) {
 			return Optional.empty();
 		}
@@ -2032,6 +2078,11 @@ public class ChatbotController extends AbstractAsyncController {
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	private Html renderUserMemoryHtml(CompleteDS cpds, String userEmail, long dsId, String statusBanner) {
+		UserMemorySnapshot snapshot = ChatbotMemoryUtils.getUserMemorySnapshot(cpds.getFolder(), userEmail);
+		return views.html.tools.chatbots.userMemory.render(dsId, userEmail, snapshot, statusBanner);
+	}
+
 	/**
 	 * produce chunks for an uploaded document
 	 * 
@@ -2088,14 +2139,36 @@ public class ChatbotController extends AbstractAsyncController {
 	 */
 	private void indexAllDocuments(CompleteDS cpds) {
 		logger.info("Indexing all document chunks...");
+		if (cpds == null || cpds.getFolder() == null) {
+			return;
+		}
+
+		// Clean up any orphaned .idx files whose source document no longer exists
+		File folder = cpds.getFolder();
+		File[] idxFiles = folder.listFiles((dir, name) -> name.endsWith(".idx"));
+		if (idxFiles != null) {
+			for (File idxFile : idxFiles) {
+				String baseName = idxFile.getName().substring(0, idxFile.getName().length() - 4);
+				File baseFile = new File(folder, baseName);
+				if (!baseFile.exists()) {
+					logger.info("Cleaning up orphaned index file: {}", idxFile.getName());
+					idxFile.delete();
+				}
+			}
+		}
 
 		try (FSDirectory indexDirectory = FSDirectory.open(getSearchIndexDir(cpds));
 				StandardAnalyzer analyzer = new StandardAnalyzer();) {
 			IndexWriterConfig config = new IndexWriterConfig(analyzer);
+			config.setOpenMode(IndexWriterConfig.OpenMode.CREATE);
 			try (IndexWriter indexWriter = new IndexWriter(indexDirectory, config)) {
 				// find all relevant context
 				List<TimedMedia> files = cpds.getFiles();
 				for (TimedMedia timedMedia : files) {
+					if (timedMedia.link == null || timedMedia.link.startsWith("chat_")
+							|| timedMedia.link.endsWith(".idx")) {
+						continue;
+					}
 					File originalFile = new File(cpds.getFolder() + File.separator + timedMedia.link);
 					File indexFile = new File(cpds.getFolder() + File.separator + timedMedia.link + ".idx");
 					if (originalFile.exists() && indexFile.exists() && indexFile.length() > 1000) {

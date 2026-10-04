@@ -29,11 +29,107 @@ public class CodingAgentUtilsTest {
 		
 		// Missing opening tag
 		assertEquals("Finished text", CodingAgentUtils.cleanThinkingTags("Unopened thought\n</think>\nFinished text"));
+
+		// Thought tag variant
+		assertEquals("Hello world", CodingAgentUtils.cleanThinkingTags("<thought>Internal reflection</thought>Hello world"));
+		assertEquals("", CodingAgentUtils.cleanThinkingTags("<thought>Unclosed reflection..."));
+		assertEquals("Finished text", CodingAgentUtils.cleanThinkingTags("Unopened\n</thought>\nFinished text"));
+
+		// final<|message|> token
+		assertEquals("Final response text", CodingAgentUtils.cleanThinkingTags("<think>Reasoning...</think>final<|message|>Final response text"));
+		assertEquals("Only final text", CodingAgentUtils.cleanThinkingTags("Prefix final<|message|>Only final text"));
 		
 		// Null and empty
 		assertEquals("", CodingAgentUtils.cleanThinkingTags(null));
 		assertEquals("", CodingAgentUtils.cleanThinkingTags(""));
 		assertEquals("Regular text without think tags", CodingAgentUtils.cleanThinkingTags("Regular text without think tags"));
+	}
+
+	@Test
+	public void testCleanToolCallTags() {
+		// Standard XML tool call
+		String xmlToolCall = "<tool_call>\n{\"name\": \"search_knowledge_base\", \"arguments\": {\"query\": \"test\"}}\n</tool_call>\nHere is the answer.";
+		assertEquals("Here is the answer.", CodingAgentUtils.cleanToolCallTags(xmlToolCall));
+
+		// Unclosed XML tool call
+		String unclosedXml = "<tool_call>\n{\"name\": \"write_user_file\", \"arguments\": {\"filename\": \"notes.md\"";
+		assertEquals("", CodingAgentUtils.cleanToolCallTags(unclosedXml));
+
+		// Orphaned closing tag
+		String orphanedXml = "random preamble\n</tool_call>\nReal output.";
+		assertEquals("Real output.", CodingAgentUtils.cleanToolCallTags(orphanedXml));
+
+		// Multiple tool call blocks
+		String multiXml = "<tool_call>{\"name\": \"call1\"}</tool_call> intermediate <tool_call>{\"name\": \"call2\"}</tool_call> done.";
+		assertEquals("intermediate  done.", CodingAgentUtils.cleanToolCallTags(multiXml));
+
+		// Markdown tool call code fences
+		String codeFenceToolCall = "```tool_call\n{\"name\": \"update_user_memory\", \"arguments\": {\"topic\": \"bio\"}}\n```\nMemory updated.";
+		assertEquals("Memory updated.", CodingAgentUtils.cleanToolCallTags(codeFenceToolCall));
+
+		String toolcallFence = "```toolcall\n{\"name\": \"test\"}\n```\nDone.";
+		assertEquals("Done.", CodingAgentUtils.cleanToolCallTags(toolcallFence));
+
+		String toolFence = "```tool\n{\"name\": \"test\"}\n```\nAll set.";
+		assertEquals("All set.", CodingAgentUtils.cleanToolCallTags(toolFence));
+
+		// Special [TOOL_CALLS] format
+		String bracketFormat = "[TOOL_CALLS] [{\"name\": \"read_user_file\", \"arguments\": {\"filename\": \"a.md\"}}] [/TOOL_CALLS]\nFile contents read.";
+		assertEquals("File contents read.", CodingAgentUtils.cleanToolCallTags(bracketFormat));
+
+		// Unclosed [TOOL_CALLS]
+		String unclosedBracket = "[TOOL_CALLS] [{\"name\": \"search\"}";
+		assertEquals("", CodingAgentUtils.cleanToolCallTags(unclosedBracket));
+
+		// Alternative function and call tags
+		String functionTag = "<function=search_knowledge_base>{\"query\": \"abc\"}</function>Result found.";
+		assertEquals("Result found.", CodingAgentUtils.cleanToolCallTags(functionTag));
+
+		String callTag = "<call:write_user_file filename=\"notes.md\">content</call:write_user_file>File saved.";
+		assertEquals("File saved.", CodingAgentUtils.cleanToolCallTags(callTag));
+
+		String selfClosingCall = "<call:delete_user_memory topic=\"test\">Topic deleted.";
+		assertEquals("Topic deleted.", CodingAgentUtils.cleanToolCallTags(selfClosingCall));
+
+		// Hallucinated tool response and observation echoes
+		String responseEcho = "<tool_response>Success: wrote 20 bytes</tool_response>Operation complete.";
+		assertEquals("Operation complete.", CodingAgentUtils.cleanToolCallTags(responseEcho));
+
+		String observationEcho = "<observation>Documents searched, 3 hits</observation>Here are the findings.";
+		assertEquals("Here are the findings.", CodingAgentUtils.cleanToolCallTags(observationEcho));
+
+		// Regular code blocks (e.g. python, json) should NOT be stripped!
+		String pythonCode = "Here is Python code:\n```python\ndef hello():\n    return 'world'\n```\nEnjoy!";
+		assertEquals(pythonCode, CodingAgentUtils.cleanToolCallTags(pythonCode));
+
+		String jsonCode = "Config:\n```json\n{\"setting\": true}\n```\n";
+		assertEquals(jsonCode.trim(), CodingAgentUtils.cleanToolCallTags(jsonCode));
+
+		// Null and empty
+		assertEquals("", CodingAgentUtils.cleanToolCallTags(null));
+		assertEquals("", CodingAgentUtils.cleanToolCallTags(""));
+		assertEquals("Regular text without tool tags", CodingAgentUtils.cleanToolCallTags("Regular text without tool tags"));
+	}
+
+	@Test
+	public void testCleanAgentOutput() {
+		File datasetFolder = new File("/workspace/DataFoundry/public/uploads/datasets/p100__d200");
+
+		// Combined thinking tokens + tool calls + filesystem path
+		String combined = "<think>\nThinking about user files...\n</think>\n"
+				+ "<tool_call>\n{\"name\": \"search_knowledge_base\", \"arguments\": {\"query\": \"haptics\"}}\n</tool_call>\n"
+				+ "The document is located at /workspace/DataFoundry/public/uploads/datasets/p100__d200/haptics.pdf with valuable findings.";
+
+		String cleaned = CodingAgentUtils.cleanAgentOutput(combined, datasetFolder);
+		assertEquals("The document is located at PATH/haptics.pdf with valuable findings.", cleaned);
+
+		// Pure thinking and pure tool call should clean to empty
+		String pureInternal = "<think>Pondering...</think><tool_call>{\"name\": \"update\"}</tool_call>";
+		assertEquals("", CodingAgentUtils.cleanAgentOutput(pureInternal, datasetFolder));
+
+		// Null and empty
+		assertEquals("", CodingAgentUtils.cleanAgentOutput(null, datasetFolder));
+		assertEquals("", CodingAgentUtils.cleanAgentOutput("", datasetFolder));
 	}
 
 	@Test

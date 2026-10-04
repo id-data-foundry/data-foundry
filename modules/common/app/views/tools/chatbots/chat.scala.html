@@ -24,15 +24,23 @@
           gap: 6px;
           margin-bottom: 8px;
       }
-      .memory-activity-chip {
+      .memory-activity-chip, .knowledge-activity-chip {
           display: inline-flex;
           align-items: center;
-          background: #e0f2fe;
-          color: #0369a1;
           border-radius: 12px;
           padding: 2px 8px;
           font-size: 0.75rem;
           font-weight: 500;
+      }
+      .memory-activity-chip {
+          background: #e0f2fe;
+          color: #0369a1;
+          border: 1px solid #bae6fd;
+      }
+      .knowledge-activity-chip {
+          background: #ecfdf5;
+          color: #047857;
+          border: 1px solid #a7f3d0;
       }
       #memory-modal-content {
           max-height: 65vh;

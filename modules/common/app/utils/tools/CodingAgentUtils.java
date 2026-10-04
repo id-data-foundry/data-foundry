@@ -89,7 +89,7 @@ public class CodingAgentUtils {
 	}
 
 	/**
-	 * Remove <think>...</think> tags and unclosed thinking traces from LLM output.
+	 * Remove <think>...</think>, <thought>...</thought> tags, final<|message|> delimiters, and unclosed thinking traces from LLM output.
 	 *
 	 * @param text the raw LLM output
 	 * @return cleaned text without thinking traces
@@ -99,6 +99,12 @@ public class CodingAgentUtils {
 			return "";
 		}
 		String cleaned = text;
+
+		// Handle final<|message|> token (e.g. from specific thinking or chat completion models)
+		if (cleaned.contains("final<|message|>")) {
+			cleaned = cleaned.substring(cleaned.indexOf("final<|message|>") + "final<|message|>".length());
+		}
+
 		if (cleaned.contains("<think>")) {
 			// Remove complete <think>...</think> blocks
 			cleaned = cleaned.replaceAll("(?s)<think>.*?</think>", "");
@@ -107,6 +113,90 @@ public class CodingAgentUtils {
 		} else if (cleaned.contains("</think>")) {
 			// Model omitted opening <think> tag, remove thinking trace from start of string to first </think>
 			cleaned = cleaned.replaceAll("(?s)^.*?</think>", "");
+		}
+
+		if (cleaned.contains("<thought>")) {
+			// Remove complete <thought>...</thought> blocks
+			cleaned = cleaned.replaceAll("(?s)<thought>.*?</thought>", "");
+			// Remove unclosed <thought>... to end of string
+			cleaned = cleaned.replaceAll("(?s)<thought>.*$", "");
+		} else if (cleaned.contains("</thought>")) {
+			cleaned = cleaned.replaceAll("(?s)^.*?</thought>", "");
+		}
+
+		return cleaned.trim();
+	}
+
+	/**
+	 * Remove leaked synthetic tool call tags, code fences, and function invocation markers from LLM output.
+	 *
+	 * @param text the raw LLM output
+	 * @return cleaned text without tool call markers
+	 */
+	public static String cleanToolCallTags(String text) {
+		if (text == null) {
+			return "";
+		}
+		String cleaned = text;
+
+		// Strip XML-style <tool_call>...</tool_call> and unclosed / orphaned tags
+		if (cleaned.contains("<tool_call>")) {
+			cleaned = cleaned.replaceAll("(?s)<tool_call>.*?</tool_call>", "");
+			cleaned = cleaned.replaceAll("(?s)<tool_call>.*$", "");
+		} else if (cleaned.contains("</tool_call>")) {
+			cleaned = cleaned.replaceAll("(?s)^.*?</tool_call>", "");
+		}
+
+		// Strip Markdown tool call code fences (e.g. ```tool_call ... ``` or unclosed)
+		cleaned = cleaned.replaceAll("(?s)```(?:tool_call|toolcall|tool)\\s*?\\n.*?```", "");
+		cleaned = cleaned.replaceAll("(?s)```(?:tool_call|toolcall|tool)\\s*?\\n.*$", "");
+
+		// Strip special [TOOL_CALLS] [...] markers
+		if (cleaned.contains("[TOOL_CALLS]")) {
+			cleaned = cleaned.replaceAll("(?s)\\[TOOL_CALLS\\].*?(?:\\[/TOOL_CALLS\\]|$)", "");
+		}
+
+		// Strip <function=name>...</function> or <call:name>...</call:name> tags
+		cleaned = cleaned.replaceAll("(?s)<function=[^>]+>.*?</function>", "");
+		cleaned = cleaned.replaceAll("(?s)<call:[^>]+>.*?</call:[^>]+>", "");
+		cleaned = cleaned.replaceAll("(?s)<call:[^>]+>", "");
+
+		// Strip tool response or observation echoes if model hallucinated execution
+		if (cleaned.contains("<tool_response>")) {
+			cleaned = cleaned.replaceAll("(?s)<tool_response>.*?</tool_response>", "");
+			cleaned = cleaned.replaceAll("(?s)<tool_response>.*$", "");
+		} else if (cleaned.contains("</tool_response>")) {
+			cleaned = cleaned.replaceAll("(?s)^.*?</tool_response>", "");
+		}
+		if (cleaned.contains("<observation>")) {
+			cleaned = cleaned.replaceAll("(?s)<observation>.*?</observation>", "");
+			cleaned = cleaned.replaceAll("(?s)<observation>.*$", "");
+		} else if (cleaned.contains("</observation>")) {
+			cleaned = cleaned.replaceAll("(?s)^.*?</observation>", "");
+		}
+
+		return cleaned.trim();
+	}
+
+	/**
+	 * Sequentially clean thinking tags, synthetic tool call markers, and internal dataset filesystem paths
+	 * from LLM or agent output.
+	 *
+	 * @param text          the raw agent text
+	 * @param datasetFolder the base File representing the dataset directory (nullable)
+	 * @return sanitized and cleaned text suitable for user presentation and storage
+	 */
+	public static String cleanAgentOutput(String text, File datasetFolder) {
+		if (text == null) {
+			return "";
+		}
+		String cleaned = cleanThinkingTags(text);
+		cleaned = cleanToolCallTags(cleaned);
+		if (datasetFolder != null) {
+			cleaned = filterDatasetPath(cleaned, datasetFolder);
+		} else {
+			// Still filter project root if datasetFolder is null
+			cleaned = filterDatasetPath(cleaned, null);
 		}
 		return cleaned.trim();
 	}
