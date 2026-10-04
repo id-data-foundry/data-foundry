@@ -7,7 +7,13 @@
 @isMemoryEnabled = @{ dataset.configuration(Dataset.CHATBOT_ENABLE_USER_MEMORY, "false").equals("true") }
 @isMultiSession = @{ dataset.configuration(Dataset.CHATBOT_ENABLE_MULTISESSION, "false").equals("true") }
 @docFiles = @{ files.filter(!_.file.link.startsWith("chat_")) }
-@chatFiles = @{ files.filter(_.file.link.startsWith("chat_")) }
+@chatFiles = @{
+  files.filter(f => f != null && f.file != null && f.file.link != null && f.file.link.startsWith("chat_")).sortWith((a, b) => {
+    val tA = if (a.file.timestamp != null) a.file.timestamp.getTime else 0L
+    val tB = if (b.file.timestamp != null) b.file.timestamp.getTime else 0L
+    if (tA != tB) tA > tB else a.file.link.compareTo(b.file.link) > 0
+  })
+}
 
 @main(dataset.getName(), "profile") {
 
@@ -16,14 +22,14 @@
       border: 2px dashed #94a3b8;
       padding: 30px 20px;
       text-align: center;
-      border-radius: 6px;
+      border-radius: 4px;
       cursor: pointer;
       background: #fafafa;
       transition: all 0.2s ease-in-out;
     }
     .file-uploader.dragover {
-      border-color: #0284c7;
-      background: #f0f9ff;
+      border-color: #26a69a;
+      background: #e0f2f1;
     }
     input[type="file"] {
       display: none;
@@ -34,10 +40,13 @@
       border-radius: 4px;
       overflow-x: auto;
       font-family: monospace;
-      border: 1px solid #e2e8f0;
+      border: 1px solid #e0e0e0;
     }
     .tabs .tab a {
       font-weight: normal;
+    }
+    .card {
+      margin-bottom: 1.5rem;
     }
     .card .card-content {
       padding: 1.5rem;
@@ -46,6 +55,11 @@
       font-size: 1.2rem;
       font-weight: 600;
       margin-bottom: 0.75rem;
+    }
+    textarea.code-textarea {
+      font-family: monospace;
+      font-size: 0.9rem;
+      box-sizing: border-box;
     }
   </style>
 
@@ -61,33 +75,34 @@
   </nav>
 
   <!-- Header & Status Bar -->
-  <div class="row" style="margin-top: 1.5rem; margin-bottom: 1rem; align-items: center;">
-    <div class="col s12 m7">
-      <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-        <h3 style="margin: 0; font-size: 2rem; font-weight: 600; text-transform: none;">@dataset.getName()</h3>
-        <span id="header-mode-badge" class="chip @if(isAgentic){blue lighten-5 blue-text text-darken-3}else{grey lighten-3 grey-text text-darken-3}" style="font-weight: 600;">
-          @if(isAgentic){🤖 Agentic}else{⚡ Standard}
-        </span>
-        <span class="chip @if(isPublic){green lighten-5 green-text text-darken-3}else{grey lighten-4 grey-text text-darken-2}">
-          @if(isPublic){🌐 Public}else{🔒 Private}
-        </span>
-        <span class="chip grey lighten-4 grey-text text-darken-3">
-          📚 @docFiles.size @if(docFiles.size == 1){Doc}else{Docs}
-        </span>
-      </div>
-    </div>
-    <div class="col s12 m5 right-align" style="margin-top: 0.5rem;">
-      <a href="@controllers.tools.routes.ChatbotController.chat(dataset.getId())" class="btn green waves-effect waves-light" style="margin-right: 6px;">
-        <i class="left" style="margin-right: 6px;">@elements.icon("chat")</i>Start Chat
-      </a>
-      <a href="@controllers.tools.routes.ChatbotController.test(dataset.getId())" class="btn blue darken-1 waves-effect waves-light">
-        <i class="left" style="margin-right: 6px;">@elements.icon("build")</i>Test Bot
-      </a>
-      @if(isPublic){
-        <a href="@controllers.tools.routes.ChatbotController.chat(dataset.getId())" target="_blank" class="btn-flat waves-effect" title="Direct Public Chat Link" style="margin-left: 4px;">
-          <i class="left" style="margin-right: 4px;">@elements.icon("share")</i>Share
+  <div class="row" style="margin-bottom: 0;">
+    <div class="col s12">
+      <div style="float: right; margin-top: 1.5rem;">
+        <a href="@controllers.tools.routes.ChatbotController.chat(dataset.getId())" class="btn green waves-effect waves-light" style="margin-right: 6px;">
+          <i class="left" style="margin-right: 6px;">@elements.icon("chat")</i>Start Chat
         </a>
-      }
+        <a href="@controllers.tools.routes.ChatbotController.test(dataset.getId())" class="btn waves-effect waves-light">
+          <i class="left" style="margin-right: 6px;">@elements.icon("build")</i>Test Bot
+        </a>
+        @if(isPublic){
+          <a href="@controllers.tools.routes.ChatbotController.chat(dataset.getId())" target="_blank" class="btn-flat waves-effect" title="Direct Public Chat Link" style="margin-left: 4px;">
+            <i class="left" style="margin-right: 4px;">@elements.icon("share")</i>Share
+          </a>
+        }
+      </div>
+      <h3 style="display: inline-block;">
+        <i class="btn-edit" style="color: black; font-size: 1em;">@elements.icon(dataset.toIcon())</i>
+        @dataset.getName()
+      </h3>
+      <span id="header-mode-badge" class="chip @if(isAgentic){teal lighten-5 teal-text text-darken-3}else{grey lighten-3 grey-text text-darken-3}" style="vertical-align: middle;">
+        @if(isAgentic){🤖 Agentic}else{⚡ Standard}
+      </span>
+      <span class="chip @if(isPublic){green lighten-5 green-text text-darken-3}else{grey lighten-4 grey-text text-darken-2}" style="vertical-align: middle;">
+        @if(isPublic){🌐 Public}else{🔒 Private}
+      </span>
+      <span class="chip grey lighten-4 grey-text text-darken-3" style="vertical-align: middle;">
+        📚 @docFiles.size @if(docFiles.size == 1){Doc}else{Docs}
+      </span>
     </div>
   </div>
 
@@ -112,18 +127,18 @@
         <input type="hidden" name="csrfToken" value="@csrfToken">
 
         <!-- Engine Selector Card -->
-        <div class="card" style="border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 1.5rem;">
-          <div class="card-content" style="padding: 1.25rem 1.5rem;">
+        <div class="card">
+          <div class="card-content">
             <div class="row" style="margin-bottom: 0; align-items: center;">
               <div class="col s12 m8">
-                <span class="card-title" style="font-size: 1.2rem; font-weight: 600; margin-bottom: 4px;">
+                <span class="card-title">
                   Chatbot Engine Mode
                 </span>
                 <p id="engine-mode-desc" class="grey-text text-darken-1" style="font-size: 0.9rem; margin: 0;">
                   @if(isAgentic){
-                    <strong style="color: #0284c7;">🤖 Agentic:</strong> Autonomous reasoning agent with tool execution (knowledge base querying, long-term memory fact extraction, notes management) and custom operational guidelines (<code>AGENTS.md</code>).
+                    <strong>🤖 Agentic:</strong> Autonomous reasoning agent with tool execution (knowledge base querying, long-term memory fact extraction, notes management) and custom operational guidelines (<code>AGENTS.md</code>).
                   } else {
-                    <strong style="color: #475569;">⚡ Standard:</strong> Direct completion assistant using prompt injection with Lucene vector search retrieval across uploaded knowledge base documents.
+                    <strong>⚡ Standard:</strong> Direct completion assistant using prompt injection with Lucene vector search retrieval across uploaded knowledge base documents.
                   }
                 </p>
               </div>
@@ -142,7 +157,7 @@
         </div>
 
         <!-- General Bot Profile Card -->
-        <div class="card" style="border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 1.5rem;">
+        <div class="card">
           <div class="card-content">
             <span class="card-title">General Information</span>
             <div class="row" style="margin-bottom: 0;">
@@ -151,7 +166,7 @@
                 <label for="bot-name" class="active"><b>Bot Name</b></label>
               </div>
               <div class="input-field col s12" style="margin-top: 10px;">
-                <textarea id="bot-desc" name="@Dataset.CHATBOT_INTRODUCTION" class="materialize-textarea" style="min-height: 4rem; padding: 8px; font-family: monospace; background: #fff; border: 1px solid #e2e8f0; border-radius: 4px;">@dataset.configuration(Dataset.CHATBOT_INTRODUCTION, "")</textarea>
+                <textarea id="bot-desc" name="@Dataset.CHATBOT_INTRODUCTION" class="materialize-textarea code-textarea">@dataset.configuration(Dataset.CHATBOT_INTRODUCTION, "")</textarea>
                 <label for="bot-desc" class="active"><b>Description</b> (Briefly describe what this bot does for yourself and others)</label>
               </div>
               <div class="input-field col s12 m6" style="margin-top: 15px;">
@@ -182,7 +197,7 @@
 
         <!-- Legacy-Specific Section (Hidden in Agentic Mode) -->
         <div id="legacy-settings" style="@if(isAgentic){display: none;}">
-          <div class="card" style="border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 1.5rem;">
+          <div class="card">
             <div class="card-content">
               <span class="card-title">AI Brain & Model Selection</span>
               <p class="grey-text text-darken-1" style="font-size: 0.85rem; margin-bottom: 12px;">Choose the LLM model to power your standard completion bot:</p>
@@ -207,8 +222,8 @@
 
         <!-- Agentic-Specific Section (Hidden in Legacy Mode) -->
         <div id="agentic-settings" style="@if(!isAgentic){display: none;}">
-          <div class="card" style="border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 1.5rem;">
-            <div class="card-content" style="padding: 1.25rem 1.5rem;">
+          <div class="card">
+            <div class="card-content">
               <div style="display: flex; align-items: flex-start; gap: 12px;">
                 <span style="font-size: 1.8rem; line-height: 1;">🤖</span>
                 <div>
@@ -254,7 +269,7 @@
         </div>
 
         <!-- Instructions & Persona Card (Common to both modes) -->
-        <div class="card" style="border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 1.5rem;">
+        <div class="card">
           <div class="card-content">
             <span class="card-title">Instructions (System Prompt)</span>
             <p id="prompt-desc" class="grey-text text-darken-1" style="font-size: 0.85rem; margin-bottom: 10px;">
@@ -265,12 +280,12 @@
               }
             </p>
             <div class="input-field" style="margin-top: 0;">
-              <textarea id="system-prompt" name="@Dataset.CHATBOT_SYSTEM_PROMPT" class="materialize-textarea" style="min-height: 12rem; padding: 10px; font-family: monospace; font-size: 0.9rem; background: #fff; border: 1px solid #e2e8f0; border-radius: 4px;">@dataset.configuration(Dataset.CHATBOT_SYSTEM_PROMPT, "")</textarea>
+              <textarea id="system-prompt" name="@Dataset.CHATBOT_SYSTEM_PROMPT" class="materialize-textarea code-textarea" style="min-height: 12rem;">@dataset.configuration(Dataset.CHATBOT_SYSTEM_PROMPT, "")</textarea>
             </div>
           </div>
         </div>
         
-        <div class="card" style="border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 1.5rem;">
+        <div class="card">
           <div class="card-content">
             <span class="card-title">Knowledge Base Retrieval (RAG)</span>
             <p class="grey-text text-darken-1" style="font-size: 0.85rem; margin-bottom: 12px;">Tune how matching document chunks are searched and injected into prompt context:</p>
@@ -298,8 +313,8 @@
         </div>
 
         <!-- Behavior Options (Collapsible) -->
-        <div class="card" style="border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 1.5rem;">
-          <div class="card-content" style="padding: 1.25rem 1.5rem;">
+        <div class="card">
+          <div class="card-content">
             <details>
               <summary style="cursor: pointer; font-weight: 600; font-size: 1.05rem; display: flex; align-items: center; justify-content: space-between;">
                 <span>💬 Behavior & Starter Prompts</span>
@@ -307,11 +322,11 @@
               </summary>
               <div style="margin-top: 15px;">
                 <div class="input-field">
-                  <textarea id="assistant-prompt" name="@Dataset.CHATBOT_ASSISTANT_PROMPT" class="materialize-textarea" style="min-height: 4rem; padding: 8px; font-family: monospace; background: #fff; border: 1px solid #e2e8f0; border-radius: 4px;">@dataset.configuration(Dataset.CHATBOT_ASSISTANT_PROMPT, "")</textarea>
+                  <textarea id="assistant-prompt" name="@Dataset.CHATBOT_ASSISTANT_PROMPT" class="materialize-textarea code-textarea" style="min-height: 4rem;">@dataset.configuration(Dataset.CHATBOT_ASSISTANT_PROMPT, "")</textarea>
                   <label for="assistant-prompt" class="active"><b>Greeting Message:</b> First message sent by the bot to start the chat</label>
                 </div>
                 <div class="input-field" style="margin-top: 20px;">
-                  <textarea id="user-prompt" name="@Dataset.CHATBOT_USER_PROMPT" class="materialize-textarea" style="min-height: 4rem; padding: 8px; font-family: monospace; background: #fff; border: 1px solid #e2e8f0; border-radius: 4px;">@dataset.configuration(Dataset.CHATBOT_USER_PROMPT, "")</textarea>
+                  <textarea id="user-prompt" name="@Dataset.CHATBOT_USER_PROMPT" class="materialize-textarea code-textarea" style="min-height: 4rem;">@dataset.configuration(Dataset.CHATBOT_USER_PROMPT, "")</textarea>
                   <label for="user-prompt" class="active"><b>Suggested User Input:</b> Pre-filled starter prompt in user input box</label>
                 </div>
               </div>
@@ -332,7 +347,7 @@
       </form>
 
       <!-- AGENTS.md Card (Only shown in Agentic Mode, completely hidden in Legacy Mode, button without icon) -->
-      <div id="agents-md-card" class="card" style="border: 1px solid #bfdbfe; border-radius: 6px; margin-top: 2rem; @if(!isAgentic){display: none;}">
+      <div id="agents-md-card" class="card" style="margin-top: 2rem; @if(!isAgentic){display: none;}">
         <div class="card-content">
           <span class="card-title">
             🤖 Agent Guidelines & Memory Configuration (<code>AGENTS.md</code>)
@@ -346,10 +361,10 @@
                 hx-disabled-elt="button"
                 hx-indicator="#agents-md-indicator">
             <input type="hidden" name="csrfToken" value="@csrfToken">
-            <textarea name="agents_md" style="height: 16rem; background: #fff; padding: 0.75rem; font-family: monospace; font-size: 0.85rem; border: 1px solid #cbd5e1; border-radius: 4px;">@agentsMdContent</textarea>
+            <textarea name="agents_md" class="code-textarea" style="height: 16rem; width: 100%;">@agentsMdContent</textarea>
             <div style="margin-top: 12px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
-              <button type="submit" class="btn blue darken-1 waves-effect waves-light">Save AGENTS.md</button>
-              <button type="button" id="insert-agents-template-btn" class="btn-flat waves-effect" style="border: 1px solid #94a3b8; font-size: 0.85rem;">
+              <button type="submit" class="btn green waves-effect waves-light">Save AGENTS.md</button>
+              <button type="button" id="insert-agents-template-btn" class="btn-flat waves-effect">
                 📋 Insert Starter Template
               </button>
               <div id="agents-md-indicator" class="progress htmx-indicator" style="width: 120px; margin: 0;">
@@ -366,7 +381,7 @@
     <div id="tab-kb" class="col s12" style="display: none; margin-top: 1rem;">
       <div class="row">
         <div class="col s12 m7">
-          <div class="card" style="border: 1px solid #e2e8f0; border-radius: 6px;">
+          <div class="card">
             <div class="card-content">
               <span class="card-title">Knowledge Base Documents</span>
               <p class="grey-text text-darken-1" style="font-size: 0.9rem; margin-bottom: 16px;">
@@ -428,7 +443,7 @@
         </div>
 
         <div class="col s12 m5">
-          <div class="card" style="border: 1px solid #e2e8f0; border-radius: 6px;">
+          <div class="card">
             <div class="card-content">
               <span class="card-title">Upload Reference Documents</span>
               <p class="grey-text text-darken-1" style="font-size: 0.9rem; margin-bottom: 16px;">
@@ -439,7 +454,7 @@
                 <div class="file-uploader">
                   <input type="file" id="file-input" name="file" multiple accept="application/pdf,.md,.txt">
                   <div style="font-size: 2.2rem; margin-bottom: 6px;">📄</div>
-                  <label for="file-input" style="cursor: pointer; color: #0284c7; font-weight: 600; display: block; font-size: 0.95rem;">
+                  <label for="file-input" class="teal-text" style="cursor: pointer; font-weight: 600; display: block; font-size: 0.95rem;">
                     Drag & drop files here or click to browse
                   </label>
                   <span class="grey-text" style="font-size: 0.8rem;">Uploaded files are automatically indexed for search</span>
@@ -455,7 +470,7 @@
     <div id="tab-history" class="col s12" style="display: none; margin-top: 1rem;">
       <div class="row">
         <div class="col s12">
-          <div class="card" style="border: 1px solid #e2e8f0; border-radius: 6px;">
+          <div class="card">
             <div class="card-content">
               <span class="card-title">Saved Chat Sessions</span>
               <p class="grey-text text-darken-1" style="font-size: 0.9rem; margin-bottom: 16px;">
@@ -509,7 +524,7 @@
 
     <!-- TAB 4: API Integration -->
     <div id="tab-api" class="col s12" style="display: none; margin-top: 1rem;">
-      <div class="card" style="border: 1px solid #e2e8f0; border-radius: 6px;">
+      <div class="card">
         <div class="card-content">
           <span class="card-title">API Integration & Documentation</span>
           <p class="grey-text text-darken-2" style="font-size: 0.95rem; margin-bottom: 16px;">
@@ -517,7 +532,7 @@
           </p>
 
           <!-- API Steps (No card-panel class) -->
-          <div style="background: #f8fafc; border-left: 4px solid #0284c7; padding: 12px 16px; margin-bottom: 20px; border-radius: 2px;">
+          <div style="background: #f8fafc; border-left: 4px solid #26a69a; padding: 12px 16px; margin-bottom: 20px; border-radius: 2px;">
             <strong>Bearer Token Authentication:</strong>
             <ol style="margin: 8px 0 0 18px; padding: 0;">
               <li>Go to the <a href="@routes.ProjectsController.view(dataset.getProject().getId())">Project Dashboard</a>.</li>
@@ -654,12 +669,12 @@ fetch("[HOST]/api/v1/chatbots/@dataset.getId()/file", {
 
         if (engineDesc) {
           engineDesc.innerHTML = isAgentic
-            ? '<strong style="color: #0284c7;">🤖 Agentic:</strong> Autonomous reasoning agent with tool execution (knowledge base querying, long-term memory fact extraction, notes management) and custom operational guidelines (<code>AGENTS.md</code>).'
-            : '<strong style="color: #475569;">⚡ Standard:</strong> Direct completion assistant using prompt injection with Lucene vector search retrieval across uploaded knowledge base documents.';
+            ? '<strong>🤖 Agentic:</strong> Autonomous reasoning agent with tool execution (knowledge base querying, long-term memory fact extraction, notes management) and custom operational guidelines (<code>AGENTS.md</code>).'
+            : '<strong>⚡ Standard:</strong> Direct completion assistant using prompt injection with Lucene vector search retrieval across uploaded knowledge base documents.';
         }
 
         if (headerModeBadge) {
-          headerModeBadge.className = isAgentic ? 'chip blue lighten-5 blue-text text-darken-3' : 'chip grey lighten-3 grey-text text-darken-3';
+          headerModeBadge.className = isAgentic ? 'chip teal lighten-5 teal-text text-darken-3' : 'chip grey lighten-3 grey-text text-darken-3';
           headerModeBadge.textContent = isAgentic ? '🤖 Agentic' : '⚡ Standard';
         }
 

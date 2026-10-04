@@ -1,4 +1,11 @@
 @(user: Person, dataset: Dataset, conversationId: String, csrfToken: String, files: java.util.List[controllers.tools.ChatbotController.FileWithIndexStatus] = java.util.Collections.emptyList())
+@import models.Dataset
+
+@isAgentic = @{ dataset.configuration(Dataset.CHATBOT_ENABLE_AGENTIC, "false").equals("true") }
+@isMemoryEnabled = @{ isAgentic && dataset.configuration(Dataset.CHATBOT_ENABLE_USER_MEMORY, "false").equals("true") }
+@docFiles = @{ files.stream().filter(f => f != null && f.file != null && f.file.link != null && !f.file.link.startsWith("chat_") && !f.file.link.endsWith(".idx")).collect(java.util.stream.Collectors.toList()) }
+@hasDocs = @{ !docFiles.isEmpty() }
+
 @main(dataset.getName(), "profile") {
 
   <style>
@@ -60,7 +67,7 @@
       word-break: break-word;
     }
     #results .conversation-row.user > .role-label {
-      color: #0369a1;
+      color: #374151;
     }
     #results .conversation-row.assistant > .role-label {
       color: #0f766e;
@@ -116,14 +123,39 @@
       line-height: 1.4;
     }
     .memory-activity-chip {
-      background: #e0f2fe;
-      color: #0369a1;
-      border: 1px solid #bae6fd;
+      background: #f3e5f5;
+      color: #6a1b9a;
+      border: 1px solid #e1bee7;
     }
     .knowledge-activity-chip {
       background: #ecfdf5;
       color: #047857;
       border: 1px solid #a7f3d0;
+    }
+    .workflow-step-card {
+      background: #fafafa;
+      border: 1px solid #e0e0e0;
+      border-radius: 4px;
+      padding: 10px 14px;
+    }
+    .workflow-step-card p {
+      margin: 4px 0 0 0;
+      font-size: 0.8rem;
+      color: #616161;
+      line-height: 1.4;
+    }
+    .quick-prompt-btn {
+      background: #f5f5f5;
+      border: 1px solid #e0e0e0;
+      border-radius: 14px;
+      padding: 3px 12px;
+      font-size: 0.75rem;
+      cursor: pointer;
+      color: #424242;
+      transition: background 0.15s ease;
+    }
+    .quick-prompt-btn:hover {
+      background: #e0e0e0;
     }
     .source-tag {
       display: inline-flex !important;
@@ -213,9 +245,9 @@
     <div class="col s12 m6">
       <h2>@dataset.getName()</h2>
     </div>
-    <div class="col s12 m6" style="margin: 1.9466666667rem 0 1.168rem 0; text-align: right;">
+    <div class="col s12 m6 right-align" style="margin-top: 1.5rem;">
       <a href="@controllers.tools.routes.ChatbotController.view(dataset.getId())" class="btn">Edit Bot</a>
-      <a href="@controllers.tools.routes.ChatbotController.test(dataset.getId())" class="btn">Reset test</a>
+      <a href="@controllers.tools.routes.ChatbotController.test(dataset.getId())" class="btn">Reset Chat</a>
       <a href="@controllers.tools.routes.ChatbotController.chat(dataset.getId())" class="btn">Start Chat</a>
     </div>
   </div>
@@ -223,45 +255,102 @@
   <!-- chatbot visual workflow overview -->
   <div class="row">
     <div class="col s12">
-      <div class="card" style="border: 1px solid #e2e8f0; border-radius: 6px;">
+      <div class="card">
         <div class="card-content">
-          <details>
+          <details id="workflow-details">
             <summary style="cursor: pointer; font-weight: 600;">
               💡 How this Assistant Works (Visual Overview)
             </summary>
-            @if(dataset.configuration(Dataset.CHATBOT_ENABLE_AGENTIC, "false").equals("true")) {
-            <div class="mermaid" style="margin-top: 16px; display: flex; justify-content: center;">
-              flowchart LR
-                User["👤 You\nAsk question or give task"] --> Assistant["🤖 Smart Assistant\nReads prompt & plans actions"]
-                Assistant -->|"Searches when asking about docs"| KB["📚 Knowledge Base\nUploaded PDFs & notes"]
-                Assistant -->|"Saves when learning about you"| Memory["🧠 Memory & Notes\nSaved user facts & files"]
-                KB -.->|"Returns relevant quotes"| Assistant
-                Memory -.->|"Recalls personal context"| Assistant
-                Assistant --> Output["✨ Answer\nResponse with sources & activity chips"]
-            </div>
+            @if(isAgentic) {
+              @if(isMemoryEnabled && hasDocs) {
+              <div class="mermaid" style="margin-top: 16px; display: flex; justify-content: center;">
+                flowchart LR
+                  User["👤 You\nAsk question or give task"] --> Assistant["🤖 Smart Agent\nPlans & calls tools"]
+                  Assistant <-->|"On-demand search"| KB["📚 Knowledge Base\nUploaded docs"]
+                  Assistant <-->|"Saves facts & notes"| Memory["🧠 Memory & Notes\nSaved user facts & files"]
+                  Assistant --> Output["✨ Answer\nWith activity chips & sources"]
+              </div>
+              }
+              @if(isMemoryEnabled && !hasDocs) {
+              <div class="mermaid" style="margin-top: 16px; display: flex; justify-content: center;">
+                flowchart LR
+                  User["👤 You\nAsk question or give task"] --> Assistant["🤖 Smart Agent\nPlans & calls tools"]
+                  Assistant <-->|"Saves facts & notes"| Memory["🧠 Memory & Notes\nSaved user facts & files"]
+                  Assistant --> Output["✨ Answer\nWith memory activity chips"]
+              </div>
+              }
+              @if(!isMemoryEnabled && hasDocs) {
+              <div class="mermaid" style="margin-top: 16px; display: flex; justify-content: center;">
+                flowchart LR
+                  User["👤 You\nAsk question or give task"] --> Assistant["🤖 Smart Agent\nPlans & calls tools"]
+                  Assistant <-->|"On-demand search"| KB["📚 Knowledge Base\nUploaded docs"]
+                  Assistant --> Output["✨ Answer\nWith source citations"]
+              </div>
+              }
+              @if(!isMemoryEnabled && !hasDocs) {
+              <div class="mermaid" style="margin-top: 16px; display: flex; justify-content: center;">
+                flowchart LR
+                  User["👤 You\nAsk question or give task"] --> Assistant["🤖 Smart Agent\nDirect reasoning"]
+                  Assistant --> Output["✨ Answer\nAgent response"]
+              </div>
+              }
             } else {
-            <div class="mermaid" style="margin-top: 16px; display: flex; justify-content: center;">
-              flowchart LR
-                User["👤 You\nAsk question"] --> Search["🔍 Search\nFinds relevant document sections"]
-                Search --> KB["📚 Knowledge Base\nUploaded PDFs & notes"]
-                KB --> AI["🤖 Chatbot\nAnswers using your files & prompt"]
-                User --> AI
-                AI --> Output["✨ Answer\nResponse with document sources"]
-            </div>
+              @if(hasDocs) {
+              <div class="mermaid" style="margin-top: 16px; display: flex; justify-content: center;">
+                flowchart LR
+                  User["👤 You\nAsk question"] --> Search["🔍 Search\nFinds relevant document chunks"]
+                  Search --> KB["📚 Knowledge Base\nUploaded docs"]
+                  KB --> Prompt["📝 Augmented Prompt\nInjected reference context"]
+                  User --> Prompt
+                  Prompt --> AI["🤖 Chatbot\nDirect completion"]
+                  AI --> Output["✨ Answer\nResponse with document sources"]
+              </div>
+              } else {
+              <div class="mermaid" style="margin-top: 16px; display: flex; justify-content: center;">
+                flowchart LR
+                  User["👤 You\nAsk question"] --> Prompt["📝 Prompt\nSystem prompt + message"]
+                  Prompt --> AI["🤖 Chatbot\nDirect completion"]
+                  AI --> Output["✨ Answer\nDirect response"]
+              </div>
+              }
             }
             <div style="margin-top: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px;">
-              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 14px;">
-                <strong style="color: #0284c7; font-size: 0.85rem;">💬 1. Conversational Understanding</strong>
-                <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #64748b; line-height: 1.4;">The assistant reads your prompt and previous messages to maintain a coherent conversation.</p>
+              <div class="workflow-step-card">
+                <strong>💬 1. @if(isAgentic){Conversational Planning}else{Direct Prompt Completion}</strong>
+                <p>
+                  @if(isAgentic){
+                    The agent reads your prompt and previous turns, evaluates available tools, and decides on autonomous execution steps.
+                  } else {
+                    The model generates a response based on the system prompt, conversation history, and your message.
+                  }
+                </p>
               </div>
-              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 14px;">
-                <strong style="color: #059669; font-size: 0.85rem;">📚 2. Smart Knowledge Retrieval (RAG)</strong>
-                <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #64748b; line-height: 1.4;">When questions relate to uploaded files, relevant sections are searched on-demand and cited with confidence scores.</p>
+              <div class="workflow-step-card">
+                <strong>📚 2. Knowledge Retrieval (RAG)</strong>
+                <p>
+                  @if(hasDocs) {
+                    @if(isAgentic) {
+                      When questions relate to uploaded files, the agent queries the knowledge base on-demand via <code>search_knowledge_base</code>.
+                    } else {
+                      Relevant document sections are automatically searched and injected into the prompt context prior to model completion.
+                    }
+                  } else {
+                    No reference documents uploaded. The chatbot relies purely on base model training without knowledge base context.
+                  }
+                </p>
               </div>
-              <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 10px 14px;">
-                <strong style="color: #7c3aed; font-size: 0.85rem;">🧠 3. Adaptive User Memory</strong>
-                <p style="margin: 4px 0 0 0; font-size: 0.8rem; color: #64748b; line-height: 1.4;">The assistant automatically remembers facts about you and manages private notes across sessions.</p>
+              @if(isAgentic) {
+              <div class="workflow-step-card">
+                <strong>🧠 3. Adaptive User Memory</strong>
+                <p>
+                  @if(isMemoryEnabled) {
+                    The agent proactively records profile facts and manages private notes files across sessions.
+                  } else {
+                    User memory is currently disabled for this bot. You can enable it in the bot settings.
+                  }
+                </p>
               </div>
+              }
             </div>
           </details>
         </div>
@@ -269,10 +358,10 @@
     </div>
   </div>
 
-  @if(dataset.configuration(Dataset.CHATBOT_ENABLE_USER_MEMORY, "false").equals("true")) {
+  @if(isMemoryEnabled) {
   <div class="row">
     <div class="col s12">
-      <div class="card" style="border: 1px solid #e2e8f0; border-radius: 6px;">
+      <div class="card">
         <div class="card-content">
           <details open>
             <summary style="cursor: pointer; font-weight: 600;">🧠 Live User Memory & Notes</summary>
@@ -295,65 +384,71 @@
     </div>
   </div>
 
-  <form hx-post="@controllers.tools.routes.ChatbotController.testProcess(dataset.getId(), conversationId)"
-    hx-target="#results"
-    hx-swap="beforeend"
-    hx-indicator=".htmx-indicator"
-    hx-disabled-elt="button,a">
-    <input type="hidden" name="csrfToken" value="@csrfToken">
+  <div class="row">
+    <div class="col s12">
+      <div class="card">
+        <div class="card-content">
+          <span class="card-title">Test Prompt</span>
+          <form hx-post="@controllers.tools.routes.ChatbotController.testProcess(dataset.getId(), conversationId)"
+            hx-target="#results"
+            hx-swap="beforeend"
+            hx-indicator=".htmx-indicator"
+            hx-disabled-elt="button,a">
+            <input type="hidden" name="csrfToken" value="@csrfToken">
 
-    <div class="row" style="margin-bottom: 8px;">
-      <div class="col s12">
-        <span style="font-size: 0.8rem; font-weight: 600; color: #475569;">💡 Quick-test prompts:</span>
-        <div style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 6px;">
-          <button type="button" class="quick-prompt-btn" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 14px; padding: 2px 10px; font-size: 0.75rem; cursor: pointer; color: #334155;"
-                  data-prompt="Hi! Please remember that my name is Alice, and my research topic is wearable haptics.">
-            🧠 Remember my topic (update_user_memory)
-          </button>
-          <button type="button" class="quick-prompt-btn" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 14px; padding: 2px 10px; font-size: 0.75rem; cursor: pointer; color: #334155;"
-                  data-prompt="Please write a 3-bullet research plan for my wearable haptics project and save it to notes.md.">
-            📝 Write notes.md (write_user_file)
-          </button>
-          <button type="button" class="quick-prompt-btn" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 14px; padding: 2px 10px; font-size: 0.75rem; cursor: pointer; color: #334155;"
-                  data-prompt="What is my research topic and what notes do I have?">
-            🔍 Recall facts & notes
-          </button>
-          @if(files.stream().anyMatch(f => f != null && f.file != null && f.file.link != null && !f.file.link.startsWith("chat_") && !f.file.link.endsWith(".idx"))) {
-          <button type="button" class="quick-prompt-btn" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 14px; padding: 2px 10px; font-size: 0.75rem; cursor: pointer; color: #334155;"
-                  data-prompt="What do the uploaded knowledge documents say about the main research questions?">
-            📚 Search Knowledge Base
-          </button>
-          }
+            @if(isMemoryEnabled || hasDocs) {
+            <div style="margin-bottom: 12px;">
+              <span style="font-size: 0.8rem; font-weight: 600; color: #475569;">💡 Quick-test prompts:</span>
+              <div style="margin-top: 4px; display: flex; flex-wrap: wrap; gap: 6px;">
+                @if(isMemoryEnabled) {
+                <button type="button" class="quick-prompt-btn"
+                        data-prompt="Hi! Please remember that my name is Alice, and my research topic is wearable haptics.">
+                  🧠 Remember my topic (update_user_memory)
+                </button>
+                <button type="button" class="quick-prompt-btn"
+                        data-prompt="Please write a 3-bullet research plan for my wearable haptics project and save it to notes.md.">
+                  📝 Write notes.md (write_user_file)
+                </button>
+                <button type="button" class="quick-prompt-btn"
+                        data-prompt="What is my research topic and what notes do I have?">
+                  🔍 Recall facts & notes
+                </button>
+                }
+                @if(hasDocs) {
+                <button type="button" class="quick-prompt-btn"
+                        data-prompt="What do the uploaded knowledge documents say about the main research questions?">
+                  📚 Search Knowledge Base
+                </button>
+                }
+              </div>
+            </div>
+            }
+
+            <div style="margin-top: 8px;">
+              Please enter your user prompt to test: <br>
+              <textarea name="@Dataset.CHATBOT_USER_PROMPT" class="materialize-textarea" style="height: 4rem; font-family: monospace; margin-top: 4px;">@dataset.configuration(Dataset.CHATBOT_USER_PROMPT, "")</textarea>
+            </div>
+
+            <div style="margin-top: 12px;">
+              <button type="submit" class="btn">Submit user prompt</button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
+  </div>
 
-    <div class="row">
-      <div class="col s12">
-        Please enter your user prompt to test: <br>
-        <textarea name="@Dataset.CHATBOT_USER_PROMPT" style="height: 4rem; background: white; padding: 0.5rem; font-family: monospace;">@dataset.configuration(Dataset.CHATBOT_USER_PROMPT, "")</textarea>
-      </div>
-    </div>
-
-    <div class="row">
-      <div class="col s12">
-        <button type="submit" class="btn">Submit user prompt</button>
-      </div>
-    </div>
-  </form>
-
-  @defining(files.stream().filter(f => f != null && f.file != null && f.file.link != null && !f.file.link.startsWith("chat_") && !f.file.link.endsWith(".idx")).collect(java.util.stream.Collectors.toList())) { docFiles =>
   <div class="row">
     <div class="col s12">
-      <div class="card" style="border: 1px solid #e2e8f0; border-radius: 6px;">
+      <div class="card">
         <div class="card-content">
           <details>
             <summary style="cursor: pointer; font-weight: 600;">
               📚 Dataset Knowledge Base: 
               @if(docFiles.isEmpty()) {
-                <span style="color: #64748b; font-weight: 400;">No documents uploaded (search_knowledge_base inactive)</span>
+                <span class="grey-text">No documents uploaded (search_knowledge_base inactive)</span>
               } else {
-                <span style="color: #059669; font-weight: 600;">@docFiles.size() @if(docFiles.size() == 1) {document} else {documents} available for on-demand search</span>
+                <span class="teal-text text-darken-2">@docFiles.size() @if(docFiles.size() == 1) {document} else {documents} available for on-demand search</span>
               }
             </summary>
             @if(!docFiles.isEmpty()) {
@@ -363,9 +458,9 @@
                   <li>
                     <code>@fileWithStatus.file.link</code>
                     @if(fileWithStatus.hasIndex) {
-                      <span style="color: #16a34a;">(indexed ✓)</span>
+                      <span class="green-text text-darken-1">(indexed ✓)</span>
                     } else {
-                      <span style="color: #d97706;">(pending index ⚙️)</span>
+                      <span class="amber-text text-darken-2">(pending index ⚙️)</span>
                     }
                   </li>
                 }
@@ -377,7 +472,6 @@
       </div>
     </div>
   </div>
-  }
 
   <!-- source inspection modal -->
   <dialog id="source-modal">
@@ -488,6 +582,21 @@
       startOnLoad: true,
       theme: 'default',
       securityLevel: 'loose'
+    });
+
+    document.addEventListener('DOMContentLoaded', function() {
+      const details = document.getElementById('workflow-details');
+      if (details) {
+        details.addEventListener('toggle', function() {
+          if (details.open && window.mermaid) {
+            try {
+              mermaid.run();
+            } catch (e) {
+              // ignore if already rendered
+            }
+          }
+        });
+      }
     });
   </script>
 }

@@ -839,7 +839,7 @@ public class ChatbotController extends AbstractAsyncController {
 		final CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
 		ChatbotMemoryUtils.resetUserMemory(cpds.getFolder(), user.getEmail());
 		return ok(renderUserMemoryHtml(cpds, user.getEmail(), ds.getId(),
-				"✓ All memory facts and files have been cleared."));
+				"✓ All memory facts and files have been cleared. (Active chat history is preserved; start a new chat to begin with a clean conversation)."));
 	}
 
 	@Authenticated(UserAuth.class)
@@ -1019,21 +1019,19 @@ public class ChatbotController extends AbstractAsyncController {
 
 				if (tracker != null
 						&& (!tracker.getKnowledgeActivities().isEmpty() || !tracker.getMemoryActivities().isEmpty())) {
-					traceHtml.append("<div style=\"display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;\">");
+					traceHtml.append("<div class=\"activity-chips-container\">");
 					for (String act : tracker.getKnowledgeActivities()) {
-						traceHtml.append(
-								"<span style=\"display: inline-flex; align-items: center; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; border-radius: 12px; padding: 2px 10px; font-size: 0.75rem; font-weight: 500;\">📚 ")
+						traceHtml.append("<span class=\"knowledge-activity-chip\">📚 ")
 								.append(escapeHtml(act)).append("</span>");
 					}
 					for (String act : tracker.getMemoryActivities()) {
-						traceHtml.append(
-								"<span style=\"display: inline-flex; align-items: center; background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; border-radius: 12px; padding: 2px 10px; font-size: 0.75rem; font-weight: 500;\">🧠 ")
+						traceHtml.append("<span class=\"memory-activity-chip\">🧠 ")
 								.append(escapeHtml(act)).append("</span>");
 					}
 					traceHtml.append("</div>");
 				} else if (!docContexts.isEmpty()) {
 					traceHtml.append(String.format(
-							"<div style=\"display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px;\"><span style=\"display: inline-flex; align-items: center; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; border-radius: 12px; padding: 2px 10px; font-size: 0.75rem; font-weight: 500;\">📚 Knowledge Base consulted (%d %s retrieved)</span></div>",
+							"<div class=\"activity-chips-container\"><span class=\"knowledge-activity-chip\">📚 Knowledge Base consulted (%d %s retrieved)</span></div>",
 							docContexts.size(), docContexts.size() == 1 ? "section" : "sections"));
 				}
 

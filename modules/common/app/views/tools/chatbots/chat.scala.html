@@ -1,4 +1,11 @@
 @(user: Person, dataset: Dataset, conversationId: String, history: controllers.tools.ChatbotController.ConversationHistory, userSessions: List[utils.tools.ChatbotMemoryUtils.UserSessionSummary] = java.util.Collections.emptyList(), csrfToken: String)
+@import models.Dataset
+
+@isAgentic = @{ dataset.configuration(Dataset.CHATBOT_ENABLE_AGENTIC, "false").equals("true") }
+@isStoreChats = @{ !dataset.configuration(Dataset.CHATBOT_STORE_CHATS, "").isEmpty() }
+@isMemoryEnabled = @{ isAgentic && dataset.configuration(Dataset.CHATBOT_ENABLE_USER_MEMORY, "false").equals("true") }
+@isMultiSession = @{ dataset.configuration(Dataset.CHATBOT_ENABLE_MULTISESSION, "false").equals("true") }
+
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -161,15 +168,18 @@
   </b>
   <p>
     @dataset.configuration(Dataset.CHATBOT_INTRODUCTION, "")
-    @if(dataset.configuration(Dataset.CHATBOT_STORE_CHATS, "false").equals("true")) {
-      Note: This chat session will be canceled after 60 mins of inactivity. The chat contents will be archived.
+    @if(isStoreChats) {
+      Note: Active chat session expires after 60 mins of inactivity (transcripts are archived).
     } else {
-      Note that conversations will be deleted after 60 minutes of inactivity.
+      Note: Active chat session expires after 60 mins of inactivity.
+    }
+    @if(isMemoryEnabled) {
+      Stored profile memory and notes persist across sessions (<a href="#" onclick="openMemoryModal(); return false;">manage or delete in 🧠 My Notes & Memory</a>).
     } | 
     @if(dataset.editableBy(user)) {
     <a href="@controllers.tools.routes.ChatbotController.view(dataset.getId())">Edit bot</a> | 
     } 
-    @if(dataset.configuration(Dataset.CHATBOT_ENABLE_MULTISESSION, "false").equals("true")) {
+    @if(isMultiSession) {
       @if(!userSessions.isEmpty) {
         <select onchange="if(this.value) window.location.href='@controllers.tools.routes.ChatbotController.chat(dataset.getId())?conversationId=' + this.value" style="display:inline-block; width:auto; margin:0 4px; padding:2px 8px; font-size:0.8rem; height:auto;">
           @for(s <- userSessions) {
@@ -177,12 +187,9 @@
           }
         </select>
       }
-      <a href="@controllers.tools.routes.ChatbotController.chat(dataset.getId())">+ New Chat</a> |
+      <a href="@controllers.tools.routes.ChatbotController.chat(dataset.getId())">+ New Chat</a>
     } else {
-      <a href="@controllers.tools.routes.ChatbotController.chat(dataset.getId())">New conversation</a> |
-    }
-    @if(dataset.configuration(Dataset.CHATBOT_ENABLE_USER_MEMORY, "false").equals("true")) {
-      <a href="#" onclick="openMemoryModal(); return false;">🧠 My Notes & Memory</a>
+      <a href="@controllers.tools.routes.ChatbotController.chat(dataset.getId())">New conversation</a>
     }
     <br>
     ---
