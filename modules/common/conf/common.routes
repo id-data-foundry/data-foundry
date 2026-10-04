@@ -19,6 +19,12 @@ POST		/dev/data											controllers.DBController.generateData(request: Request
 
 GET 		/.well-known/security.txt							controllers.HomeController.securityTxt(request: Request)
 
+# icons -------------------------------------------------------------------------------------------------------------------
+
+GET 		/favicon.ico 										controllers.Assets.at(path="/public/lib/commons/images", file="favicon.ico")
+GET 		/apple-touch-icon.png 								controllers.Assets.at(path="/public/lib/commons/images", file="apple-touch-icon.png")
+GET 		/apple-touch-icon-precomposed.png 					controllers.Assets.at(path="/public/lib/commons/images", file="apple-touch-icon-precomposed.png")
+
 # users ---------------------------------------------------------------------------------------------------------------
 
 GET 		/users/profile										controllers.UsersController.edit(request: Request)

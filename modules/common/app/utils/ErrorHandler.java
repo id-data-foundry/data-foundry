@@ -53,19 +53,18 @@ public class ErrorHandler extends DefaultHttpErrorHandler {
 
 	@Override
 	public CompletionStage<Result> onClientError(RequestHeader request, int statusCode, String message) {
-		logger.error("ClientError:" + message + " --> " + request.toString());
 		return super.onClientError(request, statusCode, message);
 	}
 
 	@Override
 	protected CompletionStage<Result> onOtherClientError(RequestHeader request, int statusCode, String message) {
-		logger.error("OtherClientError: " + message + " --> " + request.toString());
+		logger.warn("OtherClientError: " + message + " --> " + request.toString());
 		return super.onOtherClientError(request, statusCode, message);
 	}
 
 	@Override
 	protected CompletionStage<Result> onForbidden(RequestHeader request, String message) {
-		logger.error("Forbidden: " + message + " --> " + request.toString());
+		logger.warn("Forbidden: " + message + " --> " + request.toString());
 		if (environment.isDev()) {
 			return super.onForbidden(request, message);
 		} else {
@@ -75,12 +74,12 @@ public class ErrorHandler extends DefaultHttpErrorHandler {
 
 	@Override
 	protected CompletionStage<Result> onNotFound(RequestHeader request, String message) {
-		logger.error("Not found: " + message + " --> " + request.toString());
+		logger.warn("Not found: " + message + " --> " + request.toString());
 		if (environment.isDev()) {
 			return super.onNotFound(request, message);
 		} else {
-			// check if it's an asset request, then plain notFound
-			if (request.path().startsWith("/assets/")) {
+			// check if it's an asset, API, or static file request, then plain notFound
+			if (request.path().startsWith("/assets/") || request.path().startsWith("/api/") || isStaticResource(request.path())) {
 				return CompletableFuture.completedFuture(Results.notFound());
 			}
 
@@ -88,9 +87,18 @@ public class ErrorHandler extends DefaultHttpErrorHandler {
 		}
 	}
 
+	private boolean isStaticResource(String path) {
+		int dotIndex = path.lastIndexOf('.');
+		if (dotIndex != -1 && dotIndex < path.length() - 1) {
+			String ext = path.substring(dotIndex + 1).toLowerCase();
+			return ext.matches("ico|png|jpg|jpeg|gif|svg|webp|json|css|js|map|txt|xml|woff|woff2|ttf|eot");
+		}
+		return false;
+	}
+
 	@Override
 	protected CompletionStage<Result> onBadRequest(RequestHeader request, String message) {
-		logger.error("Bad request: " + message + " --> " + request.toString());
+		logger.warn("Bad request: " + message + " --> " + request.toString());
 		if (environment.isDev()) {
 			return super.onBadRequest(request, message);
 		} else {
