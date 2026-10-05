@@ -924,6 +924,57 @@ public class ChatbotController extends AbstractAsyncController {
 		}
 	}
 
+	public Optional<ConversationHistory> loadChatSession(CompleteDS cpds, String conversationId) {
+		if (cpds == null || conversationId == null || conversationId.trim().isEmpty()) {
+			return Optional.empty();
+		}
+		String chatFileName = "chat_" + conversationId + ".json";
+		Optional<File> fileOpt = cpds.getFile(chatFileName);
+		if (fileOpt.isEmpty() || !fileOpt.get().exists()) {
+			File directFile = new File(cpds.getFolder(), chatFileName);
+			if (directFile.exists() && directFile.isFile()) {
+				fileOpt = Optional.of(directFile);
+			} else {
+				return Optional.empty();
+			}
+		}
+		try {
+			String json = Files.readString(fileOpt.get().toPath(), StandardCharsets.UTF_8);
+			JsonNode root = Json.parse(json);
+			if (root == null || !root.isObject()) {
+				return Optional.empty();
+			}
+			String convId = root.path("conversationId").asText(conversationId);
+			List<ConversationItem> items = new CopyOnWriteArrayList<>();
+			JsonNode itemsNode = root.path("items");
+			if (itemsNode.isArray()) {
+				for (JsonNode it : itemsNode) {
+					String actor = it.path("actor").asText(ConversationItem.ASSISTANT);
+					String content = it.path("content").asText("");
+					String renderedContent = it.path("renderedContent").asText("");
+					if (renderedContent.isEmpty() && !content.isEmpty()) {
+						renderedContent = new MarkdownRenderer(true).render(content);
+					}
+					List<ConversationContext> contexts = new ArrayList<>();
+					JsonNode ctxNode = it.path("context");
+					if (ctxNode.isArray()) {
+						for (JsonNode c : ctxNode) {
+							contexts.add(new ConversationContext(
+									c.path("content").asText(""),
+									c.path("document").asText(""),
+									(float) c.path("ranking").asDouble(1.0)));
+						}
+					}
+					items.add(new ConversationItem(actor, content, contexts, renderedContent));
+				}
+			}
+			return Optional.of(new ConversationHistory(convId, items));
+		} catch (Exception e) {
+			logger.error("Error loading chat session from {}", chatFileName, e);
+			return Optional.empty();
+		}
+	}
+
 	/**
 	 * shows the test view
 	 * 
@@ -1186,7 +1237,7 @@ public class ChatbotController extends AbstractAsyncController {
 		Person user = getAuthenticatedUserOrReturn(request, redirect(LANDING));
 
 		// if there is no conversation, immediately redirect to a new one
-		if (conversationId.isEmpty()) {
+		if (conversationId == null || conversationId.trim().isEmpty()) {
 			return redirect(controllers.tools.routes.ChatbotController.chat(dsId, UUID.randomUUID().toString()));
 		}
 
@@ -1202,6 +1253,9 @@ public class ChatbotController extends AbstractAsyncController {
 		// retrieve conversation history from cache or create new
 		ConversationHistory ch;
 		Optional<ConversationHistory> chOpt = cache.get(getChatCacheKey(dsId, conversationId));
+		if (!chOpt.isPresent() && cpds != null) {
+			chOpt = loadChatSession(cpds, conversationId);
+		}
 		if (!chOpt.isPresent()) {
 			ch = new ConversationHistory(conversationId, new CopyOnWriteArrayList<ConversationItem>());
 			// add start prompt
@@ -1219,7 +1273,38 @@ public class ChatbotController extends AbstractAsyncController {
 
 		List<ChatbotMemoryUtils.UserSessionSummary> userSessions = Collections.emptyList();
 		if ("true".equals(ds.configuration(Dataset.CHATBOT_ENABLE_MULTISESSION, "false")) && cpds != null) {
-			userSessions = ChatbotMemoryUtils.loadUserSessions(cpds.getFolder(), user.getEmail());
+			List<ChatbotMemoryUtils.UserSessionSummary> rawSessions = ChatbotMemoryUtils
+					.loadUserSessions(cpds.getFolder(), user.getEmail());
+			userSessions = new ArrayList<>();
+			List<String> deadSessionIds = new ArrayList<>();
+
+			for (ChatbotMemoryUtils.UserSessionSummary s : rawSessions) {
+				// 1. Check in cache
+				Optional<ConversationHistory> cachedOpt = cache.get(getChatCacheKey(dsId, s.id()));
+				boolean hasUserTurnInCache = cachedOpt
+						.map(c -> c.items().stream().anyMatch(ConversationItem::isUser)).orElse(false);
+
+				if (hasUserTurnInCache) {
+					userSessions.add(s);
+					continue;
+				}
+
+				// 2. Check on disk
+				Optional<ConversationHistory> diskOpt = loadChatSession(cpds, s.id());
+				boolean hasUserTurnOnDisk = diskOpt
+						.map(c -> c.items().stream().anyMatch(ConversationItem::isUser)).orElse(false);
+
+				if (hasUserTurnOnDisk) {
+					userSessions.add(s);
+				} else {
+					deadSessionIds.add(s.id());
+				}
+			}
+
+			// Prune dead sessions from sessions.json so they don't linger
+			for (String deadId : deadSessionIds) {
+				ChatbotMemoryUtils.deleteUserSession(cpds.getFolder(), user.getEmail(), deadId);
+			}
 		}
 
 		// show the chat interface for this chatbot
@@ -1307,9 +1392,9 @@ public class ChatbotController extends AbstractAsyncController {
 
 			return ok("""
 					<div class="msg-left">
-					<p class="role">assistant</p>
+					<p class="role">%s</p>
 					<article>%s</article>
-					</div>""".formatted(responseHtml));
+					</div>""".formatted(escapeHtml(ds.getName()), responseHtml));
 		}, databaseExecutionContext);
 	}
 
@@ -1546,21 +1631,24 @@ public class ChatbotController extends AbstractAsyncController {
 									.formatted(controllers.routes.ProjectsController.edit(ds.getProject().getId()))));
 		}
 
-		// retrieve conversation history from cache or create new
-		ConversationHistory ch;
-		Optional<ConversationHistory> chOpt = cache.get(getChatCacheKey(ds.getId(), conversationId));
-		if (!chOpt.isPresent()) {
-			ch = new ConversationHistory(conversationId, new CopyOnWriteArrayList<ConversationItem>());
-		} else {
-			ch = chOpt.get();
-		}
-
 		final CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
 		if (cpds == null) {
 			logger.error("CompleteDS object is null for dataset ID: {}", ds.getId());
 			return new ConversationFragment(new ConversationItem("user", originalUserPrompt, "", ""),
 					new ConversationItem("assistant", "", "",
 							"An internal error occurred: Could not retrieve dataset information."));
+		}
+
+		// retrieve conversation history from cache or create new
+		ConversationHistory ch;
+		Optional<ConversationHistory> chOpt = cache.get(getChatCacheKey(ds.getId(), conversationId));
+		if (!chOpt.isPresent()) {
+			chOpt = loadChatSession(cpds, conversationId);
+		}
+		if (!chOpt.isPresent()) {
+			ch = new ConversationHistory(conversationId, new CopyOnWriteArrayList<ConversationItem>());
+		} else {
+			ch = chOpt.get();
 		}
 
 		boolean isAgentic = "true".equals(ds.configuration(Dataset.CHATBOT_ENABLE_AGENTIC, "false"));
@@ -1642,7 +1730,8 @@ public class ChatbotController extends AbstractAsyncController {
 					cache.set(getChatCacheKey(ds.getId(), conversationId), ch, 3600);
 				}
 
-				if ("true".equals(ds.configuration(Dataset.CHATBOT_STORE_CHATS, "false"))) {
+				if ("true".equals(ds.configuration(Dataset.CHATBOT_STORE_CHATS, "false"))
+						|| "true".equals(ds.configuration(Dataset.CHATBOT_ENABLE_MULTISESSION, "false"))) {
 					storeChatSession(cpds, conversationId, ch);
 				}
 
@@ -1746,8 +1835,14 @@ public class ChatbotController extends AbstractAsyncController {
 				cache.set(getChatCacheKey(ds.getId(), conversationId), ch, 3600);
 			}
 
-			if ("true".equals(ds.configuration(Dataset.CHATBOT_STORE_CHATS, "false"))) {
+			if ("true".equals(ds.configuration(Dataset.CHATBOT_STORE_CHATS, "false"))
+					|| "true".equals(ds.configuration(Dataset.CHATBOT_ENABLE_MULTISESSION, "false"))) {
 				storeChatSession(cpds, conversationId, ch);
+			}
+
+			if ("true".equals(ds.configuration(Dataset.CHATBOT_ENABLE_MULTISESSION, "false"))) {
+				ChatbotMemoryUtils.saveUserSession(cpds.getFolder(), user.getEmail(), conversationId,
+						originalUserPrompt);
 			}
 		} catch (RuntimeException e) { // Catch other runtime exceptions (e.g., from MarkdownRenderer)
 			logger.error("Runtime error during LLM response processing for conversation {}", conversationId, e);
@@ -2064,6 +2159,10 @@ public class ChatbotController extends AbstractAsyncController {
 				File indexFile = new File(cpds.getFolder().getAbsolutePath() + File.separator + filename + ".idx");
 				if (indexFile.exists()) {
 					indexFile.delete();
+				}
+				if (filename.startsWith("chat_") && filename.endsWith(".json")) {
+					String convId = filename.substring(5, filename.length() - 5);
+					ChatbotMemoryUtils.deleteUserSession(cpds.getFolder(), user.getEmail(), convId);
 				}
 			}
 

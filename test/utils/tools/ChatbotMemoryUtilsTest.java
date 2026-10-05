@@ -210,4 +210,22 @@ public class ChatbotMemoryUtilsTest {
 		List<ChatbotMemoryUtils.UserSessionSummary> list3 = ChatbotMemoryUtils.loadUserSessions(tempDir, userId);
 		assertEquals("sess-1", list3.get(0).id()); // sess-1 moved to top
 	}
+
+	@Test
+	public void testDeleteUserSession() {
+		String userId = "designer@example.com";
+		ChatbotMemoryUtils.saveUserSession(tempDir, userId, "sess-1", "Session 1");
+		ChatbotMemoryUtils.saveUserSession(tempDir, userId, "sess-2", "Session 2");
+		assertEquals(2, ChatbotMemoryUtils.loadUserSessions(tempDir, userId).size());
+
+		// Delete sess-1
+		ChatbotMemoryUtils.deleteUserSession(tempDir, userId, "sess-1");
+		List<ChatbotMemoryUtils.UserSessionSummary> remaining = ChatbotMemoryUtils.loadUserSessions(tempDir, userId);
+		assertEquals(1, remaining.size());
+		assertEquals("sess-2", remaining.get(0).id());
+
+		// Delete non-existent session (no error)
+		ChatbotMemoryUtils.deleteUserSession(tempDir, userId, "non-existent");
+		assertEquals(1, ChatbotMemoryUtils.loadUserSessions(tempDir, userId).size());
+	}
 }

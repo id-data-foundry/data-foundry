@@ -53,35 +53,215 @@
           max-height: 65vh;
           overflow-y: auto;
       }
+      .memory-file-details {
+          margin-bottom: 8px;
+          border: 1px solid #e2e8f0;
+          border-radius: 4px;
+          padding: 6px 10px;
+      }
+      .memory-file-summary {
+          cursor: pointer;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          list-style: none;
+          user-select: none;
+      }
+      .memory-file-summary::-webkit-details-marker,
+      .memory-file-summary::marker {
+          display: none;
+      }
+      .memory-file-summary::after {
+          order: -1;
+          float: none !important;
+          margin-inline-start: 0 !important;
+          margin-right: 0.45rem !important;
+          flex-shrink: 0;
+      }
+      .memory-file-details[open] > .memory-file-summary {
+          margin-bottom: 6px !important;
+      }
+      .memory-file-title {
+          flex-grow: 1;
+          display: inline-flex;
+          align-items: center;
+          gap: 0.35rem;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+      }
+      .memory-file-delete-btn {
+          margin-left: auto;
+          flex-shrink: 0;
+          padding: 2px 6px !important;
+          font-size: 0.75rem !important;
+          border: none !important;
+          background: transparent !important;
+          cursor: pointer;
+          line-height: 1 !important;
+          height: auto !important;
+      }
+
+      .chat-app-container {
+          max-width: 920px;
+          margin: 0 auto;
+          padding: 1rem 1.25rem 2rem 1.25rem;
+      }
+      .chat-navbar-header {
+          margin-bottom: 1.25rem;
+          padding-bottom: 0.75rem;
+          border-bottom: 1px solid var(--pico-color-grey-200);
+      }
+      .chat-nav {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 0.5rem;
+          margin-bottom: 0.5rem;
+      }
+      .chat-brand-title {
+          display: flex;
+          align-items: center;
+          gap: 0.4rem;
+          font-size: 1.2rem;
+          font-weight: 700;
+          color: var(--pico-color);
+      }
+      .chat-brand-title .bot-icon {
+          font-size: 1.4rem;
+          line-height: 1;
+      }
+      .chat-toolbar {
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+          flex-wrap: wrap;
+          margin: 0;
+          padding: 0;
+          list-style: none;
+      }
+      .chat-toolbar li {
+          display: flex;
+          align-items: center;
+          margin: 0 !important;
+          padding: 0 !important;
+      }
+      .chat-toolbar li::before {
+          display: none !important;
+          content: none !important;
+      }
+      .chat-toolbar .btn-chat-action,
+      .btn-chat-action {
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          height: 2rem !important;
+          width: auto !important;
+          margin: 0 !important;
+          padding: 0 0.75rem !important;
+          font-size: 0.825rem !important;
+          font-weight: 600 !important;
+          line-height: 1 !important;
+          white-space: nowrap !important;
+          border-radius: 6px !important;
+          text-decoration: none !important;
+          box-sizing: border-box !important;
+          vertical-align: middle !important;
+      }
+      .chat-toolbar .session-dropdown,
+      .session-dropdown {
+          display: inline-flex !important;
+          align-items: center !important;
+          height: 2rem !important;
+          width: auto !important;
+          max-width: 250px !important;
+          margin: 0 !important;
+          padding: 0 1.75rem 0 0.65rem !important;
+          font-size: 0.825rem !important;
+          line-height: 1 !important;
+          border-radius: 6px !important;
+          box-sizing: border-box !important;
+          vertical-align: middle !important;
+          background-position: center right 0.6rem !important;
+          background-size: 0.75rem auto !important;
+      }
+      .chat-intro-banner {
+          background: #f8fafc;
+          border: 1px solid #e2e8f0;
+          border-radius: 8px;
+          padding: 0.65rem 0.9rem;
+          margin-top: 0.5rem;
+          font-size: 0.825rem;
+          line-height: 1.45;
+          color: #334155;
+      }
+      .chat-intro-banner .intro-description {
+          font-weight: 500;
+          margin-bottom: 0.25rem;
+      }
+      .chat-intro-banner .intro-expiry-note {
+          font-size: 0.75rem;
+          color: #64748b;
+      }
 
       #chat {
           display: flex;
           flex-direction: column;
+          gap: 1.25rem;
+          padding: 0.5rem 0 1.5rem 0;
       }
       #chat .msg-left {
           align-self: flex-start;
-          width: 80%;
+          width: 85%;
+          max-width: 720px;
       }
       #chat .msg-left article {
           background: var(--convo-msg-left);
+          border: 1px solid var(--pico-color-grey-200);
+          border-radius: 12px;
+          padding: 1rem 1.25rem;
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
       }
       #chat .msg-right {
           align-self: flex-end;
           width: 80%;
-          text-align: right;
+          max-width: 650px;
+          display: flex;
+          flex-direction: column;
+          align-items: flex-end;
       }
       #chat .msg-right article {
           background: var(--convo-msg-right);
+          border-radius: 12px;
+          padding: 0.85rem 1.15rem;
+          text-align: left;
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+          display: inline-block;
+          color: #111;
       }
-
       #chat .msg-right button {
           margin-right: 1rem;
       }
-
       #chat div p.role {
-          margin: 0;
-          font-size: 0.8rem;
-          padding: 0 5px;
+          margin: 0 0 0.25rem 0;
+          font-size: 0.75rem;
+          font-weight: 600;
+          color: var(--pico-color-grey-600);
+          padding: 0 4px;
+      }
+      #userInputForm {
+          margin-top: 1rem;
+          margin-bottom: 2rem;
+      }
+      #userInput {
+          border-radius: 8px 0 0 8px;
+          font-size: 0.95rem;
+      }
+      #btn-send {
+          border-radius: 0 8px 8px 0;
+          font-weight: 600;
+          padding: 0 1.5rem;
       }
 
       .typing-indicator {
@@ -162,38 +342,78 @@
       }
     </style>
 </head>
-<body class="container">
-  <b>
-    @dataset.getName()
-  </b>
-  <p>
-    @dataset.configuration(Dataset.CHATBOT_INTRODUCTION, "")
-    @if(isStoreChats) {
-      Note: Active chat session expires after 60 mins of inactivity (transcripts are archived).
-    } else {
-      Note: Active chat session expires after 60 mins of inactivity.
-    }
-    @if(isMemoryEnabled) {
-      Stored profile memory and notes persist across sessions (<a href="#" onclick="openMemoryModal(); return false;">manage or delete in 🧠 My Notes & Memory</a>).
-    } | 
-    @if(dataset.editableBy(user)) {
-    <a href="@controllers.tools.routes.ChatbotController.view(dataset.getId())">Edit bot</a> | 
-    } 
-    @if(isMultiSession) {
-      @if(!userSessions.isEmpty) {
-        <select onchange="if(this.value) window.location.href='@controllers.tools.routes.ChatbotController.chat(dataset.getId())?conversationId=' + this.value" style="display:inline-block; width:auto; margin:0 4px; padding:2px 8px; font-size:0.8rem; height:auto;">
-          @for(s <- userSessions) {
-            <option value="@s.id()" @if(s.id() == conversationId){selected}>@s.title() (@s.formattedDate())</option>
+<body class="container chat-app-container">
+  <header class="chat-navbar-header">
+    <nav class="chat-nav">
+      <ul>
+        <li>
+          <div class="chat-brand-title">
+            <span class="bot-icon">🤖</span>
+            <strong>@dataset.getName()</strong>
+          </div>
+        </li>
+      </ul>
+      <ul class="chat-toolbar">
+        @if(isMultiSession) {
+          @if(!userSessions.isEmpty) {
+            <li>
+              <select class="session-dropdown" onchange="if(this.value) window.location.href=this.value" aria-label="Select conversation">
+                @if(userSessions.stream().noneMatch(s => s.id().equals(conversationId))) {
+                  <option value="" selected>Current Chat (new)</option>
+                }
+                @for(s <- userSessions) {
+                  <option value="@controllers.tools.routes.ChatbotController.chat(dataset.getId(), s.id())" @if(s.id() == conversationId){selected}>
+                    @s.title() (@s.formattedDate())
+                  </option>
+                }
+              </select>
+            </li>
           }
-        </select>
+          <li>
+            <a role="button" class="outline primary btn-chat-action" href="@controllers.tools.routes.ChatbotController.chat(dataset.getId())" title="Start a fresh conversation">
+              + New Chat
+            </a>
+          </li>
+        } else {
+          <li>
+            <a role="button" class="outline primary btn-chat-action" href="@controllers.tools.routes.ChatbotController.chat(dataset.getId())" title="Start a fresh conversation">
+              New conversation
+            </a>
+          </li>
+        }
+        @if(isMemoryEnabled) {
+          <li>
+            <button type="button" class="outline secondary btn-chat-action" onclick="openMemoryModal(); return false;" title="Manage your personal notes and stored profile memory">
+              🧠 Memory
+            </button>
+          </li>
+        }
+        @if(dataset.editableBy(user)) {
+          <li>
+            <a role="button" class="outline secondary btn-chat-action" href="@controllers.tools.routes.ChatbotController.view(dataset.getId())" title="Configure chatbot settings and knowledge base">
+              ⚙️ Edit bot
+            </a>
+          </li>
+        }
+      </ul>
+    </nav>
+
+    @defining(dataset.configuration(Dataset.CHATBOT_INTRODUCTION, "").trim()) { intro =>
+      @if(!intro.isEmpty || isStoreChats) {
+        <div class="chat-intro-banner">
+          @if(!intro.isEmpty) {
+            <div class="intro-description">@intro</div>
+          }
+          <div class="intro-expiry-note">
+            ⏱️ Active chat sessions expire after 60 mins of inactivity@if(isStoreChats) { (transcripts are archived in dataset files)}.
+            @if(isMemoryEnabled) {
+              Stored notes and memory persist across sessions.
+            }
+          </div>
+        </div>
       }
-      <a href="@controllers.tools.routes.ChatbotController.chat(dataset.getId())">+ New Chat</a>
-    } else {
-      <a href="@controllers.tools.routes.ChatbotController.chat(dataset.getId())">New conversation</a>
     }
-    <br>
-    ---
-  </p>
+  </header>
 
   <!-- this is the main chat interface -->
   <main>
@@ -203,7 +423,7 @@
       @defining(history.items().get(i)) { item =>
         @if(item.isAssistant) {
           <div class="msg-left">
-            <p class="role">@item.actor()</p>
+            <p class="role">@dataset.getName()</p>
             <article>
               @Html(item.renderedContent())
               @if(dataset.configuration(Dataset.CHATBOT_SHOW_SOURCES, "false").equals("true") && i > 0 && history.items().get(i-1).isUser) {
@@ -334,6 +554,18 @@
         }
       });
 
+      function scrollToBottom() {
+        window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+      }
+      window.addEventListener('DOMContentLoaded', () => {
+        setTimeout(scrollToBottom, 50);
+      });
+      document.body.addEventListener('htmx:afterSwap', (evt) => {
+        if (evt.detail.target && evt.detail.target.id === 'chat') {
+          setTimeout(scrollToBottom, 50);
+        }
+      });
+
       document.querySelector('#userInputForm').addEventListener('submit', (e) => {
         setTimeout(() => {
           let input = document.querySelector('#userInput').value;
@@ -342,9 +574,10 @@
             `<div class="msg-right">
               <p class="role">user</p>
               <article>${input}</article>
-            </div>`)
+            </div>`);
+          setTimeout(scrollToBottom, 20);
         }, 10);
-      })
+      });
     </script>
   </main>
 </body>

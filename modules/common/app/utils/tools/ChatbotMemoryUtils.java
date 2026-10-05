@@ -11,6 +11,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Locale;
+import java.util.stream.Collectors;
 
 import org.apache.commons.io.FileUtils;
 
@@ -467,6 +468,45 @@ public class ChatbotMemoryUtils {
 			FileUtils.writeStringToFile(sessionsFile, Json.stringify(arr), StandardCharsets.UTF_8);
 		} catch (IOException e) {
 			logger.error("Error saving user sessions index for {}", rawUserId, e);
+		}
+	}
+
+	/**
+	 * Remove a session entry from the user's sessions.json index.
+	 *
+	 * @param datasetFolder dataset directory
+	 * @param rawUserId     user identifier
+	 * @param sessionId     session UUID to remove
+	 */
+	public static synchronized void deleteUserSession(File datasetFolder, String rawUserId, String sessionId) {
+		if (sessionId == null || sessionId.trim().isEmpty()) {
+			return;
+		}
+		File userDir = getUserDirectory(datasetFolder, rawUserId);
+		File sessionsFile = new File(userDir, SESSIONS_INDEX_FILE);
+		if (!sessionsFile.exists() || !sessionsFile.isFile()) {
+			return;
+		}
+
+		List<UserSessionSummary> existing = loadUserSessions(datasetFolder, rawUserId);
+		List<UserSessionSummary> updated = existing.stream()
+				.filter(s -> !s.id().equals(sessionId))
+				.collect(Collectors.toList());
+
+		ArrayNode arr = Json.newArray();
+		for (UserSessionSummary s : updated) {
+			ObjectNode o = Json.newObject();
+			o.put("id", s.id());
+			o.put("title", s.title());
+			o.put("createdAt", s.createdAt());
+			o.put("lastUpdatedAt", s.lastUpdatedAt());
+			arr.add(o);
+		}
+
+		try {
+			FileUtils.writeStringToFile(sessionsFile, Json.stringify(arr), StandardCharsets.UTF_8);
+		} catch (IOException e) {
+			logger.error("Error updating user sessions index for {}", rawUserId, e);
 		}
 	}
 }

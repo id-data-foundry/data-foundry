@@ -7,6 +7,7 @@ import static org.junit.Assert.assertTrue;
 import static play.mvc.Http.Status.BAD_REQUEST;
 import static play.mvc.Http.Status.FORBIDDEN;
 import static play.mvc.Http.Status.OK;
+import static play.mvc.Http.Status.SEE_OTHER;
 import static play.mvc.Http.Status.UNAUTHORIZED;
 import static play.test.Helpers.GET;
 import static play.test.Helpers.POST;
@@ -629,9 +630,173 @@ public class ChatbotControllerSecurityTest extends WithApplication {
 		String body = play.test.Helpers.contentAsString(result);
 		assertNotNull(body);
 		assertTrue("chatProcess must wrap message in msg-left", body.contains("msg-left"));
-		assertTrue("chatProcess must contain role assistant", body.contains("<p class=\"role\">assistant</p>"));
+		assertTrue("chatProcess must contain role with bot name",
+				body.contains("<p class=\"role\">" + completeDataset.getName() + "</p>"));
 		assertFalse("chatProcess must not return empty article", body.contains("<article></article>"));
 		assertFalse("chatProcess must not return empty whitespace article", body.contains("<article> </article>"));
 		assertTrue("chatProcess must contain an article tag with content", body.contains("<article>"));
 	}
+
+	@Test
+	public void testLoadChatSessionFromCompleteDS() throws Exception {
+		CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(completeDataset);
+		assertNotNull(cpds);
+		String convId = "test-session-" + UUID.randomUUID();
+
+		List<ConversationItem> items = new ArrayList<>();
+		items.add(new ConversationItem(ConversationItem.USER, "What is TU/e Industrial Design?", Collections.emptyList(), "What is TU/e Industrial Design?"));
+		items.add(new ConversationItem(ConversationItem.ASSISTANT, "Industrial Design is a department at Eindhoven University of Technology.", Collections.emptyList(), "<p>Industrial Design is a department at Eindhoven University of Technology.</p>"));
+		ConversationHistory original = new ConversationHistory(convId, items);
+
+		// Store as chat_<convId>.json in dataset folder
+		String chatJson = Json.toJson(original).toPrettyString();
+		File chatFile = new File(cpds.getFolder(), "chat_" + convId + ".json");
+		Files.writeString(chatFile.toPath(), chatJson, StandardCharsets.UTF_8);
+
+		// Now load via chatbotController.loadChatSession
+		Optional<ConversationHistory> loadedOpt = chatbotController.loadChatSession(cpds, convId);
+		assertTrue("Loaded history should be present", loadedOpt.isPresent());
+		ConversationHistory loaded = loadedOpt.get();
+		assertEquals(convId, loaded.conversationId());
+		assertEquals(2, loaded.items().size());
+		assertEquals(ConversationItem.USER, loaded.items().get(0).actor());
+		assertEquals("What is TU/e Industrial Design?", loaded.items().get(0).content());
+		assertEquals(ConversationItem.ASSISTANT, loaded.items().get(1).actor());
+		assertEquals("Industrial Design is a department at Eindhoven University of Technology.", loaded.items().get(1).content());
+		assertTrue(loaded.items().get(1).renderedContent().contains("Industrial Design"));
+
+		// Clean up
+		if (chatFile.exists()) {
+			chatFile.delete();
+		}
+	}
+
+	@Test
+	public void testChatViewRestoresHistoryFromTranscriptAcrossCacheClear() throws Exception {
+		CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(completeDataset);
+		assertNotNull(cpds);
+		completeDataset.getConfiguration().put(Dataset.CHATBOT_ENABLE_MULTISESSION, "true");
+		completeDataset.save();
+		String convId = "test-session-chatview-" + UUID.randomUUID();
+
+		List<ConversationItem> items = new ArrayList<>();
+		items.add(new ConversationItem(ConversationItem.USER, "Show me previous chat message 12345", Collections.emptyList(), "Show me previous chat message 12345"));
+		items.add(new ConversationItem(ConversationItem.ASSISTANT, "Here is the previous assistant response 67890", Collections.emptyList(), "<p>Here is the previous assistant response 67890</p>"));
+		ConversationHistory original = new ConversationHistory(convId, items);
+
+		// Store transcript file in cpds
+		String chatJson = Json.toJson(original).toPrettyString();
+		File chatFile = new File(cpds.getFolder(), "chat_" + convId + ".json");
+		Files.writeString(chatFile.toPath(), chatJson, StandardCharsets.UTF_8);
+
+		// Ensure cache is completely clear
+		cache.remove("ChatController_chat_" + completeDataset.getId() + "_" + convId);
+
+		// Create authenticated GET request to chat view
+		Http.Request request = createAuthenticatedRequest(GET,
+				"/tools/chatbots/" + completeDataset.getId() + "/chat?conversationId=" + convId, ownerUser);
+
+		Result result = chatbotController.chat(request, completeDataset.getId(), convId);
+		assertEquals(OK, result.status());
+
+		String body = play.test.Helpers.contentAsString(result);
+		assertNotNull(body);
+
+		// Verify previous messages were loaded and rendered into the chat view
+		assertTrue("View must restore previous user message", body.contains("Show me previous chat message 12345"));
+		assertTrue("View must restore previous assistant message", body.contains("Here is the previous assistant response 67890"));
+		assertTrue("View must show bot name on assistant turn",
+				body.contains("<p class=\"role\">" + completeDataset.getName() + "</p>"));
+
+		// Verify clean header and navbar elements
+		assertTrue("View must contain chat-navbar-header", body.contains("chat-navbar-header"));
+		assertTrue("View must contain chat-nav", body.contains("chat-nav"));
+		assertTrue("View must contain bot-icon", body.contains("bot-icon"));
+		assertTrue("View must contain + New Chat action", body.contains("+ New Chat"));
+
+		// Verify old cluttered pipe-separated paragraph is gone
+		assertFalse("Old cluttered separator must not exist", body.contains("manage or delete in 🧠 My Notes & Memory</a>). |"));
+
+		// Clean up
+		if (chatFile.exists()) {
+			chatFile.delete();
+		}
+	}
+
+	@Test
+	public void testEmptyOrOrphanSessionsFilteredAndPruned() throws Exception {
+		CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(completeDataset);
+		assertNotNull(cpds);
+		completeDataset.getConfiguration().put(Dataset.CHATBOT_ENABLE_MULTISESSION, "true");
+		completeDataset.save();
+
+		String validConvId = "valid-session-" + UUID.randomUUID();
+		String orphanConvId = "orphan-session-" + UUID.randomUUID();
+		String emptyConvId = "empty-session-" + UUID.randomUUID();
+
+		// 1. Create valid session on disk
+		List<ConversationItem> validItems = new ArrayList<>();
+		validItems.add(new ConversationItem(ConversationItem.USER, "Hello assistant", Collections.emptyList(), "Hello assistant"));
+		validItems.add(new ConversationItem(ConversationItem.ASSISTANT, "Hello user", Collections.emptyList(), "<p>Hello user</p>"));
+		ConversationHistory validHistory = new ConversationHistory(validConvId, validItems);
+		File validFile = new File(cpds.getFolder(), "chat_" + validConvId + ".json");
+		Files.writeString(validFile.toPath(), Json.toJson(validHistory).toPrettyString(), StandardCharsets.UTF_8);
+
+		// 2. Create empty session on disk (no user messages)
+		ConversationHistory emptyHistory = new ConversationHistory(emptyConvId, Collections.emptyList());
+		File emptyFile = new File(cpds.getFolder(), "chat_" + emptyConvId + ".json");
+		Files.writeString(emptyFile.toPath(), Json.toJson(emptyHistory).toPrettyString(), StandardCharsets.UTF_8);
+
+		// 3. Register all 3 in sessions.json
+		ChatbotMemoryUtils.saveUserSession(cpds.getFolder(), ownerUser.getEmail(), validConvId, "Valid Conversation");
+		ChatbotMemoryUtils.saveUserSession(cpds.getFolder(), ownerUser.getEmail(), orphanConvId, "Orphan Conversation");
+		ChatbotMemoryUtils.saveUserSession(cpds.getFolder(), ownerUser.getEmail(), emptyConvId, "Empty Conversation");
+
+		List<ChatbotMemoryUtils.UserSessionSummary> initialSessions = ChatbotMemoryUtils
+				.loadUserSessions(cpds.getFolder(), ownerUser.getEmail());
+		assertEquals(3, initialSessions.size());
+
+		// Ensure cache is clear
+		cache.remove("ChatController_chat_" + completeDataset.getId() + "_" + validConvId);
+		cache.remove("ChatController_chat_" + completeDataset.getId() + "_" + orphanConvId);
+		cache.remove("ChatController_chat_" + completeDataset.getId() + "_" + emptyConvId);
+
+		// 4. Request chat interface with null conversationId - verify safe redirect to new conversation
+		Http.Request requestNull = createAuthenticatedRequest(GET,
+				"/tools/chatbots/" + completeDataset.getId() + "/chat", ownerUser);
+		Result resultRedirect = chatbotController.chat(requestNull, completeDataset.getId(), null);
+		assertEquals(SEE_OTHER, resultRedirect.status());
+
+		// Request chat interface with active conversationId
+		Http.Request request = createAuthenticatedRequest(GET,
+				"/tools/chatbots/" + completeDataset.getId() + "/chat?conversationId=" + validConvId, ownerUser);
+		Result result = chatbotController.chat(request, completeDataset.getId(), validConvId);
+		assertEquals(OK, result.status());
+
+		String body = play.test.Helpers.contentAsString(result);
+		assertNotNull(body);
+
+		// Check view content: valid session should be in the dropdown, orphan & empty should NOT
+		assertTrue("View should contain valid session", body.contains(validConvId));
+		assertTrue("View should contain valid session title", body.contains("Valid Conversation"));
+		assertFalse("View should not contain orphan session", body.contains(orphanConvId));
+		assertFalse("View should not contain orphan session title", body.contains("Orphan Conversation"));
+		assertFalse("View should not contain empty session", body.contains(emptyConvId));
+		assertFalse("View should not contain empty session title", body.contains("Empty Conversation"));
+
+		// 5. Verify sessions.json has been pruned
+		List<ChatbotMemoryUtils.UserSessionSummary> prunedSessions = ChatbotMemoryUtils
+				.loadUserSessions(cpds.getFolder(), ownerUser.getEmail());
+		assertEquals(1, prunedSessions.size());
+		assertEquals(validConvId, prunedSessions.get(0).id());
+
+		// Clean up
+		if (validFile.exists()) {
+			validFile.delete();
+		}
+		if (emptyFile.exists()) {
+			emptyFile.delete();
+		}
+	}
 }
+

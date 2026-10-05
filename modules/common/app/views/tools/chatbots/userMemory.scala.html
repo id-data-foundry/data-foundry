@@ -38,21 +38,72 @@
     </table>
   }
 
+  <style>
+    .memory-file-details {
+      margin-bottom: 8px;
+      border: 1px solid #e2e8f0;
+      border-radius: 4px;
+      padding: 6px 10px;
+    }
+    .memory-file-summary {
+      cursor: pointer;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      list-style: none;
+      user-select: none;
+    }
+    .memory-file-summary::-webkit-details-marker,
+    .memory-file-summary::marker {
+      display: none;
+    }
+    .memory-file-summary::after {
+      order: -1;
+      float: none !important;
+      margin-inline-start: 0 !important;
+      margin-right: 0.45rem !important;
+      flex-shrink: 0;
+    }
+    .memory-file-details[open] > .memory-file-summary {
+      margin-bottom: 6px !important;
+    }
+    .memory-file-title {
+      flex-grow: 1;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .memory-file-delete-btn {
+      margin-left: auto;
+      flex-shrink: 0;
+      padding: 2px 6px !important;
+      font-size: 0.75rem !important;
+      border: none !important;
+      background: transparent !important;
+      cursor: pointer;
+      line-height: 1 !important;
+      height: auto !important;
+    }
+  </style>
+
   <h6 style="margin-top: 12px; margin-bottom: 6px;">Saved Notes & Files</h6>
   @if(snapshot.userFiles().isEmpty()) {
     <p style="color: #94a3b8; font-style: italic;">No private notes files created yet.</p>
   } else {
     @for(entry <- snapshot.userFiles().entrySet()) {
-      <details style="margin-bottom: 8px; border: 1px solid #e2e8f0; border-radius: 4px; padding: 6px;">
-        <summary style="cursor: pointer; font-weight: 600; display: flex; justify-content: space-between; align-items: center;">
-          <span>📄 @entry.getKey()</span>
-          <button type="button" class="outline danger" style="padding: 2px 6px; font-size: 0.75rem; border: none; background: transparent; cursor: pointer;" title="Delete this file"
+      <details class="memory-file-details">
+        <summary class="memory-file-summary">
+          <span class="memory-file-title">📄 @entry.getKey()</span>
+          <button type="button" class="outline danger memory-file-delete-btn" title="Delete this file"
                   hx-post="@controllers.tools.routes.ChatbotController.deleteUserFile(datasetId, entry.getKey())"
                   hx-target="closest .user-memory-container"
                   hx-confirm="Are you sure you want to delete file '@entry.getKey()'?"
                   onclick="event.stopPropagation();">❌</button>
         </summary>
-        <pre style="background: #f8fafc; padding: 8px; margin-top: 6px; font-size: 0.8rem; max-height: 200px; overflow-y: auto;">@entry.getValue()</pre>
+        <pre style="background: #f8fafc; padding: 8px; margin: 0; font-size: 0.8rem; max-height: 200px; overflow-y: auto;">@entry.getValue()</pre>
       </details>
     }
   }
