@@ -10,6 +10,8 @@ import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import javax.inject.Inject;
@@ -22,6 +24,7 @@ import com.google.inject.Singleton;
 import datasets.DatasetConnector;
 import io.ebean.DB;
 import io.ebean.Transaction;
+import models.Dataset;
 import models.Project;
 import models.ds.LinkedDS;
 import play.Logger;
@@ -39,6 +42,8 @@ public class DatabaseBackupService implements ScheduledService {
 
 	private final Semaphore backupSemaphore = new Semaphore(1);
 	private final Semaphore dbStatsSemaphore = new Semaphore(1);
+	private final Semaphore migrationSemaphore = new Semaphore(1);
+	private final AtomicBoolean migrationCompleted = new AtomicBoolean(false);
 
 	@Inject
 	public DatabaseBackupService(DatasetConnector datasetConnector) {
@@ -47,8 +52,9 @@ public class DatabaseBackupService implements ScheduledService {
 
 	@Override
 	public void refresh() {
-		logger.info("Nightly DB backup amd stats run...");
+		logger.info("Nightly DB backup, migration and stats run...");
 		performBackup(sdf.format(new Date()));
+		performDatasetMigration();
 		performDatabaseStats(sdf.format(new Date()));
 	}
 
@@ -65,6 +71,64 @@ public class DatabaseBackupService implements ScheduledService {
 	public void adminShutdownCompact() {
 		logger.info("Executing on-demand DB shutdown compact for admin...");
 		performShutdownCompact();
+	}
+
+	public void adminDatasetMigration() {
+		logger.info("Executing on-demand dataset schema migration for admin...");
+		performDatasetMigration(true);
+	}
+
+	public boolean isMigrationCompleted() {
+		return migrationCompleted.get();
+	}
+
+	public void setMigrationCompleted(boolean completed) {
+		this.migrationCompleted.set(completed);
+	}
+
+	public void performDatasetMigration() {
+		performDatasetMigration(false);
+	}
+
+	public void performDatasetMigration(boolean force) {
+		if (!force && migrationCompleted.get()) {
+			logger.info("Dataset schema migration already completed; skipping nightly run.");
+			return;
+		}
+
+		if (!migrationSemaphore.tryAcquire()) {
+			logger.warn("Dataset schema migration is already in progress.");
+			return;
+		}
+
+		try {
+			logger.info("Running dataset schema migrations...");
+			AtomicInteger count = new AtomicInteger();
+			List<Dataset> datasets = Dataset.find.all();
+			int total = datasets.size();
+			for (Dataset d : datasets) {
+				try {
+					if (d.getRefId() != null && !d.getRefId().isEmpty()) {
+						LinkedDS lds = datasetConnector.getDatasetDS(d);
+						if (lds != null) {
+							lds.migrateDatasetSchema();
+						}
+					}
+				} catch (Exception e) {
+					logger.error("Problem migrating schema for dataset " + d.getId() + " (" + d.getRefId() + ")", e);
+				}
+				int current = count.incrementAndGet();
+				if (current % 200 == 0 || current == total) {
+					logger.info(current + " of " + total + " dataset tables checked for migration...");
+				}
+			}
+			migrationCompleted.set(true);
+			logger.info("Dataset schema migration completed successfully (" + total + " tables checked).");
+		} catch (Exception e) {
+			logger.error("Problem running dataset schema migrations", e);
+		} finally {
+			migrationSemaphore.release();
+		}
 	}
 
 	private void performShutdownCompact() {
