@@ -72,6 +72,12 @@ public class MovementDS extends CompleteDS {
 			connection.createStatement().execute("CREATE TABLE IF NOT EXISTS " + dataTableNameRawFiles
 					+ " ( id bigint auto_increment not null," + "participant_id bigint," + "file_name varchar(255),"
 					+ "description varchar(255)," + "status varchar(20)," + "ts timestamp," + "PRIMARY KEY (id) );");
+			connection.createStatement().execute("CREATE INDEX IF NOT EXISTS " + dataTableNameRawFiles + "_pid_ts_idx ON "
+					+ dataTableNameRawFiles + " (participant_id, ts);");
+			connection.createStatement().execute("CREATE INDEX IF NOT EXISTS " + dataTableNameRawFiles + "_fn_idx ON "
+					+ dataTableNameRawFiles + " (file_name);");
+			connection.createStatement().execute("CREATE INDEX IF NOT EXISTS " + dataTableNameRawFiles + "_ts_idx ON "
+					+ dataTableNameRawFiles + " (ts);");
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in creating dataset table in DB.", e);
@@ -100,11 +106,34 @@ public class MovementDS extends CompleteDS {
 							+ "participant_id bigint," + "ts timestamp," + "x real," + "y real," + "z real,"
 							+ "track varchar(255)," + "pp1 varchar(255)," + "pp2 varchar(255)," + "pp3 varchar(255),"
 							+ "data varchar(1024)," + "PRIMARY KEY (id) );");
+			connection.createStatement().execute("CREATE INDEX IF NOT EXISTS " + dataTableName + "_pid_ts_idx ON "
+					+ dataTableName + " (participant_id, ts);");
+			connection.createStatement().execute("CREATE INDEX IF NOT EXISTS " + dataTableName + "_ts_idx ON "
+					+ dataTableName + " (ts);");
 
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in creating dataset table in DB.", e);
 			Notifications.call("Exception", e.getLocalizedMessage());
+		}
+	}
+
+	@Override
+	public void migrateDatasetSchema() {
+		try (Transaction transaction = DB.beginTransaction(); Connection connection = transaction.connection();) {
+			connection.createStatement().execute("CREATE INDEX IF NOT EXISTS " + dataTableNameRawFiles + "_pid_ts_idx ON "
+					+ dataTableNameRawFiles + " (participant_id, ts);");
+			connection.createStatement().execute("CREATE INDEX IF NOT EXISTS " + dataTableNameRawFiles + "_fn_idx ON "
+					+ dataTableNameRawFiles + " (file_name);");
+			connection.createStatement().execute("CREATE INDEX IF NOT EXISTS " + dataTableNameRawFiles + "_ts_idx ON "
+					+ dataTableNameRawFiles + " (ts);");
+			connection.createStatement().execute("CREATE INDEX IF NOT EXISTS " + dataTableName + "_pid_ts_idx ON "
+					+ dataTableName + " (participant_id, ts);");
+			connection.createStatement().execute("CREATE INDEX IF NOT EXISTS " + dataTableName + "_ts_idx ON "
+					+ dataTableName + " (ts);");
+			transaction.commit();
+		} catch (Exception e) {
+			logger.error("Error in migrating MovementDS schema", e);
 		}
 	}
 

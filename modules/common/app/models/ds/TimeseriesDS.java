@@ -80,6 +80,10 @@ public class TimeseriesDS extends LinkedDS {
 					+ "pp3 varchar(255)," //
 					+ "data TEXT," //
 					+ "PRIMARY KEY (id) );");
+			connection.createStatement().execute("CREATE INDEX IF NOT EXISTS " + dataTableName + "_ts_idx ON "
+					+ dataTableName + " (ts);");
+			connection.createStatement().execute("CREATE INDEX IF NOT EXISTS " + dataTableName + "_dev_ts_idx ON "
+					+ dataTableName + " (device_id, ts);");
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in creating dataset table in DB.", e);
@@ -98,6 +102,10 @@ public class TimeseriesDS extends LinkedDS {
 						+ "ALTER COLUMN data TEXT;");
 				logger.info("Dataset table " + dataTableName + " migrated.");
 			}
+			connection.createStatement().execute("CREATE INDEX IF NOT EXISTS " + dataTableName + "_ts_idx ON "
+					+ dataTableName + " (ts);");
+			connection.createStatement().execute("CREATE INDEX IF NOT EXISTS " + dataTableName + "_dev_ts_idx ON "
+					+ dataTableName + " (device_id, ts);");
 			transaction.commit();
 		} catch (SQLException e) {
 			logger.error("Error in migrating dataset table in DB.", e);

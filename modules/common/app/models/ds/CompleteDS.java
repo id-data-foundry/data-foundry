@@ -105,6 +105,9 @@ public class CompleteDS extends LinkedDS {
 			connection.createStatement()
 					.execute("CREATE INDEX IF NOT EXISTS " + dataTableName + "_fn_idx ON " + dataTableName
 							+ " (file_name);");
+			connection.createStatement()
+					.execute("CREATE INDEX IF NOT EXISTS " + dataTableName + "_ts_idx ON " + dataTableName
+							+ " (ts);");
 
 			transaction.commit();
 		} catch (SQLException e) {
@@ -119,6 +122,9 @@ public class CompleteDS extends LinkedDS {
 			connection.createStatement()
 					.execute("CREATE INDEX IF NOT EXISTS " + dataTableName + "_fn_idx ON " + dataTableName
 							+ " (file_name);");
+			connection.createStatement()
+					.execute("CREATE INDEX IF NOT EXISTS " + dataTableName + "_ts_idx ON " + dataTableName
+							+ " (ts);");
 			transaction.commit();
 		} catch (Exception e) {
 			// index might already exist or not supported, ignore safely

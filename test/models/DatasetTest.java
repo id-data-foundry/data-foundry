@@ -4,7 +4,12 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
+import java.sql.Connection;
+import java.sql.DatabaseMetaData;
+import java.sql.ResultSet;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -12,10 +17,13 @@ import org.junit.Before;
 import org.junit.Test;
 
 import datasets.DatasetConnector;
+import io.ebean.DB;
 import play.Application;
 import play.inject.guice.GuiceApplicationBuilder;
 import play.test.WithApplication;
+import models.ds.CompleteDS;
 import models.ds.EntityDS;
+import models.ds.MediaDS;
 import models.ds.TimeseriesDS;
 
 public class DatasetTest extends WithApplication {
@@ -220,5 +228,63 @@ public class DatasetTest extends WithApplication {
 		assertTrue(proj2.contains("fieldA"));
 		assertTrue(proj2.contains("fieldB"));
 		assertTrue(proj2.contains("fieldC"));
+	}
+
+	@Test
+	public void testDynamicDatasetIndexesAndMigration() throws Exception {
+		Person owner = createPerson("IndexOwner");
+		Project project = Project.create("Index Project", owner, "Intro", false, false);
+		project.save();
+
+		// 1. TimeseriesDS (IOT)
+		Dataset tsDataset = datasetConnector.create("Idx TS", DatasetType.IOT, project, "Desc", "Target", "true");
+		tsDataset.save();
+		TimeseriesDS tsds = (TimeseriesDS) datasetConnector.getDatasetDS(tsDataset);
+		assertTableHasIndex(tsds.getDataTableName(), "ts_idx");
+		assertTableHasIndex(tsds.getDataTableName(), "dev_ts_idx");
+		// Verify migration is idempotent
+		tsds.migrateDatasetSchema();
+
+		// 2. CompleteDS
+		Dataset cpDataset = datasetConnector.create("Idx CP", DatasetType.COMPLETE, project, "Desc", "Target", "true");
+		cpDataset.save();
+		CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(cpDataset);
+		assertTableHasIndex(cpds.getDataTableName(), "fn_idx");
+		assertTableHasIndex(cpds.getDataTableName(), "ts_idx");
+		cpds.migrateDatasetSchema();
+
+		// 3. EntityDS
+		Dataset enDataset = datasetConnector.create("Idx EN", DatasetType.ENTITY, project, "Desc", "Target", "true");
+		enDataset.save();
+		EntityDS eds = (EntityDS) datasetConnector.getDatasetDS(enDataset);
+		assertTableHasIndex(eds.getDataTableName(), "resource_id");
+		assertTableHasIndex(eds.getDataTableName(), "ts_idx");
+		eds.migrateDatasetSchema();
+
+		// 4. MediaDS
+		Dataset mdDataset = datasetConnector.create("Idx MD", DatasetType.MEDIA, project, "Desc", "Target", "true");
+		mdDataset.save();
+		MediaDS mds = (MediaDS) datasetConnector.getDatasetDS(mdDataset);
+		assertTableHasIndex(mds.getDataTableName(), "ts_idx");
+		assertTableHasIndex(mds.getDataTableName(), "pid_ts_idx");
+		mds.migrateDatasetSchema();
+	}
+
+	private void assertTableHasIndex(String tableName, String expectedSubstring) throws Exception {
+		try (Connection connection = DB.getDefault().dataSource().getConnection()) {
+			DatabaseMetaData meta = connection.getMetaData();
+			try (ResultSet rs = meta.getIndexInfo(null, null, tableName.toUpperCase(), false, false)) {
+				List<String> indexes = new ArrayList<>();
+				while (rs.next()) {
+					String indexName = rs.getString("INDEX_NAME");
+					if (indexName != null) {
+						indexes.add(indexName.toLowerCase());
+					}
+				}
+				assertTrue("Table " + tableName + " should contain index with '" + expectedSubstring
+						+ "', but had: " + indexes,
+						indexes.stream().anyMatch(i -> i.contains(expectedSubstring.toLowerCase())));
+			}
+		}
 	}
 }

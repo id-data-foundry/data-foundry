@@ -76,6 +76,8 @@ public class EntityDS extends LinkedDS {
 		try (Transaction transaction = DB.beginTransaction(); Connection connection = transaction.connection();) {
 			connection.createStatement().execute("CREATE INDEX IF NOT EXISTS ix_" + dataTableName + "_resource_id on "
 					+ dataTableName + " (resource_id);");
+			connection.createStatement().execute("CREATE INDEX IF NOT EXISTS " + dataTableName + "_ts_idx on "
+					+ dataTableName + " (ts);");
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("EntityDS add index problem.", e);
