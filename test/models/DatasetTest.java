@@ -5,6 +5,7 @@ import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 import java.util.Date;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.junit.Before;
@@ -14,6 +15,7 @@ import datasets.DatasetConnector;
 import play.Application;
 import play.inject.guice.GuiceApplicationBuilder;
 import play.test.WithApplication;
+import models.ds.EntityDS;
 import models.ds.TimeseriesDS;
 
 public class DatasetTest extends WithApplication {
@@ -157,5 +159,66 @@ public class DatasetTest extends WithApplication {
 
 		// Should not throw or crash, and ds.isActive() is true when start & end are null
 		assertTrue(project.isActive());
+	}
+
+	@Test
+	public void testTimeseriesQueueTracking() {
+		Person owner = createPerson("TsQueueOwner");
+		Project project = Project.create("TsQueue Project", owner, "Intro", false, false);
+		project.save();
+
+		Dataset ds = datasetConnector.create("TsQueue DS", DatasetType.IOT, project, "Desc", "Target", "true");
+		ds.save();
+
+		TimeseriesDS tsds = (TimeseriesDS) datasetConnector.getDatasetDS(ds);
+
+		// ensure clean start
+		TimeseriesDS.flushQueue();
+		assertEquals(0, TimeseriesDS.getQueueSize());
+
+		// add one record
+		tsds.internalAddRecord("device1", "pp1", "pp2", "pp3", new Date(), "activity1", play.libs.Json.newObject());
+		assertEquals(1, TimeseriesDS.getQueueSize());
+
+		// add another record
+		tsds.internalAddRecord("device1", "pp1", "pp2", "pp3", new Date(), "activity2", play.libs.Json.newObject());
+		assertEquals(2, TimeseriesDS.getQueueSize());
+
+		// flush and check size resets to 0
+		TimeseriesDS.flushQueue();
+		assertEquals(0, TimeseriesDS.getQueueSize());
+	}
+
+	@Test
+	public void testEntityDSProjectionUpdateGuard() {
+		Person owner = createPerson("EntityOwner");
+		Project project = Project.create("Entity Project", owner, "Intro", false, false);
+		project.save();
+
+		Dataset ds = datasetConnector.create("Entity DS", DatasetType.ENTITY, project, "Desc", "Target", "true");
+		ds.save();
+
+		EntityDS eds = (EntityDS) datasetConnector.getDatasetDS(ds);
+
+		// Initially, no projection
+		assertFalse(ds.getConfiguration().containsKey(Dataset.DATA_PROJECTION));
+
+		// First record: introduces fieldA and fieldB
+		eds.addItem("res1", Optional.empty(), play.libs.Json.newObject().put("fieldA", 1).put("fieldB", "val1"));
+		assertTrue(ds.getConfiguration().containsKey(Dataset.DATA_PROJECTION));
+		String proj1 = ds.getConfiguration().get(Dataset.DATA_PROJECTION);
+		assertTrue(proj1.contains("fieldA"));
+		assertTrue(proj1.contains("fieldB"));
+
+		// Second record with identical fields: should not change projection or throw
+		eds.addItem("res2", Optional.empty(), play.libs.Json.newObject().put("fieldA", 2).put("fieldB", "val2"));
+		assertEquals(proj1, ds.getConfiguration().get(Dataset.DATA_PROJECTION));
+
+		// Third record introducing a new field: fieldC
+		eds.addItem("res3", Optional.empty(), play.libs.Json.newObject().put("fieldA", 3).put("fieldC", true));
+		String proj2 = ds.getConfiguration().get(Dataset.DATA_PROJECTION);
+		assertTrue(proj2.contains("fieldA"));
+		assertTrue(proj2.contains("fieldB"));
+		assertTrue(proj2.contains("fieldC"));
 	}
 }

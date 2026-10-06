@@ -16,6 +16,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
 import org.apache.pekko.stream.QueueOfferResult;
@@ -55,6 +56,7 @@ public class TimeseriesDS extends LinkedDS {
 	 * Static queue to store records across all instances of TimeseriesDS
 	 */
 	private static final ConcurrentLinkedQueue<QueuedRecord> queue = new ConcurrentLinkedQueue<>();
+	private static final AtomicInteger queueSize = new AtomicInteger(0);
 
 	public TimeseriesDS(Dataset dataset) {
 		super(dataset);
@@ -222,7 +224,7 @@ public class TimeseriesDS extends LinkedDS {
 				data));
 
 		// flush if queue grows too large (prevent OOM during massive imports)
-		if (queue.size() > 10000) {
+		if (queueSize.incrementAndGet() > 10000) {
 			flushQueue();
 		}
 	}
@@ -245,7 +247,7 @@ public class TimeseriesDS extends LinkedDS {
 				new QueuedRecord(dataTableName, 0, pp1 == null ? spp : pp1, pp2, pp3, ts, activity, data.toString()));
 
 		// flush if queue grows too large (prevent OOM during massive imports)
-		if (queue.size() > 10000) {
+		if (queueSize.incrementAndGet() > 10000) {
 			flushQueue();
 		}
 	}
@@ -255,6 +257,7 @@ public class TimeseriesDS extends LinkedDS {
 	 */
 	public static synchronized void flushQueue() {
 		if (queue.isEmpty()) {
+			queueSize.set(0);
 			return;
 		}
 
@@ -264,6 +267,7 @@ public class TimeseriesDS extends LinkedDS {
 		while ((r = queue.poll()) != null) {
 			batch.add(r);
 		}
+		queueSize.addAndGet(-batch.size());
 
 		// group records by table name (each dataset has its own table)
 		Map<String, List<QueuedRecord>> recordsByTable = batch.stream()
@@ -298,6 +302,15 @@ public class TimeseriesDS extends LinkedDS {
 						"Error in inserting record batch in dataset " + tableName + ": " + e.getLocalizedMessage());
 			}
 		}
+	}
+
+	/**
+	 * Returns the current count of queued records across all timeseries datasets
+	 * 
+	 * @return queue size
+	 */
+	public static int getQueueSize() {
+		return queueSize.get();
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////

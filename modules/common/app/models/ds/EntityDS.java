@@ -935,13 +935,13 @@ public class EntityDS extends LinkedDS {
 
 		// retrieve the projection
 		final List<String> projection = retrieveProjection(data);
+		boolean changed = false;
 
 		// not existing? --> store it in configuration directly
 		String updatedProjection = projection.stream().collect(Collectors.joining(","));
 
 		// existing --> compare before store
 		if (ds.getConfiguration().containsKey(Dataset.DATA_PROJECTION)) {
-			boolean changed = false;
 			updatedProjection = ds.getConfiguration().get(Dataset.DATA_PROJECTION);
 			List<String> existingProjection = new ArrayList<String>(Arrays.asList(updatedProjection.split(",")));
 			for (String column : projection) {
@@ -959,8 +959,10 @@ public class EntityDS extends LinkedDS {
 		}
 
 		// store projection
-		ds.getConfiguration().put(Dataset.DATA_PROJECTION, updatedProjection);
-		ds.update();
+		if (changed || !ds.getConfiguration().containsKey(Dataset.DATA_PROJECTION)) {
+			ds.getConfiguration().put(Dataset.DATA_PROJECTION, updatedProjection);
+			ds.update();
+		}
 	}
 
 	/**
