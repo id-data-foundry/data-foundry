@@ -439,12 +439,7 @@ public class Project extends Model {
 	 * @return
 	 */
 	public boolean isActive() {
-		return datasets.stream().anyMatch(d -> {
-			if (d.getStart() == null) {
-				d.refresh();
-			}
-			return d.isActive();
-		});
+		return datasets.stream().anyMatch(d -> d.isActive());
 	}
 
 	public boolean isActiveOrHasRecentlyEnded() {

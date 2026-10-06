@@ -279,18 +279,15 @@ public class Dataset extends Model {
 	}
 
 	public boolean belongsTo(String username) {
-		getProject().refresh();
-		return getProject().belongsTo(username);
+		return getProject() != null && getProject().belongsTo(username);
 	}
 
 	public boolean collaboratesWith(String username) {
-		getProject().refresh();
-		return getProject().collaboratesWith(username);
+		return getProject() != null && getProject().collaboratesWith(username);
 	}
 
 	public boolean subscribedBy(String username) {
-		getProject().refresh();
-		return getProject().subscribedBy(username);
+		return getProject() != null && getProject().subscribedBy(username);
 	}
 
 	/**
@@ -300,8 +297,7 @@ public class Dataset extends Model {
 	 * @return
 	 */
 	public boolean visibleFor(String username) {
-		getProject().refresh();
-		return getProject().visibleFor(username);
+		return getProject() != null && getProject().visibleFor(username);
 	}
 
 	/**
@@ -311,8 +307,7 @@ public class Dataset extends Model {
 	 * @return
 	 */
 	public boolean visibleFor(Person user) {
-		getProject().refresh();
-		return getProject().visibleFor(user);
+		return getProject() != null && getProject().visibleFor(user);
 	}
 
 	/**
@@ -322,8 +317,7 @@ public class Dataset extends Model {
 	 * @return
 	 */
 	public boolean editableBy(String username) {
-		getProject().refresh();
-		return getProject().editableBy(username);
+		return getProject() != null && getProject().editableBy(username);
 	}
 
 	/**
@@ -333,8 +327,7 @@ public class Dataset extends Model {
 	 * @return
 	 */
 	public boolean editableBy(Person user) {
-		getProject().refresh();
-		return getProject().editableBy(user);
+		return getProject() != null && getProject().editableBy(user);
 	}
 
 	/**
