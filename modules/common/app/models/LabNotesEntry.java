@@ -3,6 +3,7 @@ package models;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 import io.ebean.Finder;
@@ -11,6 +12,8 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
 import utils.DateUtils;
+import datasets.DatasetConnector;
+import play.cache.SyncCacheApi;
 
 @Entity
 public class LabNotesEntry extends Model {
@@ -39,6 +42,16 @@ public class LabNotesEntry extends Model {
 	}
 
 	public static final Date lastUpdatedByProject(Long id) {
+		SyncCacheApi cache = DatasetConnector.getCache();
+		if (cache != null && id != null) {
+			Optional<Date> opt = cache.getOrElseUpdate("project_" + id + "_last_updated", () -> {
+				LabNotesEntry entry = LabNotesEntry.find.query().setMaxRows(1).where().eq("project_id", id)
+				        .orderBy("timestamp DESC").findOne();
+				return Optional.ofNullable(entry != null ? entry.timestamp : null);
+			}, 120);
+			return opt != null && opt.isPresent() ? opt.get() : null;
+		}
+
 		LabNotesEntry entry = LabNotesEntry.find.query().setMaxRows(1).where().eq("project_id", id)
 		        .orderBy("timestamp DESC").findOne();
 
@@ -46,6 +59,16 @@ public class LabNotesEntry extends Model {
 	}
 
 	public static final Date lastApproval(Long id) {
+		SyncCacheApi cache = DatasetConnector.getCache();
+		if (cache != null && id != null) {
+			Optional<Date> opt = cache.getOrElseUpdate("project_" + id + "_last_approval", () -> {
+				LabNotesEntry entry = LabNotesEntry.find.query().setMaxRows(1).where().eq("project_id", id)
+				        .eq("log_type", LabNotesEntryType.APPROVE.ordinal()).orderBy("timestamp DESC").findOne();
+				return Optional.ofNullable(entry != null ? entry.timestamp : null);
+			}, 120);
+			return opt != null && opt.isPresent() ? opt.get() : null;
+		}
+
 		LabNotesEntry entry = LabNotesEntry.find.query().setMaxRows(1).where().eq("project_id", id)
 		        .eq("log_type", LabNotesEntryType.APPROVE.ordinal()).orderBy("timestamp DESC").findOne();
 
@@ -53,6 +76,18 @@ public class LabNotesEntry extends Model {
 	}
 
 	public static final Date lastModification(Long id) {
+		SyncCacheApi cache = DatasetConnector.getCache();
+		if (cache != null && id != null) {
+			Optional<Date> opt = cache.getOrElseUpdate("project_" + id + "_last_modification", () -> {
+				LabNotesEntry entry = LabNotesEntry.find.query().setMaxRows(1).where().and().eq("project_id", id).or()
+				        .eq("log_type", LabNotesEntryType.CONFIGURE.ordinal())
+				        .eq("log_type", LabNotesEntryType.CREATE.ordinal()).eq("log_type", LabNotesEntryType.DELETE.ordinal())
+				        .eq("log_type", LabNotesEntryType.MODIFY.ordinal()).endOr().orderBy("timestamp DESC").findOne();
+				return Optional.ofNullable(entry != null ? entry.timestamp : null);
+			}, 120);
+			return opt != null && opt.isPresent() ? opt.get() : null;
+		}
+
 		LabNotesEntry entry = LabNotesEntry.find.query().setMaxRows(1).where().and().eq("project_id", id).or()
 		        .eq("log_type", LabNotesEntryType.CONFIGURE.ordinal())
 		        .eq("log_type", LabNotesEntryType.CREATE.ordinal()).eq("log_type", LabNotesEntryType.DELETE.ordinal())
@@ -81,6 +116,17 @@ public class LabNotesEntry extends Model {
 		alr.dataset = dataset;
 
 		alr.save();
+
+		if (project != null && project.getId() != null) {
+			SyncCacheApi cache = DatasetConnector.getCache();
+			if (cache != null) {
+				cache.remove("project_" + project.getId() + "_is_approved");
+				cache.remove("project_" + project.getId() + "_once_approved");
+				cache.remove("project_" + project.getId() + "_last_updated");
+				cache.remove("project_" + project.getId() + "_last_approval");
+				cache.remove("project_" + project.getId() + "_last_modification");
+			}
+		}
 	}
 
 	public static enum LabNotesEntryType {

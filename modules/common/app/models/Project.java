@@ -33,6 +33,8 @@ import play.data.format.Formats;
 import utils.DataUtils;
 import utils.DateUtils;
 import utils.rendering.TimeAgo;
+import datasets.DatasetConnector;
+import play.cache.SyncCacheApi;
 
 @Cache(enableBeanCache = true, naturalKey = { "refId" })
 @Entity
@@ -522,12 +524,25 @@ public class Project extends Model {
 	 * @return
 	 */
 	public boolean isApproved() {
+		SyncCacheApi cache = DatasetConnector.getCache();
+		if (cache != null && this.getId() != null) {
+			return cache.getOrElseUpdate("project_" + this.getId() + "_is_approved", () -> {
+				Date lastApproval = LabNotesEntry.lastApproval(this.getId());
+				if (lastApproval == null) {
+					return false;
+				}
+				Date lastMod = LabNotesEntry.lastModification(this.getId());
+				return lastMod == null || lastApproval.after(lastMod);
+			}, 120);
+		}
+
 		Date lastApproval = LabNotesEntry.lastApproval(this.getId());
 		if (lastApproval == null) {
 			return false;
 		}
 
-		return lastApproval.after(LabNotesEntry.lastModification(this.getId()));
+		Date lastMod = LabNotesEntry.lastModification(this.getId());
+		return lastMod == null || lastApproval.after(lastMod);
 	}
 
 	/**
@@ -536,6 +551,13 @@ public class Project extends Model {
 	 * @return
 	 */
 	public boolean hasOnceBeenApproved() {
+		SyncCacheApi cache = DatasetConnector.getCache();
+		if (cache != null && this.getId() != null) {
+			return cache.getOrElseUpdate("project_" + this.getId() + "_once_approved", () -> {
+				return LabNotesEntry.lastApproval(this.getId()) != null;
+			}, 120);
+		}
+
 		return LabNotesEntry.lastApproval(this.getId()) != null;
 	}
 
