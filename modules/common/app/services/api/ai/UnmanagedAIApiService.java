@@ -137,8 +137,10 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+	public static final int REFRESH_PROBE_TIMEOUT_MS = 10_000;
+
 	protected RemoteApiRequest createModelsRequestForRefresh() {
-		return new RemoteApiRequest(REQUEST_TASK_MODELS, ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS, "SYSTEM",
+		return new RemoteApiRequest(REQUEST_TASK_MODELS, REFRESH_PROBE_TIMEOUT_MS, "SYSTEM",
 				getInternalDocumentationAPIKey(), -1L);
 	}
 
@@ -148,64 +150,73 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 			return;
 		}
 
-		// start request to discover available models
+		// start request to discover available models asynchronously without blocking threads
 		try {
 			RemoteApiRequest internalAPIRequest = createModelsRequestForRefresh();
 
-			// submit and wait for timeout
-			submitApiRequest(internalAPIRequest).get(ApiServiceConstants.API_REQUEST_DEFAULT_TIMEOUT_MS,
-					TimeUnit.MILLISECONDS);
+			submitApiRequest(internalAPIRequest).thenAccept(v -> {
+				try {
+					// ok, parse and make a mapping data structure
+					String modelJson = internalAPIRequest.getResult();
+					if (modelJson == null || modelJson.trim().isEmpty()) {
+						throw new IllegalStateException("Empty response from AI backend");
+					}
 
-			// ok, parse and make a mapping data structure
-			String modelJson = internalAPIRequest.getResult();
-			if (modelJson == null || modelJson.trim().isEmpty()) {
-				throw new IllegalStateException("Empty response from AI backend");
-			}
+					String errorMsg = extractErrorMessageIfPresent(modelJson);
+					if (errorMsg != null) {
+						throw new IllegalStateException(errorMsg);
+					}
 
-			String errorMsg = extractErrorMessageIfPresent(modelJson);
-			if (errorMsg != null) {
-				throw new IllegalStateException(errorMsg);
-			}
+					boolean modelsLoaded = localModelMetadata.updateModels(modelJson);
+					if (!modelsLoaded) {
+						throw new IllegalStateException("No models returned by AI backend");
+					}
 
-			boolean modelsLoaded = localModelMetadata.updateModels(modelJson);
-			if (!modelsLoaded) {
-				throw new IllegalStateException("No models returned by AI backend");
-			}
+					// additionally ping endpoints for capabilities
+					pingEndpoint("/chat/completions").thenAccept(localModelMetadata::setTextToTextAvailable);
+					pingEndpoint("/images/generations").thenAccept(localModelMetadata::setTextToImageAvailable);
+					pingEndpoint("/audio/transcriptions").thenAccept(localModelMetadata::setSpeechToTextAvailable);
+					pingEndpoint("/audio/speech").thenAccept(localModelMetadata::setTextToSpeechAvailable);
 
-			// additionally ping endpoints for capabilities
-			pingEndpoint("/chat/completions").thenAccept(localModelMetadata::setTextToTextAvailable);
-			pingEndpoint("/images/generations").thenAccept(localModelMetadata::setTextToImageAvailable);
-			pingEndpoint("/audio/transcriptions").thenAccept(localModelMetadata::setSpeechToTextAvailable);
-			pingEndpoint("/audio/speech").thenAccept(localModelMetadata::setTextToSpeechAvailable);
-
-			// Success! Reset consecutive failure counter and check for recovery transition
-			consecutiveFailures.set(0);
-			if (isAiOnline.compareAndSet(false, true)) {
-				logger.info("✅ AI backend at " + aiBaseUrl + " is back ONLINE");
-				if (alertOnRecovery && notificationService != null) {
-					notificationService.send(NotificationMessage.builder().title("AI Service Online")
-							.message("AI service at " + aiBaseUrl + " has recovered and is now reachable.")
-							.level(NotificationLevel.INFO).tag("robot").tag("white_check_mark").build());
+					// Success! Reset consecutive failure counter and check for recovery transition
+					consecutiveFailures.set(0);
+					if (isAiOnline.compareAndSet(false, true)) {
+						logger.info("✅ AI backend at " + aiBaseUrl + " is back ONLINE");
+						if (alertOnRecovery && notificationService != null) {
+							notificationService.send(NotificationMessage.builder().title("AI Service Online")
+									.message("AI service at " + aiBaseUrl + " has recovered and is now reachable.")
+									.level(NotificationLevel.INFO).tag("robot").tag("white_check_mark").build());
+						}
+					}
+				} catch (Exception e) {
+					handleRefreshFailure(e);
 				}
-			}
+			}).exceptionally(e -> {
+				handleRefreshFailure(e);
+				return null;
+			});
 
 		} catch (Exception e) {
-			logger.error("❌ Failed to fetch models from AI backend: " + e.getMessage());
-			if (e.getMessage() != null && e.getMessage().contains("401")) {
-				logger.warn("⚠️ HTTP 401 Unauthorized received from AI backend. Please verify that "
-						+ ConfigurationUtils.DF_AI_API_KEY + " is configured with a valid API key.");
-			}
-			localModelMetadata.clearModels();
+			handleRefreshFailure(e);
+		}
+	}
 
-			int failures = consecutiveFailures.incrementAndGet();
-			if (failures >= failureThreshold && isAiOnline.compareAndSet(true, false)) {
-				logger.warn("🚨 AI backend at " + aiBaseUrl + " marked OFFLINE after " + failures + " failures");
-				if (alertOnOffline && notificationService != null) {
-					notificationService.send(NotificationMessage.builder().title("AI Service Offline")
-							.message("AI service at " + aiBaseUrl + " is unreachable (failures: " + failures + "): "
-									+ e.getMessage())
-							.level(NotificationLevel.CRITICAL).tag("robot").tag("warning").tag("plug").build());
-				}
+	private void handleRefreshFailure(Throwable e) {
+		logger.error("❌ Failed to fetch models from AI backend: " + e.getMessage());
+		if (e.getMessage() != null && e.getMessage().contains("401")) {
+			logger.warn("⚠️ HTTP 401 Unauthorized received from AI backend. Please verify that "
+					+ ConfigurationUtils.DF_AI_API_KEY + " is configured with a valid API key.");
+		}
+		localModelMetadata.clearModels();
+
+		int failures = consecutiveFailures.incrementAndGet();
+		if (failures >= failureThreshold && isAiOnline.compareAndSet(true, false)) {
+			logger.warn("🚨 AI backend at " + aiBaseUrl + " marked OFFLINE after " + failures + " failures");
+			if (alertOnOffline && notificationService != null) {
+				notificationService.send(NotificationMessage.builder().title("AI Service Offline")
+						.message("AI service at " + aiBaseUrl + " is unreachable (failures: " + failures + "): "
+								+ e.getMessage())
+						.level(NotificationLevel.CRITICAL).tag("robot").tag("warning").tag("plug").build());
 			}
 		}
 	}

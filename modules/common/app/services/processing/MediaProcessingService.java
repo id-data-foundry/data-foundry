@@ -11,6 +11,7 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.opendataloader.pdf.api.OpenDataLoaderPDF;
@@ -28,6 +29,9 @@ import utils.conf.ConfigurationUtils;
 public class MediaProcessingService {
 
 	public static final int EXPIRATION_TIMEOUT_SECS = 60 * 60 * 12;
+	public static final int PROCESS_TIMEOUT_MINUTES = 10;
+	public static final int FFMPEG_TIMEOUT_MINUTES = 2;
+	public static final int ESPEAK_TIMEOUT_SECONDS = 60;
 
 	private final String PYTHON_INTERPRETER;
 
@@ -82,29 +86,31 @@ public class MediaProcessingService {
 		} catch (InterruptedException e) {
 		}
 
-		if (!inputFile.exists()) {
-			return "[ERROR] File missing.";
+		try {
+			if (!inputFile.exists()) {
+				return "[ERROR] File missing.";
+			}
+
+			// check file type and route request
+			String result = "";
+			if (type.startsWith("image/")) {
+				// process image
+				result = processImage(inputFile, language, user, internalToken);
+			} else if (type.startsWith("application/pdf")) {
+				// process PDF file
+				result = processPDF(inputFile, user, internalToken);
+			} else if (type.startsWith("text/")) {
+				// process text or markdown file
+				result = processText(inputFile, user, internalToken);
+			} else {
+				// now we know that the engine can work with the files
+				result = processAudio(inputFile, language, user, internalToken);
+			}
+
+			return result;
+		} finally {
+			jobTickets.release();
 		}
-
-		// check file type and route request
-		String result = "";
-		if (type.startsWith("image/")) {
-			// process image
-			result = processImage(inputFile, language, user, internalToken);
-		} else if (type.startsWith("application/pdf")) {
-			// process PDF file
-			result = processPDF(inputFile, user, internalToken);
-		} else if (type.startsWith("text/")) {
-			// process text or markdown file
-			result = processText(inputFile, user, internalToken);
-		} else {
-			// now we know that the engine can work with the files
-			result = processAudio(inputFile, language, user, internalToken);
-		}
-
-		jobTickets.release();
-
-		return result;
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -136,6 +142,7 @@ public class MediaProcessingService {
 
 		StringBuilder sb = new StringBuilder();
 		ProcessBuilder pb = new ProcessBuilder(command);
+		pb.redirectErrorStream(true);
 		logger.info("OCR calling: " + pb.command().stream().collect(Collectors.joining(" ")) + " in directory "
 				+ (pb.directory() != null ? pb.directory().getAbsolutePath() : "?") + "...");
 		try {
@@ -148,7 +155,11 @@ public class MediaProcessingService {
 				// update cache for independent retrieval
 				cache.set(internalToken, sb.toString(), EXPIRATION_TIMEOUT_SECS);
 			}
-			p.waitFor();
+			if (!p.waitFor(PROCESS_TIMEOUT_MINUTES, TimeUnit.MINUTES)) {
+				p.destroyForcibly();
+				logger.error("OCR process timed out and was forcibly destroyed");
+				sb.append("\nThe OCR engine process timed out.");
+			}
 		} catch (IOException | InterruptedException e) {
 			logger.error("OCR problem I/O or Interrupted Exception", e);
 			sb.append("The OCR engine reported an I/O error.");
@@ -326,6 +337,7 @@ public class MediaProcessingService {
 			final String[] command = new String[] { PYTHON_INTERPRETER, script, canonicalWavFile.getAbsolutePath() };
 
 			ProcessBuilder pb = new ProcessBuilder(command);
+			pb.redirectErrorStream(true);
 			logger.info("SpeechToText calling (" + language + "): "
 					+ pb.command().stream().collect(Collectors.joining(" ")) + " in directory "
 					+ (pb.directory() != null ? pb.directory().getAbsolutePath() : "?") + "...");
@@ -339,7 +351,11 @@ public class MediaProcessingService {
 					// update cache for independent retrieval
 					cache.set(internalToken, sb.toString(), EXPIRATION_TIMEOUT_SECS);
 				}
-				p.waitFor();
+				if (!p.waitFor(PROCESS_TIMEOUT_MINUTES, TimeUnit.MINUTES)) {
+					p.destroyForcibly();
+					logger.error("SpeechToText process timed out and was forcibly destroyed");
+					sb.append("\nThe speech detection engine process timed out.");
+				}
 			} catch (IOException | InterruptedException e) {
 				logger.error("SpeechToText problem I/O or Interrupted Exception", e);
 				sb.append("The speech detection engine reported an I/O error.");
@@ -387,11 +403,16 @@ public class MediaProcessingService {
 				outputFile.getAbsolutePath() };
 
 		ProcessBuilder pb = new ProcessBuilder(command);
+		pb.redirectErrorStream(true);
 		logger.info("Speech generation calling: " + pb.command().stream().collect(Collectors.joining(" "))
 				+ " in directory " + (pb.directory() != null ? pb.directory().getAbsolutePath() : "?") + "...");
 		try {
 			Process p = pb.start();
-			p.waitFor();
+			if (!p.waitFor(ESPEAK_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+				p.destroyForcibly();
+				logger.error("Speech generation process timed out and was forcibly destroyed");
+				throw new IOException("Speech generation process timed out");
+			}
 		} catch (IOException | InterruptedException e) {
 			logger.error("Speech generation problem I/O or Interrupted Exception", e);
 			throw e;
@@ -418,13 +439,17 @@ public class MediaProcessingService {
 				resultFileName.getAbsolutePath() };
 
 		ProcessBuilder pb = new ProcessBuilder(command);
+		pb.redirectErrorStream(true);
 
 		logger.info("SpeechToText calling: " + pb.command().stream().collect(Collectors.joining(" ")) + " in directory "
 				+ (pb.directory() != null ? pb.directory().getAbsolutePath() : "?") + "...");
 
 		try {
 			Process p = pb.start();
-			p.waitFor();
+			if (!p.waitFor(FFMPEG_TIMEOUT_MINUTES, TimeUnit.MINUTES)) {
+				p.destroyForcibly();
+				logger.error("SpeechToText ffmpeg process timed out and was forcibly destroyed");
+			}
 		} catch (IOException | InterruptedException e) {
 			logger.error("SpeechToText ffmpeg problem I/O or Interrupted Exception", e);
 		} catch (Exception e) {

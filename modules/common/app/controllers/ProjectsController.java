@@ -14,6 +14,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import javax.inject.Inject;
@@ -1677,6 +1678,7 @@ public class ProjectsController extends AbstractAsyncController {
 		Person user = getAuthenticatedUserOrReturn(request,
 				redirect(routes.HomeController.logout()).addingToSession(request, "error", "User not found."));
 
+		long start = System.currentTimeMillis();
 		return CompletableFuture.<Result>supplyAsync(() -> {
 			// check if project exists
 			Project project = Project.find.byId(id);
@@ -1722,12 +1724,6 @@ public class ProjectsController extends AbstractAsyncController {
 					.map(s -> df.get(s)).collect(Collectors.toList());
 			List<Dataset> datasetsToExport = utils.DatasetUtils.scriptsExcluded(project.getOperationalDatasets())
 					.stream().filter(ds -> datasetIds.contains(ds.getId().toString())).collect(Collectors.toList());
-
-			try {
-				// just sleep to allow for the user to see the progress bar
-				Thread.sleep(2000);
-			} catch (InterruptedException e) {
-			}
 
 			// check export option
 			String exportOption = (String) df.value("exportOption").orElse("export");
@@ -1787,7 +1783,15 @@ public class ProjectsController extends AbstractAsyncController {
 						<div hx-get="%s" hx-trigger="every 500ms" hx-swap="innerHTML"></div>
 						""".formatted(routes.ProjectsController.publishStatus(token, id)));
 			}
-		}, databaseExecutionContext);
+		}, databaseExecutionContext).thenCompose(result -> {
+			long elapsed = System.currentTimeMillis() - start;
+			long remaining = Math.max(0, 2000 - elapsed);
+			if (remaining > 0) {
+				return CompletableFuture.supplyAsync(() -> result,
+						CompletableFuture.delayedExecutor(remaining, TimeUnit.MILLISECONDS));
+			}
+			return CompletableFuture.completedFuture(result);
+		});
 	}
 
 	/**

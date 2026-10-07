@@ -530,12 +530,6 @@ public class JSActor implements ApiServiceConstants {
 		long runtimeDuration = System.currentTimeMillis() - start;
 		if (runtimeDuration >= 800) {
 			logger.info("Script executed in " + runtimeDuration + "ms for " + owner + " (" + getDatasetId() + ")");
-		} else {
-			try {
-				Thread.sleep(800 - runtimeDuration);
-			} catch (Exception e) {
-				// do nothing
-			}
 		}
 
 		// release the lock

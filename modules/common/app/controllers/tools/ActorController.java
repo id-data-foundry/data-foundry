@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import com.google.inject.Inject;
@@ -163,7 +164,16 @@ public class ActorController extends AbstractAsyncController {
 				ds.getProject(), ds);
 
 		final JSActor finalActor = actor;
-		return CompletableFuture.supplyAsync(() -> finalActor.runTrial(code)).thenApplyAsync(output -> ok(output));
+		long start = System.currentTimeMillis();
+		return CompletableFuture.supplyAsync(() -> finalActor.runTrial(code)).thenCompose(output -> {
+			long elapsed = System.currentTimeMillis() - start;
+			long remainingDelay = Math.max(0, 800 - elapsed);
+			if (remainingDelay > 0) {
+				return CompletableFuture.supplyAsync(() -> ok(output),
+						CompletableFuture.delayedExecutor(remainingDelay, TimeUnit.MILLISECONDS));
+			}
+			return CompletableFuture.completedFuture(ok(output));
+		});
 	}
 
 	@RequireCSRFCheck
