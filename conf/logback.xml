@@ -15,10 +15,16 @@
   </appender>
 
   <appender name="ASYNCFILE" class="ch.qos.logback.classic.AsyncAppender">
+    <queueSize>8192</queueSize>
+    <discardingThreshold>0</discardingThreshold>
+    <neverBlock>true</neverBlock>
     <appender-ref ref="FILE" />
   </appender>
 
   <appender name="ASYNCSTDOUT" class="ch.qos.logback.classic.AsyncAppender">
+    <queueSize>8192</queueSize>
+    <discardingThreshold>0</discardingThreshold>
+    <neverBlock>true</neverBlock>
     <appender-ref ref="STDOUT" />
   </appender>
 
@@ -26,9 +32,9 @@
   <logger name="play.core.server" level="ERROR" />
   <logger name="application" level="INFO" />
   <logger name="models" level="INFO" />
-  <logger name="controllers" level="TRACE" />
-  <logger name="services" level="TRACE" />
-  <logger name="utils" level="TRACE" />
+  <logger name="controllers" level="INFO" />
+  <logger name="services" level="INFO" />
+  <logger name="utils" level="INFO" />
   <logger name="org.pac4j.core" level="INFO" />
   <logger name="org.pac4j.oidc" level="INFO" />
 
