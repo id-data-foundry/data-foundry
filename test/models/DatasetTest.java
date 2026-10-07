@@ -8,10 +8,18 @@ import java.sql.Connection;
 import java.sql.DatabaseMetaData;
 import java.sql.ResultSet;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+
+import org.apache.pekko.Done;
+import org.apache.pekko.stream.QueueOfferResult;
+import org.apache.pekko.stream.javadsl.SourceQueueWithComplete;
+import org.apache.pekko.util.ByteString;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -311,6 +319,84 @@ public class DatasetTest extends WithApplication {
 		assertEquals(1, ds.getItemCount());
 		assertTrue(DatasetConnector.getCache().get("table_count_" + tableName).isPresent());
 		assertEquals(1L, (long) (Long) DatasetConnector.getCache().get("table_count_" + tableName).get());
+	}
+
+	@Test
+	public void testTimeseriesExportChunkBatching() {
+		Person user = createPerson("ExportBatch");
+		Project project = Project.create("Export Batch Project", user, "Intro", false, false);
+		project.save();
+
+		Dataset ds = datasetConnector.create("Export Batch DS", DatasetType.IOT, project, "Desc", "Target", "true");
+		ds.save();
+		TimeseriesDS tsds = (TimeseriesDS) datasetConnector.getDatasetDS(ds);
+
+		// Add 600 records (spanning > 2 chunks of 256)
+		Date now = new Date();
+		for (int i = 0; i < 600; i++) {
+			tsds.internalAddRecord("device1", "p" + i, "q" + i, "r" + i, new Date(now.getTime() + i * 1000L),
+					"activity_" + i, play.libs.Json.newObject());
+		}
+		TimeseriesDS.flushQueue();
+		assertEquals(600, ds.getItemCount());
+
+		// 1. Raw export test
+		CapturingQueue queue = new CapturingQueue();
+		tsds.export(queue, Collections.emptyList(), -1, -1, -1);
+
+		// Expected chunks: 1 header chunk + ceil(600 / 256) = 3 data chunks -> total 4 chunks
+		assertEquals(4, queue.chunks.size());
+		assertTrue(queue.chunks.get(0).utf8String().startsWith("id,device_id,ts"));
+
+		// Count total data lines across all chunks
+		StringBuilder allExported = new StringBuilder();
+		for (ByteString chunk : queue.chunks) {
+			allExported.append(chunk.utf8String());
+		}
+		String[] lines = allExported.toString().split("\n");
+		// 1 header line + 600 data lines = 601 lines
+		assertEquals(601, lines.length);
+
+		// 2. Projected export test
+		ds.getConfiguration().put(Dataset.DATA_PROJECTION, "field1,field2");
+		ds.save();
+
+		CapturingQueue projQueue = new CapturingQueue();
+		tsds.exportProjected(projQueue, Collections.emptyList(), -1, -1, -1);
+		assertEquals(4, projQueue.chunks.size());
+		assertTrue(projQueue.chunks.get(0).utf8String().startsWith("id,device_id,ts,activity,pp1,pp2,pp3,field1,field2"));
+
+		StringBuilder allProjExported = new StringBuilder();
+		for (ByteString chunk : projQueue.chunks) {
+			allProjExported.append(chunk.utf8String());
+		}
+		String[] projLines = allProjExported.toString().split("\n");
+		assertEquals(601, projLines.length);
+	}
+
+	private static class CapturingQueue implements SourceQueueWithComplete<ByteString> {
+		final List<ByteString> chunks = new ArrayList<>();
+		boolean completed = false;
+
+		@Override
+		public CompletionStage<QueueOfferResult> offer(ByteString elem) {
+			chunks.add(elem);
+			return CompletableFuture.completedFuture(QueueOfferResult.enqueued());
+		}
+
+		@Override
+		public void complete() {
+			completed = true;
+		}
+
+		@Override
+		public void fail(Throwable ex) {
+		}
+
+		@Override
+		public CompletionStage<Done> watchCompletion() {
+			return CompletableFuture.completedFuture(Done.done());
+		}
 	}
 
 	private void assertTableHasIndex(String tableName, String expectedSubstring) throws Exception {

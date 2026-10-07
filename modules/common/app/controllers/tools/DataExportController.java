@@ -1,6 +1,7 @@
 package controllers.tools;
 
 import java.sql.Clob;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
@@ -13,10 +14,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
+import org.apache.pekko.stream.QueueOfferResult;
 import org.apache.pekko.stream.javadsl.Source;
 import org.apache.pekko.util.ByteString;
 
@@ -552,96 +555,127 @@ public class DataExportController extends AbstractAsyncController {
 
 				try {
 					SqlQuery createSqlQuery = DB.sqlQuery(sql.toString());
-					List<SqlRow> lsr = createSqlQuery.findList();
+					AtomicBoolean headerSent = new AtomicBoolean(false);
+					StringBuilder batch = new StringBuilder();
+					int[] count = new int[] { 0 };
 
-					StringBuffer csv = new StringBuffer();
-					if (lsr.size() > 0) {
-						// header
-						for (String key : lsr.get(0).keySet()) {
-							if (key.equals("data")) {
-								csv.append(projection.stream().collect(Collectors.joining(",")) + ",");
-							} else {
-								csv.append(key + ",");
-							}
-						}
-						sourceActor.offer(ByteString.fromString(csv.toString() + "\n")).toCompletableFuture().get();
-
-						// loop through results
-						for (SqlRow sqlRow : lsr) {
-							csv = new StringBuffer();
+					createSqlQuery.findEachWhile(sqlRow -> {
+						if (!headerSent.get()) {
+							StringBuilder header = new StringBuilder();
 							for (String key : sqlRow.keySet()) {
-								// timestamp data needs datetime format
-								if (key.equals("ts")) {
-									Timestamp timestamp = sqlRow.getTimestamp(key);
-									if (timestamp != null) {
-										csv.append(tsExportFormatter.format(timestamp) + ",");
-									} else {
-										csv.append(",");
-									}
+								if (key.equals("data")) {
+									header.append(projection.stream().collect(Collectors.joining(","))).append(",");
+								} else {
+									header.append(key).append(",");
 								}
-								// textual data needs quotes
-								else if (key.equals("title") || key.equals("text") || key.equals("description")) {
-									// parse data as JSON
-									Object o = sqlRow.get(key);
+							}
+							header.append("\n");
+							batch.append(header);
+							headerSent.set(true);
+						}
 
-									// check object for Clob
-									final String data;
-									if (o instanceof Clob) {
-										Clob clob = (Clob) o;
-										data = clob.getSubString(1, (int) clob.length());
-									} else if (o != null) {
-										data = o.toString();
-									} else {
-										data = sqlRow.getString(key);
-									}
-									csv.append(cf(data) + ",");
+						StringBuilder rowCsv = new StringBuilder();
+						for (String key : sqlRow.keySet()) {
+							// timestamp data needs datetime format
+							if (key.equals("ts")) {
+								Timestamp timestamp = sqlRow.getTimestamp(key);
+								if (timestamp != null) {
+									rowCsv.append(tsExportFormatter.format(timestamp)).append(",");
+								} else {
+									rowCsv.append(",");
 								}
-								// JSON data needs unpacking
-								else if (key.equals("data")) {
-									// parse data as JSON
-									Object o = sqlRow.get(key);
+							}
+							// textual data needs quotes
+							else if (key.equals("title") || key.equals("text") || key.equals("description")) {
+								// parse data as JSON
+								Object o = sqlRow.get(key);
 
-									// check object
-									final String data;
-									if (o instanceof Clob) {
-										Clob clob = (Clob) o;
+								// check object for Clob
+								String data = "";
+								if (o instanceof Clob) {
+									Clob clob = (Clob) o;
+									try {
 										data = clob.getSubString(1, (int) clob.length());
-									} else if (o != null) {
-										data = o.toString();
-									} else {
+									} catch (SQLException e) {
+										data = "";
+									}
+								} else if (o != null) {
+									data = o.toString();
+								} else {
+									data = sqlRow.getString(key);
+								}
+								rowCsv.append(cf(data)).append(",");
+							}
+							// JSON data needs unpacking
+							else if (key.equals("data")) {
+								// parse data as JSON
+								Object o = sqlRow.get(key);
+
+								// check object
+								String data = "{}";
+								if (o instanceof Clob) {
+									Clob clob = (Clob) o;
+									try {
+										data = clob.getSubString(1, (int) clob.length());
+									} catch (SQLException e) {
 										data = "{}";
 									}
+								} else if (o != null) {
+									data = o.toString();
+								}
 
-									JsonNode tempObject;
-									try {
-										JsonNode jn = Json.parse(data);
-										tempObject = (jn == null || !jn.isObject()) ? Json.newObject() : jn;
-									} catch (Exception e) {
-										// something went wrong with the parsing of "data" data
-										tempObject = Json.newObject();
+								JsonNode tempObject;
+								try {
+									JsonNode jn = Json.parse(data);
+									tempObject = (jn == null || !jn.isObject()) ? Json.newObject() : jn;
+								} catch (Exception e) {
+									// something went wrong with the parsing of "data" data
+									tempObject = Json.newObject();
+								}
+
+								final JsonNode on = tempObject;
+								// iterate through values
+								String values = projection.stream().map(s -> {
+									JsonNode value = on.get(s);
+									if (value != null) {
+										return value.toString();
+									} else {
+										return "";
 									}
-
-									final JsonNode on = tempObject;
-									// iterate through values
-									String values = projection.stream().map(s -> {
-										JsonNode value = on.get(s);
-										if (value != null) {
-											return value.toString();
-										} else {
-											return "";
-										}
-									}).collect(Collectors.joining(","));
-									csv.append(values);
-									csv.append(",");
-								}
-								// other data just falls into place (no "null" string though)
-								else {
-									String obj = sqlRow.getString(key);
-									csv.append((obj != null ? obj : "") + ",");
-								}
+								}).collect(Collectors.joining(","));
+								rowCsv.append(values);
+								rowCsv.append(",");
 							}
-							sourceActor.offer(ByteString.fromString(csv.toString() + "\n")).toCompletableFuture().get();
+							// other data just falls into place (no "null" string though)
+							else {
+								String obj = sqlRow.getString(key);
+								rowCsv.append((obj != null ? obj : "")).append(",");
+							}
 						}
+						rowCsv.append("\n");
+						batch.append(rowCsv);
+
+						count[0]++;
+						if (count[0] >= 256) {
+							try {
+								QueueOfferResult res = sourceActor
+										.offer(ByteString.fromString(batch.toString())).toCompletableFuture().get();
+								batch.setLength(0);
+								count[0] = 0;
+								if (!QueueOfferResult.enqueued().equals(res)) {
+									return false;
+								}
+							} catch (Exception e) {
+								logger.error("Error streaming export chunk", e);
+								return false;
+							}
+						}
+						return true;
+					});
+
+					// Flush remaining buffered rows
+					if (batch.length() > 0) {
+						sourceActor.offer(ByteString.fromString(batch.toString())).toCompletableFuture().get();
 					}
 				} catch (Exception e) {
 					logger.error("Data export error", e);

@@ -354,22 +354,32 @@ public class TimeseriesDS extends LinkedDS {
 							.toCompletableFuture().get())) {
 				return;
 			}
+			StringBuilder chunk = new StringBuilder();
+			int rowCount = 0;
 			while (rs.next()) {
-				StringBuffer sb = new StringBuffer();
-				sb.append(rs.getLong(1) + ",");
-				sb.append(rs.getLong(2) + ",");
-				sb.append(tsExportFormatter.format(rs.getTimestamp(3)) + ",");
-				sb.append(rs.getString(4) + ",");
-				sb.append(rs.getString(5) + ",");
-				sb.append(rs.getString(6) + ",");
-				sb.append(rs.getString(7) + ",");
-				sb.append(rs.getString(8));
-				sb.append("\n");
+				chunk.append(rs.getLong(1)).append(",");
+				chunk.append(rs.getLong(2)).append(",");
+				chunk.append(tsExportFormatter.format(rs.getTimestamp(3))).append(",");
+				chunk.append(rs.getString(4)).append(",");
+				chunk.append(rs.getString(5)).append(",");
+				chunk.append(rs.getString(6)).append(",");
+				chunk.append(rs.getString(7)).append(",");
+				chunk.append(rs.getString(8)).append("\n");
 
-				if (!QueueOfferResult.enqueued().equals(
-						destinationQueue.offer(ByteString.fromString(sb.toString())).toCompletableFuture().get())) {
-					break;
+				rowCount++;
+				if (rowCount >= 256) {
+					if (!QueueOfferResult.enqueued().equals(
+							destinationQueue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get())) {
+						chunk.setLength(0);
+						break;
+					}
+					chunk.setLength(0);
+					rowCount = 0;
 				}
+			}
+
+			if (chunk.length() > 0) {
+				destinationQueue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get();
 			}
 
 			transaction.commit();
@@ -422,15 +432,16 @@ public class TimeseriesDS extends LinkedDS {
 				return;
 			}
 
+			StringBuilder chunk = new StringBuilder();
+			int rowCount = 0;
 			while (rs.next()) {
-				StringBuffer sb = new StringBuffer();
-				sb.append(rs.getLong(1) + ",");
-				sb.append(rs.getLong(2) + ",");
-				sb.append(tsExportFormatter.format(rs.getTimestamp(3)) + ",");
-				sb.append(cf(rs.getString(4)) + ",");
-				sb.append(cf(rs.getString(5)) + ",");
-				sb.append(cf(rs.getString(6)) + ",");
-				sb.append(cf(rs.getString(7)) + ",");
+				chunk.append(rs.getLong(1)).append(",");
+				chunk.append(rs.getLong(2)).append(",");
+				chunk.append(tsExportFormatter.format(rs.getTimestamp(3))).append(",");
+				chunk.append(cf(rs.getString(4))).append(",");
+				chunk.append(cf(rs.getString(5))).append(",");
+				chunk.append(cf(rs.getString(6))).append(",");
+				chunk.append(cf(rs.getString(7))).append(",");
 
 				// parse data as JSON
 				String data = rs.getString(8);
@@ -451,23 +462,34 @@ public class TimeseriesDS extends LinkedDS {
 							return "";
 						}
 					}).collect(Collectors.joining(","));
-					sb.append(values);
-					sb.append("\n");
+					chunk.append(values);
+					chunk.append("\n");
 
 				} catch (Exception e) {
 					// log potential parsing exceptions
 					logger.error("Error in parsing Json in dataset record to export.", e);
 
 					// log the problematic line still
-					sb.append(cf(data));
-					sb.append("\n");
+					chunk.append(cf(data));
+					chunk.append("\n");
 				}
 
-				if (!QueueOfferResult.enqueued().equals(
-						destinationQueue.offer(ByteString.fromString(sb.toString())).toCompletableFuture().get())) {
-					break;
+				rowCount++;
+				if (rowCount >= 256) {
+					if (!QueueOfferResult.enqueued().equals(
+							destinationQueue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get())) {
+						chunk.setLength(0);
+						break;
+					}
+					chunk.setLength(0);
+					rowCount = 0;
 				}
 			}
+
+			if (chunk.length() > 0) {
+				destinationQueue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get();
+			}
+
 			transaction.commit();
 		} catch (Exception e) {
 			logger.error("Error in exporting dataset.", e);
