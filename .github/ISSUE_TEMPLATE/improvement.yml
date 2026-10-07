@@ -1,0 +1,37 @@
+name: Improvement
+description: Suggest an improvement to an already existing Data Foundry feature, functionality or component.
+title: "[Improvement]: "
+labels: ["improvement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This issue describes an **improvement** to an already existing Data Foundry feature, functionality or component. Thanks for helping make it better!
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Provide a small summary of the improvement to Data Foundry.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Describe what feature needs to be improved and why it needs improvement.
+    validations:
+      required: true
+  - type: textarea
+    id: improvement
+    attributes:
+      label: Improvement
+      description: Describe what needs to be improved.
+    validations:
+      required: true
+  - type: textarea
+    id: implementation
+    attributes:
+      label: Implementation
+      description: Describe what has to be done to improve this feature.
+    validations:
+      required: false

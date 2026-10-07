@@ -1,0 +1,55 @@
+name: Bug Report
+description: Report a bug that plagues Data Foundry.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This issue describes a **bug** that plagues Data Foundry. Thanks for taking the time to report it!
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Provide a brief description of the issue you are encountering.
+    validations:
+      required: true
+  - type: textarea
+    id: expected-behaviour
+    attributes:
+      label: Expected Behaviour
+      description: What should be happening?
+    validations:
+      required: true
+  - type: textarea
+    id: faulty-behaviour
+    attributes:
+      label: Faulty Behaviour
+      description: What is happening?
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What are you running Data Foundry on? Any peculiarities?
+    validations:
+      required: false
+  - type: textarea
+    id: steps-to-reproduce
+    attributes:
+      label: Steps to Reproduce
+      description: What did you do for this to happen?
+      placeholder: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+  - type: textarea
+    id: possible-solution
+    attributes:
+      label: Possible Solution
+      description: Do you have an idea what might be going wrong and how to fix this? How can this be achieved?
+    validations:
+      required: false
