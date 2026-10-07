@@ -27,6 +27,9 @@
   <div class="col s12">
     <h5>Project timeline</h5>
   </div>
+  <div id="timelineProgress" class="progress" style="margin: 20px 0;">
+    <div class="indeterminate"></div>
+  </div>
   <div id="projectFlowContainer" class="col s12" style="display: none; height: calc(200px+@{p.getAllDatasets().size() * 25 + 100}px); overflow: scroll;">
     <div class="mermaid">
       gantt
@@ -196,10 +199,25 @@
       hx-trigger="load"></div>
   </div>
 </div>
-<script src="@routes.Assets.versioned("javascripts/mermaid.min.js")" type="text/javascript"></script>
-<script>
+@elements.mermaidHelper()
+<script type="text/javascript">
     document.addEventListener("DOMContentLoaded", (event) => {
-      document.querySelector('#projectFlowContainer').style.display = 'block';
+      ensureMermaidLoaded(function() {
+        const flowContainer = document.getElementById('projectFlowContainer');
+        const progress = document.getElementById('timelineProgress');
+        const mermaidNode = flowContainer ? flowContainer.querySelector('.mermaid') : null;
+        if (mermaidNode) {
+          window.mermaid.run({
+            nodes: [mermaidNode]
+          }).then(function() {
+            if (progress) progress.style.display = 'none';
+            if (flowContainer) flowContainer.style.display = 'block';
+          }).catch(function() {
+            if (progress) progress.style.display = 'none';
+            if (flowContainer) flowContainer.style.display = 'block';
+          });
+        }
+      });
     });
 </script>
 }

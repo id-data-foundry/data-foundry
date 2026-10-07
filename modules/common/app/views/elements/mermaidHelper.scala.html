@@ -1,0 +1,58 @@
+@()
+
+@* Reusable lazy-loaded Mermaid script loader with progress indicator support *@
+<script type="text/javascript">
+  function ensureMermaidLoaded(onReady) {
+    if (window.mermaid) {
+      if (onReady) onReady();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = '@routes.Assets.versioned("javascripts/mermaid.min.js")';
+    script.type = 'text/javascript';
+    script.onload = function() {
+      window.mermaid.initialize({
+        startOnLoad: false,
+        theme: 'default',
+        securityLevel: 'loose'
+      });
+      if (onReady) onReady();
+    };
+    document.body.appendChild(script);
+  }
+
+  function toggleMermaidWorkflow(detailsElem) {
+    if (!detailsElem || !detailsElem.open) return;
+    const progress = detailsElem.querySelector('.mermaid-loading');
+    const container = detailsElem.querySelector('.mermaid');
+    if (!container) return;
+    
+    // If already rendered, ensure visible and exit
+    if (container.getAttribute('data-processed') === 'true') {
+      if (progress) progress.style.display = 'none';
+      container.style.display = 'flex';
+      return;
+    }
+
+    if (progress) progress.style.display = 'block';
+    container.style.display = 'none';
+
+    ensureMermaidLoaded(function() {
+      try {
+        window.mermaid.run({
+          nodes: [container]
+        }).then(function() {
+          if (progress) progress.style.display = 'none';
+          container.style.display = 'flex';
+        }).catch(function(err) {
+          console.error("Mermaid render error:", err);
+          if (progress) progress.style.display = 'none';
+          container.style.display = 'flex';
+        });
+      } catch (e) {
+        if (progress) progress.style.display = 'none';
+        container.style.display = 'flex';
+      }
+    });
+  }
+</script>
