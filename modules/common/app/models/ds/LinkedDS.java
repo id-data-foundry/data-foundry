@@ -13,9 +13,13 @@ import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
+
+import datasets.DatasetConnector;
+import play.cache.SyncCacheApi;
 
 import org.apache.pekko.Done;
 import org.apache.pekko.stream.QueueOfferResult;
@@ -195,6 +199,24 @@ public abstract class LinkedDS {
 	 */
 	public void timeseries(SourceQueueWithComplete<ByteString> queue) {
 
+		SyncCacheApi cache = DatasetConnector.getCache();
+		String cacheKey = (dataTableName != null) ? "table_vis_" + dataTableName : null;
+		if (cache != null && cacheKey != null) {
+			Optional<String> cached = cache.get(cacheKey);
+			if (cached.isPresent()) {
+				try {
+					queue.offer(ByteString.fromString(cached.get())).toCompletableFuture().get();
+				} catch (InterruptedException | ExecutionException e) {
+					logger.error("Error in streaming cached timeseries.", e);
+				}
+				queue.complete();
+				return;
+			}
+		}
+
+		StringBuilder output = new StringBuilder();
+		output.append("day,events,\n");
+
 		// export timeseries data
 		try (Transaction transaction = DB.beginTransaction(); Connection connection = transaction.connection();) {
 
@@ -204,20 +226,9 @@ public abstract class LinkedDS {
 						.prepareStatement("SELECT TRUNCATE(ts) AS day, count(*) as events FROM " + dataTableName
 								+ " GROUP BY day ORDER BY day ASC;");
 				ResultSet rs = stmt.executeQuery();
-				if (!QueueOfferResult.enqueued()
-						.equals(queue.offer(ByteString.fromString("day,events,\n")).toCompletableFuture().get())) {
-					return;
-				}
 				while (rs.next()) {
-					StringBuffer sb = new StringBuffer();
-					sb.append(rs.getTimestamp(1).toString().substring(0, 10) + ",");
-					sb.append(rs.getLong(2) + ",");
-					sb.append("\n");
-
-					if (!QueueOfferResult.enqueued()
-							.equals(queue.offer(ByteString.fromString(sb.toString())).toCompletableFuture().get())) {
-						break;
-					}
+					output.append(rs.getTimestamp(1).toString().substring(0, 10)).append(",");
+					output.append(rs.getLong(2)).append(",\n");
 				}
 			} else {
 				// use hour resolution for timeseries output
@@ -225,24 +236,20 @@ public abstract class LinkedDS {
 						"SELECT PARSEDATETIME(FORMATDATETIME(ts, 'yyyy-MM-dd HH'), 'yyyy-MM-dd HH') AS day, count(*) as events FROM "
 								+ dataTableName + " GROUP BY day ORDER BY day ASC LIMIT 200;");
 				ResultSet rs = stmt.executeQuery();
-				if (!QueueOfferResult.enqueued()
-						.equals(queue.offer(ByteString.fromString("day,events,\n")).toCompletableFuture().get())) {
-					return;
-				}
 				while (rs.next()) {
-					StringBuffer sb = new StringBuffer();
-					sb.append(tsExportFormatter.format(rs.getTimestamp(1)) + ",");
-					sb.append(rs.getLong(2) + ",");
-					sb.append("\n");
-
-					if (!QueueOfferResult.enqueued()
-							.equals(queue.offer(ByteString.fromString(sb.toString())).toCompletableFuture().get())) {
-						break;
-					}
+					output.append(tsExportFormatter.format(rs.getTimestamp(1))).append(",");
+					output.append(rs.getLong(2)).append(",\n");
 				}
 			}
 
 			transaction.commit();
+
+			String csvData = output.toString();
+			if (cache != null && cacheKey != null) {
+				cache.set(cacheKey, csvData, 300);
+			}
+
+			queue.offer(ByteString.fromString(csvData)).toCompletableFuture().get();
 		} catch (InterruptedException | ExecutionException e) {
 			logger.error("Error in exporting timeseries.", e);
 		} catch (Exception e) {

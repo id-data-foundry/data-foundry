@@ -32,6 +32,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.ManyToOne;
 import play.Logger;
+import play.cache.SyncCacheApi;
 import play.data.format.Formats;
 import play.libs.Json;
 import utils.DataUtils;
@@ -579,6 +580,15 @@ public class Dataset extends Model {
 			return 0;
 		}
 
+		SyncCacheApi cache = DatasetConnector.getCache();
+		if (cache != null) {
+			return cache.getOrElseUpdate("table_count_" + dataTableName, () -> internalGetItemCount(dataTableName), 120);
+		}
+
+		return internalGetItemCount(dataTableName);
+	}
+
+	private long internalGetItemCount(String dataTableName) {
 		// count rows in table
 		long result = 0;
 		try (Transaction transaction = DB.beginTransaction();
@@ -612,14 +622,26 @@ public class Dataset extends Model {
 			return 0;
 		}
 
+		Date mondayStart = DateUtils.startOfDay(DateUtils.thisMonday(monday));
+		long mondayTime = mondayStart.getTime();
+		SyncCacheApi cache = DatasetConnector.getCache();
+		if (cache != null) {
+			return cache.getOrElseUpdate("table_qty_" + dataTableName + "_" + mondayTime,
+					() -> internalGetItemQuantity(dataTableName, mondayStart), 120);
+		}
+
+		return internalGetItemQuantity(dataTableName, mondayStart);
+	}
+
+	private long internalGetItemQuantity(String dataTableName, Date monday) {
 		// count rows in table for given time span
 		long result = 0;
 		try (Transaction transaction = DB.beginTransaction();
 				Connection connection = transaction.connection();
 				PreparedStatement stmt = connection
 						.prepareStatement("SELECT count(*) FROM " + dataTableName + " WHERE ts >= ? AND ts < ?;");) {
-			stmt.setTimestamp(1, new Timestamp(DateUtils.thisMonday(monday).getTime()));
-			stmt.setTimestamp(2, new Timestamp(DateUtils.toNextMonday(monday).getTime()));
+			stmt.setTimestamp(1, new Timestamp(DateUtils.startOfDay(DateUtils.thisMonday(monday)).getTime()));
+			stmt.setTimestamp(2, new Timestamp(DateUtils.startOfDay(DateUtils.toNextMonday(monday)).getTime()));
 			ResultSet rs = stmt.executeQuery();
 			if (rs.next()) {
 				result = rs.getLong(1);
@@ -630,6 +652,38 @@ public class Dataset extends Model {
 		}
 
 		return result;
+	}
+
+	/**
+	 * Invalidate cached count and quantity for a given table name.
+	 * 
+	 * @param dataTableName
+	 */
+	public static void invalidateTableCache(String dataTableName) {
+		if (dataTableName == null) {
+			return;
+		}
+		SyncCacheApi cache = DatasetConnector.getCache();
+		if (cache != null) {
+			cache.remove("table_count_" + dataTableName);
+			long thisMonday = DateUtils.startOfDay(DateUtils.thisMonday(new Date())).getTime();
+			cache.remove("table_qty_" + dataTableName + "_" + thisMonday);
+			cache.remove("table_vis_" + dataTableName);
+		}
+	}
+
+	/**
+	 * Invalidate cached count, quantity, and timeseries visualization for this dataset.
+	 */
+	public void invalidateCache() {
+		try {
+			String dataTableName = DatasetConnector.getDatasetDSUnmanaged(this).getDataTableName();
+			if (dataTableName != null) {
+				invalidateTableCache(dataTableName);
+			}
+		} catch (Exception e) {
+			// ignore if unmanaged ds cannot be loaded
+		}
 	}
 
 	/**

@@ -43,12 +43,22 @@ public class DatasetConnector implements ScheduledService {
 	private final Config config;
 	private final OOCSIStreamOutService oocsiService;
 	private final SyncCacheApi cache;
+	private static volatile SyncCacheApi staticCache;
 
 	@Inject
 	public DatasetConnector(Config config, OOCSIStreamOutService oocsiService, SyncCacheApi cache) {
 		this.config = config;
 		this.oocsiService = oocsiService;
 		this.cache = cache;
+		staticCache = cache;
+	}
+
+	public static SyncCacheApi getCache() {
+		return staticCache;
+	}
+
+	public static void setStaticCache(SyncCacheApi cache) {
+		staticCache = cache;
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////

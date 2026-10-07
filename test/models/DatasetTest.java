@@ -270,6 +270,49 @@ public class DatasetTest extends WithApplication {
 		mds.migrateDatasetSchema();
 	}
 
+	@Test
+	public void testItemCountAndQuantityCaching() {
+		Person user = createPerson("Caching");
+		Project project = Project.create("Cache Test Project", user, "Intro", false, false);
+		project.save();
+
+		Dataset ds = datasetConnector.create("Cache Test DS", DatasetType.IOT, project, "Desc", "Target", "true");
+		ds.save();
+		TimeseriesDS tsds = (TimeseriesDS) datasetConnector.getDatasetDS(ds);
+		String tableName = tsds.getDataTableName();
+
+		// Initially count is 0, this will populate the cache
+		assertEquals(0, ds.getItemCount());
+		assertTrue(DatasetConnector.getCache().get("table_count_" + tableName).isPresent());
+		assertEquals(0L, (long) (Long) DatasetConnector.getCache().get("table_count_" + tableName).get());
+
+		// Quantity for this week
+		Date now = new Date();
+		assertEquals(0, ds.getItemQuantity(now));
+		long mondayTime = utils.DateUtils.startOfDay(utils.DateUtils.thisMonday(now)).getTime();
+		assertTrue(DatasetConnector.getCache().get("table_qty_" + tableName + "_" + mondayTime).isPresent());
+
+		// Invalidate cache explicitly
+		ds.invalidateCache();
+		assertFalse(DatasetConnector.getCache().get("table_count_" + tableName).isPresent());
+		assertFalse(DatasetConnector.getCache().get("table_qty_" + tableName + "_" + mondayTime).isPresent());
+
+		// Add records and flushQueue - should also invalidate cache and update count
+		ds.getItemCount(); // re-populate cache with 0
+		assertTrue(DatasetConnector.getCache().get("table_count_" + tableName).isPresent());
+
+		tsds.internalAddRecord("device1", "pp1", "pp2", "pp3", now, "activity1", play.libs.Json.newObject());
+		TimeseriesDS.flushQueue();
+
+		// After flushQueue, cache for table_count should have been cleared
+		assertFalse(DatasetConnector.getCache().get("table_count_" + tableName).isPresent());
+
+		// Subsequent getItemCount fetches 1 and caches it
+		assertEquals(1, ds.getItemCount());
+		assertTrue(DatasetConnector.getCache().get("table_count_" + tableName).isPresent());
+		assertEquals(1L, (long) (Long) DatasetConnector.getCache().get("table_count_" + tableName).get());
+	}
+
 	private void assertTableHasIndex(String tableName, String expectedSubstring) throws Exception {
 		try (Connection connection = DB.getDefault().dataSource().getConnection()) {
 			DatabaseMetaData meta = connection.getMetaData();

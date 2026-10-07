@@ -43,7 +43,7 @@ public class ResourcesController extends AbstractAsyncController {
 			return noContent();
 		}
 
-		// cache response for 30 seconds to take load off the database
+		// cache response for 60 seconds to take load off the database
 		return cache.getOrElseUpdate("project_" + id + "_resource_table_devices", () -> {
 			Map<Long, Long> deviceUpdates = new HashMap<>();
 			project.getDevices().stream().forEach(d -> {
@@ -54,7 +54,7 @@ public class ResourcesController extends AbstractAsyncController {
 				tds.lastUpdatedSource(deviceUpdates);
 			});
 			return ok(views.html.sources.device.index.render(project.getDevices(), deviceUpdates));
-		}, 10);
+		}, 60);
 	}
 
 	/**
@@ -119,7 +119,7 @@ public class ResourcesController extends AbstractAsyncController {
 				tds.lastUpdatedSource(participantUpdates);
 			});
 			return ok(views.html.sources.participant.index.render(project.getParticipants(), participantUpdates));
-		}, 10);
+		}, 60);
 	}
 
 	public Result clusters(Request request, long id) {
@@ -129,10 +129,10 @@ public class ResourcesController extends AbstractAsyncController {
 			return noContent();
 		}
 
-		// cache response for 30 seconds to take load off the database
+		// cache response for 60 seconds to take load off the database
 		return cache.getOrElseUpdate("project_" + id + "_resource_table_clusters", () -> {
 			return ok(views.html.sources.cluster.index.render(project.getClusters(), project));
-		}, 10);
+		}, 60);
 	}
 
 	/**
@@ -174,7 +174,7 @@ public class ResourcesController extends AbstractAsyncController {
 			return noContent();
 		}
 
-		// cache response for 30 seconds to take load off the database
+		// cache response for 60 seconds to take load off the database
 		return cache.getOrElseUpdate("project_" + id + "_resource_table_wearables", () -> {
 			Map<Long, Long> wearablesUpdates = new HashMap<>();
 			project.getWearables().stream().forEach(pa -> {
@@ -189,7 +189,7 @@ public class ResourcesController extends AbstractAsyncController {
 				tds.lastUpdatedSource(wearablesUpdates);
 			});
 			return ok(views.html.sources.wearable.index.render(project.getWearables(), wearablesUpdates));
-		}, 10);
+		}, 60);
 	}
 
 }

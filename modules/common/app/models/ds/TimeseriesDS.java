@@ -304,6 +304,7 @@ public class TimeseriesDS extends LinkedDS {
 
 				stmt.executeBatch();
 				transaction.commit();
+				Dataset.invalidateTableCache(tableName);
 			} catch (Exception e) {
 				logger.error("Error in inserting record batch in dataset " + tableName, e);
 				Notifications.call("Exception",
