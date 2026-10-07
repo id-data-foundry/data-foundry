@@ -66,10 +66,8 @@ public class StarboardController extends AbstractAsyncController {
 			});
 		}).collect(Collectors.toList());
 
-		List<TimedMedia> allCollabNotebooks = user.collaborations().stream().flatMap(p -> {
-			p.refresh();
-			return p.getCompleteDatasets().stream();
-		}).filter(ds -> ds.isWebsite()).flatMap(ds -> {
+		List<TimedMedia> allCollabNotebooks = user.collaborations().stream()
+				.flatMap(p -> p.getCompleteDatasets().stream()).filter(ds -> ds.isWebsite()).flatMap(ds -> {
 			CompleteDS cds = (CompleteDS) datasetConnector.getDatasetDS(ds);
 			return cds.getFiles(Optional.of("^.*[\\.]gg$")).stream().map(tm -> {
 				tm.ds_id = ds.getId();
@@ -129,9 +127,6 @@ public class StarboardController extends AbstractAsyncController {
 				redirect(LANDING).addingToSession(request, "error", "Please log in first to use this tool."));
 
 		List<Project> projects = user.getOwnAndCollabProjects();
-		projects.stream().forEach(p -> {
-			p.refresh();
-		});
 
 		return ok(views.html.tools.starboard.comps.datasets.render(projects, request));
 	}

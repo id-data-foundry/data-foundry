@@ -196,12 +196,10 @@ public class Participant extends DataResource {
 	public List<Device> getClusterDevices() {
 		List<Device> devices = new LinkedList<>();
 		for (Cluster cluster : clusters) {
-			cluster.refresh();
 			if (cluster.getParticipants().size() == 1
 			        && cluster.getParticipants().get(0).getRefId().equals(this.getRefId())
 			        && cluster.getDevices().size() > 0) {
 				for (Device device : cluster.getDevices()) {
-					device.refresh();
 					devices.add(device);
 				}
 			}
@@ -219,12 +217,10 @@ public class Participant extends DataResource {
 	public List<Wearable> getClusterWearables() {
 		List<Wearable> wearables = new LinkedList<>();
 		for (Cluster cluster : clusters) {
-			cluster.refresh();
 			if (cluster.getParticipants().size() == 1
 			        && cluster.getParticipants().get(0).getRefId().equals(this.getRefId())
 			        && cluster.getWearables().size() > 0) {
 				for (Wearable wearable : cluster.getWearables()) {
-					wearable.refresh();
 					wearables.add(wearable);
 				}
 			}

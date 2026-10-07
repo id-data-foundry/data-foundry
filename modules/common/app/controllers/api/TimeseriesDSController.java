@@ -199,7 +199,6 @@ public class TimeseriesDSController extends AbstractDSController {
 		}
 
 		Project project = ds.getProject();
-		project.refresh();
 		if (!project.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
 					"You need to be either project owner or collaborator to perform this action.");
@@ -809,7 +808,6 @@ public class TimeseriesDSController extends AbstractDSController {
 		}
 
 		Project p = ds.getProject();
-		p.refresh();
 		if (!p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
 					"You don't have permissions for this action. Need to be the owner or a collaborator of the "

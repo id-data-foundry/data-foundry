@@ -147,9 +147,7 @@ public class MediaDSController extends AbstractDSController {
 			return notFound("Item not found.");
 		}
 
-		// refresh project to get the participants; enumerate participants before render, beanlist needs it.
 		Project project = ds.getProject();
-		project.refresh();
 		List<Participant> participants = project.getParticipants();
 		participants.size();
 
@@ -239,7 +237,6 @@ public class MediaDSController extends AbstractDSController {
 			}
 
 			Project p = ds.getProject();
-			p.refresh();
 
 			String participantId = request.headers().get("participant_id").orElse("");
 			Optional<Participant> participantOpt = Participant.findByRefId(participantId);
@@ -291,7 +288,6 @@ public class MediaDSController extends AbstractDSController {
 			}
 
 			Project p = ds.getProject();
-			p.refresh();
 
 			try {
 				Http.MultipartFormData<TemporaryFile> body = request.body().asMultipartFormData();
@@ -444,7 +440,6 @@ public class MediaDSController extends AbstractDSController {
 			}
 
 			Project p = ds.getProject();
-			p.refresh();
 
 			try {
 				Http.MultipartFormData<TemporaryFile> body = request.body().asMultipartFormData();
@@ -555,7 +550,6 @@ public class MediaDSController extends AbstractDSController {
 		}
 
 		Project p = ds.getProject();
-		p.refresh();
 		if (!p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
 					"You need to be either project owner or collaborator to perform this action.");
@@ -661,7 +655,6 @@ public class MediaDSController extends AbstractDSController {
 
 		// check whether file is accessible either to registered user or in general because the project is public
 		Project project = ds.getProject();
-		project.refresh();
 		if (!project.visibleFor(username)) {
 			return redirect(HOME).addingToSession(request, "error", "Project is not accessible.");
 		}
@@ -866,7 +859,6 @@ public class MediaDSController extends AbstractDSController {
 		}
 
 		Project p = ds.getProject();
-		p.refresh();
 		if (!p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
 					"You don't have permissions for this action. Need to be the owner or a collaborator of the "

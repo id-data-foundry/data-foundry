@@ -166,7 +166,6 @@ public class DataLogger extends AbstractAsyncController {
 		}
 
 		// get all devices
-		ds.getProject().refresh();
 		Optional<Device> deviceOpt = ds.getProject().getDevices().stream().filter(d -> d.getRefId().equals(deviceId))
 				.findFirst();
 		if (deviceOpt.isEmpty()) {
@@ -219,7 +218,6 @@ public class DataLogger extends AbstractAsyncController {
 			}
 
 			// get all devices
-			ds.getProject().refresh();
 			Optional<Device> deviceOpt = ds.getProject().getDevices().stream()
 					.filter(d -> d.getRefId().equals(deviceId)).findFirst();
 
@@ -331,7 +329,6 @@ public class DataLogger extends AbstractAsyncController {
 			}
 
 			// get all devices
-			ds.getProject().refresh();
 			Optional<Device> deviceOpt = ds.getProject().getDevices().stream()
 					.filter(d -> d.getRefId().equals(deviceId)).findFirst();
 
@@ -446,7 +443,6 @@ public class DataLogger extends AbstractAsyncController {
 			}
 
 			// get all devices
-			ds.getProject().refresh();
 			Optional<Device> deviceOpt = ds.getProject().getDevices().stream()
 					.filter(d -> d.getRefId().equals(deviceId)).findFirst();
 

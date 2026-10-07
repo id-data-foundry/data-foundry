@@ -105,7 +105,7 @@ public class SearchService implements ScheduledService {
 		IndexWriterConfig config = new IndexWriterConfig(sa);
 		try (final IndexWriter w = new IndexWriter(newIndex, config);) {
 			final AtomicInteger ai = new AtomicInteger();
-			Project.find.query().where()
+			Project.find.query().fetch("owner").where()
 					.eq("publicProject", true)
 					.eq("archivedProject", false)
 					.eq("frozenProject", false)
@@ -126,8 +126,9 @@ public class SearchService implements ScheduledService {
 
 					// index the owner and owner profile
 					Person owner = project.getOwner();
-					owner.refresh();
-					doc.add(new TextField("owner", nss(owner.getName().replace(".", " ")), Field.Store.NO));
+					if (owner != null) {
+						doc.add(new TextField("owner", nss(owner.getName().replace(".", " ")), Field.Store.NO));
+					}
 				}
 
 				try {

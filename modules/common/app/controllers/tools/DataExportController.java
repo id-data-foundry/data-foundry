@@ -66,7 +66,6 @@ public class DataExportController extends AbstractAsyncController {
 		List<Project> projects = user.projects();
 		projects.stream().forEach(p -> {
 			p.getDatasets().forEach(ds -> {
-				ds.refresh();
 				metaData.add(ds.getMetaDataProjectionDescriptionsJSON().put("dataset", ds.getId()));
 			});
 		});
@@ -74,9 +73,7 @@ public class DataExportController extends AbstractAsyncController {
 		// find all collaboration projects
 		List<Project> collaborations = user.collaborations();
 		collaborations.stream().forEach(p -> {
-			p.refresh();
 			p.getDatasets().forEach(ds -> {
-				ds.refresh();
 				metaData.add(ds.getMetaDataProjectionDescriptionsJSON().put("dataset", ds.getId()));
 			});
 		});
@@ -84,9 +81,7 @@ public class DataExportController extends AbstractAsyncController {
 		// find all subscription projects
 		List<Project> subscriptions = user.subscriptions();
 		subscriptions.stream().forEach(p -> {
-			p.refresh();
 			p.getDatasets().forEach(ds -> {
-				ds.refresh();
 				metaData.add(ds.getMetaDataProjectionDescriptionsJSON().put("dataset", ds.getId()));
 			});
 		});

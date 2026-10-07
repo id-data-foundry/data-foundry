@@ -251,11 +251,11 @@ public class Person extends Model {
 	 * @return
 	 */
 	public boolean collaboratesOn(Project project) {
-		Predicate<Collaboration> p1 = c -> c.getProject().getId().equals(project.getId());
-		return collaborations.stream().map(c -> {
-			c.getProject().refresh();
-			return c;
-		}).anyMatch(p1);
+		if (project == null || project.getId() == null) {
+			return false;
+		}
+		return collaborations.stream()
+				.anyMatch(c -> c.getProject() != null && project.getId().equals(c.getProject().getId()));
 	}
 
 	/**
@@ -276,11 +276,11 @@ public class Person extends Model {
 	 * @return
 	 */
 	public boolean subscribesTo(Project project) {
-		Predicate<Subscription> p1 = c -> c.getProject().getId().equals(project.getId());
-		return subscriptions.stream().map(c -> {
-			c.getProject().refresh();
-			return c;
-		}).anyMatch(p1);
+		if (project == null || project.getId() == null) {
+			return false;
+		}
+		return subscriptions.stream()
+				.anyMatch(c -> c.getProject() != null && project.getId().equals(c.getProject().getId()));
 	}
 
 	/**
@@ -408,11 +408,9 @@ public class Person extends Model {
 	 * @return
 	 */
 	public List<Dataset> getUserCollaborationActors() {
-		return this.collaborations.stream().map(c -> c.getProject()).flatMap(p -> p.getDatasets().stream())
-				.filter(d -> d.isScript()).map(d -> {
-					d.getProject().refresh();
-					return d;
-				}).collect(Collectors.toList());
+		return this.collaborations.stream().map(c -> c.getProject()).filter(p -> p != null)
+				.flatMap(p -> p.getDatasets().stream()).filter(d -> d != null && d.isScript())
+				.collect(Collectors.toList());
 	}
 
 	/**

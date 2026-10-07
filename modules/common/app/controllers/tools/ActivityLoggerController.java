@@ -218,7 +218,6 @@ public class ActivityLoggerController extends AbstractAsyncController {
 				return forbidden("Api token is not correct.");
 			}
 
-			ds.getProject().refresh();
 			Optional<Participant> participantOpt = ds.getProject().getParticipants().stream()
 					.filter(d -> d.getRefId().equals(participantId)).findFirst();
 

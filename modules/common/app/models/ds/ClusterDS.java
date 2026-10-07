@@ -39,7 +39,6 @@ public class ClusterDS {
 	public void downloadTS(Cluster cluster, SourceQueueWithComplete<ByteString> queue) {
 		// gather the SQL sub queries
 		final Project project = cluster.getProject();
-		project.refresh();
 
 		// get list of device Ids
 		String deviceIds = cluster.getDevices().stream().map(d -> d.getId().toString())
@@ -208,7 +207,6 @@ public class ClusterDS {
 
 		// gather the SQL sub queries
 		final Project project = cluster.getProject();
-		project.refresh();
 
 		// get list of device Ids
 		String deviceIds = cluster.getDevices().stream().map(d -> d.getId().toString())

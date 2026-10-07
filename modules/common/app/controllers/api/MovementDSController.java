@@ -67,8 +67,7 @@ public class MovementDSController extends AbstractDSController {
 		final MovementDS cpsc = (MovementDS) datasetConnector.getDatasetDS(ds);
 		final List<TimedMedia> fileList = cpsc.getFiles();
 
-		// refresh project to get the participants; enumerate participants before render, beanlist needs it.
-		project.refresh();
+		// enumerate participants before render, beanlist needs it.
 		project.getParticipants().size();
 
 		return ok(views.html.datasets.movement.view.render(ds, project.getParticipants(), username, fileList, request));
@@ -189,7 +188,6 @@ public class MovementDSController extends AbstractDSController {
 			}
 
 			Project project = ds.getProject();
-			project.refresh();
 			try {
 				Http.MultipartFormData<TemporaryFile> body = request.body().asMultipartFormData();
 				if (body == null) {
@@ -282,7 +280,6 @@ public class MovementDSController extends AbstractDSController {
 
 		// check whether file is accessible either to registered user or in general because the project is public
 		Project project = ds.getProject();
-		project.refresh();
 		if (!project.visibleFor(username)) {
 			return redirect(controllers.routes.ProjectsController.view(project.getId())).addingToSession(request,
 					"error", "Project is not accessible.");
@@ -362,7 +359,6 @@ public class MovementDSController extends AbstractDSController {
 		}
 
 		Project p = ds.getProject();
-		p.refresh();
 		if (!p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
 					"You don't have permissions for this action. Need to be the owner or a collaborator of the "

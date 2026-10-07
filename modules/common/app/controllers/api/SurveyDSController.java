@@ -134,7 +134,6 @@ public class SurveyDSController extends AbstractDSController {
 		}
 
 		Project p = ds.getProject();
-		p.refresh();
 		if (!p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
 					"You don't have permissions for this action. Need to be the owner or a collaborator of the project.");
@@ -154,7 +153,6 @@ public class SurveyDSController extends AbstractDSController {
 		}
 
 		Project p = ds.getProject();
-		p.refresh();
 		if (!p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
 					"You don't have permissions for this action. Need to be the owner or a collaborator of the project.");
@@ -411,7 +409,6 @@ public class SurveyDSController extends AbstractDSController {
 		}
 
 		Project project = ds.getProject();
-		project.refresh();
 		if (!project.visibleFor(username)) {
 			return cs(() -> redirect(HOME).addingToSession(request, "error", "Project is not accessible."));
 		}
@@ -487,7 +484,6 @@ public class SurveyDSController extends AbstractDSController {
 		}
 
 		Project p = ds.getProject();
-		p.refresh();
 		if (!p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error",
 					"You don't have permissions for this action. Need to be the owner or a collaborator of the "

@@ -118,7 +118,6 @@ public class Wearable extends DataResource {
 		List<Participant> participants = new LinkedList<>();
 		for (Cluster cluster : clusters) {
 			for (Participant participant : cluster.getParticipants()) {
-				participant.refresh();
 				participants.add(participant);
 			}
 		}

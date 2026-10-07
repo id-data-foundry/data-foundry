@@ -648,7 +648,6 @@ public class EntityDS extends LinkedDS {
 			int updateCount = stmt.executeUpdate();
 			deleteSuccessful = updateCount > 0;
 			if (updateCount > 10) {
-				dataset.getProject().refresh();
 				logger.info("Removed " + updateCount + "obsolete items from Entity dataset: " + dataset.getId() + " ("
 						+ dataset.getProject().getOwner().getName() + ")");
 			}

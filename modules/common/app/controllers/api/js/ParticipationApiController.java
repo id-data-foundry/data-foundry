@@ -78,8 +78,6 @@ public class ParticipationApiController extends AbstractApiController {
 				return ok(views.html.elements.api.participantJSAPI.render(null, request)).as(TEXT_JAVASCRIPT);
 			}
 
-			participant.getProject().refresh();
-
 			// check participant in the correct project
 			long project_id = tokenResolverUtil.getProjectIdFromParticipationToken(invite_token);
 			if (project_id != participant.getProject().getId()) {
@@ -196,8 +194,6 @@ public class ParticipationApiController extends AbstractApiController {
 				return notFound("Participant not found");
 			}
 
-			participant.getProject().refresh();
-
 			// check participant in the correct project
 			long project_id = tokenResolverUtil.getProjectIdFromParticipationToken(invite_token);
 			if (project_id != participant.getProject().getId()) {
@@ -246,8 +242,6 @@ public class ParticipationApiController extends AbstractApiController {
 			if (participant == null) {
 				return notFound("Participant not found");
 			}
-
-			participant.getProject().refresh();
 
 			// check participant in the correct project
 			long project_id = tokenResolverUtil.getProjectIdFromParticipationToken(invite_token);
@@ -346,9 +340,7 @@ public class ParticipationApiController extends AbstractApiController {
 				return notFound("Participant not found");
 			}
 
-			// retrieve participant project
 			Project project = participant.getProject();
-			project.refresh();
 
 			// retrieve and check dataset
 			final Dataset ds = project.getMediaDataset();
@@ -431,8 +423,6 @@ public class ParticipationApiController extends AbstractApiController {
 				return notFound("Participant not found");
 			}
 
-			participant.getProject().refresh();
-
 			// check participant in the correct project
 			long project_id = tokenResolverUtil.getProjectIdFromParticipationToken(invite_token);
 			if (project_id != participant.getProject().getId()) {
@@ -482,8 +472,6 @@ public class ParticipationApiController extends AbstractApiController {
 			if (participant == null) {
 				return notFound("Participant not found");
 			}
-
-			participant.getProject().refresh();
 
 			// check participant in the correct project
 			long project_id = tokenResolverUtil.getProjectIdFromParticipationToken(invite_token);
@@ -538,8 +526,6 @@ public class ParticipationApiController extends AbstractApiController {
 				return notFound("Participant not found");
 			}
 
-			participant.getProject().refresh();
-
 			// check participant in the correct project
 			long project_id = tokenResolverUtil.getProjectIdFromParticipationToken(invite_token);
 			if (project_id != participant.getProject().getId()) {
@@ -592,8 +578,6 @@ public class ParticipationApiController extends AbstractApiController {
 			if (participant == null) {
 				return notFound("Participant not found");
 			}
-
-			participant.getProject().refresh();
 
 			// check participant in the correct project
 			long project_id = tokenResolverUtil.getProjectIdFromParticipationToken(invite_token);
