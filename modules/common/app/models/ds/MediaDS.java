@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import org.apache.pekko.stream.QueueOfferResult;
 import org.apache.pekko.stream.javadsl.SourceQueueWithComplete;
 import org.apache.pekko.util.ByteString;
 
@@ -736,24 +737,40 @@ public class MediaDS extends CompleteDS {
 				ResultSet rs = stmt.executeQuery();) {
 
 			// header
-			queue.offer(ByteString.fromString("id,participant_id,ts,link,mediatype,description,pp1,pp2,pp3\n"))
-					.toCompletableFuture().get();
+			if (!QueueOfferResult.enqueued().equals(queue.offer(ByteString.fromString("id,participant_id,ts,link,mediatype,description,pp1,pp2,pp3\n"))
+					.toCompletableFuture().get())) {
+				transaction.commit();
+				return;
+			}
 
 			// data
+			StringBuilder chunk = new StringBuilder();
+			int rowCount = 0;
 			while (rs.next()) {
-				StringBuffer sb = new StringBuffer();
-				sb.append(rs.getLong("id") + ",");
-				sb.append(rs.getLong("participant_id") + ",");
-				sb.append(tsExportFormatter.format(rs.getTimestamp("ts")) + ",");
-				sb.append(cf(filePathTransformationFunction.apply(nss(rs.getString("link"), 1000))) + ",");
-				sb.append(cf(rs.getString("mediatype")) + ",");
-				sb.append(cf(rs.getString("description")) + ",");
-				sb.append(cf(rs.getString("pp1")) + ",");
-				sb.append(cf(rs.getString("pp2")) + ",");
-				sb.append(cf(rs.getString("pp3")));
-				sb.append("\n");
+				chunk.append(rs.getLong("id")).append(",");
+				chunk.append(rs.getLong("participant_id")).append(",");
+				chunk.append(tsExportFormatter.format(rs.getTimestamp("ts"))).append(",");
+				chunk.append(cf(filePathTransformationFunction.apply(nss(rs.getString("link"), 1000)))).append(",");
+				chunk.append(cf(rs.getString("mediatype"))).append(",");
+				chunk.append(cf(rs.getString("description"))).append(",");
+				chunk.append(cf(rs.getString("pp1"))).append(",");
+				chunk.append(cf(rs.getString("pp2"))).append(",");
+				chunk.append(cf(rs.getString("pp3")));
+				chunk.append("\n");
+				rowCount++;
 
-				queue.offer(ByteString.fromString(sb.toString())).toCompletableFuture().get();
+				if (rowCount >= 256) {
+					if (!QueueOfferResult.enqueued().equals(queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get())) {
+						chunk.setLength(0);
+						break;
+					}
+					chunk.setLength(0);
+					rowCount = 0;
+				}
+			}
+
+			if (chunk.length() > 0) {
+				queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get();
 			}
 
 			transaction.commit();

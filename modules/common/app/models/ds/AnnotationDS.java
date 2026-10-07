@@ -12,6 +12,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import org.apache.pekko.stream.QueueOfferResult;
 import org.apache.pekko.stream.javadsl.SourceQueueWithComplete;
 import org.apache.pekko.util.ByteString;
 
@@ -125,18 +126,34 @@ public class AnnotationDS extends LinkedDS {
 						+ limitExpression(limit) + ";");
 				ResultSet rs = stmt.executeQuery();) {
 
-			// sourceActor.tell(ByteString.fromString("# dataset export created on " + new Date() + "\n"), null);
-			queue.offer(ByteString.fromString("id,cluster_id,ts,title,text\n")).toCompletableFuture().get();
-			while (rs.next()) {
-				StringBuffer sb = new StringBuffer();
-				sb.append(rs.getLong(1) + ",");
-				sb.append(rs.getLong(2) + ",");
-				sb.append(tsExportFormatter.format(rs.getTimestamp(3)) + ",");
-				sb.append(cf(rs.getString(4)) + ",");
-				sb.append(cf(rs.getString(5)));
-				sb.append("\n");
+			if (!QueueOfferResult.enqueued().equals(queue.offer(ByteString.fromString("id,cluster_id,ts,title,text\n")).toCompletableFuture().get())) {
+				transaction.commit();
+				return;
+			}
 
-				queue.offer(ByteString.fromString(sb.toString())).toCompletableFuture().get();
+			StringBuilder chunk = new StringBuilder();
+			int rowCount = 0;
+			while (rs.next()) {
+				chunk.append(rs.getLong(1)).append(",");
+				chunk.append(rs.getLong(2)).append(",");
+				chunk.append(tsExportFormatter.format(rs.getTimestamp(3))).append(",");
+				chunk.append(cf(rs.getString(4))).append(",");
+				chunk.append(cf(rs.getString(5)));
+				chunk.append("\n");
+				rowCount++;
+
+				if (rowCount >= 256) {
+					if (!QueueOfferResult.enqueued().equals(queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get())) {
+						chunk.setLength(0);
+						break;
+					}
+					chunk.setLength(0);
+					rowCount = 0;
+				}
+			}
+
+			if (chunk.length() > 0) {
+				queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get();
 			}
 
 			transaction.commit();

@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.apache.pekko.stream.QueueOfferResult;
 import org.apache.pekko.stream.javadsl.SourceQueueWithComplete;
 import org.apache.pekko.util.ByteString;
 
@@ -267,30 +268,46 @@ public class GoogleFitDS extends LinkedDS {
 						+ timeFilterWhereClause(start, end) + " ORDER BY id ASC " + limitExpression(limit) + ";");
 				ResultSet rs = stmt.executeQuery();) {
 
-			queue.offer(ByteString.fromString("id,wearable_id,user_id,ts,pp1,pp2,pp3,data_date,activity,calories,speed"
-					+ ",heart_rate,step_count,distance,weight,sleep\n")).toCompletableFuture().get();
+			if (!QueueOfferResult.enqueued().equals(queue.offer(ByteString.fromString("id,wearable_id,user_id,ts,pp1,pp2,pp3,data_date,activity,calories,speed"
+					+ ",heart_rate,step_count,distance,weight,sleep\n")).toCompletableFuture().get())) {
+				transaction.commit();
+				return;
+			}
 
+			StringBuilder chunk = new StringBuilder();
+			int rowCount = 0;
 			while (rs.next()) {
-				StringBuffer sb = new StringBuffer();
-				sb.append(rs.getLong(1) + ",");
-				sb.append(rs.getLong(2) + ",");
-				sb.append(rs.getLong(3) + ",");
-				sb.append(tsExportFormatter.format(rs.getTimestamp(4)) + ",");
-				sb.append(rs.getString(5) + ",");
-				sb.append(rs.getString(6) + ",");
-				sb.append(rs.getString(7) + ",");
-				sb.append(rs.getLong(8) + ","); // data_date
-				sb.append(rs.getInt(9) + ",");
-				sb.append(rs.getFloat(10) + ",");
-				sb.append(rs.getFloat(11) + ",");
-				sb.append(rs.getFloat(12) + ",");
-				sb.append(rs.getInt(13) + ",");
-				sb.append(rs.getFloat(14) + ",");
-				sb.append(rs.getFloat(15) + ",");
-				sb.append(rs.getInt(16));
-				sb.append("\n");
+				chunk.append(rs.getLong(1)).append(",");
+				chunk.append(rs.getLong(2)).append(",");
+				chunk.append(rs.getLong(3)).append(",");
+				chunk.append(tsExportFormatter.format(rs.getTimestamp(4))).append(",");
+				chunk.append(rs.getString(5)).append(",");
+				chunk.append(rs.getString(6)).append(",");
+				chunk.append(rs.getString(7)).append(",");
+				chunk.append(rs.getLong(8)).append(","); // data_date
+				chunk.append(rs.getInt(9)).append(",");
+				chunk.append(rs.getFloat(10)).append(",");
+				chunk.append(rs.getFloat(11)).append(",");
+				chunk.append(rs.getFloat(12)).append(",");
+				chunk.append(rs.getInt(13)).append(",");
+				chunk.append(rs.getFloat(14)).append(",");
+				chunk.append(rs.getFloat(15)).append(",");
+				chunk.append(rs.getInt(16));
+				chunk.append("\n");
+				rowCount++;
 
-				queue.offer(ByteString.fromString(sb.toString())).toCompletableFuture().get();
+				if (rowCount >= 256) {
+					if (!QueueOfferResult.enqueued().equals(queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get())) {
+						chunk.setLength(0);
+						break;
+					}
+					chunk.setLength(0);
+					rowCount = 0;
+				}
+			}
+
+			if (chunk.length() > 0) {
+				queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get();
 			}
 
 			transaction.commit();

@@ -22,6 +22,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.pekko.stream.QueueOfferResult;
 import org.apache.pekko.stream.javadsl.SourceQueueWithComplete;
 import org.apache.pekko.util.ByteString;
 
@@ -677,19 +678,36 @@ public class CompleteDS extends LinkedDS {
 				ResultSet rs = stmt.executeQuery();) {
 
 			// header
-			queue.offer(ByteString.fromString("id,dataset_id,ts,link,description\n")).toCompletableFuture().get();
+			if (!QueueOfferResult.enqueued().equals(queue.offer(ByteString.fromString("id,dataset_id,ts,link,description\n"))
+					.toCompletableFuture().get())) {
+				transaction.commit();
+				return;
+			}
 
 			// data
+			StringBuilder chunk = new StringBuilder();
+			int rowCount = 0;
 			while (rs.next()) {
-				StringBuffer sb = new StringBuffer();
-				sb.append(rs.getLong("id") + ",");
-				sb.append(cf(rs.getString("dataset_id")) + ",");
-				sb.append(tsExportFormatter.format(rs.getTimestamp("ts")) + ",");
-				sb.append(cf(linkMapper.apply(nss(rs.getString("file_name"), 1000))) + ",");
-				sb.append(cf(rs.getString("description")));
-				sb.append("\n");
+				chunk.append(rs.getLong("id")).append(",");
+				chunk.append(cf(rs.getString("dataset_id"))).append(",");
+				chunk.append(tsExportFormatter.format(rs.getTimestamp("ts"))).append(",");
+				chunk.append(cf(linkMapper.apply(nss(rs.getString("file_name"), 1000)))).append(",");
+				chunk.append(cf(rs.getString("description")));
+				chunk.append("\n");
+				rowCount++;
 
-				queue.offer(ByteString.fromString(sb.toString())).toCompletableFuture().get();
+				if (rowCount >= 256) {
+					if (!QueueOfferResult.enqueued().equals(queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get())) {
+						chunk.setLength(0);
+						break;
+					}
+					chunk.setLength(0);
+					rowCount = 0;
+				}
+			}
+
+			if (chunk.length() > 0) {
+				queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get();
 			}
 
 			transaction.commit();

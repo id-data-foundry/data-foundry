@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.apache.pekko.stream.QueueOfferResult;
 import org.apache.pekko.stream.javadsl.SourceQueueWithComplete;
 import org.apache.pekko.util.ByteString;
 
@@ -171,10 +172,14 @@ public class DiaryDS extends LinkedDS {
 
 	@Override
 	public void export(SourceQueueWithComplete<ByteString> queue, Cluster cluster, long limit, long start, long end) {
-		export(queue, cluster.getParticipantList(), start, end);
+		export(queue, cluster.getParticipantList(), limit, start, end);
 	}
 
 	public void export(SourceQueueWithComplete<ByteString> queue, List<Long> participantIds, long start, long end) {
+		export(queue, participantIds, -1, start, end);
+	}
+
+	public void export(SourceQueueWithComplete<ByteString> queue, List<Long> participantIds, long limit, long start, long end) {
 
 		final String whereClause;
 		if (participantIds.isEmpty()) {
@@ -190,27 +195,41 @@ public class DiaryDS extends LinkedDS {
 				Connection connection = transaction.connection();
 				PreparedStatement stmt = connection
 						.prepareStatement("SELECT id, participant_id, ts, pp1, pp2, pp3, title, text FROM "
-								+ dataTableName + whereClause + " ORDER BY id ASC;");
+								+ dataTableName + whereClause + " ORDER BY id ASC " + limitExpression(limit) + ";");
 				ResultSet rs = stmt.executeQuery();) {
 
-			// header
-			// sourceActor.tell(ByteString.fromString("# dataset export created on " + new Date() + "\n"), null);
-			queue.offer(ByteString.fromString("id,participant_id,ts,pp1,pp2,pp3,title,entry\n")).toCompletableFuture()
-					.get();
+			if (!QueueOfferResult.enqueued()
+					.equals(queue.offer(ByteString.fromString("id,participant_id,ts,pp1,pp2,pp3,title,entry\n"))
+							.toCompletableFuture().get())) {
+				return;
+			}
 
-			// data
+			StringBuilder chunk = new StringBuilder();
+			int rowCount = 0;
 			while (rs.next()) {
-				StringBuffer sb = new StringBuffer();
-				sb.append(rs.getLong(1) + ",");
-				sb.append(rs.getLong(2) + ",");
-				sb.append(tsExportFormatter.format(rs.getTimestamp(3)) + ",");
-				sb.append(cf(rs.getString(4)) + ",");
-				sb.append(cf(rs.getString(5)) + ",");
-				sb.append(cf(rs.getString(6)) + ",");
-				sb.append(cf(rs.getString(7)) + ",");
-				sb.append(cf(rs.getString(8)) + "\n");
+				chunk.append(rs.getLong(1)).append(",");
+				chunk.append(rs.getLong(2)).append(",");
+				chunk.append(tsExportFormatter.format(rs.getTimestamp(3))).append(",");
+				chunk.append(cf(rs.getString(4))).append(",");
+				chunk.append(cf(rs.getString(5))).append(",");
+				chunk.append(cf(rs.getString(6))).append(",");
+				chunk.append(cf(rs.getString(7))).append(",");
+				chunk.append(cf(rs.getString(8))).append("\n");
 
-				queue.offer(ByteString.fromString(sb.toString())).toCompletableFuture().get();
+				rowCount++;
+				if (rowCount >= 256) {
+					if (!QueueOfferResult.enqueued()
+							.equals(queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get())) {
+						chunk.setLength(0);
+						break;
+					}
+					chunk.setLength(0);
+					rowCount = 0;
+				}
+			}
+
+			if (chunk.length() > 0) {
+				queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get();
 			}
 
 			transaction.commit();

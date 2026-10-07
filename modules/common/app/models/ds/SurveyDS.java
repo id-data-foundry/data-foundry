@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.apache.pekko.stream.QueueOfferResult;
 import org.apache.pekko.stream.javadsl.SourceQueueWithComplete;
 import org.apache.pekko.util.ByteString;
 
@@ -181,17 +182,22 @@ public class SurveyDS extends LinkedDS {
 		try (Transaction transaction = DB.beginTransaction();
 				Connection connection = transaction.connection();
 				PreparedStatement stmt = connection.prepareStatement("SELECT id, participant_id, ts, data FROM "
-						+ dataTableName + whereClause + " ORDER BY id ASC;");
+						+ dataTableName + whereClause + " ORDER BY id ASC " + limitExpression(limit) + ";");
 				ResultSet rs = stmt.executeQuery();) {
 
-			// sourceActor.tell(ByteString.fromString("# dataset export created on " + new Date() + "\n"), null);
-			queue.offer(ByteString.fromString("id,participant_id,ts," + projectionStr + "\n")).toCompletableFuture()
-					.get();
+			if (!QueueOfferResult.enqueued()
+					.equals(queue.offer(ByteString.fromString("id,participant_id,ts," + projectionStr + "\n"))
+							.toCompletableFuture().get())) {
+				return;
+			}
+
+			StringBuilder chunk = new StringBuilder();
+			int rowCount = 0;
 			while (rs.next()) {
-				StringBuffer sb = new StringBuffer();
-				sb.append(rs.getLong(1) + ",");
-				sb.append(rs.getLong(2) + ",");
-				sb.append(tsExportFormatter.format(rs.getTimestamp(3)) + ",");
+				StringBuilder sb = new StringBuilder();
+				sb.append(rs.getLong(1)).append(",");
+				sb.append(rs.getLong(2)).append(",");
+				sb.append(tsExportFormatter.format(rs.getTimestamp(3))).append(",");
 
 				// parse data as JSON
 				String data = rs.getString(4);
@@ -217,7 +223,21 @@ public class SurveyDS extends LinkedDS {
 				sb.append(values);
 				sb.append("\n");
 
-				queue.offer(ByteString.fromString(sb.toString())).toCompletableFuture().get();
+				chunk.append(sb);
+				rowCount++;
+				if (rowCount >= 256) {
+					if (!QueueOfferResult.enqueued()
+							.equals(queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get())) {
+						chunk.setLength(0);
+						break;
+					}
+					chunk.setLength(0);
+					rowCount = 0;
+				}
+			}
+
+			if (chunk.length() > 0) {
+				queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get();
 			}
 
 			transaction.commit();

@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.apache.pekko.stream.QueueOfferResult;
 import org.apache.pekko.stream.javadsl.SourceQueueWithComplete;
 import org.apache.pekko.util.ByteString;
 
@@ -426,24 +427,26 @@ public class MovementDS extends CompleteDS {
 								+ dataTableName + whereClause + " ORDER BY id ASC " + limitExpression(limit) + ";");
 				ResultSet rs = stmt.executeQuery();) {
 
-			// header
-			// sourceActor.tell(ByteString.fromString("# dataset export created on " + new Date() + "\n"), null);
-			queue.offer(ByteString.fromString("id,participant_id,ts,lng,lat,ele,track,pp1,pp2,pp3,atemp,hr,cad\n"))
-					.toCompletableFuture().get();
+			if (!QueueOfferResult.enqueued().equals(
+					queue.offer(ByteString.fromString("id,participant_id,ts,lng,lat,ele,track,pp1,pp2,pp3,atemp,hr,cad\n"))
+							.toCompletableFuture().get())) {
+				return;
+			}
 
-			// data
+			StringBuilder chunk = new StringBuilder();
+			int rowCount = 0;
 			while (rs.next()) {
-				StringBuffer sb = new StringBuffer();
-				sb.append(rs.getLong("id") + ",");
-				sb.append(rs.getLong("participant_id") + ",");
-				sb.append(tsExportFormatter.format(rs.getTimestamp("ts")) + ",");
-				sb.append(rs.getFloat("x") + ",");
-				sb.append(rs.getFloat("y") + ",");
-				sb.append(rs.getFloat("z") + ",");
-				sb.append(cf(rs.getString("track")) + ",");
-				sb.append(cf(rs.getString("pp1")) + ",");
-				sb.append(cf(rs.getString("pp2")) + ",");
-				sb.append(cf(rs.getString("pp3")) + ",");
+				StringBuilder sb = new StringBuilder();
+				sb.append(rs.getLong("id")).append(",");
+				sb.append(rs.getLong("participant_id")).append(",");
+				sb.append(tsExportFormatter.format(rs.getTimestamp("ts"))).append(",");
+				sb.append(rs.getFloat("x")).append(",");
+				sb.append(rs.getFloat("y")).append(",");
+				sb.append(rs.getFloat("z")).append(",");
+				sb.append(cf(rs.getString("track"))).append(",");
+				sb.append(cf(rs.getString("pp1"))).append(",");
+				sb.append(cf(rs.getString("pp2"))).append(",");
+				sb.append(cf(rs.getString("pp3"))).append(",");
 
 				// parse data as JSON
 				String data = rs.getString("data");
@@ -470,7 +473,21 @@ public class MovementDS extends CompleteDS {
 				}
 				sb.append("\n");
 
-				queue.offer(ByteString.fromString(sb.toString())).toCompletableFuture().get();
+				chunk.append(sb);
+				rowCount++;
+				if (rowCount >= 256) {
+					if (!QueueOfferResult.enqueued()
+							.equals(queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get())) {
+						chunk.setLength(0);
+						break;
+					}
+					chunk.setLength(0);
+					rowCount = 0;
+				}
+			}
+
+			if (chunk.length() > 0) {
+				queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get();
 			}
 
 			transaction.commit();
