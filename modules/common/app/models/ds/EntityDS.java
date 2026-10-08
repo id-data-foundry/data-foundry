@@ -794,18 +794,22 @@ public class EntityDS extends LinkedDS {
 								+ timeFilterWhereClause(start, end).replace("WHERE", "AND") + " ORDER BY ts ASC;");
 				ResultSet rs = stmt.executeQuery();) {
 
-			// sourceActor.tell(ByteString.fromString("# dataset export created on " + new Date() + "\n"), null);
-			queue.offer(ByteString.fromString("id,resource_id,ts,pp1,pp2,pp3," + String.join(",", projection) + "\n"))
-					.toCompletableFuture().get();
+			if (!QueueOfferResult.enqueued().equals(queue.offer(
+					ByteString.fromString("id,resource_id,ts,pp1,pp2,pp3," + String.join(",", projection) + "\n"))
+					.toCompletableFuture().get())) {
+				transaction.commit();
+				return;
+			}
 
+			StringBuilder chunk = new StringBuilder();
+			int rowCount = 0;
 			while (rs.next()) {
-				StringBuffer sb = new StringBuffer();
-				sb.append(rs.getLong(1) + ",");
-				sb.append(cf(nss(rs.getString(2), 63)) + ",");
-				sb.append(tsExportFormatter.format(rs.getTimestamp(3)) + ",");
-				sb.append(cf(nss(rs.getString(4), 255)) + ",");
-				sb.append(cf(nss(rs.getString(5), 255)) + ",");
-				sb.append(cf(nss(rs.getString(6), 255)) + ",");
+				chunk.append(rs.getLong(1)).append(",");
+				chunk.append(cf(nss(rs.getString(2), 63))).append(",");
+				chunk.append(tsExportFormatter.format(rs.getTimestamp(3))).append(",");
+				chunk.append(cf(nss(rs.getString(4), 255))).append(",");
+				chunk.append(cf(nss(rs.getString(5), 255))).append(",");
+				chunk.append(cf(nss(rs.getString(6), 255))).append(",");
 
 				// parse data as JSON
 				String data = rs.getString(7);
@@ -824,10 +828,23 @@ public class EntityDS extends LinkedDS {
 						return "";
 					}
 				}).collect(Collectors.joining(","));
-				sb.append(values);
-				sb.append("\n");
+				chunk.append(values);
+				chunk.append("\n");
+				rowCount++;
 
-				queue.offer(ByteString.fromString(sb.toString())).toCompletableFuture().get();
+				if (rowCount >= 256) {
+					if (!QueueOfferResult.enqueued().equals(
+							queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get())) {
+						chunk.setLength(0);
+						break;
+					}
+					chunk.setLength(0);
+					rowCount = 0;
+				}
+			}
+
+			if (chunk.length() > 0) {
+				queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get();
 			}
 			transaction.commit();
 		} catch (Exception e) {
@@ -857,17 +874,22 @@ public class EntityDS extends LinkedDS {
 								+ timeFilterWhereClause(start, end) + " ORDER BY id ASC;");
 				ResultSet rs = stmt.executeQuery();) {
 
-			queue.offer(ByteString.fromString("id,resource_id,ts,pp1,pp2,pp3," + String.join(",", projection) + "\n"))
-					.toCompletableFuture().get();
+			if (!QueueOfferResult.enqueued().equals(queue.offer(
+					ByteString.fromString("id,resource_id,ts,pp1,pp2,pp3," + String.join(",", projection) + "\n"))
+					.toCompletableFuture().get())) {
+				transaction.commit();
+				return;
+			}
 
+			StringBuilder chunk = new StringBuilder();
+			int rowCount = 0;
 			while (rs.next()) {
-				StringBuffer sb = new StringBuffer();
-				sb.append(rs.getLong(1) + ",");
-				sb.append(cf(nss(rs.getString(2), 63)) + ",");
-				sb.append(tsExportFormatter.format(rs.getTimestamp(3)) + ",");
-				sb.append(cf(nss(rs.getString(4), 255)) + ",");
-				sb.append(cf(nss(rs.getString(5), 255)) + ",");
-				sb.append(cf(nss(rs.getString(6), 255)) + ",");
+				chunk.append(rs.getLong(1)).append(",");
+				chunk.append(cf(nss(rs.getString(2), 63))).append(",");
+				chunk.append(tsExportFormatter.format(rs.getTimestamp(3))).append(",");
+				chunk.append(cf(nss(rs.getString(4), 255))).append(",");
+				chunk.append(cf(nss(rs.getString(5), 255))).append(",");
+				chunk.append(cf(nss(rs.getString(6), 255))).append(",");
 
 				// parse data as JSON
 				String data = rs.getString(7);
@@ -886,10 +908,23 @@ public class EntityDS extends LinkedDS {
 						return "";
 					}
 				}).collect(Collectors.joining(","));
-				sb.append(values);
-				sb.append("\n");
+				chunk.append(values);
+				chunk.append("\n");
+				rowCount++;
 
-				queue.offer(ByteString.fromString(sb.toString())).toCompletableFuture().get();
+				if (rowCount >= 256) {
+					if (!QueueOfferResult.enqueued().equals(
+							queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get())) {
+						chunk.setLength(0);
+						break;
+					}
+					chunk.setLength(0);
+					rowCount = 0;
+				}
+			}
+
+			if (chunk.length() > 0) {
+				queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get();
 			}
 			transaction.commit();
 		} catch (Exception e) {

@@ -12,6 +12,7 @@ import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 
+import org.apache.pekko.stream.QueueOfferResult;
 import org.apache.pekko.stream.javadsl.SourceQueueWithComplete;
 import org.apache.pekko.util.ByteString;
 
@@ -67,14 +68,31 @@ public class ClusterDS {
 					PreparedStatement stmt = connection.prepareStatement(query + sortingClause);
 					ResultSet rs = stmt.executeQuery();) {
 
-				queue.offer(ByteString.fromString("day,events,dataset\n")).toCompletableFuture().get();
+				if (!QueueOfferResult.enqueued()
+						.equals(queue.offer(ByteString.fromString("day,events,dataset\n")).toCompletableFuture().get())) {
+					transaction.commit();
+					return;
+				}
+				StringBuilder chunk = new StringBuilder();
+				int rowCount = 0;
 				while (rs.next()) {
-					StringBuffer sb = new StringBuffer();
-					sb.append(rs.getTimestamp(1).toString().substring(0, 10) + ",");
-					sb.append(rs.getLong(2) + ",");
-					sb.append("\"" + rs.getString(3) + "\"\n");
+					chunk.append(rs.getTimestamp(1).toString().substring(0, 10)).append(",");
+					chunk.append(rs.getLong(2)).append(",");
+					chunk.append("\"").append(rs.getString(3)).append("\"\n");
+					rowCount++;
 
-					queue.offer(ByteString.fromString(sb.toString())).toCompletableFuture().get();
+					if (rowCount >= 256) {
+						if (!QueueOfferResult.enqueued().equals(
+								queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get())) {
+							chunk.setLength(0);
+							break;
+						}
+						chunk.setLength(0);
+						rowCount = 0;
+					}
+				}
+				if (chunk.length() > 0) {
+					queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get();
 				}
 				transaction.commit();
 			} catch (Exception e) {
@@ -105,14 +123,31 @@ public class ClusterDS {
 					PreparedStatement stmt = connection.prepareStatement(query + sortingClause);
 					ResultSet rs = stmt.executeQuery();) {
 
-				queue.offer(ByteString.fromString("day,events,dataset\n")).toCompletableFuture().get();
+				if (!QueueOfferResult.enqueued()
+						.equals(queue.offer(ByteString.fromString("day,events,dataset\n")).toCompletableFuture().get())) {
+					transaction.commit();
+					return;
+				}
+				StringBuilder chunk = new StringBuilder();
+				int rowCount = 0;
 				while (rs.next()) {
-					StringBuffer sb = new StringBuffer();
-					sb.append(tsShortFormatter.format(rs.getTimestamp(1)) + ",");
-					sb.append(rs.getLong(2) + ",");
-					sb.append("\"" + rs.getString(3) + "\"\n");
+					chunk.append(tsShortFormatter.format(rs.getTimestamp(1))).append(",");
+					chunk.append(rs.getLong(2)).append(",");
+					chunk.append("\"").append(rs.getString(3)).append("\"\n");
+					rowCount++;
 
-					queue.offer(ByteString.fromString(sb.toString())).toCompletableFuture().get();
+					if (rowCount >= 256) {
+						if (!QueueOfferResult.enqueued().equals(
+								queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get())) {
+							chunk.setLength(0);
+							break;
+						}
+						chunk.setLength(0);
+						rowCount = 0;
+					}
+				}
+				if (chunk.length() > 0) {
+					queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get();
 				}
 				transaction.commit();
 			} catch (Exception e) {
@@ -144,14 +179,31 @@ public class ClusterDS {
 					PreparedStatement stmt = connection.prepareStatement(query + " ORDER BY day ASC;");
 					ResultSet rs = stmt.executeQuery();) {
 
-				queue.offer(ByteString.fromString("day,events,dataset\n")).toCompletableFuture().get();
+				if (!QueueOfferResult.enqueued()
+						.equals(queue.offer(ByteString.fromString("day,events,dataset\n")).toCompletableFuture().get())) {
+					transaction.commit();
+					return;
+				}
+				StringBuilder chunk = new StringBuilder();
+				int rowCount = 0;
 				while (rs.next()) {
-					StringBuffer sb = new StringBuffer();
-					sb.append(rs.getTimestamp(1).toString().substring(0, 10) + ",");
-					sb.append(rs.getLong(2) + ",");
-					sb.append("\"" + rs.getString(3) + "\"\n");
+					chunk.append(rs.getTimestamp(1).toString().substring(0, 10)).append(",");
+					chunk.append(rs.getLong(2)).append(",");
+					chunk.append("\"").append(rs.getString(3)).append("\"\n");
+					rowCount++;
 
-					queue.offer(ByteString.fromString(sb.toString())).toCompletableFuture().get();
+					if (rowCount >= 256) {
+						if (!QueueOfferResult.enqueued().equals(
+								queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get())) {
+							chunk.setLength(0);
+							break;
+						}
+						chunk.setLength(0);
+						rowCount = 0;
+					}
+				}
+				if (chunk.length() > 0) {
+					queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get();
 				}
 				transaction.commit();
 			} catch (InterruptedException | ExecutionException e) {
@@ -176,14 +228,31 @@ public class ClusterDS {
 					PreparedStatement stmt = connection.prepareStatement(query + " ORDER BY day ASC;");
 					ResultSet rs = stmt.executeQuery();) {
 
-				queue.offer(ByteString.fromString("day,events,dataset\n")).toCompletableFuture().get();
+				if (!QueueOfferResult.enqueued()
+						.equals(queue.offer(ByteString.fromString("day,events,dataset\n")).toCompletableFuture().get())) {
+					transaction.commit();
+					return;
+				}
+				StringBuilder chunk = new StringBuilder();
+				int rowCount = 0;
 				while (rs.next()) {
-					StringBuffer sb = new StringBuffer();
-					sb.append(tsShortFormatter.format(rs.getTimestamp(1)) + ",");
-					sb.append(rs.getLong(2) + ",");
-					sb.append("\"" + rs.getString(3) + "\"\n");
+					chunk.append(tsShortFormatter.format(rs.getTimestamp(1))).append(",");
+					chunk.append(rs.getLong(2)).append(",");
+					chunk.append("\"").append(rs.getString(3)).append("\"\n");
+					rowCount++;
 
-					queue.offer(ByteString.fromString(sb.toString())).toCompletableFuture().get();
+					if (rowCount >= 256) {
+						if (!QueueOfferResult.enqueued().equals(
+								queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get())) {
+							chunk.setLength(0);
+							break;
+						}
+						chunk.setLength(0);
+						rowCount = 0;
+					}
+				}
+				if (chunk.length() > 0) {
+					queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get();
 				}
 				transaction.commit();
 			} catch (InterruptedException | ExecutionException e) {
@@ -263,14 +332,31 @@ public class ClusterDS {
 					PreparedStatement stmt = connection.prepareStatement(query + sortingClause);
 					ResultSet rs = stmt.executeQuery();) {
 
-				queue.offer(ByteString.fromString("day,events,dataset\n")).toCompletableFuture().get();
+				if (!QueueOfferResult.enqueued()
+						.equals(queue.offer(ByteString.fromString("day,events,dataset\n")).toCompletableFuture().get())) {
+					transaction.commit();
+					return;
+				}
+				StringBuilder chunk = new StringBuilder();
+				int rowCount = 0;
 				while (rs.next()) {
-					StringBuffer sb = new StringBuffer();
-					sb.append(rs.getTimestamp(1).toString().substring(0, 10) + ",");
-					sb.append(rs.getLong(2) + ",");
-					sb.append("\"" + rs.getString(3) + "\"\n");
+					chunk.append(rs.getTimestamp(1).toString().substring(0, 10)).append(",");
+					chunk.append(rs.getLong(2)).append(",");
+					chunk.append("\"").append(rs.getString(3)).append("\"\n");
+					rowCount++;
 
-					queue.offer(ByteString.fromString(sb.toString())).toCompletableFuture().get();
+					if (rowCount >= 256) {
+						if (!QueueOfferResult.enqueued().equals(
+								queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get())) {
+							chunk.setLength(0);
+							break;
+						}
+						chunk.setLength(0);
+						rowCount = 0;
+					}
+				}
+				if (chunk.length() > 0) {
+					queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get();
 				}
 				transaction.commit();
 			} catch (InterruptedException | ExecutionException e) {
@@ -329,14 +415,31 @@ public class ClusterDS {
 					PreparedStatement stmt = connection.prepareStatement(query + sortingClause);
 					ResultSet rs = stmt.executeQuery();) {
 
-				queue.offer(ByteString.fromString("day,events,dataset\n")).toCompletableFuture().get();
+				if (!QueueOfferResult.enqueued()
+						.equals(queue.offer(ByteString.fromString("day,events,dataset\n")).toCompletableFuture().get())) {
+					transaction.commit();
+					return;
+				}
+				StringBuilder chunk = new StringBuilder();
+				int rowCount = 0;
 				while (rs.next()) {
-					StringBuffer sb = new StringBuffer();
-					sb.append(tsShortFormatter.format(rs.getTimestamp(1)) + ",");
-					sb.append(rs.getLong(2) + ",");
-					sb.append("\"" + rs.getString(3) + "\"\n");
+					chunk.append(tsShortFormatter.format(rs.getTimestamp(1))).append(",");
+					chunk.append(rs.getLong(2)).append(",");
+					chunk.append("\"").append(rs.getString(3)).append("\"\n");
+					rowCount++;
 
-					queue.offer(ByteString.fromString(sb.toString())).toCompletableFuture().get();
+					if (rowCount >= 256) {
+						if (!QueueOfferResult.enqueued().equals(
+								queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get())) {
+							chunk.setLength(0);
+							break;
+						}
+						chunk.setLength(0);
+						rowCount = 0;
+					}
+				}
+				if (chunk.length() > 0) {
+					queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get();
 				}
 				transaction.commit();
 			} catch (InterruptedException | ExecutionException e) {

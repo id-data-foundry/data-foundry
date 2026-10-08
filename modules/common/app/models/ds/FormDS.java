@@ -121,15 +121,33 @@ public class FormDS extends LinkedDS {
 						+ " ORDER BY id ASC " + limitExpression(limit) + ";");
 				ResultSet rs = stmt.executeQuery();) {
 
-			// sourceActor.tell(ByteString.fromString("# dataset export created on " + new Date() + "\n"), null);
-			queue.offer(ByteString.fromString("id,ts,data\n")).toCompletableFuture().get();
-			while (rs.next()) {
-				StringBuffer sb = new StringBuffer();
-				sb.append(rs.getLong(1) + ",");
-				sb.append(tsExportFormatter.format(rs.getTimestamp(2)) + ",");
-				sb.append(cf(rs.getString(3)) + "\n");
+			if (!QueueOfferResult.enqueued()
+					.equals(queue.offer(ByteString.fromString("id,ts,data\n")).toCompletableFuture().get())) {
+				transaction.commit();
+				return;
+			}
 
-				queue.offer(ByteString.fromString(sb.toString())).toCompletableFuture().get();
+			StringBuilder chunk = new StringBuilder();
+			int rowCount = 0;
+			while (rs.next()) {
+				chunk.append(rs.getLong(1)).append(",");
+				chunk.append(tsExportFormatter.format(rs.getTimestamp(2))).append(",");
+				chunk.append(cf(rs.getString(3))).append("\n");
+				rowCount++;
+
+				if (rowCount >= 256) {
+					if (!QueueOfferResult.enqueued().equals(
+							queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get())) {
+						chunk.setLength(0);
+						break;
+					}
+					chunk.setLength(0);
+					rowCount = 0;
+				}
+			}
+
+			if (chunk.length() > 0) {
+				queue.offer(ByteString.fromString(chunk.toString())).toCompletableFuture().get();
 			}
 
 			transaction.commit();
