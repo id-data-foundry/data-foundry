@@ -45,8 +45,8 @@ public class SearchService implements ScheduledService {
 	protected final ActorSystem actorSystem;
 	protected final ExecutionContext executionContext;
 
-	protected Analyzer analyzer;
-	protected Directory index;
+	protected volatile Analyzer analyzer;
+	protected volatile Directory index;
 	protected AtomicInteger pings = new AtomicInteger(1);
 
 	protected long lastIndexed = 0L;

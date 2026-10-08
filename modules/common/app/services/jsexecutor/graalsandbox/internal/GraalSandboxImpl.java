@@ -7,6 +7,7 @@ import javax.script.ScriptContext;
 import javax.script.ScriptException;
 
 import org.graalvm.polyglot.Context;
+import org.graalvm.polyglot.Engine;
 import org.graalvm.polyglot.HostAccess;
 import org.graalvm.polyglot.PolyglotException;
 import org.graalvm.polyglot.ResourceLimits;
@@ -34,14 +35,24 @@ public class GraalSandboxImpl extends NashornSandboxImpl implements GraalSandbox
 
 	static final Logger LOG = LoggerFactory.getLogger(GraalSandboxImpl.class);
 
+	private static final Engine SHARED_ENGINE = Engine.newBuilder().build();
+
+	public static Engine getSharedEngine() {
+		return SHARED_ENGINE;
+	}
+
 	public final boolean isStrict;
 
 	public GraalSandboxImpl() {
-		this(new String[0]);
+		this(SHARED_ENGINE, new String[0]);
 	}
 
 	public GraalSandboxImpl(String... params) {
-		super(GraalJSScriptEngine.create(null, Context.newBuilder("js")
+		this(SHARED_ENGINE, params);
+	}
+
+	public GraalSandboxImpl(Engine engine, String... params) {
+		super(GraalJSScriptEngine.create(engine != null ? engine : SHARED_ENGINE, Context.newBuilder("js")
 		        .allowPolyglotAccess(org.graalvm.polyglot.PolyglotAccess.NONE)
 		        .allowHostClassLookup(s -> false)
 		        .allowHostAccess(HostAccess.ALL)
@@ -59,6 +70,10 @@ public class GraalSandboxImpl extends NashornSandboxImpl implements GraalSandbox
 		isStrict = Arrays.asList(params).contains("-strict");
 		Bindings bindings = this.scriptEngine.getBindings(ScriptContext.ENGINE_SCOPE);
 		bindings.put("__it", new GraalInterruptTest());
+	}
+
+	public Engine getPolyglotEngine() {
+		return ((GraalJSScriptEngine) this.scriptEngine).getPolyglotEngine();
 	}
 
 	@Override

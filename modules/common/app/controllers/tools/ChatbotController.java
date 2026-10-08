@@ -2328,7 +2328,7 @@ public class ChatbotController extends AbstractAsyncController {
 	 * @param threshold
 	 * @return
 	 */
-	private Collection<SearchResult> searchIndex(CompleteDS cpds, String queryStr, int numResults, float threshold) {
+	public Collection<SearchResult> searchIndex(CompleteDS cpds, String queryStr, int numResults, float threshold) {
 		Set<SearchResult> results = new HashSet<>();
 
 		// check if we have anything to search
@@ -2336,17 +2336,27 @@ public class ChatbotController extends AbstractAsyncController {
 			return results;
 		}
 
-		try (FSDirectory indexDirectory = FSDirectory.open(getSearchIndexDir(cpds));
-				DirectoryReader indexReader = DirectoryReader.open(indexDirectory);) {
-			IndexSearcher searcher = new IndexSearcher(indexReader);
-
-			// embed query
+		// 1. embed query outside the Lucene reader lifecycle
+		float[] floatArray;
+		try {
 			List<List<Double>> embeddings = aiAPIService.dispatchEmbeddingRequest("SYSTEM", Arrays.asList(queryStr));
+			if (embeddings == null || embeddings.isEmpty() || embeddings.get(0) == null || embeddings.get(0).isEmpty()) {
+				return results;
+			}
 			int dims = embeddings.get(0).size();
-			float[] floatArray = new float[dims];
+			floatArray = new float[dims];
 			for (int i = 0; i < floatArray.length; i++) {
 				floatArray[i] = embeddings.get(0).get(i).floatValue();
 			}
+		} catch (Exception e) {
+			logger.error("Failed to generate embedding for RAG search query", e);
+			return results;
+		}
+
+		// 2. Open Lucene reader strictly for vector similarity search
+		try (FSDirectory indexDirectory = FSDirectory.open(getSearchIndexDir(cpds));
+				DirectoryReader indexReader = DirectoryReader.open(indexDirectory);) {
+			IndexSearcher searcher = new IndexSearcher(indexReader);
 
 			// search
 			KnnVectorQuery query = new KnnVectorQuery("contents-vector", floatArray, numResults);

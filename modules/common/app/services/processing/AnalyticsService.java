@@ -1,6 +1,9 @@
 package services.processing;
 
 import java.util.Date;
+import java.util.EnumMap;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -51,6 +54,10 @@ public class AnalyticsService implements ScheduledService {
 		metricsQueue = new LinkedBlockingQueue<AnalyticsService.MetricEntry>();
 	}
 
+	public int getQueueSize() {
+		return metricsQueue.size();
+	}
+
 	public void incMetric(long projectId, MetricsType metricType) {
 		incMetric(projectId, metricType, 1);
 	}
@@ -65,22 +72,11 @@ public class AnalyticsService implements ScheduledService {
 		        .sqlQuery("SELECT project_id, SUM(" + metricType.toString()
 		                + ") as ival FROM analytics WHERE project_id = ? GROUP BY project_id;")
 		        .setParameter(1, id).findOne();
-		long count = row != null ? (long) row.getOrDefault("ival", 0) : 0;
-
-//		Query<Integer> query = Ebean.createQuery(Integer.class);
-//		String sql = "SELECT SUM(" + metricType.toString() + ") FROM analytics WHERE project_id = ?";
-//		query.setRawSql(RawSqlBuilder.parse(sql).create());
-//		query.setParameter(1, id);
-//		Integer count = query.findOne();
-//		Optional<Analytics> aOpt = Analytics.find.query().select("sum(" + metricType.toString() + ") as project_views")
-//		        .where().eq("project_id", id).findOneOrEmpty();
-//		if (aOpt.isPresent()) {
-//			return aOpt.get().projectViews;
-//		} else {
-//			return 0;
-//		}
-
-		return count;
+		if (row != null) {
+			Long count = row.getLong("ival");
+			return count != null ? count : 0L;
+		}
+		return 0L;
 	}
 
 	/**
@@ -94,38 +90,54 @@ public class AnalyticsService implements ScheduledService {
 			// determine the timestamp for just _now_
 			Date timestamp = DateUtils.endOfDay(new Date());
 
-			// find entry in DB or create new one
+			// Aggregate metrics in memory by project id and metric type
+			Map<Long, Map<MetricsType, Integer>> aggregated = new HashMap<>();
 			for (int i = 0; i < itemCount && !metricsQueue.isEmpty(); i++) {
 				MetricEntry me = metricsQueue.poll();
-				Optional<Analytics> aOpt = Analytics.find.query().where().eq("project_id", me.id)
+				if (me != null) {
+					Map<MetricsType, Integer> projectMetrics = aggregated.computeIfAbsent(me.id,
+					        k -> new EnumMap<>(MetricsType.class));
+					projectMetrics.merge(me.metric, me.increment, Integer::sum);
+				}
+			}
+
+			// Apply aggregated totals to database in a single round-trip per unique project
+			for (Map.Entry<Long, Map<MetricsType, Integer>> entry : aggregated.entrySet()) {
+				Long projectId = entry.getKey();
+				Map<MetricsType, Integer> metrics = entry.getValue();
+
+				Optional<Analytics> aOpt = Analytics.find.query().where().eq("project_id", projectId)
 				        .eq("timestamp", timestamp).findOneOrEmpty();
 
 				// either use version in DB or create new one
-				final Analytics a = aOpt.isPresent() ? aOpt.get() : new Analytics(me.id, timestamp);
-				switch (me.metric) {
-				case PROJECT_VIEWS:
-					a.projectViews += me.increment;
-					break;
-				case PROJECT_UPDATES:
-					a.projectUpdates += me.increment;
-					break;
-				case DATASET_DOWNLOADS:
-					a.projectDatasetDownloads += me.increment;
-					break;
-				case DATASET_UPDATES:
-					a.projectDatasetUpdates += me.increment;
-					break;
-				case PARTICIPANT_INTERACTIONS:
-					a.projectParticipantInteractions += me.increment;
-					break;
-				case SCRIPT_INVOCATIONS:
-					a.projectScriptInvocations += me.increment;
-					break;
-				case WEBSITE_VIEWS:
-					a.projectWebsiteViews += me.increment;
-					break;
-				default:
-					break;
+				final Analytics a = aOpt.isPresent() ? aOpt.get() : new Analytics(projectId, timestamp);
+				for (Map.Entry<MetricsType, Integer> me : metrics.entrySet()) {
+					int increment = me.getValue();
+					switch (me.getKey()) {
+					case PROJECT_VIEWS:
+						a.setProjectViews(a.getProjectViews() + increment);
+						break;
+					case PROJECT_UPDATES:
+						a.setProjectUpdates(a.getProjectUpdates() + increment);
+						break;
+					case DATASET_DOWNLOADS:
+						a.setProjectDatasetDownloads(a.getProjectDatasetDownloads() + increment);
+						break;
+					case DATASET_UPDATES:
+						a.setProjectDatasetUpdates(a.getProjectDatasetUpdates() + increment);
+						break;
+					case PARTICIPANT_INTERACTIONS:
+						a.setProjectParticipantInteractions(a.getProjectParticipantInteractions() + increment);
+						break;
+					case SCRIPT_INVOCATIONS:
+						a.setProjectScriptInvocations(a.getProjectScriptInvocations() + increment);
+						break;
+					case WEBSITE_VIEWS:
+						a.setProjectWebsiteViews(a.getProjectWebsiteViews() + increment);
+						break;
+					default:
+						break;
+					}
 				}
 				a.update();
 			}
