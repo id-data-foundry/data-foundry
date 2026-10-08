@@ -260,7 +260,7 @@ public class FitbitDSController extends AbstractDSController {
 	        long end) {
 		FitbitDS fbds = (FitbitDS) datasetConnector.getDatasetDS(ds);
 		return createStream().mapMaterializedValue(sourceActor -> {
-			CompletableFuture.runAsync(() -> fbds.export(sourceActor, limit, start, end));
+			CompletableFuture.runAsync(() -> fbds.export(sourceActor, wearablesIds, limit, start, end));
 			return sourceActor;
 		});
 	}

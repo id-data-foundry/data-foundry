@@ -28,6 +28,7 @@ import models.ds.TimeseriesDS;
 import models.sr.Cluster;
 import models.sr.Device;
 import models.sr.Participant;
+import models.sr.Wearable;
 import play.Logger;
 import play.data.FormFactory;
 import play.libs.Files.TemporaryFile;
@@ -37,6 +38,7 @@ import play.mvc.Http.MultipartFormData.FilePart;
 import play.mvc.Http.Request;
 import play.mvc.Result;
 import utils.DataUtils;
+import utils.DatasetUtils;
 import utils.auth.TokenResolverUtil;
 import utils.validators.FileTypeUtils;
 
@@ -539,6 +541,11 @@ public class ParticipationApiController extends AbstractApiController {
 				return notFound("No or invalid dataset ID given.");
 			}
 
+			if (ds.getDsType() == DatasetType.FORM || ds.getDsType() == DatasetType.COMPLETE
+					|| ds.getDsType() == DatasetType.LINKED || ds.getDsType() == DatasetType.ANNOTATION) {
+				return forbidden("Dataset cannot be exported by participants.");
+			}
+
 			// configure filtering
 			final Cluster cluster;
 			Optional<Cluster> clusterOpt = participant.getCluster();
@@ -548,7 +555,14 @@ public class ParticipationApiController extends AbstractApiController {
 				cluster = new Cluster(participant.getSlug());
 				cluster.setId(-1l);
 				cluster.getParticipants().add(participant);
+				for (Device d : participant.getClusterDevices()) {
+					cluster.getDevices().add(d);
+				}
+				for (Wearable w : participant.getClusterWearables()) {
+					cluster.getWearables().add(w);
+				}
 			}
+			DatasetUtils.fillClusterSlots(cluster);
 
 			try {
 				return datasetsController.downloadInternal(request, id, ds, cluster, limit, start, end)
@@ -592,6 +606,11 @@ public class ParticipationApiController extends AbstractApiController {
 				return notFound("No or invalid dataset ID given.");
 			}
 
+			if (ds.getDsType() == DatasetType.FORM || ds.getDsType() == DatasetType.COMPLETE
+					|| ds.getDsType() == DatasetType.LINKED || ds.getDsType() == DatasetType.ANNOTATION) {
+				return forbidden("Dataset cannot be exported by participants.");
+			}
+
 			// configure filtering
 			final Cluster cluster;
 			Optional<Cluster> clusterOpt = participant.getCluster();
@@ -601,9 +620,16 @@ public class ParticipationApiController extends AbstractApiController {
 				cluster = new Cluster(participant.getSlug());
 				cluster.setId(-1l);
 				cluster.getParticipants().add(participant);
+				for (Device d : participant.getClusterDevices()) {
+					cluster.getDevices().add(d);
+				}
+				for (Wearable w : participant.getClusterWearables()) {
+					cluster.getWearables().add(w);
+				}
 			}
+			DatasetUtils.fillClusterSlots(cluster);
 
-			return datasetsController.downloadJsonCluster(request, id, cluster, limit, start, end);
+			return ok(datasetConnector.getDatasetDS(ds).retrieveProjected(cluster, limit, start, end));
 		});
 	}
 }

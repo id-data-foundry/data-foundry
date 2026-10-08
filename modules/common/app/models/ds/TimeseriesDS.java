@@ -36,6 +36,7 @@ import play.Logger;
 import play.libs.Json;
 import services.outlets.OOCSIStreamOutService;
 import services.notifications.Notifications;
+import utils.DatasetUtils;
 import utils.StringUtils;
 
 public class TimeseriesDS extends LinkedDS {
@@ -326,7 +327,10 @@ public class TimeseriesDS extends LinkedDS {
 
 	@Override
 	public void export(SourceQueueWithComplete<ByteString> queue, Cluster cluster, long limit, long start, long end) {
-		exportProjected(queue, cluster.getDeviceList(), limit, start, end);
+		if (cluster != null) {
+			DatasetUtils.fillClusterSlots(cluster);
+		}
+		exportProjected(queue, cluster != null ? cluster.getDeviceList() : Collections.emptyList(), limit, start, end);
 	}
 
 	public void export(SourceQueueWithComplete<ByteString> destinationQueue, List<Long> deviceIds, long limit,

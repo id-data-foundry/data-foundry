@@ -21,6 +21,7 @@ import models.Dataset;
 import models.DatasetType;
 import models.Project;
 import models.ds.EntityDS;
+import models.sr.Cluster;
 import play.Logger;
 import play.cache.SyncCacheApi;
 import play.data.DynamicForm;
@@ -612,16 +613,24 @@ public class EntityDSController extends AbstractDSController {
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	public CompletionStage<Result> downloadExternal(Dataset ds, long limit, long start, long end) {
-		return CompletableFuture.supplyAsync(() -> internalExport(ds, limit, start, end))
+	public CompletionStage<Result> downloadExternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
+		return CompletableFuture.supplyAsync(() -> internalExport(ds, cluster, limit, start, end))
 				.thenApplyAsync(chunks -> ok().chunked(chunks)
 						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
 						.as("text/csv"));
 	}
 
-	public CompletionStage<Result> downloadInternal(Dataset ds, long limit, long start, long end) {
-		return CompletableFuture.supplyAsync(() -> internalExport(ds, limit, start, end))
+	public CompletionStage<Result> downloadExternal(Dataset ds, long limit, long start, long end) {
+		return downloadExternal(ds, null, limit, start, end);
+	}
+
+	public CompletionStage<Result> downloadInternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
+		return CompletableFuture.supplyAsync(() -> internalExport(ds, cluster, limit, start, end))
 				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
+	}
+
+	public CompletionStage<Result> downloadInternal(Dataset ds, long limit, long start, long end) {
+		return downloadInternal(ds, null, limit, start, end);
 	}
 
 	@Authenticated(UserAuth.class)
@@ -686,12 +695,16 @@ public class EntityDSController extends AbstractDSController {
 	 * @param start
 	 * @return
 	 */
-	private Source<ByteString, ?> internalExport(Dataset ds, long limit, long start, long end) {
+	private Source<ByteString, ?> internalExport(Dataset ds, Cluster cluster, long limit, long start, long end) {
 		EntityDS tssc = (EntityDS) datasetConnector.getDatasetDS(ds);
 		return createStream().mapMaterializedValue(sourceActor -> {
-			CompletableFuture.runAsync(() -> tssc.exportProjected(sourceActor, start, end));
+			CompletableFuture.runAsync(() -> tssc.exportProjected(sourceActor, cluster, start, end));
 			return sourceActor;
 		});
+	}
+
+	private Source<ByteString, ?> internalExport(Dataset ds, long limit, long start, long end) {
+		return internalExport(ds, null, limit, start, end);
 	}
 
 	/**

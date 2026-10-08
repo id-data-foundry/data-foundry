@@ -118,11 +118,19 @@ public class AnnotationDS extends LinkedDS {
 
 	public void export(SourceQueueWithComplete<ByteString> queue, long cluster_id, long limit, long start, long end) {
 
+		final String whereClause;
+		if (cluster_id > -1) {
+			whereClause = " WHERE cluster_id = " + cluster_id + " "
+					+ timeFilterWhereClause(start, end).replace("WHERE", "AND");
+		} else {
+			whereClause = timeFilterWhereClause(start, end);
+		}
+
 		// create the actual database for the data
 		try (Transaction transaction = DB.beginTransaction();
 				Connection connection = transaction.connection();
 				PreparedStatement stmt = connection.prepareStatement("SELECT id, cluster_id, ts, title, text FROM "
-						+ dataTableName + timeFilterWhereClause(start, end) + " ORDER BY id ASC "
+						+ dataTableName + whereClause + " ORDER BY id ASC "
 						+ limitExpression(limit) + ";");
 				ResultSet rs = stmt.executeQuery();) {
 

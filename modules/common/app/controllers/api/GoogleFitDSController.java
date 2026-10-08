@@ -264,7 +264,7 @@ public class GoogleFitDSController extends AbstractDSController {
 	        long end) {
 		GoogleFitDS gfds = (GoogleFitDS) datasetConnector.getDatasetDS(ds);
 		return createStream().mapMaterializedValue(sourceActor -> {
-			CompletableFuture.runAsync(() -> gfds.export(sourceActor, limit, start, end));
+			CompletableFuture.runAsync(() -> gfds.export(sourceActor, wearablesIds, limit, start, end));
 			return sourceActor;
 		});
 	}

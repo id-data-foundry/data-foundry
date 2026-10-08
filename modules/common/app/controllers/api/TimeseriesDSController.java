@@ -38,6 +38,7 @@ import play.libs.Json;
 import play.mvc.Http.Request;
 import play.mvc.Result;
 import play.mvc.Security.Authenticated;
+import utils.DatasetUtils;
 import utils.DateUtils;
 import utils.StringUtils;
 import utils.auth.Hash;
@@ -629,8 +630,11 @@ public class TimeseriesDSController extends AbstractDSController {
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////// .
 
 	public CompletionStage<Result> downloadExternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
+		if (cluster != null) {
+			DatasetUtils.fillClusterSlots(cluster);
+		}
 		// get device ids (if cluster is given)
-		final List<Long> deviceIds = cluster.getDeviceList();
+		final List<Long> deviceIds = cluster != null ? cluster.getDeviceList() : Collections.emptyList();
 		return CompletableFuture.supplyAsync(() -> internalExport(ds, deviceIds, limit, start, end))
 				.thenApplyAsync(chunks -> ok().chunked(chunks)
 						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
@@ -638,8 +642,11 @@ public class TimeseriesDSController extends AbstractDSController {
 	}
 
 	public CompletionStage<Result> downloadInternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
+		if (cluster != null) {
+			DatasetUtils.fillClusterSlots(cluster);
+		}
 		// get device ids (if cluster is given)
-		final List<Long> deviceIds = cluster.getDeviceList();
+		final List<Long> deviceIds = cluster != null ? cluster.getDeviceList() : Collections.emptyList();
 		return CompletableFuture.supplyAsync(() -> internalExport(ds, deviceIds, limit, start, end))
 				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
 	}

@@ -722,7 +722,7 @@ public class DatasetsController extends AbstractAsyncController {
 		case ANNOTATION:
 			return annotationDSController.downloadExternal(ds, cluster, limit, start, end);
 		case ENTITY:
-			return entityDSController.downloadExternal(ds, limit, start, end);
+			return entityDSController.downloadExternal(ds, cluster, limit, start, end);
 		case DIARY:
 			return diaryDSController.downloadExternal(ds, cluster, limit, start, end);
 		case FORM:
@@ -772,7 +772,7 @@ public class DatasetsController extends AbstractAsyncController {
 		case ANNOTATION:
 			return annotationDSController.downloadExternal(ds, cluster, limit, start, end);
 		case ENTITY:
-			return entityDSController.downloadExternal(ds, limit, start, end);
+			return entityDSController.downloadExternal(ds, cluster, limit, start, end);
 		case DIARY:
 			return diaryDSController.downloadExternal(ds, cluster, limit, start, end);
 		case FORM:
@@ -846,7 +846,7 @@ public class DatasetsController extends AbstractAsyncController {
 		case ANNOTATION:
 			return annotationDSController.downloadInternal(ds, cluster, limit, start, end);
 		case ENTITY:
-			return entityDSController.downloadInternal(ds, limit, start, end);
+			return entityDSController.downloadInternal(ds, cluster, limit, start, end);
 		case DIARY:
 			return diaryDSController.downloadInternal(ds, cluster, limit, start, end);
 		case FORM:

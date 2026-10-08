@@ -29,6 +29,7 @@ import io.ebean.Transaction;
 import models.Dataset;
 import models.sr.Cluster;
 import models.sr.DataResource;
+import models.sr.Participant;
 import play.Logger;
 import play.libs.Json;
 import services.notifications.Notifications;
@@ -661,19 +662,38 @@ public class EntityDS extends LinkedDS {
 		return deleteSuccessful;
 	}
 
-	@Override
-	public void export(SourceQueueWithComplete<ByteString> queue, Cluster cluster, long limit, long start, long end) {
-		exportProjected(queue, start, end);
+	private String resourceIdWhereClause(Cluster cluster, long start, long end) {
+		if (cluster == null) {
+			return " WHERE id IN (SELECT MAX(id) FROM " + dataTableName + " GROUP BY resource_id) "
+					+ timeFilterWhereClause(start, end).replace("WHERE", "AND");
+		}
+		List<String> refIds = cluster.getParticipants().stream()
+				.map(Participant::getRefId)
+				.filter(refId -> refId != null && !refId.isEmpty())
+				.collect(Collectors.toList());
+		if (refIds.isEmpty()) {
+			return " WHERE 1 = 0 ";
+		}
+		String refFilter = "resource_id IN ("
+				+ refIds.stream().map(r -> "'" + r.replace("'", "''") + "'").collect(Collectors.joining(",")) + ")";
+		return " WHERE " + refFilter + " AND id IN (SELECT MAX(id) FROM " + dataTableName
+				+ " WHERE " + refFilter + " GROUP BY resource_id) "
+				+ timeFilterWhereClause(start, end).replace("WHERE", "AND");
 	}
 
-	public void export(SourceQueueWithComplete<ByteString> queue, long start, long end) {
+	@Override
+	public void export(SourceQueueWithComplete<ByteString> queue, Cluster cluster, long limit, long start, long end) {
+		exportProjected(queue, cluster, start, end);
+	}
+
+	public void export(SourceQueueWithComplete<ByteString> queue, Cluster cluster, long start, long end) {
 
 		// create the actual database for the data
 		try (Transaction transaction = DB.beginTransaction();
 				Connection connection = transaction.connection();
 				PreparedStatement stmt = connection.prepareStatement(
-						"SELECT id, resource_id, ts, pp1, pp2, pp3, data FROM " + dataTableName + " WHERE id IN "
-								+ "(SELECT MAX(id) FROM " + dataTableName + " GROUP BY resource_id) ORDER BY ts ASC;");
+						"SELECT id, resource_id, ts, pp1, pp2, pp3, data FROM " + dataTableName
+								+ resourceIdWhereClause(cluster, start, end) + " ORDER BY ts ASC;");
 				ResultSet rs = stmt.executeQuery();) {
 
 			if (!QueueOfferResult.enqueued().equals(queue.offer(ByteString.fromString("id,resource_id,ts,pp1,pp2,pp3,data\n")).toCompletableFuture().get())) {
@@ -774,11 +794,15 @@ public class EntityDS extends LinkedDS {
 		queue.complete();
 	}
 
-	public void exportProjected(SourceQueueWithComplete<ByteString> queue, long start, long end) {
+	public void export(SourceQueueWithComplete<ByteString> queue, long start, long end) {
+		export(queue, (Cluster) null, start, end);
+	}
+
+	public void exportProjected(SourceQueueWithComplete<ByteString> queue, Cluster cluster, long start, long end) {
 
 		// check whether there is a projection given
 		if (!dataset.getConfiguration().containsKey(Dataset.DATA_PROJECTION)) {
-			export(queue, start, end);
+			export(queue, cluster, start, end);
 			return;
 		}
 
@@ -790,8 +814,7 @@ public class EntityDS extends LinkedDS {
 				Connection connection = transaction.connection();
 				PreparedStatement stmt = connection
 						.prepareStatement("SELECT id, resource_id, ts, pp1, pp2, pp3, data FROM " + dataTableName
-								+ " WHERE id IN " + "(SELECT MAX(id) FROM " + dataTableName + " GROUP BY resource_id) "
-								+ timeFilterWhereClause(start, end).replace("WHERE", "AND") + " ORDER BY ts ASC;");
+								+ resourceIdWhereClause(cluster, start, end) + " ORDER BY ts ASC;");
 				ResultSet rs = stmt.executeQuery();) {
 
 			if (!QueueOfferResult.enqueued().equals(queue.offer(
@@ -853,6 +876,10 @@ public class EntityDS extends LinkedDS {
 		}
 
 		queue.complete();
+	}
+
+	public void exportProjected(SourceQueueWithComplete<ByteString> queue, long start, long end) {
+		exportProjected(queue, (Cluster) null, start, end);
 	}
 
 	public void exportLogProjected(SourceQueueWithComplete<ByteString> queue, long start, long end) {
@@ -945,8 +972,8 @@ public class EntityDS extends LinkedDS {
 				Connection connection = transaction.connection();
 				PreparedStatement stmt = connection
 						.prepareStatement("SELECT id, resource_id, ts, pp1, pp2, pp3, data FROM " + dataTableName
-								+ " WHERE id IN " + "(SELECT MAX(id) FROM " + dataTableName + " GROUP BY resource_id) "
-								+ timeFilterWhereClause(start, end).replace("WHERE", "AND") + " ORDER BY ts ASC;");
+								+ resourceIdWhereClause(cluster, start, end) + " ORDER BY ts ASC "
+								+ limitExpression(limit) + ";");
 				ResultSet rs = stmt.executeQuery();) {
 
 			while (rs.next()) {

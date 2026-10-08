@@ -363,7 +363,7 @@ public class FitbitDS extends LinkedDS {
 
 	@Override
 	public void export(SourceQueueWithComplete<ByteString> queue, Cluster cluster, long limit, long start, long end) {
-		export(queue, limit, start, end);
+		export(queue, cluster != null ? cluster.getWearableList() : null, limit, start, end);
 	}
 
 	/**
@@ -374,10 +374,25 @@ public class FitbitDS extends LinkedDS {
 	 * @param start
 	 */
 	public void export(SourceQueueWithComplete<ByteString> queue, long limit, long start, long end) {
+		export(queue, (List<Long>) null, limit, start, end);
+	}
+
+	public void export(SourceQueueWithComplete<ByteString> queue, List<Long> wearablesIds, long limit, long start, long end) {
+		final String whereClause;
+		if (wearablesIds == null) {
+			whereClause = timeFilterWhereClause(start, end);
+		} else if (wearablesIds.isEmpty()) {
+			whereClause = " WHERE 1 = 0 " + timeFilterWhereClause(start, end).replace("WHERE", "AND");
+		} else {
+			whereClause = " WHERE wearable_id IN ("
+					+ wearablesIds.stream().map(l -> l.toString()).collect(Collectors.joining(",")) + ") "
+					+ timeFilterWhereClause(start, end).replace("WHERE", "AND");
+		}
+
 		try (Transaction transaction = DB.beginTransaction();
 				Connection connection = transaction.connection();
 				PreparedStatement stmt = connection.prepareStatement("SELECT * FROM " + dataTableName
-						+ timeFilterWhereClause(start, end) + " ORDER BY id ASC " + limitExpression(limit) + ";");
+						+ whereClause + " ORDER BY id ASC " + limitExpression(limit) + ";");
 				ResultSet rs = stmt.executeQuery();) {
 
 			if (!QueueOfferResult.enqueued().equals(queue.offer(ByteString.fromString("id,wearable_id,user_id,ts,pp1,pp2,pp3,data_date,heartrate,activity"
@@ -439,8 +454,10 @@ public class FitbitDS extends LinkedDS {
 	public ArrayNode retrieveProjected(Cluster cluster, long limit, long start, long end) {
 
 		final String whereClause;
-		if (cluster.getWearables().isEmpty()) {
+		if (cluster == null) {
 			whereClause = timeFilterWhereClause(start, end);
+		} else if (cluster.getWearables().isEmpty()) {
+			whereClause = " WHERE 1 = 0 " + timeFilterWhereClause(start, end).replace("WHERE", "AND");
 		} else {
 			whereClause = " WHERE wearable_id IN ("
 					+ cluster.getWearables().stream().map(w -> w.getId().toString()).collect(Collectors.joining(","))
