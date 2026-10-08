@@ -7,8 +7,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.Deque;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
@@ -34,7 +36,10 @@ import models.Person;
 import models.Project;
 import models.ds.CompleteDS;
 import models.ds.EntityDS;
+import models.sr.Cluster;
+import models.sr.Device;
 import models.sr.Participant;
+import models.sr.Wearable;
 import nl.tue.id.oocsi.OOCSICommunicator;
 import nl.tue.id.oocsi.OOCSIEvent;
 import nl.tue.id.oocsi.client.protocol.EventHandler;
@@ -105,6 +110,13 @@ public class JSActor implements ApiServiceConstants {
 
 	// queue of message from the installed script execution
 	public final Deque<String> messages = new LinkedList<String>();
+
+	// cached log file handle
+	private volatile File cachedLogFile = null;
+
+	public File getCachedLogFile() {
+		return cachedLogFile;
+	}
 
 	// sandbox
 	private final JSSandboxFactory sandboxFactory;
@@ -283,6 +295,45 @@ public class JSActor implements ApiServiceConstants {
 		internalUpdate(data);
 	}
 
+	private synchronized Optional<File> getLogFile(Date now) {
+		if (cachedLogFile != null && cachedLogFile.exists()) {
+			return Optional.of(cachedLogFile);
+		}
+		Dataset ds = Dataset.find.byId(getDatasetId());
+		if (ds == null) {
+			return Optional.empty();
+		}
+		final CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
+		if (cpds == null) {
+			return Optional.empty();
+		}
+		Optional<File> logFileOpt = cpds.getFileTemp("log.txt");
+		if (logFileOpt.isPresent()) {
+			File logFile = logFileOpt.get();
+			if (!logFile.exists()) {
+				cpds.addRecord("log.txt", "Log file for the script output", now != null ? now : new Date());
+			}
+			cachedLogFile = logFile;
+			return Optional.of(logFile);
+		}
+		return Optional.empty();
+	}
+
+	private void appendLogOutput(String outputMessages, Date now) {
+		if (outputMessages == null || outputMessages.isEmpty()) {
+			return;
+		}
+
+		Optional<File> logFileOpt = getLogFile(now);
+		if (logFileOpt.isPresent()) {
+			try (FileWriter fw = new FileWriter(logFileOpt.get(), true)) {
+				fw.write(outputMessages + "\n");
+			} catch (Exception e) {
+				// do nothing
+			}
+		}
+	}
+
 	/**
 	 * update the actor with JSON data
 	 * 
@@ -294,26 +345,12 @@ public class JSActor implements ApiServiceConstants {
 			JSActorProxy actorProxy = runCompiled(data);
 			String outputMessages = actorProxy != null ? actorProxy.getMessages() : "";
 
-			if (!outputMessages.isEmpty()) {
+			if (outputMessages != null && !outputMessages.isEmpty()) {
 				messages.offerFirst(outputMessages);
 			}
 
 			// write the output messages to the log file
-			Dataset ds = Dataset.find.byId(getDatasetId());
-			final CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
-			Optional<File> logFileOpt = cpds.getFileTemp("log.txt");
-
-			// create log file in records if the file does not exist
-			if (!logFileOpt.get().exists()) {
-				cpds.addRecord("log.txt", "Log file for the script output", now);
-			}
-
-			// write to log file
-			try (FileWriter fw = new FileWriter(logFileOpt.get(), true)) {
-				fw.write(outputMessages + "\n");
-			} catch (Exception e) {
-				// do nothing
-			}
+			appendLogOutput(outputMessages, now);
 		} else {
 			// log nothing, this might simply occur a lot
 		}
@@ -343,26 +380,12 @@ public class JSActor implements ApiServiceConstants {
 				String outputMessages = actorProxy.getMessages();
 				response = Optional.ofNullable(actorProxy.getResponse());
 
-				if (!outputMessages.isEmpty()) {
+				if (outputMessages != null && !outputMessages.isEmpty()) {
 					messages.offerFirst(outputMessages);
 				}
 
 				// write the output messages to the log file
-				Dataset ds = Dataset.find.byId(getDatasetId());
-				final CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
-				Optional<File> logFileOpt = cpds.getFileTemp("log.txt");
-
-				// create log file in records if the file does not exist
-				if (!logFileOpt.get().exists()) {
-					cpds.addRecord("log.txt", "Log file for the script output", now);
-				}
-
-				// write to log file
-				try (FileWriter fw = new FileWriter(logFileOpt.get(), true)) {
-					fw.write(outputMessages + "\n");
-				} catch (Exception e) {
-					// do nothing
-				}
+				appendLogOutput(outputMessages, now);
 			}
 		}
 
@@ -621,7 +644,7 @@ public class JSActor implements ApiServiceConstants {
 	 * @param data
 	 * @param actor
 	 */
-	private JSActorProxy createActorProxy(JsonObject data) {
+	public JSActorProxy createActorProxy(JsonObject data) {
 
 		final JSActorProxy actor = new JSActorProxy(this);
 		actor.data = data;
@@ -633,16 +656,68 @@ public class JSActor implements ApiServiceConstants {
 
 		// get the project details
 		Project project = getProject();
-		project.getParticipants().stream().forEach(p -> {
-			// collect devices for each participant
-			ArrayNode participantDevices = Json.newArray();
-			project.getClusters().stream().filter(c -> c.hasParticipant(p))
-					.forEach(c -> c.getDevices().forEach(d -> participantDevices.add(d.getId())));
+		if (project == null) {
+			return actor;
+		}
 
-			// collect wearables for each participant
+		Map<Long, List<Long>> participantToDevices = new HashMap<>();
+		Map<Long, List<Long>> participantToWearables = new HashMap<>();
+		Map<Long, List<Long>> deviceToParticipants = new HashMap<>();
+		Map<Long, List<Long>> wearableToParticipants = new HashMap<>();
+
+		for (Cluster c : project.getClusters()) {
+			List<Long> clusterParticipantIds = new ArrayList<>();
+			for (Participant p : c.getParticipants()) {
+				clusterParticipantIds.add(p.getId());
+			}
+			List<Long> clusterDeviceIds = new ArrayList<>();
+			for (Device d : c.getDevices()) {
+				clusterDeviceIds.add(d.getId());
+			}
+			List<Long> clusterWearableIds = new ArrayList<>();
+			for (Wearable w : c.getWearables()) {
+				clusterWearableIds.add(w.getId());
+			}
+
+			// populate relationship lookup maps
+			for (Long pId : clusterParticipantIds) {
+				participantToDevices.computeIfAbsent(pId, k -> new ArrayList<>()).addAll(clusterDeviceIds);
+				participantToWearables.computeIfAbsent(pId, k -> new ArrayList<>()).addAll(clusterWearableIds);
+			}
+			for (Long dId : clusterDeviceIds) {
+				deviceToParticipants.computeIfAbsent(dId, k -> new ArrayList<>()).addAll(clusterParticipantIds);
+			}
+			for (Long wId : clusterWearableIds) {
+				wearableToParticipants.computeIfAbsent(wId, k -> new ArrayList<>()).addAll(clusterParticipantIds);
+			}
+
+			// create cluster object
+			ArrayNode participants = Json.newArray();
+			clusterParticipantIds.forEach(participants::add);
+			ArrayNode devices = Json.newArray();
+			clusterDeviceIds.forEach(devices::add);
+			ArrayNode wearables = Json.newArray();
+			clusterWearableIds.forEach(wearables::add);
+
+			ObjectNode cluster = Json.newObject().put("name", c.getName());
+			cluster.set("participants", participants);
+			cluster.set("devices", devices);
+			cluster.set("wearables", wearables);
+			actor.clusters.add(cluster);
+		}
+
+		for (Participant p : project.getParticipants()) {
+			ArrayNode participantDevices = Json.newArray();
+			List<Long> pDevs = participantToDevices.get(p.getId());
+			if (pDevs != null) {
+				pDevs.forEach(participantDevices::add);
+			}
+
 			ArrayNode participantWearables = Json.newArray();
-			project.getClusters().stream().filter(c -> c.hasParticipant(p))
-					.forEach(c -> c.getDevices().forEach(d -> participantWearables.add(d.getId())));
+			List<Long> pWears = participantToWearables.get(p.getId());
+			if (pWears != null) {
+				pWears.forEach(participantWearables::add);
+			}
 
 			// create participant object with list of devices and wearables and add it to list
 			ObjectNode participantObject = Json.newObject() //
@@ -655,12 +730,14 @@ public class JSActor implements ApiServiceConstants {
 			participantObject.set("devices", participantDevices);
 			participantObject.set("wearables", participantWearables);
 			actor.participants.add(participantObject);
-		});
-		project.getDevices().stream().forEach(d -> {
-			// collect participants for each device
+		}
+
+		for (Device d : project.getDevices()) {
 			ArrayNode deviceParticipants = Json.newArray();
-			project.getClusters().stream().filter(c -> c.hasDevice(d))
-					.forEach(c -> c.getParticipants().forEach(p -> deviceParticipants.add(p.getId())));
+			List<Long> dParts = deviceToParticipants.get(d.getId());
+			if (dParts != null) {
+				dParts.forEach(deviceParticipants::add);
+			}
 
 			// create device object with list of participants
 			actor.devices.add(Json.newObject() //
@@ -671,12 +748,14 @@ public class JSActor implements ApiServiceConstants {
 					.put("pp2", d.getPublicParameter2()) //
 					.put("pp3", d.getPublicParameter3()) //
 					.set("participants", deviceParticipants));
-		});
-		project.getWearables().stream().forEach(d -> {
-			// collect participants for each wearable
+		}
+
+		for (Wearable d : project.getWearables()) {
 			ArrayNode wearableParticipants = Json.newArray();
-			project.getClusters().stream().filter(c -> c.hasWearable(d))
-					.forEach(c -> c.getParticipants().forEach(p -> wearableParticipants.add(p.getId())));
+			List<Long> wParts = wearableToParticipants.get(d.getId());
+			if (wParts != null) {
+				wParts.forEach(wearableParticipants::add);
+			}
 
 			// create wearable object with list of participants
 			actor.wearables.add(Json.newObject() //
@@ -688,28 +767,15 @@ public class JSActor implements ApiServiceConstants {
 					.put("pp2", d.getPublicParameter2()) //
 					.put("pp3", d.getPublicParameter3()) //
 					.set("participants", wearableParticipants));
-		});
-		project.getClusters().stream().forEach(c -> {
-			// collect participants, devices, and wearables
-			ArrayNode participants = Json.newArray();
-			c.getParticipants().forEach(d -> participants.add(d.getId()));
-			ArrayNode devices = Json.newArray();
-			c.getDevices().forEach(d -> devices.add(d.getId()));
-			ArrayNode wearables = Json.newArray();
-			c.getDevices().forEach(d -> wearables.add(d.getId()));
+		}
 
-			// create cluster object
-			ObjectNode cluster = Json.newObject().put("name", c.getName());
-			cluster.set("participants", participants);
-			cluster.set("devices", devices);
-			cluster.set("wearables", wearables);
-			actor.clusters.add(cluster);
-		});
-		project.getDatasets().stream().forEach(d -> actor.datasets.add(Json.newObject() //
-				.put("id", d.getId()) //
-				.put("dataset_id", d.getRefId()) //
-				.put("name", d.getName()) //
-				.put("type", d.getDsType().name())));
+		for (Dataset d : project.getDatasets()) {
+			actor.datasets.add(Json.newObject() //
+					.put("id", d.getId()) //
+					.put("dataset_id", d.getRefId()) //
+					.put("name", d.getName()) //
+					.put("type", d.getDsType().name()));
+		}
 
 		return actor;
 	}
