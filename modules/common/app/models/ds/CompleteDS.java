@@ -14,10 +14,13 @@ import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -426,6 +429,73 @@ public class CompleteDS extends LinkedDS {
 	}
 
 	/**
+	 * One-shot view of the dataset folder; resolves names with the same 3-step semantics as getFile(String).
+	 */
+	public final class FolderSnapshot {
+		private final File folder;
+		private final Set<String> names;
+		private Map<String, String> sanitizedIndex;
+
+		public FolderSnapshot() {
+			this.folder = CompleteDS.this.getFolder();
+			String[] list = folder != null && folder.isDirectory() ? folder.list() : null;
+			this.names = list == null ? Collections.emptySet() : new HashSet<>(Arrays.asList(list));
+		}
+
+		public File getFolder() {
+			return folder;
+		}
+
+		public boolean isEmpty() {
+			return names.isEmpty();
+		}
+
+		private Map<String, String> getSanitizedIndex() {
+			if (sanitizedIndex == null) {
+				sanitizedIndex = new HashMap<>();
+				for (String name : names) {
+					String sanitized = FileTypeUtils.sanitizeFilename(name);
+					sanitizedIndex.putIfAbsent(sanitized, name);
+				}
+			}
+			return sanitizedIndex;
+		}
+
+		public Optional<File> resolve(String fileName) {
+			if (fileName == null || fileName.trim().isEmpty()) {
+				return Optional.empty();
+			}
+			// Names containing path separators cannot appear directly in folder.list(); delegate to safe getFile
+			if (fileName.contains("/") || fileName.contains("\\")) {
+				return getFile(fileName);
+			}
+
+			// 1. Direct safe lookup in folder
+			if (names.contains(fileName)) {
+				return FileUtil.getSafeFileInFolder(folder, fileName);
+			}
+
+			// 2. MODERATE: sanitize filename then find safely
+			String sanitized = FileTypeUtils.sanitizeFilename(fileName);
+			if (names.contains(sanitized)) {
+				return FileUtil.getSafeFileInFolder(folder, sanitized);
+			}
+
+			// 3. EXPENSIVE fallback: try potential matches on disk in old formats using pre-indexed map
+			String actual = getSanitizedIndex().get(sanitized);
+			if (actual != null) {
+				return FileUtil.getSafeFileInFolder(folder, actual);
+			}
+
+			return Optional.empty();
+		}
+	}
+
+	public FolderSnapshot snapshotFolder() {
+		return new FolderSnapshot();
+	}
+
+	/**
 	 * get specified file from the dataset; note that this is just the handle, the file might not exist (yet)
 	 * 
 	 * @param fileName
@@ -605,13 +675,14 @@ public class CompleteDS extends LinkedDS {
 			return Collections.emptyList();
 		}
 
+		FolderSnapshot snap = snapshotFolder();
 		List<TimedMedia> result = new LinkedList<>();
 		for (FileRow row : rows) {
-			Optional<File> fileOpt = getFile(row.fileName());
+			Optional<File> fileOpt = snap.resolve(row.fileName());
 
 			// check timestamped version
 			if (fileOpt.isEmpty() && row.timestamp() != null) {
-				fileOpt = getFile(row.timestamp().getTime() + "_" + row.fileName());
+				fileOpt = snap.resolve(row.timestamp().getTime() + "_" + row.fileName());
 			}
 
 			// add to result list if file exists

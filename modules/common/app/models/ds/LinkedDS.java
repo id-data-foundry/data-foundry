@@ -11,9 +11,16 @@ import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
@@ -33,6 +40,7 @@ import io.ebean.DB;
 import io.ebean.Transaction;
 import models.Dataset;
 import models.sr.Cluster;
+import models.sr.Participant;
 import play.Logger;
 import play.libs.Json;
 import services.outlets.OOCSIStreamOutService;
@@ -529,5 +537,41 @@ public abstract class LinkedDS {
 			logger.error("Error in exporting last updates from dataset.", e);
 			Notifications.call("Exception", e.getLocalizedMessage());
 		}
+	}
+
+	/**
+	 * Batch-load participants by ids; unknown/invalid ids or non-positive ids map to null,
+	 * matching find.byId semantics.
+	 *
+	 * @param ids collection of participant ids
+	 * @return map from id to Participant
+	 */
+	public static Map<Long, Participant> loadParticipants(Collection<Long> ids) {
+		if (ids == null || ids.isEmpty()) {
+			return Collections.emptyMap();
+		}
+		Set<Long> validIds = new LinkedHashSet<>();
+		for (Long id : ids) {
+			if (id != null && id > 0) {
+				validIds.add(id);
+			}
+		}
+		if (validIds.isEmpty()) {
+			return Collections.emptyMap();
+		}
+
+		Map<Long, Participant> map = new HashMap<>();
+		List<Long> idList = new ArrayList<>(validIds);
+		int chunkSize = 500;
+		for (int i = 0; i < idList.size(); i += chunkSize) {
+			List<Long> chunk = idList.subList(i, Math.min(i + chunkSize, idList.size()));
+			List<Participant> found = Participant.find.query().where().idIn(chunk).findList();
+			for (Participant p : found) {
+				if (p != null && p.getId() != null) {
+					map.put(p.getId(), p);
+				}
+			}
+		}
+		return map;
 	}
 }

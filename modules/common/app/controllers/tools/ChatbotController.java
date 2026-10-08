@@ -90,7 +90,7 @@ import services.api.remoting.RemoteApiRequest;
 import services.processing.MediaProcessingService;
 import utils.DataUtils;
 import utils.auth.TokenResolverUtil;
-import utils.concurrent.DatabaseExecutionContext;
+import utils.concurrent.AiExecutionContext;
 import utils.conf.ConfigurationUtils;
 import utils.rendering.MarkdownRenderer;
 import utils.tools.ChatbotMemoryUtils;
@@ -114,7 +114,7 @@ public class ChatbotController extends AbstractAsyncController {
 	private final SyncCacheApi cache;
 	private final LocalModelMetadata localModelMetadata;
 	private final TokenResolverUtil tokenResolver;
-	private final DatabaseExecutionContext databaseExecutionContext;
+	private final AiExecutionContext aiExecutionContext;
 
 	private static final Logger.ALogger logger = Logger.of(ChatbotController.class);
 
@@ -126,7 +126,7 @@ public class ChatbotController extends AbstractAsyncController {
 	public ChatbotController(FormFactory formFactory, DatasetConnector datasetConnector,
 			CompleteDSController completeDSController, UnmanagedAIApiService aiAPIService,
 			MediaProcessingService mediaProcessingService, SyncCacheApi cache, LocalModelMetadata lmmd,
-			TokenResolverUtil tokenResolver, Config config, DatabaseExecutionContext databaseExecutionContext) {
+			TokenResolverUtil tokenResolver, Config config, AiExecutionContext aiExecutionContext) {
 		this.formFactory = formFactory;
 		this.datasetConnector = datasetConnector;
 		this.completeDSController = completeDSController;
@@ -136,7 +136,7 @@ public class ChatbotController extends AbstractAsyncController {
 		this.localModelMetadata = lmmd;
 		this.tokenResolver = tokenResolver;
 		this.config = config;
-		this.databaseExecutionContext = databaseExecutionContext;
+		this.aiExecutionContext = aiExecutionContext;
 	}
 
 	public static class RequestScopeTracker {
@@ -1221,7 +1221,7 @@ public class ChatbotController extends AbstractAsyncController {
 					.formatted(escapeHtml(promptSnippet), escapeHtml(assistantSnippet), turnContent);
 
 			return ok(wrappedTurn);
-		}, databaseExecutionContext);
+		}, aiExecutionContext);
 	}
 
 	/**
@@ -1395,7 +1395,7 @@ public class ChatbotController extends AbstractAsyncController {
 					<p class="role">%s</p>
 					<article>%s</article>
 					</div>""".formatted(escapeHtml(ds.getName()), responseHtml));
-		}, databaseExecutionContext);
+		}, aiExecutionContext);
 	}
 
 	/**
@@ -1479,7 +1479,7 @@ public class ChatbotController extends AbstractAsyncController {
 			usage.put("total_tokens", 0); // Placeholder
 
 			return ok(response);
-		}, databaseExecutionContext);
+		}, aiExecutionContext);
 	}
 
 	/**
@@ -1587,7 +1587,7 @@ public class ChatbotController extends AbstractAsyncController {
 				logger.error("Error uploading API file", e);
 				return internalServerError(Json.newObject().put("error", "Internal server error"));
 			}
-		}, databaseExecutionContext);
+		}, aiExecutionContext);
 	}
 
 	String resolveFallbackForEmptyResult(String rawResult, RequestScopeTracker tracker) {
@@ -2122,7 +2122,7 @@ public class ChatbotController extends AbstractAsyncController {
 			indexAllDocuments(cpds);
 
 			return view(request, dsId);
-		}, databaseExecutionContext);
+		}, aiExecutionContext);
 	}
 
 	/**
@@ -2170,7 +2170,7 @@ public class ChatbotController extends AbstractAsyncController {
 			indexAllDocuments(cpds);
 
 			return ok("");
-		}, databaseExecutionContext);
+		}, aiExecutionContext);
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////

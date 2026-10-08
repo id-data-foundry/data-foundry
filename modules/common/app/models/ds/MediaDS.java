@@ -6,12 +6,17 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -515,6 +520,10 @@ public class MediaDS extends CompleteDS {
 		return getNFiles(1000);
 	}
 
+	private record RawMediaRow(long id, Timestamp timestamp, String filename, String description, String status,
+			long participantId) {
+	}
+
 	/**
 	 * return the first n files in this media dataset as list of TimedMedia objects
 	 * 
@@ -527,7 +536,8 @@ public class MediaDS extends CompleteDS {
 			return Collections.emptyList();
 		}
 
-		final List<TimedMedia> fileList = new LinkedList<TimedMedia>();
+		final List<RawMediaRow> rows = new ArrayList<>();
+		final Set<Long> pids = new HashSet<>();
 		try (Transaction transaction = DB.beginTransaction();
 				Connection connection = transaction.connection();
 				PreparedStatement stmt = connection
@@ -536,24 +546,11 @@ public class MediaDS extends CompleteDS {
 				ResultSet rs = stmt.executeQuery()) {
 
 			while (rs.next()) {
-				String filename = rs.getString("file_name");
-				Timestamp timestamp = rs.getTimestamp("ts");
-				Optional<File> fileOpt = getFile(filename);
-				if (fileOpt.isEmpty()) {
-					filename = timestamp.getTime() + "_" + filename;
-					fileOpt = getFile(filename);
-				}
-
-				if (fileOpt.isPresent()) {
-					String participantId = rs.getString("participant_id");
-					long pid = DataUtils.parseLong(participantId);
-					Participant participant = Participant.find.byId(pid);
-					// if (participant != null) {
-					// participantName = participant.getName();
-					// }
-					TimedMedia tm = new TimedMedia(rs.getLong("id"), timestamp, filename, rs.getString("status"),
-							rs.getString("description"), participant);
-					fileList.add(tm);
+				long pid = DataUtils.parseLong(rs.getString("participant_id"));
+				rows.add(new RawMediaRow(rs.getLong("id"), rs.getTimestamp("ts"), rs.getString("file_name"),
+						rs.getString("description"), rs.getString("status"), pid));
+				if (pid > 0) {
+					pids.add(pid);
 				}
 			}
 			transaction.commit();
@@ -563,6 +560,26 @@ public class MediaDS extends CompleteDS {
 		} catch (Exception e) {
 			logger.error("Error in retrieving files.", e);
 			Notifications.call("Exception", e.getLocalizedMessage());
+		}
+
+		Map<Long, Participant> participantMap = loadParticipants(pids);
+		FolderSnapshot snap = snapshotFolder();
+		final List<TimedMedia> fileList = new LinkedList<TimedMedia>();
+		for (RawMediaRow row : rows) {
+			String filename = row.filename();
+			Timestamp timestamp = row.timestamp();
+			Optional<File> fileOpt = snap.resolve(filename);
+			if (fileOpt.isEmpty() && timestamp != null) {
+				filename = timestamp.getTime() + "_" + filename;
+				fileOpt = snap.resolve(filename);
+			}
+
+			if (fileOpt.isPresent()) {
+				Participant participant = row.participantId() > 0 ? participantMap.get(row.participantId()) : null;
+				TimedMedia tm = new TimedMedia(row.id(), timestamp, filename, row.status(), row.description(),
+						participant);
+				fileList.add(tm);
+			}
 		}
 
 		return fileList;
@@ -580,7 +597,8 @@ public class MediaDS extends CompleteDS {
 			return Collections.emptyList();
 		}
 
-		final List<TimedMedia> fileList = new LinkedList<TimedMedia>();
+		final List<RawMediaRow> rows = new ArrayList<>();
+		final Set<Long> pids = new HashSet<>();
 		try (Transaction transaction = DB.beginTransaction();
 				Connection connection = transaction.connection();
 				PreparedStatement stmt = connection
@@ -592,21 +610,11 @@ public class MediaDS extends CompleteDS {
 			ResultSet rs = stmt.executeQuery();
 
 			while (rs.next()) {
-				String filename = rs.getString("file_name");
-				Timestamp timestamp = rs.getTimestamp("ts");
-
-				Optional<File> fileOpt = getFile(filename);
-				if (fileOpt.isEmpty()) {
-					fileOpt = getFile(timestamp.getTime() + "_" + filename);
-				}
-
-				if (fileOpt.isPresent()) {
-					String participantId = rs.getString("participant_id");
-					long pid = DataUtils.parseLong(participantId);
-					Participant participant = Participant.find.byId(pid);
-					TimedMedia tm = new TimedMedia(rs.getLong("id"), timestamp, filename, rs.getString("status"),
-							rs.getString("description"), participant);
-					fileList.add(tm);
+				long pid = DataUtils.parseLong(rs.getString("participant_id"));
+				rows.add(new RawMediaRow(rs.getLong("id"), rs.getTimestamp("ts"), rs.getString("file_name"),
+						rs.getString("description"), rs.getString("status"), pid));
+				if (pid > 0) {
+					pids.add(pid);
 				}
 			}
 			transaction.commit();
@@ -616,6 +624,26 @@ public class MediaDS extends CompleteDS {
 		} catch (Exception e) {
 			logger.error("Error in retrieving files.", e);
 			Notifications.call("Exception", e.getLocalizedMessage());
+		}
+
+		Map<Long, Participant> participantMap = loadParticipants(pids);
+		FolderSnapshot snap = snapshotFolder();
+		final List<TimedMedia> fileList = new LinkedList<TimedMedia>();
+		for (RawMediaRow row : rows) {
+			String filename = row.filename();
+			Timestamp timestamp = row.timestamp();
+
+			Optional<File> fileOpt = snap.resolve(filename);
+			if (fileOpt.isEmpty() && timestamp != null) {
+				fileOpt = snap.resolve(timestamp.getTime() + "_" + filename);
+			}
+
+			if (fileOpt.isPresent()) {
+				Participant participant = row.participantId() > 0 ? participantMap.get(row.participantId()) : null;
+				TimedMedia tm = new TimedMedia(row.id(), timestamp, filename, row.status(), row.description(),
+						participant);
+				fileList.add(tm);
+			}
 		}
 
 		return fileList;
@@ -635,7 +663,8 @@ public class MediaDS extends CompleteDS {
 		final String whereClause = " WHERE participant_id IN ("
 				+ participants.stream().map(p -> p.getId().toString()).collect(Collectors.joining(",")) + ")";
 
-		final List<TimedMedia> fileList = new LinkedList<TimedMedia>();
+		final List<RawMediaRow> rows = new ArrayList<>();
+		final Set<Long> pids = new HashSet<>();
 
 		try (Transaction transaction = DB.beginTransaction();
 				Connection connection = transaction.connection();
@@ -645,20 +674,11 @@ public class MediaDS extends CompleteDS {
 				ResultSet rs = stmt.executeQuery()) {
 
 			while (rs.next()) {
-				String filename = rs.getString("file_name");
-				Timestamp timestamp = rs.getTimestamp("ts");
-				Optional<File> fileOpt = getFile(filename);
-				if (fileOpt.isEmpty()) {
-					fileOpt = getFile(timestamp.getTime() + "_" + filename);
-				}
-
-				if (fileOpt.isPresent()) {
-					String participantId = rs.getString("participant_id");
-					long pid = DataUtils.parseLong(participantId);
-					Participant participant = Participant.find.byId(pid);
-					TimedMedia tm = new TimedMedia(rs.getLong("id"), timestamp, filename, "",
-							rs.getString("description"), participant);
-					fileList.add(tm);
+				long pid = DataUtils.parseLong(rs.getString("participant_id"));
+				rows.add(new RawMediaRow(rs.getLong("id"), rs.getTimestamp("ts"), rs.getString("file_name"),
+						rs.getString("description"), rs.getString("status"), pid));
+				if (pid > 0) {
+					pids.add(pid);
 				}
 			}
 			transaction.commit();
@@ -668,6 +688,35 @@ public class MediaDS extends CompleteDS {
 		} catch (Exception e) {
 			logger.error("Error in retrieving files by participant.", e);
 			Notifications.call("Exception", e.getLocalizedMessage());
+		}
+
+		Map<Long, Participant> participantMap = new HashMap<>();
+		for (Participant p : participants) {
+			if (p != null && p.getId() != null) {
+				participantMap.put(p.getId(), p);
+			}
+		}
+		Set<Long> missingPids = new HashSet<>(pids);
+		missingPids.removeAll(participantMap.keySet());
+		if (!missingPids.isEmpty()) {
+			participantMap.putAll(loadParticipants(missingPids));
+		}
+
+		FolderSnapshot snap = snapshotFolder();
+		final List<TimedMedia> fileList = new LinkedList<TimedMedia>();
+		for (RawMediaRow row : rows) {
+			String filename = row.filename();
+			Timestamp timestamp = row.timestamp();
+			Optional<File> fileOpt = snap.resolve(filename);
+			if (fileOpt.isEmpty() && timestamp != null) {
+				fileOpt = snap.resolve(timestamp.getTime() + "_" + filename);
+			}
+
+			if (fileOpt.isPresent()) {
+				Participant participant = row.participantId() > 0 ? participantMap.get(row.participantId()) : null;
+				TimedMedia tm = new TimedMedia(row.id(), timestamp, filename, "", row.description(), participant);
+				fileList.add(tm);
+			}
 		}
 
 		return fileList;

@@ -8,12 +8,17 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.apache.pekko.stream.QueueOfferResult;
@@ -323,8 +328,13 @@ public class MovementDS extends CompleteDS {
 		}
 	}
 
+	private record RawMovementRow(long id, Timestamp timestamp, String filename, String description,
+			long participantId) {
+	}
+
 	public List<TimedMedia> getFiles() {
-		List<TimedMedia> result = new LinkedList<TimedMedia>();
+		final List<RawMovementRow> rows = new ArrayList<>();
+		final Set<Long> pids = new HashSet<>();
 		try (Transaction transaction = DB.beginTransaction();
 				Connection connection = transaction.connection();
 				PreparedStatement stmt = connection
@@ -333,17 +343,11 @@ public class MovementDS extends CompleteDS {
 				ResultSet rs = stmt.executeQuery()) {
 
 			while (rs.next()) {
-				String filename = rs.getString("file_name");
-				Timestamp timestamp = rs.getTimestamp("ts");
-				Optional<File> file = getFile(filename);
-				if (file.isPresent()) {
-					String participantName = rs.getString("participant_id");
-					long pid = DataUtils.parseLong(participantName);
-					Participant participant = Participant.find.byId(pid);
-
-					TimedMedia tm = new TimedMedia(rs.getLong("id"), timestamp, filename, "",
-							rs.getString("description"), participant);
-					result.add(tm);
+				long pid = DataUtils.parseLong(rs.getString("participant_id"));
+				rows.add(new RawMovementRow(rs.getLong("id"), rs.getTimestamp("ts"), rs.getString("file_name"),
+						rs.getString("description"), pid));
+				if (pid > 0) {
+					pids.add(pid);
 				}
 			}
 			transaction.commit();
@@ -353,6 +357,20 @@ public class MovementDS extends CompleteDS {
 		} catch (Exception e) {
 			logger.error("Error in retrieving all files.", e);
 			Notifications.call("Exception", e.getLocalizedMessage());
+		}
+
+		Map<Long, Participant> participantMap = loadParticipants(pids);
+		FolderSnapshot snap = snapshotFolder();
+		List<TimedMedia> result = new LinkedList<TimedMedia>();
+		for (RawMovementRow row : rows) {
+			String filename = row.filename();
+			Optional<File> file = snap.resolve(filename);
+			if (file.isPresent()) {
+				Participant participant = row.participantId() > 0 ? participantMap.get(row.participantId()) : null;
+				TimedMedia tm = new TimedMedia(row.id(), row.timestamp(), filename, "", row.description(),
+						participant);
+				result.add(tm);
+			}
 		}
 
 		return result;
@@ -366,7 +384,8 @@ public class MovementDS extends CompleteDS {
 		final String whereClause = " WHERE participant_id IN ("
 				+ participants.stream().map(p -> p.getId().toString()).collect(Collectors.joining(",")) + ")";
 
-		List<TimedMedia> result = new LinkedList<TimedMedia>();
+		final List<RawMovementRow> rows = new ArrayList<>();
+		final Set<Long> pids = new HashSet<>();
 		try (Transaction transaction = DB.beginTransaction();
 				Connection connection = transaction.connection();
 				PreparedStatement stmt = connection
@@ -375,20 +394,11 @@ public class MovementDS extends CompleteDS {
 				ResultSet rs = stmt.executeQuery()) {
 
 			while (rs.next()) {
-				String filename = rs.getString("file_name");
-				Timestamp timestamp = rs.getTimestamp("ts");
-				Optional<File> fileOpt = getFile(filename);
-				if (fileOpt.isEmpty()) {
-					fileOpt = getFile(timestamp.getTime() + "_" + filename);
-				}
-
-				if (fileOpt.isPresent()) {
-					String participantName = rs.getString("participant_id");
-					long pid = DataUtils.parseLong(participantName);
-					Participant participant = Participant.find.byId(pid);
-					TimedMedia tm = new TimedMedia(rs.getLong("id"), timestamp, filename, "",
-							rs.getString("description"), participant);
-					result.add(tm);
+				long pid = DataUtils.parseLong(rs.getString("participant_id"));
+				rows.add(new RawMovementRow(rs.getLong("id"), rs.getTimestamp("ts"), rs.getString("file_name"),
+						rs.getString("description"), pid));
+				if (pid > 0) {
+					pids.add(pid);
 				}
 			}
 			transaction.commit();
@@ -398,6 +408,35 @@ public class MovementDS extends CompleteDS {
 		} catch (Exception e) {
 			logger.error("Error in retrieving files by participant.", e);
 			Notifications.call("Exception", e.getLocalizedMessage());
+		}
+
+		Map<Long, Participant> participantMap = new HashMap<>();
+		for (Participant p : participants) {
+			if (p != null && p.getId() != null) {
+				participantMap.put(p.getId(), p);
+			}
+		}
+		Set<Long> missingPids = new HashSet<>(pids);
+		missingPids.removeAll(participantMap.keySet());
+		if (!missingPids.isEmpty()) {
+			participantMap.putAll(loadParticipants(missingPids));
+		}
+
+		FolderSnapshot snap = snapshotFolder();
+		List<TimedMedia> result = new LinkedList<TimedMedia>();
+		for (RawMovementRow row : rows) {
+			String filename = row.filename();
+			Timestamp timestamp = row.timestamp();
+			Optional<File> fileOpt = snap.resolve(filename);
+			if (fileOpt.isEmpty() && timestamp != null) {
+				fileOpt = snap.resolve(timestamp.getTime() + "_" + filename);
+			}
+
+			if (fileOpt.isPresent()) {
+				Participant participant = row.participantId() > 0 ? participantMap.get(row.participantId()) : null;
+				TimedMedia tm = new TimedMedia(row.id(), timestamp, filename, "", row.description(), participant);
+				result.add(tm);
+			}
 		}
 
 		return result;
