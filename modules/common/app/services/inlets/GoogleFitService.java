@@ -610,8 +610,8 @@ public class GoogleFitService implements ScheduledService {
 
 		try {
 			// compose data fetch URL
-			WSResponse response = ws.url("https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=" + id_token).get()
-			        .toCompletableFuture().get();
+			WSResponse response = ws.url("https://www.googleapis.com/oauth2/v3/tokeninfo?id_token=" + id_token)
+					.setRequestTimeout(Duration.ofSeconds(10)).get().toCompletableFuture().get();
 
 			// retrieve and save the request parameters
 			JsonNode jn = response.asJson();

@@ -1816,7 +1816,7 @@ public class ProjectsController extends AbstractAsyncController {
 
 	@Authenticated(UserAuth.class)
 	public Result search(Request request, String query, String filterStr) {
-		List<Project> projects = searchService.search(nss(query));
+		List<Project> projects = searchService.search(nss(query), 100);
 
 		// check the filter
 		final DatasetType filter;

@@ -219,7 +219,7 @@
             Find the output (of <code>DF.print</code>) below.
           </div>
           <div class="col s12">
-            <div id="liveOutput" style="padding: 1em 0; height: 12em; overflow: scroll;" hx-get="@controllers.tools.routes.ActorController.log(dataset.getId())" hx-trigger="every 1s"></div>
+            <div id="liveOutput" style="padding: 1em 0; height: 12em; overflow: scroll;"></div>
           </div>
         </div>
       </div>
@@ -680,6 +680,65 @@ else {
       e.preventDefault();
       return false;
     });
+
+    // adaptive polling for live output
+    (function() {
+      let interval = 1000;
+      let idleCount = 0;
+      let lastContent = '';
+      let timer = null;
+
+      function poll() {
+        if (document.hidden) {
+          timer = setTimeout(poll, 10000);
+          return;
+        }
+
+        let url = '@controllers.tools.routes.ActorController.log(dataset.getId())';
+        fetch(url)
+          .then(r => r.text())
+          .then(html => {
+            let el = document.getElementById('liveOutput');
+            if (el) {
+              if (html !== lastContent) {
+                lastContent = html;
+                el.innerHTML = html;
+                el.scrollTop = el.scrollHeight;
+                interval = 1000;
+                idleCount = 0;
+              } else {
+                idleCount++;
+                if (idleCount > 12) {
+                  interval = 5000;
+                } else if (idleCount > 4) {
+                  interval = 2500;
+                }
+              }
+            }
+          })
+          .catch(() => {})
+          .finally(() => {
+            timer = setTimeout(poll, interval);
+          });
+      }
+
+      function resetFast() {
+        interval = 1000;
+        idleCount = 0;
+        clearTimeout(timer);
+        poll();
+      }
+
+      document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) resetFast();
+      });
+      ['#installBtn', '#testBtn', '#saveBtn', '#deinstallBtn'].forEach(sel => {
+        let btn = document.querySelector(sel);
+        if (btn) btn.addEventListener('click', () => setTimeout(resetFast, 500));
+      });
+
+      timer = setTimeout(poll, 1000);
+    })();
 
     function updateFileList() {
       let r = jsRoutes.controllers.tools.ActorController.fileList(@dataset.getId());

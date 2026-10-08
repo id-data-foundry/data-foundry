@@ -2,6 +2,7 @@ package utils.rendering;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import javax.inject.Singleton;
@@ -14,6 +15,7 @@ public class ImageUtil {
 
 	// "convert" is deprecated since IM7, so we just use "magick"
 	private static String CONVERT_TOOL = "magick";
+	private static final long CONVERT_TIMEOUT_SECONDS = 30L;
 
 	private static final Logger.ALogger logger = Logger.of(ImageUtil.class);
 
@@ -151,11 +153,16 @@ public class ImageUtil {
 		        destination.getAbsolutePath() //
 		};
 		ProcessBuilder pb = new ProcessBuilder(command);
+		pb.redirectErrorStream(true);
 		logger.info("Image conversion > " + pb.command().stream().collect(Collectors.joining(" ")) + "...");
 		try {
 			Process p = pb.start();
-			p.waitFor();
-			return true;
+			if (!p.waitFor(CONVERT_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+				p.destroyForcibly();
+				logger.error("Image conversion process timed out and was forcibly destroyed");
+				return false;
+			}
+			return p.exitValue() == 0;
 		} catch (IOException | InterruptedException e) {
 			logger.error("Image conversion problem: I/O or interrupted exception", e);
 		} catch (Exception e) {

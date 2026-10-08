@@ -52,6 +52,7 @@ public class SlackApi {
 			connection = (HttpURLConnection) url.openConnection();
 			connection.setRequestMethod(POST);
 			connection.setConnectTimeout(timeout);
+			connection.setReadTimeout(timeout);
 			connection.setUseCaches(false);
 			connection.setDoInput(true);
 			connection.setDoOutput(true);
