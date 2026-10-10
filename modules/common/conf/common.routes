@@ -18,6 +18,7 @@ GET 		/dev/data											controllers.DBController.index(request: Request)
 POST		/dev/data											controllers.DBController.generateData(request: Request)
 
 GET 		/.well-known/security.txt							controllers.HomeController.securityTxt(request: Request)
+GET 		/security.txt										controllers.HomeController.securityTxt(request: Request)
 
 # icons -------------------------------------------------------------------------------------------------------------------
 

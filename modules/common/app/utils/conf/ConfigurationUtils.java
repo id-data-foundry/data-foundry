@@ -26,6 +26,8 @@ public class ConfigurationUtils {
 	public static final String DF_SECURITYTXT_CONTACT = "df.securitytxt.contact";
 	public static final String DF_SECURITYTXT_EXPIRES = "df.securitytxt.expires";
 	public static final String DF_SECURITYTXT_LANG = "df.securitytxt.preferred-languages";
+	public static final String DF_SECURITYTXT_POLICY = "df.securitytxt.policy";
+	public static final String DF_SECURITYTXT_ACKNOWLEDGMENTS = "df.securitytxt.acknowledgments";
 
 	public static final String DF_SSO_CLIENT = "df.sso.client";
 	public static final String DF_SSO_SECRET = "df.sso.secret";

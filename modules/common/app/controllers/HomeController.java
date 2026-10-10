@@ -2,9 +2,15 @@ package controllers;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URL;
+import java.net.URLConnection;
 import java.nio.charset.Charset;
 import java.nio.file.Paths;
 import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -500,18 +506,43 @@ public class HomeController extends AbstractAsyncController {
 		}
 	}
 
+	private String getDefaultSecurityTxtExpires() {
+		long buildTime = 0L;
+		try {
+			URL res = HomeController.class.getResource(HomeController.class.getSimpleName() + ".class");
+			if (res != null) {
+				URLConnection conn = res.openConnection();
+				buildTime = conn.getLastModified();
+			}
+		} catch (Exception ignored) {
+		}
+		Instant buildInstant = buildTime > 0L ? Instant.ofEpochMilli(buildTime) : Instant.now();
+		return buildInstant.atOffset(ZoneOffset.UTC)
+				.plusMonths(12)
+				.truncatedTo(ChronoUnit.SECONDS)
+				.format(DateTimeFormatter.ISO_INSTANT);
+	}
+
 	public Result securityTxt(Request request) {
 		String canonical = "";
-		if (configuration.hasPath("df.base_url")) {
-			canonical = configuration.getString("df.base_url") + "/.well-known/security.txt";
+		if (configuration.hasPath(ConfigurationUtils.DF_BASEURL)) {
+			canonical = configuration.getString(ConfigurationUtils.DF_BASEURL).replaceAll("/+$", "")
+					+ "/.well-known/security.txt";
 		}
-		return ok(views.html.home.securitytxt.render(
-				ConfigurationUtils.configure(configuration, ConfigurationUtils.DF_SECURITYTXT_CONTACT,
-						"security@data-foundry.net"),
-				ConfigurationUtils.configure(configuration, ConfigurationUtils.DF_SECURITYTXT_EXPIRES, "Jan 1, 2027"),
-				canonical,
-				ConfigurationUtils.configure(configuration, ConfigurationUtils.DF_SECURITYTXT_LANG, "English")))
-				.as(MimeTypes.TEXT);
+		String contact = ConfigurationUtils.configure(configuration, ConfigurationUtils.DF_SECURITYTXT_CONTACT,
+				"mailto:security@data-foundry.net");
+		String expires = ConfigurationUtils.configure(configuration, ConfigurationUtils.DF_SECURITYTXT_EXPIRES,
+				getDefaultSecurityTxtExpires());
+		String languages = ConfigurationUtils.configure(configuration, ConfigurationUtils.DF_SECURITYTXT_LANG,
+				"en, nl");
+		String policy = ConfigurationUtils.configure(configuration, ConfigurationUtils.DF_SECURITYTXT_POLICY,
+				"https://github.com/id-data-foundry/data-foundry/blob/main/SECURITY.md");
+		String acknowledgments = ConfigurationUtils.configure(configuration,
+				ConfigurationUtils.DF_SECURITYTXT_ACKNOWLEDGMENTS,
+				"https://github.com/id-data-foundry/data-foundry/blob/main/SECURITY.md#hall-of-fame");
+
+		return ok(views.html.home.securitytxt.render(contact, expires, canonical, languages, policy, acknowledgments))
+				.as("text/plain; charset=utf-8");
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////

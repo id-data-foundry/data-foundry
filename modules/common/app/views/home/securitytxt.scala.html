@@ -1,5 +1,8 @@
-@(contact: String, expires: String, canonical: String, preferredLanguages: String)
+@(contact: String, expires: String, canonical: String, preferredLanguages: String, policy: String, acknowledgments: String)
 Contact: @contact
 Expires: @expires
-Canonical: @canonical
-Preferred-Languages: @preferredLanguages
+@if(canonical != null && !canonical.isEmpty) {Canonical: @canonical
+}Preferred-Languages: @preferredLanguages
+@if(policy != null && !policy.isEmpty) {Policy: @policy
+}@if(acknowledgments != null && !acknowledgments.isEmpty) {Acknowledgments: @acknowledgments
+}
