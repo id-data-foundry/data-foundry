@@ -1,0 +1,44 @@
+name: Feature Request
+description: Request a functionality that is yet to be added to Data Foundry.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This issue describes a **feature request** for a functionality that is yet to be added to Data Foundry. Thanks for sharing your idea!
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: Provide a small summary of the requested feature.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Describe the cause or context of the feature request. *Why* would you want this feature added to Data Foundry?
+    validations:
+      required: true
+  - type: textarea
+    id: feature
+    attributes:
+      label: Feature
+      description: Describe the feature. *What* do you want to be added to Data Foundry?
+    validations:
+      required: true
+  - type: textarea
+    id: implementation
+    attributes:
+      label: Implementation
+      description: How should this feature be added? What tools or functionalities do you need? *How* might this look?
+    validations:
+      required: false
+  - type: upload
+    id: mock-up
+    attributes:
+      label: Mock-up
+      description: Add screenshots, mock-ups or images here to create a better understanding of what you want to be added.
+    validations:
+      required: false
