@@ -126,4 +126,27 @@ public class AbstractAIApiServiceMaxTokensTest {
 		assertFalse("server must be stripped before forwarding to upstream OpenAI-compatible LLM",
 				params.has(ApiServiceConstants.REQUEST_SERVER));
 	}
+
+	@Test
+	public void testMessageNameStrippedFromUpstreamPayload() {
+		Config config = ConfigFactory.empty();
+		ConcreteAIApiService service = new ConcreteAIApiService(config);
+
+		com.fasterxml.jackson.databind.node.ArrayNode messages = Json.newArray();
+		messages.add(Json.newObject().put("role", "system").put("name", "system").put("content", "You are an assistant."));
+		messages.add(Json.newObject().put("role", "user").put("name", "Bob_R").put("content", "Hello"));
+		messages.add(Json.newObject().put("role", "assistant").put("name", "Agent").put("content", "Hi!"));
+		messages.add(Json.newObject().put("role", "tool").put("name", "tool_result").put("tool_call_id", "call_123").put("content", "ok"));
+
+		ObjectNode params = Json.newObject().put("model", "test-model").set(ApiServiceConstants.REQUEST_MESSAGES, messages);
+		RemoteApiRequest request = new RemoteApiRequest("chat", 1000, "user", "key", 1L, params);
+
+		service.testPreProcess(request);
+
+		for (com.fasterxml.jackson.databind.JsonNode msg : params.get(ApiServiceConstants.REQUEST_MESSAGES)) {
+			assertFalse("name must be stripped from chat message to prevent NInfer 400 errors", msg.has("name"));
+			assertTrue("role must be preserved", msg.has("role"));
+			assertTrue("content must be preserved", msg.has("content"));
+		}
+	}
 }

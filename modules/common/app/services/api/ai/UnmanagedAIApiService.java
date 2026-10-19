@@ -421,7 +421,7 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 		}
 
 		return wsReq.setMethod(REQUEST_METHOD_POST).setBody(params)
-				.addHeader(ApiServiceConstants.X_API_MODEL, nss(request.getModel())).stream().thenApply(res -> {
+				.addHeader(ApiServiceConstants.X_API_MODEL, nss(request.getModel())).stream().thenCompose(res -> {
 					if (res.getStatus() != Http.Status.OK) {
 						try {
 							permit.close();
@@ -429,17 +429,27 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 							// ignore
 						}
 						request.setOutcome(Outcome.UPSTREAM_ERROR);
-						logModelInvocation(request, request.getModel(), mapTaskToType(request.getType()),
-								request.getRequestedTokens(), false, "upstream status " + res.getStatus(),
-								System.currentTimeMillis() - start);
-						logger.info(
-								"ai.request id={} lane={} model={} user={} queueMs={} upstreamMs={} totalMs={} outcome={}",
-								request.getId(), request.getLane(), request.getModel(), request.getUsername(),
-								request.getQueueDurationMs(), request.getUpstreamDurationMs(),
-								request.getTotalDurationMs(), request.getOutcome());
-						return Source.single(sseError("upstream returned status " + res.getStatus()));
+						return res.getBody(WSBodyReadables.instance.source()).take(4)
+								.runFold(ByteString.emptyByteString(), ByteString::concat, materializer)
+								.thenApply(bs -> {
+									String errBody = bs.utf8String();
+									String errMsg = extractErrorMessageIfPresent(errBody);
+									String fullMsg = "upstream returned status " + res.getStatus()
+											+ (errMsg != null && !errMsg.isEmpty() ? ": " + errMsg
+													: (!errBody.isEmpty() ? ": " + errBody : ""));
+									logModelInvocation(request, request.getModel(), mapTaskToType(request.getType()),
+											request.getRequestedTokens(), false, fullMsg,
+											System.currentTimeMillis() - start);
+									logger.warn("ai.request id={} upstream failed: {}", request.getId(), fullMsg);
+									logger.info(
+											"ai.request id={} lane={} model={} user={} queueMs={} upstreamMs={} totalMs={} outcome={}",
+											request.getId(), request.getLane(), request.getModel(), request.getUsername(),
+											request.getQueueDurationMs(), request.getUpstreamDurationMs(),
+											request.getTotalDurationMs(), request.getOutcome());
+									return Source.single(sseError(fullMsg));
+								});
 					}
-					return res.getBody(WSBodyReadables.instance.source())
+					Source<ByteString, ?> streamSource = res.getBody(WSBodyReadables.instance.source())
 							// liveness measured on RAW bytes, before framing
 							.idleTimeout(streamIdleTimeout)
 							// whole SSE events, so a sentinel can never split or be faked by content
@@ -479,6 +489,7 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 							})
 							// client always gets a clean terminator instead of a silent cut
 							.recover(Throwable.class, () -> sseError("stream ended early"));
+					return CompletableFuture.completedFuture(streamSource);
 				}).exceptionally(e -> {
 					try {
 						permit.close();

@@ -367,8 +367,7 @@ public class CodingAgentController extends AbstractAsyncController {
 							Source.single((JsonNode) typingStart).runWith(context.sink(), materializer);
 
 							String agentPrompt = CodingAgentUtils.formatUserMessageForAgent(username, message);
-							Msg input = Msg.builder().role(MsgRole.USER).name(username).textContent(agentPrompt)
-									.build();
+							Msg input = Msg.builder().role(MsgRole.USER).textContent(agentPrompt).build();
 							RuntimeContext runtimeCtx = RuntimeContext.builder().userId("global").sessionId(sessionId)
 									.build();
 							Msg response = context.agent().call(input, runtimeCtx).block();
@@ -394,6 +393,14 @@ public class CodingAgentController extends AbstractAsyncController {
 							}
 						} catch (Exception e) {
 							logger.error("Error in agent call", e);
+							String errorMsg = e.getMessage() != null ? e.getMessage() : "Error communicating with agent";
+							ObjectNode errAgentMsg = Json.newObject().put("type", "chat")
+									.put("user", CodingAgentUtils.BOT_DISPLAY_NAME)
+									.put("message", "⚠️ " + errorMsg)
+									.put("timestamp", new Date().getTime()).put("formattedTime", LocalDateTime.now()
+											.format(DateTimeFormatter.ofPattern("MMM d, HH:mm")));
+							context.history().append(errAgentMsg);
+							Source.single((JsonNode) errAgentMsg).runWith(context.sink(), materializer);
 						} finally {
 							context.setThinking(false);
 							// Send typing: false
@@ -408,7 +415,7 @@ public class CodingAgentController extends AbstractAsyncController {
 							AgentState state = context.agent().getDelegate().getAgentState("global", sessionId);
 							if (state != null && state.contextMutable() != null) {
 								String formattedMsg = CodingAgentUtils.formatUserMessageForAgent(username, message);
-								Msg userContextMsg = Msg.builder().role(MsgRole.USER).name(username)
+								Msg userContextMsg = Msg.builder().role(MsgRole.USER)
 										.textContent(formattedMsg).build();
 								state.contextMutable().add(userContextMsg);
 								context.agent().getDelegate().saveAgentState("global", sessionId);

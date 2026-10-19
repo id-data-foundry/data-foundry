@@ -105,6 +105,20 @@ public class AbstractAIApiService extends GenericApiService {
 		json.remove(REQUEST_API_TOKEN);
 		json.remove(REQUEST_TASK);
 		json.remove(REQUEST_SERVER);
+
+		// Strip participant 'name' from messages (except legacy 'function' role) as strict
+		// OpenAI-compatible chat templates (e.g. NInfer) reject message names with HTTP 400
+		if (json.has(REQUEST_MESSAGES) && json.get(REQUEST_MESSAGES).isArray()) {
+			json.get(REQUEST_MESSAGES).forEach(msgNode -> {
+				if (msgNode.isObject()) {
+					com.fasterxml.jackson.databind.node.ObjectNode msgObj = (com.fasterxml.jackson.databind.node.ObjectNode) msgNode;
+					String role = msgObj.path("role").asText("");
+					if (!"function".equals(role)) {
+						msgObj.remove("name");
+					}
+				}
+			});
+		}
 	}
 
 	public String getAiBaseUrl() {

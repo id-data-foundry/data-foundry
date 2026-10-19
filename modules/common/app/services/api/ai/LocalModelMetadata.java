@@ -274,6 +274,9 @@ public class LocalModelMetadata {
 		}
 		String resolved = resolvePlaceholder(modelId);
 		ModelMetadata mmd = modelmapper.get(resolved);
+		if (mmd == null && resolved.contains("/")) {
+			mmd = modelmapper.get(resolved.substring(resolved.indexOf('/') + 1));
+		}
 		return mmd != null ? mmd.id() : resolved;
 	}
 

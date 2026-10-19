@@ -145,4 +145,20 @@ public class LocalModelMetadataTest {
 		assertEquals("canonical-default", metadata.mapModelId("default"));
 		assertEquals("canonical-vision", metadata.mapModelId("vision"));
 	}
+
+	@Test
+	public void testVendorPrefixedModelIdFallbackToUnprefixedAlias() {
+		LocalModelMetadata metadata = new LocalModelMetadata();
+		String mockModelsJson = "[{\"id\": \"qwen3.8-27b\", \"alias\": [\"qwen/qwen3.8-27b\", \"qwen3.6-27b\", \"qwen3.5-27b\"]}]";
+		metadata.updateModels(mockModelsJson);
+
+		// Direct lookup by ID
+		assertEquals("qwen3.8-27b", metadata.mapModelId("qwen3.8-27b"));
+		// Lookup by exact alias
+		assertEquals("qwen3.8-27b", metadata.mapModelId("qwen3.6-27b"));
+		// Lookup by vendor-prefixed ID when only unprefixed alias is registered
+		assertEquals("qwen3.8-27b", metadata.mapModelId("qwen/qwen3.6-27b"));
+		// Fallback for unknown vendor-prefixed ID
+		assertEquals("other-vendor/unknown-model", metadata.mapModelId("other-vendor/unknown-model"));
+	}
 }
