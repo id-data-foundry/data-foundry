@@ -143,6 +143,10 @@ public class AbstractAsyncController extends Controller {
 	 * @return
 	 */
 	public Optional<String> getAuthenticatedUserName(RequestHeader request) {
+		if (!controllers.auth.UserAuth.isValidRequestContext(request)) {
+			return Optional.empty();
+		}
+
 		final PlayWebContext context = new PlayWebContext(request);
 		final ProfileManager profileManager = new ProfileManager(context, sessionStore);
 		Optional<UserProfile> proOpt = profileManager.getProfile();
@@ -166,6 +170,10 @@ public class AbstractAsyncController extends Controller {
 	 * @return
 	 */
 	public Optional<Person> getAuthenticatedUser(RequestHeader request) {
+		if (!controllers.auth.UserAuth.isValidRequestContext(request)) {
+			return Optional.empty();
+		}
+
 		final PlayWebContext context = new PlayWebContext(request);
 		final ProfileManager profileManager = new ProfileManager(context, sessionStore);
 		Optional<UserProfile> proOpt = profileManager.getProfile();

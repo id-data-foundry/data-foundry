@@ -14,6 +14,7 @@ import controllers.AbstractAsyncController;
 import models.Person;
 import play.mvc.Controller;
 import play.mvc.Http.Request;
+import play.mvc.Http.RequestHeader;
 import play.mvc.Result;
 
 /**
@@ -27,14 +28,94 @@ public class UserAuth extends play.mvc.Security.Authenticator {
 	@Inject
 	private SessionStore sessionStore;
 
+	/**
+	 * Validates that the request origin and fetch metadata are safe from cross-site
+	 * subresource exploitation (e.g. from sandboxed or opaque origins).
+	 *
+	 * @param request
+	 * @return true if the request context is valid, false if untrusted/cross-site subresource
+	 */
+	public static boolean isValidRequestContext(RequestHeader request) {
+		if (request == null) {
+			return false;
+		}
+
+		// 1. Reject requests originating from an opaque origin (e.g. sandboxed document) or mismatched Origin host
+		Optional<String> origin = request.header("Origin");
+		if (origin.isPresent()) {
+			String originVal = origin.get().trim();
+			if ("null".equalsIgnoreCase(originVal)) {
+				return false;
+			}
+			String reqHost = request.host();
+			if (reqHost != null && !reqHost.isEmpty()) {
+				try {
+					java.net.URI uri = java.net.URI.create(originVal);
+					String originAuthority = uri.getRawAuthority();
+					if (originAuthority == null || !originAuthority.equalsIgnoreCase(reqHost)) {
+						return false;
+					}
+				} catch (IllegalArgumentException e) {
+					return false;
+				}
+			}
+		}
+
+		String path = request.path() != null ? request.path() : "";
+		boolean isGetOrHead = "GET".equalsIgnoreCase(request.method()) || "HEAD".equalsIgnoreCase(request.method());
+		boolean isRenewalRoute = isGetOrHead && path.startsWith("/datasets/web/") && !path.endsWith("/entrypoint");
+
+		Optional<String> secFetchMode = request.header("Sec-Fetch-Mode");
+		Optional<String> secFetchDest = request.header("Sec-Fetch-Dest");
+		boolean isAllowedDest = secFetchDest.isEmpty() || "document".equalsIgnoreCase(secFetchDest.get())
+				|| (isRenewalRoute && ("iframe".equalsIgnoreCase(secFetchDest.get())
+						|| "frame".equalsIgnoreCase(secFetchDest.get())));
+
+		// 2. Reject cross-site or same-site subresource fetches and state-changing GET navigations
+		Optional<String> secFetchSite = request.header("Sec-Fetch-Site");
+		if (secFetchSite.isPresent() && ("cross-site".equalsIgnoreCase(secFetchSite.get())
+				|| "same-site".equalsIgnoreCase(secFetchSite.get()))) {
+			if (!isGetOrHead || secFetchMode.isEmpty() || !"navigate".equalsIgnoreCase(secFetchMode.get())) {
+				return false;
+			}
+			if (!isAllowedDest || isStateChangingGetPath(path)) {
+				return false;
+			}
+		}
+
+		// 3. check referrer for CSRF (defense-in-depth for legacy clients), note "referer" is correct!
+		// Allow top-level GET navigations to non-mutating pages and token renewal gateway
+		boolean isSafeTopLevelGetNavigation = isGetOrHead && secFetchMode.isPresent()
+				&& "navigate".equalsIgnoreCase(secFetchMode.get()) && isAllowedDest && !isStateChangingGetPath(path);
+
+		Optional<String> ref = request.header(Controller.REFERER);
+		if (ref.isPresent() && !isSafeTopLevelGetNavigation && !isRenewalRoute) {
+			if (ref.get().contains("/web/") || ref.get().contains("/datasets/web/")) {
+				// do not authenticate if the referrer is a hosted web page
+				// why? because this could be used for an attack via JavaScript
+				return false;
+			}
+		}
+
+		return true;
+	}
+
+	private static boolean isStateChangingGetPath(String path) {
+		if (path == null || path.isEmpty()) {
+			return false;
+		}
+		String lower = path.toLowerCase();
+		return lower.contains("/delete") || lower.contains("/reset") || lower.contains("/configure")
+				|| lower.contains("/add") || lower.contains("/remove") || lower.contains("/rename")
+				|| lower.contains("/duplicate") || lower.contains("/generate") || lower.contains("/reveal")
+				|| lower.contains("/entrypoint") || lower.contains("/archive") || lower.contains("/reopen")
+				|| lower.contains("/publish") || lower.contains("/requestreview") || lower.contains("/opensignup")
+				|| lower.contains("/leave") || lower.contains("/transfer");
+	}
+
 	@Override
 	public Optional<String> getUsername(Request request) {
-
-		// check referrer for CSRF, note "referer" is correct!
-		Optional<String> ref = request.header(Controller.REFERER);
-		if (ref.isPresent() && ref.get().contains("/web/")) {
-			// do not authenticate if the referrer is a hosted web page
-			// why? because this could be used for an attack via JavaScript
+		if (!isValidRequestContext(request)) {
 			return Optional.empty();
 		}
 
