@@ -292,6 +292,8 @@ public class UsersController extends AbstractAsyncController {
 		return redirect(HOME);
 	}
 
+	@Authenticated(UserAuth.class)
+	@RequireCSRFCheck
 	public Result generateToken(Request request, String service) {
 		Person user = getAuthenticatedUserOrReturn(request, redirect(LANDING));
 
@@ -300,8 +302,80 @@ public class UsersController extends AbstractAsyncController {
 				System.currentTimeMillis() + V2UserApiAuth.API_TOKEN_VALIDITY));
 		user.update();
 
-		return redirect(routes.UsersController.edit()).addingToSession(request, "message",
+		return redirect(routes.UsersController.apiAccess()).addingToSession(request, "message",
 				"New API token generated and ready.");
+	}
+
+	@Authenticated(UserAuth.class)
+	@RequireCSRFCheck
+	public Result revealToken(Request request) {
+		Person user = getAuthenticatedUserOrReturn(request, redirect(LANDING));
+		String type = "master";
+		String idStr = "";
+		if (request.body() != null && (request.body().asFormUrlEncoded() != null || request.body().asMultipartFormData() != null)) {
+			DynamicForm df = formFactory.form().bindFromRequest(request);
+			if (df.get("type") != null && !df.get("type").trim().isEmpty()) {
+				type = df.get("type").trim();
+			}
+			if (df.get("id") != null) {
+				idStr = df.get("id").trim();
+			}
+		}
+
+		String token = null;
+		switch (type) {
+		case "master":
+			token = user.getAccesscode();
+			break;
+		case "telegram":
+			final Optional<TelegramSession> tgSession = TelegramSession.find.query().setMaxRows(1).where()
+					.eq("email", user.getEmail()).eq("state", "RESEARCHER").findOneOrEmpty();
+			if (!tgSession.isPresent()) {
+				Optional<String> cachedPin = cache.get(TelegramBotUtils.TG_USER_CACHE_PREFIX + user.getEmail());
+				if (cachedPin.isPresent()) {
+					token = cachedPin.get();
+				} else {
+					token = TelegramBotUtils.generateTelegramPersonalPIN();
+					cache.set(TelegramBotUtils.TG_USER_CACHE_PREFIX + user.getEmail(), token, 3600);
+				}
+			}
+			break;
+		case "project":
+			try {
+				long projectId = Long.parseLong(idStr);
+				Project p = Project.find.byId(projectId);
+				if (p != null && !p.isArchivedProject() && (p.belongsTo(user) || p.collaboratesWith(user))) {
+					ProjectAPIInfo info = aiAPIService.getProjectAPIAccess(user, p);
+					if (info != null) {
+						token = info.apiKey;
+					}
+				}
+			} catch (NumberFormatException e) {
+				return badRequest();
+			}
+			break;
+		case "dataset":
+			try {
+				long datasetId = Long.parseLong(idStr);
+				Dataset ds = Dataset.find.byId(datasetId);
+				if (ds != null && ds.getProject() != null && !ds.getProject().isArchivedProject()
+						&& (ds.getProject().belongsTo(user) || ds.getProject().collaboratesWith(user))) {
+					token = ds.configuration(Dataset.API_TOKEN, "");
+				}
+			} catch (NumberFormatException e) {
+				return badRequest();
+			}
+			break;
+		default:
+			return badRequest();
+		}
+
+		if (token == null || token.isEmpty()) {
+			return notFound();
+		}
+		com.fasterxml.jackson.databind.node.ObjectNode res = play.libs.Json.newObject();
+		res.put("token", token);
+		return ok(res).as(play.mvc.Http.MimeTypes.JSON);
 	}
 
 	@AddCSRFToken

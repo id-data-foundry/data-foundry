@@ -61,6 +61,7 @@
             $.ajax({
               url: r.url,
               type: r.type,
+              headers: { "Csrf-Token": "@play.filters.csrf.CSRF.getToken(request).map(_.value).orElse("")" },
               contentType: "text/plain",
               data: inputTemplate,
               success: function() {

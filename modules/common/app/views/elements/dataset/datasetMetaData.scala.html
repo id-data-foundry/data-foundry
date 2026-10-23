@@ -21,6 +21,7 @@
                 $.ajax({
               		url: r.url,
               		type: r.type,
+              		headers: { "Csrf-Token": $('input[name="csrfToken"]').val() || "" },
               		success: function(data) {
                     M.toast({html: 'Meta data saved.', classes: 'green darken-2'})
                   },
@@ -42,6 +43,7 @@
                 $.ajax({
               		url: r.url,
               		type: r.type,
+              		headers: { "Csrf-Token": $('input[name="csrfToken"]').val() || "" },
               		success: function(data) {
                         M.toast({html: 'Meta data saved.', classes: 'green darken-2'})
                     }

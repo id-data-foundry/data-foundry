@@ -31,8 +31,9 @@ GET 		/apple-touch-icon-precomposed.png 					controllers.Assets.at(path="/public
 GET 		/users/profile										controllers.UsersController.edit(request: Request)
 GET 		/users/apiAccess									controllers.UsersController.apiAccess(request: Request)
 POST	 	/users/profileMe										controllers.UsersController.editMe(request: Request)
-GET		 	/users/generateToken									controllers.UsersController.generateToken(request: Request, service: String ?= "")
-GET		 	/users/generateToken/:service						controllers.UsersController.generateToken(request: Request, service: String)
+POST	 	/users/generateToken									controllers.UsersController.generateToken(request: Request, service: String ?= "")
+POST	 	/users/generateToken/:service						controllers.UsersController.generateToken(request: Request, service: String)
+POST		/users/revealToken									controllers.UsersController.revealToken(request: Request)
 GET			/users/register										controllers.UsersController.register(request: Request, token: String ?= "")
 GET			/users/register/*token								controllers.UsersController.register(request: Request, token: String)
 POST		/users/registerMe									controllers.UsersController.registerMe(request: Request)
@@ -148,13 +149,13 @@ GET 		/datasets/:id										controllers.DatasetsController.view(request: Reques
 GET 		/datasets/											controllers.Default.redirect(to = "/projects")
 GET 		/datasets/edit/:id									controllers.DatasetsController.edit(request: Request, id: Long)
 GET 		/datasets/delete/:id									controllers.DatasetsController.delete(request: Request, id: Long)
-GET			/datasets/configure/:id/:key/						controllers.DatasetsController.configure(request: Request, id: Long, key: String, value: String ?= "")
-GET			/datasets/configure/:id/:key/:value					controllers.DatasetsController.configure(request: Request, id: Long, key: String, value: String)
+POST		/datasets/configure/:id/:key/						controllers.DatasetsController.configure(request: Request, id: Long, key: String, value: String ?= "")
+POST		/datasets/configure/:id/:key/:value					controllers.DatasetsController.configure(request: Request, id: Long, key: String, value: String)
 POST		/datasets/configurePost/:id/:key						controllers.DatasetsController.configurePost(request: Request, id: Long, key: String)
-GET 		/datasets/configureToken/:id/:key					controllers.DatasetsController.configureWithToken(request: Request, id: Long, key: String)
+POST 		/datasets/configureToken/:id/:key					controllers.DatasetsController.configureWithToken(request: Request, id: Long, key: String)
 GET 		/datasets/table/:id									controllers.DatasetsController.table(request: Request, id: Long)
 GET 		/datasets/timeseries/:id.csv							controllers.DatasetsController.timeseries(request: Request, id: Long)
-GET 		/datasets/reset/:id									controllers.DatasetsController.resetDataset(request: Request, id: Long)
+POST 		/datasets/reset/:id									controllers.DatasetsController.resetDataset(request: Request, id: Long)
 POST 		/datasets/selectiveDelete/:id						controllers.DatasetsController.selectiveDeleteDataset(request: Request, id: Long)
 POST 		/datasets/selectiveDeleteByTime/:id					controllers.DatasetsController.selectiveDeleteDatasetByTime(request: Request, id: Long)
 GET         /datasets/hasOOCSIChannel/:id/*targetChannel        controllers.DatasetsController.hasOOCSIChannel(id: Long, targetChannel: String, channelName: String ?= "")
@@ -641,7 +642,7 @@ GET   		/api/v2/docs/*file        							controllers.Assets.at(path:String="/pub
 ## Authentication ##
 GET 		/api/v2/auth/:service								controllers.api2.AuthApiController.authenticate(request: Request, service: String)
 POST		/api/v2/auth/:service								controllers.api2.AuthApiController.authenticateMe(request: Request, service: String)
-GET			/api/v2/generate/:service							controllers.api2.AuthApiController.generate(request: Request, service: String)
+POST		/api/v2/generate/:service							controllers.api2.AuthApiController.generate(request: Request, service: String)
 
 # Open API
 -> 			/api/v2												OpenAPIs.Routes

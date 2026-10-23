@@ -49,9 +49,12 @@
             </div>
             <div class="col s3">
               @if(user.getAccesscode() != null && user.getAccesscode().length() > 0) {
-                <button class="btn-small reveal-btn" onclick="revealKey('user-token', '@user.getAccesscode()')">Reveal</button>
+                <button class="btn-small reveal-btn" id="reveal-user-token-btn" onclick="revealUserToken()">Reveal</button>
               } else {
-                <a href="@routes.UsersController.generateToken("")" class="btn-small">Generate</a>
+                <form method="POST" action="@routes.UsersController.generateToken("")" style="display:inline;">
+                  <input type="hidden" name="csrfToken" value="@token"/>
+                  <button type="submit" class="btn-small">Generate</button>
+                </form>
               }
             </div>
           </div>
@@ -75,7 +78,7 @@
             </div>
             <div class="col s3">
               @if(telegramToken.length() > 0) {
-                <button class="btn-small reveal-btn" onclick="revealKey('telegram-pin', '@telegramToken')">Reveal</button>
+                <button class="btn-small reveal-btn" onclick="revealRemoteKey(this, 'telegram-pin', 'telegram', '')">Reveal</button>
               } else {
                 <button class="btn-small red" hx-post="@routes.UsersController.resetTelegramSession()" hx-target="body" hx-include="#csrfToken">Reset</button>
               }
@@ -108,7 +111,7 @@
                   <code id="project-key-@project.getId()" class="api-key-obfuscated">••••••••••••••••••••••••••••••••</code>
                 </div>
                 <div class="col s3">
-                  <button class="btn-small reveal-btn" onclick="revealKey('project-key-@project.getId()', '@projectAPIKeys.get(project.getId()).apiKey')">Reveal</button>
+                  <button class="btn-small reveal-btn" onclick="revealRemoteKey(this, 'project-key-@project.getId()', 'project', '@project.getId()')">Reveal</button>
                 </div>
               </div>
             </div>
@@ -139,7 +142,7 @@
                 <code id="dataset-key-@dataset.getId()" class="api-key-obfuscated">••••••••••••••••••••••••••••••••</code>
               </div>
               <div class="col s3">
-                <button class="btn-small reveal-btn" onclick="revealKey('dataset-key-@dataset.getId()', '@dataset.configuration(models.Dataset.API_TOKEN, "")')">Reveal</button>
+                <button class="btn-small reveal-btn" onclick="revealRemoteKey(this, 'dataset-key-@dataset.getId()', 'dataset', '@dataset.getId()')">Reveal</button>
               </div>
             </div>
           </div>
@@ -178,17 +181,58 @@
 </style>
 
 <script type="text/javascript">
-  function revealKey(id, key) {
-    const el = document.getElementById(id);
-    const originalText = el.innerText;
-    el.innerText = key;
-    el.style.color = "#d32f2f"; // Dark red to highlight revealed state
-    
-    // Hide after 15 seconds
-    setTimeout(() => {
-      el.innerText = originalText;
-      el.style.color = "";
-    }, 15000);
+  function revealUserToken() {
+    const btn = document.getElementById('reveal-user-token-btn');
+    revealRemoteKey(btn, 'user-token', 'master', '');
+  }
+
+  function revealRemoteKey(btn, elementId, keyType, entityId) {
+    const el = document.getElementById(elementId);
+    if (!el || !btn) return;
+    btn.disabled = true;
+    const csrf = document.getElementById('csrfToken') ? document.getElementById('csrfToken').value : '';
+    const params = new URLSearchParams();
+    params.append('csrfToken', csrf);
+    params.append('type', keyType || 'master');
+    if (entityId) {
+      params.append('id', entityId);
+    }
+    fetch('@routes.UsersController.revealToken()', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Csrf-Token': csrf
+      },
+      body: params.toString()
+    })
+    .then(r => {
+      if (!r.ok) throw new Error('Reveal failed');
+      return r.json();
+    })
+    .then(data => {
+      if (data && data.token) {
+        const originalText = el.innerText;
+        el.innerText = data.token;
+        el.style.color = '#d32f2f';
+        btn.innerText = 'Hide';
+        btn.disabled = false;
+        let timer = setTimeout(() => {
+          hide();
+        }, 15000);
+        function hide() {
+          clearTimeout(timer);
+          el.innerText = originalText;
+          el.style.color = '';
+          btn.innerText = 'Reveal';
+          btn.onclick = function() { revealRemoteKey(btn, elementId, keyType, entityId); };
+        }
+        btn.onclick = hide;
+      }
+    })
+    .catch(err => {
+      btn.disabled = false;
+      alert('Could not reveal token. Please refresh and try again.');
+    });
   }
 </script>
 }

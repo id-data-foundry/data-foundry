@@ -18,8 +18,8 @@
           </div>
 
           <div class="input-field col s6">
-            <a class="btn" hx-get="@routes.DatasetsController.configureWithToken(dataset.getId(), Dataset.API_TOKEN)" hx-target="#postConfiguration" hx-swap="outerHTML" hx-select="#postConfiguration">Generate</a>
-            <a class="btn-flat red-text" hx-get="@routes.DatasetsController.configure(dataset.getId(), Dataset.API_TOKEN, "")" hx-target="#postConfiguration" hx-swap="outerHTML" hx-select="#postConfiguration">Delete</a>
+            <a class="btn" hx-post="@routes.DatasetsController.configureWithToken(dataset.getId(), Dataset.API_TOKEN)" hx-headers='{"Csrf-Token": "@play.filters.csrf.CSRF.getToken(request).map(_.value).orElse("")"}' hx-target="#postConfiguration" hx-swap="outerHTML" hx-select="#postConfiguration">Generate</a>
+            <a class="btn-flat red-text" hx-post="@routes.DatasetsController.configure(dataset.getId(), Dataset.API_TOKEN, "")" hx-headers='{"Csrf-Token": "@play.filters.csrf.CSRF.getToken(request).map(_.value).orElse("")"}' hx-target="#postConfiguration" hx-swap="outerHTML" hx-select="#postConfiguration">Delete</a>
           </div>
           <div class="input-field col s6">
             Generate a token to activate this inlet, delete the token to deactivate.

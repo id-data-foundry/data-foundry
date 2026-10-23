@@ -1,4 +1,4 @@
-@(token : String, validity : String, service : String)
+@(token : String, validity : String, service : String, csrfToken : String = "")
 @main("Token for API authentication") {
 <script src="@routes.DatasetsController.jsRoutes()" type="text/javascript"></script>
 
@@ -40,6 +40,7 @@
         $.ajax({
     		url: r.url,
     		type: r.type,
+			headers: { "Csrf-Token": "@csrfToken" },
 			contentType: "application/json",
     		success: function(json) {
     			$('#token').val(json.token)

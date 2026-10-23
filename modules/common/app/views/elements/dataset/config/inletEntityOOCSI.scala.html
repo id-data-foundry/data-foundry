@@ -25,7 +25,7 @@
           $('#saveOOCSIServiceInputBtn').click(function() {
             var inputChannel = $('#oocsiServiceInput').val();
             var r = jsRoutes.controllers.DatasetsController.configure(@dataset.getId(), 'OOCSI_service', inputChannel);
-            $.ajax({url: r.url, type: r.type, success: function() {
+            $.ajax({url: r.url, type: r.type, headers: { "Csrf-Token": "@play.filters.csrf.CSRF.getToken(request).map(_.value).orElse("")" }, success: function() {
               M.toast({html: 'Settings saved.', classes: 'green darken-2'})
             }, error: function() {
               M.toast({html: 'Settings not saved.', classes: 'red darken-2'})

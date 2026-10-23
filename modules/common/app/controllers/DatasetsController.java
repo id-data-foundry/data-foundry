@@ -55,6 +55,7 @@ import play.cache.SyncCacheApi;
 import play.data.DynamicForm;
 import play.data.FormFactory;
 import play.filters.csrf.AddCSRFToken;
+import play.filters.csrf.RequireCSRFCheck;
 import play.libs.Json;
 import play.mvc.Http.MimeTypes;
 import play.mvc.Http.Request;
@@ -1818,6 +1819,7 @@ public class DatasetsController extends AbstractAsyncController {
 		});
 	}
 
+	@Authenticated(UserAuth.class)
 	@AddCSRFToken
 	public Result webEntryPointSelection(Request request, Long id) {
 		Person user = getAuthenticatedUserOrReturn(request, forbidden());
@@ -1828,34 +1830,39 @@ public class DatasetsController extends AbstractAsyncController {
 			return forbidden();
 		}
 
-		// check GET or POST
-		if (request.method().equalsIgnoreCase("GET")) {
-			// list files to choose an entry point from
-			CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
-			List<TimedMedia> files = cpds.getFiles();
-			return ok(
-					views.html.elements.dataset.config.outletWebAccessEntryPoint.render(ds, files, csrfToken(request)));
-		} else if (request.method().equalsIgnoreCase("POST")) {
+		// list files to choose an entry point from
+		CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
+		List<TimedMedia> files = cpds.getFiles();
+		return ok(
+				views.html.elements.dataset.config.outletWebAccessEntryPoint.render(ds, files, csrfToken(request)));
+	}
 
-			// parse input and check if an entrypoint or -1 were given
-			DynamicForm df = formFactory.form().bindFromRequest(request);
-			Optional<Object> filename = df.value("filename");
-			if (filename.isEmpty()) {
-				return badRequest();
-			}
+	@Authenticated(UserAuth.class)
+	@RequireCSRFCheck
+	public Result saveWebEntryPointSelection(Request request, Long id) {
+		Person user = getAuthenticatedUserOrReturn(request, forbidden());
 
-			// we set the entry point here:
-			// entrypoint -1 means no or default entry point
-			String selectedEntryPoint = filename.get().toString();
-			ds.getConfiguration().put(Dataset.WEB_ACCESS_ENTRY,
-					selectedEntryPoint.equals("-1") ? "" : selectedEntryPoint);
-			ds.update();
-
-			return noContent();
+		// find dataset and check access
+		Dataset ds = Dataset.find.byId(id);
+		if (ds == null || !user.canEdit(ds.getProject())) {
+			return forbidden();
 		}
 
-		// if nothing matches...
-		return notFound();
+		// parse input and check if an entrypoint or -1 were given
+		DynamicForm df = formFactory.form().bindFromRequest(request);
+		Optional<Object> filename = df.value("filename");
+		if (filename.isEmpty()) {
+			return badRequest();
+		}
+
+		// we set the entry point here:
+		// entrypoint -1 means no or default entry point
+		String selectedEntryPoint = filename.get().toString();
+		ds.getConfiguration().put(Dataset.WEB_ACCESS_ENTRY,
+				selectedEntryPoint.equals("-1") ? "" : selectedEntryPoint);
+		ds.update();
+
+		return noContent();
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1898,6 +1905,7 @@ public class DatasetsController extends AbstractAsyncController {
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	@Authenticated(UserAuth.class)
+	@RequireCSRFCheck
 	public Result resetDataset(Request request, Long id) {
 		Dataset ds = Dataset.find.byId(id);
 		if (ds == null) {
@@ -1935,6 +1943,7 @@ public class DatasetsController extends AbstractAsyncController {
 	}
 
 	@Authenticated(UserAuth.class)
+	@RequireCSRFCheck
 	public Result selectiveDeleteDataset(Request request, Long id) {
 		Dataset ds = Dataset.find.byId(id);
 		if (ds == null) {
@@ -1994,6 +2003,7 @@ public class DatasetsController extends AbstractAsyncController {
 	}
 
 	@Authenticated(UserAuth.class)
+	@RequireCSRFCheck
 	public Result selectiveDeleteDatasetByTime(Request request, Long id) {
 		Dataset ds = Dataset.find.byId(id);
 		if (ds == null) {
@@ -2050,6 +2060,7 @@ public class DatasetsController extends AbstractAsyncController {
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	@Authenticated(UserAuth.class)
+	@RequireCSRFCheck
 	public Result configure(Request request, Long id, String key, String value) {
 		String username = getAuthenticatedUserNameOrReturn(request, redirect(HOME));
 
@@ -2082,6 +2093,7 @@ public class DatasetsController extends AbstractAsyncController {
 	}
 
 	@Authenticated(UserAuth.class)
+	@RequireCSRFCheck
 	public Result configurePost(Request request, Long id, String key) {
 		String username = getAuthenticatedUserNameOrReturn(request, redirect(HOME));
 

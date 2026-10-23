@@ -1,4 +1,4 @@
-@(dataset : Dataset, user : String)
+@(dataset : Dataset, user : String)(implicit request: Http.Request)
       <ul class="collapsible">
         <li>
           <div class="collapsible-header">Java/Processing</div>
@@ -111,7 +111,7 @@
             $('#saveOOCSIChannelInputBtn').click(function() {
               var inputChannel = $('#oocsiChannelInput').val();
               var r = jsRoutes.controllers.DatasetsController.configure(@dataset.getId(), 'OOCSI_backup', inputChannel);
-              $.ajax({url: r.url, type: r.type, success: function() {
+              $.ajax({url: r.url, type: r.type, headers: { "Csrf-Token": "@play.filters.csrf.CSRF.getToken(request).map(_.value).orElse("")" }, success: function() {
                 M.toast({html: 'Settings saved.', classes: 'green darken-2'})
               }, error: function() {
                 console.log('error')

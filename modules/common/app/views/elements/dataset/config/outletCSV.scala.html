@@ -52,8 +52,8 @@
 
     @if(dataset.editableBy(user)) {
     <div class="col s12 m6">
-      <a class="btn" hx-get="@routes.DatasetsController.configureWithToken(dataset.getId(), Dataset.PUBLIC_ACCESS_TOKEN)" hx-target="#csvOutConfiguration" hx-swap="outerHTML" hx-select="#csvOutConfiguration">Generate token link</a>
-      <a class="btn-flat red-text" hx-get="@routes.DatasetsController.configure(dataset.getId(), Dataset.PUBLIC_ACCESS_TOKEN, "")" hx-target="#csvOutConfiguration" hx-swap="outerHTML" hx-select="#csvOutConfiguration">Delete</a>
+      <a class="btn" hx-post="@routes.DatasetsController.configureWithToken(dataset.getId(), Dataset.PUBLIC_ACCESS_TOKEN)" hx-headers='{"Csrf-Token": "@play.filters.csrf.CSRF.getToken(request).map(_.value).orElse("")"}' hx-target="#csvOutConfiguration" hx-swap="outerHTML" hx-select="#csvOutConfiguration">Generate token link</a>
+      <a class="btn-flat red-text" hx-post="@routes.DatasetsController.configure(dataset.getId(), Dataset.PUBLIC_ACCESS_TOKEN, "")" hx-headers='{"Csrf-Token": "@play.filters.csrf.CSRF.getToken(request).map(_.value).orElse("")"}' hx-target="#csvOutConfiguration" hx-swap="outerHTML" hx-select="#csvOutConfiguration">Delete</a>
     </div>
     @if(dataset.getDsType() == DatasetType.IOT && !dataset.configuration(Dataset.PUBLIC_ACCESS_TOKEN, "").isEmpty()) {
     <div class="col s12 m6">

@@ -56,6 +56,7 @@ public class SurveyDSController extends AbstractDSController {
 	}
 
 	@Authenticated(UserAuth.class)
+	@AddCSRFToken
 	public Result view(Request request, Long id) {
 		String username = getAuthenticatedUserNameOrReturn(request, redirect(LANDING));
 

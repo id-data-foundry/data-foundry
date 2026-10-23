@@ -32,7 +32,7 @@
 				<p>
 					<a id="deleteBtn" class="btn red disabled">Delete entry</a>
 					@if(ds.configuration("api_token", "").isEmpty()) {
-					<a class="btn" hx-get="@routes.DatasetsController.configureWithToken(ds.getId(), "api_token")" hx-swap="none" onclick="setTimeout(function(){location.reload();},800)">Enable direct editing</a>
+					<a class="btn" hx-post="@routes.DatasetsController.configureWithToken(ds.getId(), "api_token")" hx-headers='{"Csrf-Token": "@play.filters.csrf.CSRF.getToken(request).map(_.value).orElse("")"}' hx-swap="none" onclick="setTimeout(function(){location.reload();},800)">Enable direct editing</a>
 					}
 				</p>
 			</div>

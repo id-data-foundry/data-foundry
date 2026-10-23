@@ -73,9 +73,10 @@
         <p class="red-text">
             Careful here: You can reset all data in this dataset. This will delete ALL data in this dataset, but not the rest of the project.
         </p>
-        <p>
-            <a onclick="return confirm('Are you sure you want to reset all data in this dataset? This action is not reversible! Click OK to reset, cancel to stop.')" href="@routes.DatasetsController.resetDataset(ds.getId())" class="btn red white-text">RESET ALL DATA</a>
-        </p>
+        <form action="@routes.DatasetsController.resetDataset(ds.getId())" method="POST" style="display:inline;">
+            <input type="hidden" name="csrfToken" value="@token"/>
+            <button type="submit" onclick="return confirm('Are you sure you want to reset all data in this dataset? This action is not reversible! Click OK to reset, cancel to stop.')" class="btn red white-text">RESET ALL DATA</button>
+        </form>
         
 	</div>
 </div>

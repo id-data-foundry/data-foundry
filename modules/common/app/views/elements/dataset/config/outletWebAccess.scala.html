@@ -41,12 +41,14 @@
           @if(dataset.editableBy(user)) {
           <a class="btn"
               id="activateWebAccessBtn"
-              hx-get="@routes.DatasetsController.configureWithToken(dataset.getId(), Dataset.WEB_ACCESS_TOKEN)" 
+              hx-post="@routes.DatasetsController.configureWithToken(dataset.getId(), Dataset.WEB_ACCESS_TOKEN)" 
+              hx-headers='{"Csrf-Token": "@play.filters.csrf.CSRF.getToken(request).map(_.value).orElse("")"}'
               hx-target="#webaccessConfiguration" 
               hx-swap="outerHTML" 
               hx-select="#webaccessConfiguration">Activate web access</a>
           <a class="btn-flat red-text" 
-              hx-get="@routes.DatasetsController.configure(dataset.getId(), Dataset.WEB_ACCESS_TOKEN, "")" 
+              hx-post="@routes.DatasetsController.configure(dataset.getId(), Dataset.WEB_ACCESS_TOKEN, "")" 
+              hx-headers='{"Csrf-Token": "@play.filters.csrf.CSRF.getToken(request).map(_.value).orElse("")"}'
               hx-target="#webaccessConfiguration" 
               hx-swap="outerHTML" 
               hx-select="#webaccessConfiguration">Disable web access</a>

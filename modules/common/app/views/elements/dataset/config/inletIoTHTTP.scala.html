@@ -19,11 +19,13 @@
           </div>
           <div class="input-field col s12 m4">
             <a class="btn" 
-                hx-get="@routes.DatasetsController.configureWithToken(dataset.getId(), Dataset.API_TOKEN)" 
+                hx-post="@routes.DatasetsController.configureWithToken(dataset.getId(), Dataset.API_TOKEN)" 
+                hx-headers='{"Csrf-Token": "@play.filters.csrf.CSRF.getToken(request).map(_.value).orElse("")"}'
                 hx-swap="none" 
                 onclick="setTimeout(() => location.reload(), 800)">Regenerate</a>
             <a class="btn-flat red-text" 
-                hx-get="@routes.DatasetsController.configure(dataset.getId(), Dataset.API_TOKEN, "")" 
+                hx-post="@routes.DatasetsController.configure(dataset.getId(), Dataset.API_TOKEN, "")" 
+                hx-headers='{"Csrf-Token": "@play.filters.csrf.CSRF.getToken(request).map(_.value).orElse("")"}'
                 hx-target="#postConfiguration" 
                 hx-swap="outerHTML" 
                 hx-select="#postConfiguration">Delete</a>

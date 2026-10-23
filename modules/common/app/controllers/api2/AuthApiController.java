@@ -34,6 +34,7 @@ public class AuthApiController extends AbstractApiController {
 		return ok(views.html.tools.api.login.render(csrfToken(request), "", service));
 	}
 
+	@AddCSRFToken
 	@RequireCSRFCheck
 	public Result authenticateMe(Request request, String service) {
 
@@ -59,11 +60,12 @@ public class AuthApiController extends AbstractApiController {
 		Long time = tokenResolverUtil.retrieveTimeoutFromUserAccessToken(user.getAccesscode());
 		String validity = new SimpleDateFormat("MMM d, yyyy").format(new Date(time));
 
-		return ok(views.html.tools.api.token.render(user.getAccesscode(), validity, service)).addingToSession(request,
-		        "username", user.getEmail());
+		return ok(views.html.tools.api.token.render(user.getAccesscode(), validity, service, csrfToken(request)))
+		        .addingToSession(request, "username", user.getEmail());
 	}
 
 	@Authenticated(UserAuth.class)
+	@RequireCSRFCheck
 	public Result generate(Request request, String service) {
 		// check person
 		Optional<Person> userOpt = getAuthenticatedUser(request);

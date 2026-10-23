@@ -39,6 +39,7 @@
               $.ajax({
                 url: r.url,
                 type: r.type,
+                headers: { "Csrf-Token": "@play.filters.csrf.CSRF.getToken(request).map(_.value).orElse("")" },
                 success: function() {
                   M.toast({html: 'Template saved.', classes: 'green darken-2'})
                 },

@@ -7,7 +7,7 @@
   Also, you can use this to switch between different versions of your web pages in this dataset.
 </p>
 <form class="entryPointSelection" id="entrypointSelection"
-        hx-post="@routes.DatasetsController.webEntryPointSelection(dataset.getId())"
+        hx-post="@routes.DatasetsController.saveWebEntryPointSelection(dataset.getId())"
         hx-trigger="change">
   <input type="hidden" name="csrfToken" value="@token">
   <select id="filename" name="filename" class="browser-default">

@@ -472,6 +472,7 @@ public class EntityDSController extends AbstractDSController {
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	@Authenticated(UserAuth.class)
+	@AddCSRFToken
 	public Result table(Request request, Long id) {
 		String username = getAuthenticatedUserNameOrReturn(request, redirect(LANDING));
 
