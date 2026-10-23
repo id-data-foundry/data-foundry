@@ -551,13 +551,13 @@ public class UsersController extends AbstractAsyncController {
 				for (String line : teams.split("\\R")) {
 					Matcher matcher = pattern.matcher(line);
 					if (matcher.matches()) {
-						sb.append("<p>✅ " + prefix + " " + lineCount++ + ": ");
+						sb.append("<p>✅ " + htmlTagEscape(prefix) + " " + lineCount++ + ": ");
 						Arrays.stream(line.split(";")).filter(s -> s != null && !s.isEmpty()).map(String::trim)
 								.forEach(email -> {
 									if (Person.findByEmail(email).isPresent()) {
-										sb.append("<span class='email-ok'>" + email + " 🙂</span>");
+										sb.append("<span class='email-ok'>" + htmlTagEscape(email) + " 🙂</span>");
 									} else {
-										sb.append("<span class='email-missing'>" + email + "</span>");
+										sb.append("<span class='email-missing'>" + htmlTagEscape(email) + "</span>");
 									}
 								});
 						sb.append("</p>");
@@ -565,7 +565,7 @@ public class UsersController extends AbstractAsyncController {
 						hasProblem |= true;
 						sb.append("""
 								<p style="color: red;">❌ Team %d: %s </p>
-								""".formatted(lineCount++, line));
+								""".formatted(lineCount++, htmlTagEscape(line)));
 					}
 				}
 
@@ -591,8 +591,8 @@ public class UsersController extends AbstractAsyncController {
 							</div>
 							 <button class="btn">Create projects</button>
 							 </form>
-							 """.formatted(routes.UsersController.bulkTeamsMe(), prefix, description,
-							teams.replaceAll("\\R", "|"), csrfToken(request)));
+							 """.formatted(routes.UsersController.bulkTeamsMe(), htmlTagEscape(prefix), htmlTagEscape(description),
+							htmlTagEscape(teams.replaceAll("\\R", "|")), csrfToken(request)));
 				}
 
 				return ok(sb.toString()).as(Http.MimeTypes.HTML);

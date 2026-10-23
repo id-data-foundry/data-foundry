@@ -204,7 +204,7 @@ public class NarrativeSurveysController extends AbstractAsyncController {
 		}
 
 		LinkedDS edsDS = datasetConnector.getDatasetDS(eds);
-		String dataJson = edsDS.retrieveProjected(null, -1, -1, -1).toString();
+		String dataJson = edsDS.retrieveProjected(null, -1, -1, -1).toString().replace("<", "\\u003c");
 
 		// inject the data into the analysis
 		return ok(views.html.tools.twine.analysis.render(project, surveyName, dataJson));
@@ -253,8 +253,8 @@ public class NarrativeSurveysController extends AbstractAsyncController {
 			// do nothing
 		}
 
-		// escape html template quotes and also closing script tags just in case
-		contents = contents.replace("`", "\\`").replace("</script>", "<\\/script>");
+		// escape html template quotes, expressions, and closing script tags
+		contents = contents.replace("`", "\\`").replace("${", "\\${").replace("<", "\\u003c");
 
 		String htmlFileName = file.getName().replace(".twee", ".html");
 		Optional<Long> htmlFileOpt = cds.getLatestFileVersionId(htmlFileName);

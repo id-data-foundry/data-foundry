@@ -424,7 +424,7 @@ else {
       language: 'js',
       lineNumbers: true
     });
-    flask.updateCode(@Html(play.libs.Json.stringify(play.libs.Json.toJson(dataset.configuration(Dataset.ACTOR_CODE, "DF.print(\"test message data: \" + data.color)")))));
+    flask.updateCode(@Html(play.libs.Json.stringify(play.libs.Json.toJson(dataset.configuration(Dataset.ACTOR_CODE, "DF.print(\"test message data: \" + data.color)"))).replace("<", "\\u003c")));
     flask.onUpdate((code) => {
       $('#saveBtn').removeClass('disabled');
     });

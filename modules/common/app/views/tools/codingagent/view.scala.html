@@ -629,10 +629,11 @@
   function sanitizeHtml(html) {
     const template = document.createElement('template');
     template.innerHTML = html;
-    const dangerousTags = ['SCRIPT', 'IFRAME', 'OBJECT', 'EMBED', 'BASE', 'LINK', 'STYLE', 'META'];
+    const dangerousTags = ['SCRIPT', 'IFRAME', 'OBJECT', 'EMBED', 'BASE', 'LINK', 'STYLE', 'META', 'SVG', 'MATH'];
     const elements = template.content.querySelectorAll('*');
     elements.forEach(el => {
-      if (dangerousTags.includes(el.tagName)) {
+      const tagName = (el.tagName || '').toUpperCase();
+      if (dangerousTags.includes(tagName) || tagName.includes('SCRIPT')) {
         el.remove();
         return;
       }
@@ -813,7 +814,9 @@
         const container = document.getElementById('chat-notifications');
         const item = document.createElement('div');
         item.className = `notification-item ${color}`;
-        item.innerHTML = `<span>${text}</span>`;
+        const span = document.createElement('span');
+        span.textContent = text;
+        item.appendChild(span);
         container.appendChild(item);
         container.scrollTop = container.scrollHeight;
         

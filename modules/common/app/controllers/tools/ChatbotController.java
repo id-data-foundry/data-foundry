@@ -1263,7 +1263,7 @@ public class ChatbotController extends AbstractAsyncController {
 					.trim();
 			if (!assistantStartPrompt.isEmpty()) {
 				ch.items().add(new ConversationItem(ConversationItem.ASSISTANT, assistantStartPrompt, "",
-						assistantStartPrompt));
+						new MarkdownRenderer(true).render(assistantStartPrompt)));
 			}
 		} else {
 			ch = chOpt.get();

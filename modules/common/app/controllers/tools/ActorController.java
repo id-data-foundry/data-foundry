@@ -297,7 +297,9 @@ public class ActorController extends AbstractAsyncController {
 			actor = jsExecService.addActor(ds);
 		}
 
-		return ok(actor.messages.stream().collect(Collectors.joining())).as(MimeTypes.HTML);
+		return ok(actor.messages.stream().collect(Collectors.joining())).as(MimeTypes.HTML)
+				.withHeader("Content-Security-Policy", "sandbox")
+				.withHeader("X-Content-Type-Options", "nosniff");
 	}
 
 	public Result fileList(Request request, long id) {
@@ -318,17 +320,24 @@ public class ActorController extends AbstractAsyncController {
 
 		String username = getAuthenticatedUserNameOrReturn(request, redirect(LANDING));
 
+		if (filename == null || filename.trim().isEmpty() || filename.contains("..") || filename.contains("/")
+				|| filename.contains("\\")) {
+			return notFound("file not found").as("text/plain; charset=utf-8");
+		}
+
 		Dataset ds = Dataset.find.byId(id);
 		if (ds == null || !ds.isScript() || !ds.editableBy(username)) {
-			return notFound("file not found").as(MimeTypes.HTML);
+			return notFound("file not found").as("text/plain; charset=utf-8");
 		}
 
 		final CompleteDS cpsc = (CompleteDS) datasetConnector.getDatasetDS(ds);
 		Optional<File> file = cpsc.getFile(filename);
 		if (!file.isPresent()) {
-			return notFound("file not found").as(MimeTypes.HTML);
+			return notFound("file not found").as("text/plain; charset=utf-8");
 		}
 
-		return ok(file.get()).as(MimeTypes.HTML);
+		return ok(file.get()).as("text/plain; charset=utf-8")
+				.withHeader("X-Content-Type-Options", "nosniff")
+				.withHeader("Content-Security-Policy", "sandbox");
 	}
 }

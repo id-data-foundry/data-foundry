@@ -213,14 +213,14 @@ public class JSActor implements ApiServiceConstants {
 		} catch (ScriptCPUAbuseException | ScriptMemoryAbuseException e) {
 			this.code = null;
 			this.compiledProgram = false;
-			this.messages.offerFirst(e.getLocalizedMessage());
+			this.messages.offerFirst(escapeHtml(e.getLocalizedMessage()));
 			// expected stuff
 			logger.error("Problem in script resources use for " + owner + " (" + getDatasetId() + ")");
 			return false;
 		} catch (ScriptException e) {
 			this.code = null;
 			this.compiledProgram = false;
-			this.messages.offerFirst(e.getLocalizedMessage());
+			this.messages.offerFirst(escapeHtml(e.getLocalizedMessage()));
 			// expected stuff
 			logger.error("Problem in script for " + owner + " (" + getDatasetId() + ")");
 			return false;
@@ -1047,5 +1047,16 @@ public class JSActor implements ApiServiceConstants {
 			}
 		});
 		return jo;
+	}
+
+	private static String escapeHtml(String input) {
+		if (input == null) {
+			return "";
+		}
+		return input.replace("&", "&amp;")
+				.replace("<", "&lt;")
+				.replace(">", "&gt;")
+				.replace("\"", "&quot;")
+				.replace("'", "&#39;");
 	}
 }

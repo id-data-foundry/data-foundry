@@ -87,7 +87,7 @@ public class FormMarkdown {
 				})
 				.nodeRendererFactory(new HtmlNodeRendererFactory() {
 					public NodeRenderer create(HtmlNodeRendererContext context) {
-						return new FormNodeRenderer(context, false);
+						return new FormNodeRenderer(context, true);
 					}
 				}).build();
 		visualizer = HtmlRenderer.builder().escapeHtml(true).extensions(visualizationExtensions)
@@ -151,13 +151,29 @@ public class FormMarkdown {
 	 * @return
 	 */
 	public static String renderEscapedHtml(String md) {
+		if (md == null || md.isEmpty()) {
+			return "";
+		}
 		// escape any tags
 		md = md.replace("<", "&lt;").replace(">", "&gt;");
 		// unescape the textual \n
 		md = md.replace("\\\n", "\n");
 		// then transform markdown with softbreak <br>
 		Node n = Parser.builder().build().parse(md);
-		return HtmlRenderer.builder().softbreak("<br>").build().render(n);
+		return HtmlRenderer.builder().escapeHtml(true).softbreak("<br>")
+				.attributeProviderFactory(context -> (node, tagName, attributes) -> {
+					if ("a".equals(tagName)) {
+						String href = attributes.get("href");
+						if (href != null && isUnsafeUrl(href)) {
+							attributes.put("href", "");
+						}
+					} else if ("img".equals(tagName)) {
+						String src = attributes.get("src");
+						if (src != null && isUnsafeUrl(src)) {
+							attributes.put("src", "");
+						}
+					}
+				}).build().render(n);
 	}
 
 	public String renderForm(String input) {
@@ -170,7 +186,20 @@ public class FormMarkdown {
 
 	public String renderFormPreview(String input) {
 		itemCount = 0;
-		HtmlRenderer previewRenderer = HtmlRenderer.builder().extensions(renderExtensions)
+		HtmlRenderer previewRenderer = HtmlRenderer.builder().escapeHtml(true).extensions(renderExtensions)
+				.attributeProviderFactory(context -> (node, tagName, attributes) -> {
+					if ("a".equals(tagName)) {
+						String href = attributes.get("href");
+						if (href != null && isUnsafeUrl(href)) {
+							attributes.put("href", "");
+						}
+					} else if ("img".equals(tagName)) {
+						String src = attributes.get("src");
+						if (src != null && isUnsafeUrl(src)) {
+							attributes.put("src", "");
+						}
+					}
+				})
 				.nodeRendererFactory(new HtmlNodeRendererFactory() {
 					public NodeRenderer create(HtmlNodeRendererContext context) {
 						return new FormNodeRenderer(context, true);
@@ -609,7 +638,12 @@ public class FormMarkdown {
 	}
 
 	public static String getJsonItems(List<String> items) {
-		return items.stream().map(s -> "\"" + s + "\"").collect(Collectors.joining(","));
+		if (items == null) {
+			return "";
+		}
+		return items.stream()
+				.map(s -> play.libs.Json.stringify(play.libs.Json.toJson(s != null ? s : "")).replace("<", "\\u003c"))
+				.collect(Collectors.joining(","));
 	}
 
 	public static String getText(Node n) {

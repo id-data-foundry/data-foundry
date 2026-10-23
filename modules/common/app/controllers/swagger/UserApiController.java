@@ -144,11 +144,11 @@ public class UserApiController extends AbstractApiController {
 		// fill in provided information
 		boolean dirty = false;
 		if (df.get("first_name") != null) {
-			user.setFirstname(df.get("first_name"));
+			user.setFirstname(htmlTagEscape(nss(df.get("first_name"), 64)));
 			dirty = true;
 		}
 		if (df.get("last_name") != null) {
-			user.setLastname(df.get("last_name"));
+			user.setLastname(htmlTagEscape(nss(df.get("last_name"), 64)));
 			dirty = true;
 		}
 		// email is not editable as it is the username
@@ -161,7 +161,7 @@ public class UserApiController extends AbstractApiController {
 			dirty = true;
 		}
 		if (df.get("website") != null) {
-			user.setWebsite(df.get("website"));
+			user.setWebsite(htmlTagEscape(nss(df.get("website"), 120)));
 			dirty = true;
 		}
 

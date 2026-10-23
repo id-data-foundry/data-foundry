@@ -207,14 +207,16 @@ public class JSActorProxy {
 
 	@HostAccess.Export
 	public void print(Object message) {
-		print(message.toString());
+		if (message != null) {
+			print(message.toString());
+		}
 	}
 
 	@HostAccess.Export
 	public void print(String message) {
 		if (message != null && !message.isEmpty()) {
 			String timestamp = "<span class='timestamp'>" + sdf.format(new Date()) + "</span>";
-			sb.append("<p class='info-msg'>" + timestamp + message.replace("\n", "<br>") + "</p>");
+			sb.append("<p class='info-msg'>" + timestamp + escapeHtml(message).replace("\n", "<br>") + "</p>");
 		}
 	}
 
@@ -222,8 +224,19 @@ public class JSActorProxy {
 	public void error(String message) {
 		if (message != null && !message.isEmpty()) {
 			String timestamp = "<span class='timestamp'>" + sdf.format(new Date()) + "</span>";
-			sb.append("<p class='error-msg'>" + timestamp + message.replace("\n", "<br>") + "</p>");
+			sb.append("<p class='error-msg'>" + timestamp + escapeHtml(message).replace("\n", "<br>") + "</p>");
 		}
+	}
+
+	private static String escapeHtml(String input) {
+		if (input == null) {
+			return "";
+		}
+		return input.replace("&", "&amp;")
+				.replace("<", "&lt;")
+				.replace(">", "&gt;")
+				.replace("\"", "&quot;")
+				.replace("'", "&#39;");
 	}
 
 	public String getMessages() {
