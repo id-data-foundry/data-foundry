@@ -37,6 +37,24 @@ public class GraalSandboxImpl extends NashornSandboxImpl implements GraalSandbox
 
 	private static final Engine SHARED_ENGINE = Engine.newBuilder().build();
 
+	private static final HostAccess SANDBOX_HOST_ACCESS = createSandboxHostAccess();
+
+	private static HostAccess createSandboxHostAccess() {
+		try {
+			return HostAccess.newBuilder(HostAccess.EXPLICIT)
+					.allowAccessInheritance(true)
+					.allowAccess(Object.class.getMethod("toString"))
+					.allowArrayAccess(true)
+					.allowListAccess(true)
+					.allowMapAccess(true)
+					.allowIteratorAccess(true)
+					.allowIterableAccess(true)
+					.build();
+		} catch (NoSuchMethodException e) {
+			return HostAccess.EXPLICIT;
+		}
+	}
+
 	public static Engine getSharedEngine() {
 		return SHARED_ENGINE;
 	}
@@ -55,7 +73,7 @@ public class GraalSandboxImpl extends NashornSandboxImpl implements GraalSandbox
 		super(GraalJSScriptEngine.create(engine != null ? engine : SHARED_ENGINE, Context.newBuilder("js")
 		        .allowPolyglotAccess(org.graalvm.polyglot.PolyglotAccess.NONE)
 		        .allowHostClassLookup(s -> false)
-		        .allowHostAccess(HostAccess.ALL)
+		        .allowHostAccess(SANDBOX_HOST_ACCESS)
 		        .resourceLimits(ResourceLimits.newBuilder().statementLimit(50000, src -> {
 		            if (src == null || src.isInternal()) {
 		                return false;

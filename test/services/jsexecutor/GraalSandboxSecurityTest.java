@@ -21,6 +21,7 @@ public class GraalSandboxSecurityTest {
 	}
 
 	public static class TestBean {
+		@org.graalvm.polyglot.HostAccess.Export
 		public String sayHello(String name) {
 			return "Hello, " + name;
 		}

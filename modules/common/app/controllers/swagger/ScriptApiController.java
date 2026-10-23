@@ -77,8 +77,8 @@ public class ScriptApiController extends AbstractApiController {
 			return notFound(errorJSONResponseObject("Not valid user."));
 		}
 
-		// check project and user role
-		if (p == null || !p.belongsTo(user) && !p.collaboratesWith(user)) {
+		// check project and user role (scripts can only be added by the project owner)
+		if (p == null || !p.belongsTo(user)) {
 			return forbidden(errorJSONResponseObject("Invalid user or project."));
 		}
 

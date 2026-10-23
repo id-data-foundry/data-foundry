@@ -13,6 +13,7 @@ import java.util.concurrent.TimeoutException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.graalvm.polyglot.HostAccess;
 
 import datasets.DatasetConnector;
 import models.Dataset;
@@ -59,6 +60,7 @@ public class JSDatasetProxy {
 	 * @param end
 	 * @return
 	 */
+	@HostAccess.Export
 	public String getEventData(String filterId, Long limit, Long start, Long end) {
 
 		// check request validity
@@ -158,6 +160,7 @@ public class JSDatasetProxy {
 	 * @param activity
 	 * @param data
 	 */
+	@HostAccess.Export
 	public void logEventData(String deviceId, String activity, String data) {
 
 		// check request validity
@@ -206,6 +209,7 @@ public class JSDatasetProxy {
 	 * @param end
 	 * @return
 	 */
+	@HostAccess.Export
 	public JSDatasetProxy filter(String filterId, Long limit, Long start, Long end) {
 		this.filterId = filterId;
 		this.limit = Math.min(Optional.ofNullable(limit).orElse(20L), 8000);
@@ -221,6 +225,7 @@ public class JSDatasetProxy {
 	 * @param keys either single string or comma-separated list of strings
 	 * @return
 	 */
+	@HostAccess.Export
 	public String stats(String keys) {
 
 		// check request validity
