@@ -451,6 +451,7 @@
               </p>
               <form id="fileUploadForm" hx-encoding="multipart/form-data" hx-post="@controllers.tools.routes.ChatbotController.uploadFile(dataset.getId())"
                 hx-target="#file-list" hx-select="#file-list" hx-swap="outerHTML" hx-trigger="submit" hx-indicator="#file-list-indicator">
+                <input type="hidden" name="csrfToken" value="@csrfToken">
                 <div class="file-uploader">
                   <input type="file" id="file-input" name="file" multiple accept="application/pdf,.md,.txt">
                   <div style="font-size: 2.2rem; margin-bottom: 6px;">📄</div>

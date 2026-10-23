@@ -197,6 +197,32 @@ public class CodingAgentController extends AbstractAsyncController {
 
 	public WebSocket ws(Long id) {
 		return WebSocket.Json.accept(request -> {
+			if (!UserAuth.isValidRequestContext(request)) {
+				return Flow.fromSinkAndSource(Sink.ignore(),
+						Source.single(Json.newObject().put("type", "error").put("message", "Forbidden")));
+			}
+
+			Optional<String> origin = request.header("Origin");
+			if (origin.isPresent()) {
+				String originVal = origin.get().trim();
+				String reqHost = request.host();
+				if ("null".equalsIgnoreCase(originVal) || reqHost == null || reqHost.isEmpty()) {
+					return Flow.fromSinkAndSource(Sink.ignore(),
+							Source.single(Json.newObject().put("type", "error").put("message", "Forbidden")));
+				}
+				try {
+					java.net.URI uri = java.net.URI.create(originVal);
+					String originAuthority = uri.getRawAuthority();
+					if (originAuthority == null || !originAuthority.equalsIgnoreCase(reqHost)) {
+						return Flow.fromSinkAndSource(Sink.ignore(),
+								Source.single(Json.newObject().put("type", "error").put("message", "Forbidden")));
+					}
+				} catch (IllegalArgumentException e) {
+					return Flow.fromSinkAndSource(Sink.ignore(),
+							Source.single(Json.newObject().put("type", "error").put("message", "Forbidden")));
+				}
+			}
+
 			Optional<Person> userOpt = getAuthenticatedUser(request);
 			if (userOpt.isEmpty()) {
 				return Flow.fromSinkAndSource(Sink.ignore(),

@@ -666,6 +666,7 @@ public class ChatbotController extends AbstractAsyncController {
 	 * @return
 	 */
 	@Authenticated(UserAuth.class)
+	@RequireCSRFCheck
 	public Result save(Request request, long id, String route) {
 		String user = getAuthenticatedUserNameOrReturn(request, redirect(LANDING));
 
@@ -781,6 +782,7 @@ public class ChatbotController extends AbstractAsyncController {
 	}
 
 	@Authenticated(UserAuth.class)
+	@RequireCSRFCheck
 	public Result saveAgentsMd(Request request, long id) {
 		Person user = getAuthenticatedUserOrReturn(request, redirect(LANDING));
 		Dataset ds = Dataset.find.byId(id);
@@ -2077,7 +2079,7 @@ public class ChatbotController extends AbstractAsyncController {
 	}
 
 	@Authenticated(UserAuth.class)
-	@AddCSRFToken
+	@RequireCSRFCheck
 	public CompletionStage<Result> uploadFile(Request request, long dsId) {
 		Person user = getAuthenticatedUserOrReturn(request, redirect(LANDING));
 
