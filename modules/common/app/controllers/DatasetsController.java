@@ -739,8 +739,13 @@ public class DatasetsController extends AbstractAsyncController {
 				return controllers.api.routes.CompleteDSController.downloadLatestFile(ds.getId(), fileName)
 						.absoluteURL(request, true);
 			}, ds, limit, start, end);
-		case LINKED:
-			return redirectCS(Call.apply("GET", ds.getTargetObject(), ""));
+		case LINKED: {
+			String target = ds.getTargetObject();
+			if (target != null && (target.startsWith("http://") || target.startsWith("https://") || target.startsWith("/"))) {
+				return redirectCS(Call.apply("GET", target, ""));
+			}
+			return redirectCS(controllers.routes.DatasetsController.view(ds.getId()));
+		}
 		case ES:
 			return expSamplingDSController.downloadExternal(ds, cluster, limit, start, end);
 		case MOVEMENT:
@@ -795,8 +800,13 @@ public class DatasetsController extends AbstractAsyncController {
 							.absoluteURL(request, true);
 				}
 			}, ds, limit, start, end);
-		case LINKED:
-			return redirectCS(Call.apply("GET", ds.getTargetObject(), ""));
+		case LINKED: {
+			String target = ds.getTargetObject();
+			if (target != null && (target.startsWith("http://") || target.startsWith("https://") || target.startsWith("/"))) {
+				return redirectCS(Call.apply("GET", target, ""));
+			}
+			return redirectCS(controllers.routes.DatasetsController.view(ds.getId()));
+		}
 		case ES:
 			return expSamplingDSController.downloadExternal(ds, cluster, limit, start, end);
 		case MOVEMENT:
@@ -858,8 +868,13 @@ public class DatasetsController extends AbstractAsyncController {
 			return surveyDSController.downloadInternal(ds, cluster, limit, start, end);
 		case COMPLETE:
 			return completeDSController.downloadInternal(Function.identity(), ds, limit, start, end);
-		case LINKED:
-			return redirectCS(Call.apply("GET", ds.getTargetObject(), ""));
+		case LINKED: {
+			String target = ds.getTargetObject();
+			if (target != null && (target.startsWith("http://") || target.startsWith("https://") || target.startsWith("/"))) {
+				return redirectCS(Call.apply("GET", target, ""));
+			}
+			return redirectCS(controllers.routes.DatasetsController.view(ds.getId()));
+		}
 		case ES:
 			return expSamplingDSController.downloadInternal(ds, cluster, limit, start, end);
 		case MOVEMENT:
@@ -2130,6 +2145,7 @@ public class DatasetsController extends AbstractAsyncController {
 	}
 
 	@Authenticated(UserAuth.class)
+	@RequireCSRFCheck
 	public Result configureWithToken(Request request, Long id, String key) {
 		String username = getAuthenticatedUserNameOrReturn(request, redirect(HOME));
 

@@ -677,8 +677,5 @@ GET 			/assets/*file									controllers.Assets.versioned(path="/public/lib/comm
 
 # -------------------------------------------------------------------------------------------------------------------------
 
-# project pages (this needs to be last in the routes)
-#GET 			/:projectname									controllers.ProjectsController.web(request: Request, projectname: String, filename: String ?= "")
-#GET 			/:projectname/:filename							controllers.ProjectsController.web(request: Request, projectname: String, filename: String)
 
 # -------------------------------------------------------------------------------------------------------------------------

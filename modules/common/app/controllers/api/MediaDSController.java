@@ -793,13 +793,19 @@ public class MediaDSController extends AbstractDSController {
 	 */
 	private Result deliverScaledFile(Request request, File originalImageFile, String scale) {
 		String acceptHeader = request.header(ACCEPT).orElseGet(() -> "");
+		Result result;
 		if (acceptHeader.contains("image/avif")) {
-			return RangeResults.ofFile(request, imageUtil.deliverScaledFile(originalImageFile, scale, "avif"))
+			result = RangeResults.ofFile(request, imageUtil.deliverScaledFile(originalImageFile, scale, "avif"))
 					.withHeader(CACHE_CONTROL, "public, max-age=31536000");
 		} else {
-			return RangeResults.ofFile(request, imageUtil.deliverScaledFile(originalImageFile, scale, "png"))
+			result = RangeResults.ofFile(request, imageUtil.deliverScaledFile(originalImageFile, scale, "png"))
 					.withHeader(CACHE_CONTROL, "public, max-age=31536000");
 		}
+		if (originalImageFile.getName().toLowerCase().endsWith(".svg")) {
+			result = result.withHeader("Content-Security-Policy", "default-src 'none'; style-src 'unsafe-inline'")
+					.withHeader("X-Content-Type-Options", "nosniff");
+		}
+		return result;
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -75,8 +75,15 @@ public class LinkedDSController extends AbstractDSController {
 			return redirect(HOME).addingToSession(request, "error", "Expecting some data");
 		}
 
+		String targetObject = nss(df.get("target_object")).trim();
+		if (!targetObject.isEmpty() && !targetObject.startsWith("http://") && !targetObject.startsWith("https://")
+				&& !targetObject.startsWith("/")) {
+			return redirect(HOME).addingToSession(request, "error",
+					"Target URL must start with http://, https://, or /");
+		}
+
 		Dataset ds = datasetConnector.create(df.get("dataset_name"), DatasetType.LINKED, p, df.get("description"),
-		        df.get("target_object"), df.get("isPublic"), df.get("license"));
+		        targetObject, df.get("isPublic"), df.get("license"));
 		ds.setStart(new Date());
 		ds.save();
 
@@ -124,9 +131,16 @@ public class LinkedDSController extends AbstractDSController {
 			        "Expecting some data");
 		}
 
+		String targetObject = nss(df.get("target_object")).trim();
+		if (!targetObject.isEmpty() && !targetObject.startsWith("http://") && !targetObject.startsWith("https://")
+				&& !targetObject.startsWith("/")) {
+			return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
+					"Target URL must start with http://, https://, or /");
+		}
+
 		ds.setName(htmlTagEscape(nss(df.get("dataset_name"), 64)));
 		ds.setDescription(htmlTagEscape(nss(df.get("description"))));
-		ds.setTargetObject(nss(df.get("target_object")));
+		ds.setTargetObject(targetObject);
 
 		// metadata
 		storeMetadata(ds, df);

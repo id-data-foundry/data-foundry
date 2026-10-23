@@ -193,54 +193,6 @@ public class ProjectsController extends AbstractAsyncController {
 		}
 	}
 
-	public Result web(Request request, String projectname, String filename) {
-
-		// check hosted files first (first layer)
-		final Optional<File> file = environment.isDev() ? environment.getExistingFile("dist/domain/" + projectname)
-				: environment.getExistingFile("domain/" + projectname);
-		if (file.isPresent() && file.get().exists()) {
-			return ok(file.get());
-		}
-
-		// check hosted files first (second layer)
-		final Optional<File> fileOnPath = environment.isDev()
-				? environment.getExistingFile("dist/domain/" + projectname + "/" + filename)
-				: environment.getExistingFile("domain/" + projectname + "/" + filename);
-		if (fileOnPath.isPresent() && fileOnPath.get().exists()) {
-			return ok(fileOnPath.get());
-		}
-
-		// ----------------------------------------------------------------------
-
-		// check if project exists
-		Optional<Project> optProject = Project.find.query().setMaxRows(1).where().ieq("name", projectname).orderBy()
-				.asc("id").findOneOrEmpty();
-		if (!optProject.isPresent()) {
-			if (!nnne(projectname) || projectname.equals("tools")) {
-				return redirect(LANDING);
-			} else {
-				return redirect(LANDING).addingToSession(request, "error", "The project was not found.");
-			}
-		}
-
-		Project project = optProject.get();
-		if (!project.isPublicProject()) {
-			return redirect(LANDING).addingToSession(request, "error",
-					"The project is not public, so its website is not accessible at this moment.");
-		}
-
-		// check project datasets for COMPLETE and "www"
-		Dataset ds = project.getProjectWebsiteDataset();
-
-		// no dataset matches in this project
-		if (ds == null) {
-			return redirect(routes.HomeController.index()).addingToSession(request, "error",
-					"The project does not have an applicable website dataset.");
-		}
-
-		return redirect(routes.DatasetsController.web(ds.getId(), filename));
-	}
-
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	@AddCSRFToken

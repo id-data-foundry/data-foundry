@@ -303,7 +303,7 @@ public class MovementDSController extends AbstractDSController {
 				ds.getProject());
 
 		return ok(requestedFile.get()).as("application/x-download").withHeader("Content-disposition",
-				"attachment; filename=" + fileName);
+				"attachment; filename=" + FileTypeUtils.sanitizeFilename(fileName));
 	}
 
 	public CompletionStage<Result> downloadExternal(Dataset ds, Cluster cluster, long limit, long start, long end) {

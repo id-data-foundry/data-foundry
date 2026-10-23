@@ -740,7 +740,7 @@ public class ParticipantsController extends AbstractAsyncController {
 					"Telegram message sent out successfully.");
 		} else {
 			TelegramSession ts = TelegramSession.find.byId(pid);
-			if (ts != null) {
+			if (ts != null && project.getParticipants().stream().anyMatch(p -> p.getEmail().equalsIgnoreCase(ts.getEmail()))) {
 				// send instant message to one participant
 				ExecutorService newSingleThreadExecutor = Executors.newSingleThreadExecutor();
 				telegramBotUtils.sendMessageToParticipant(project.getId(), ts.getEmail(), message,

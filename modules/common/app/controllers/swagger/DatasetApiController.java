@@ -685,30 +685,37 @@ public class DatasetApiController extends AbstractApiController {
 		// prepare the cluster for filtering
 		final Cluster cluster;
 		if (cluster_id > -1) {
-			cluster = Cluster.find.byId(cluster_id);
+			Cluster foundCluster = Cluster.find.byId(cluster_id);
+			if (foundCluster != null && foundCluster.getProject() != null
+					&& foundCluster.getProject().getId().equals(ds.getProject().getId())) {
+				cluster = foundCluster;
+			} else {
+				cluster = new Cluster("Cluster");
+				cluster.setId(-1l);
+			}
 		} else {
 			cluster = new Cluster("Cluster");
 			cluster.setId(-1l);
 		}
 
-		// add other ids
+		// add other ids (ensuring they belong to this project)
 		if (participant_id > -1) {
 			Participant p = Participant.find.byId(participant_id);
-			if (p != null) {
+			if (p != null && p.getProject() != null && p.getProject().getId().equals(ds.getProject().getId())) {
 				cluster.getParticipants().add(p);
 			}
 		}
 
 		if (device_id > -1) {
 			Device d = Device.find.byId(device_id);
-			if (d != null) {
+			if (d != null && d.getProject() != null && d.getProject().getId().equals(ds.getProject().getId())) {
 				cluster.getDevices().add(d);
 			}
 		}
 
-		if (participant_id > -1) {
+		if (wearable_id > -1) {
 			Wearable w = Wearable.find.byId(wearable_id);
-			if (w != null) {
+			if (w != null && w.getProject() != null && w.getProject().getId().equals(ds.getProject().getId())) {
 				cluster.getWearables().add(w);
 			}
 		}
@@ -750,30 +757,37 @@ public class DatasetApiController extends AbstractApiController {
 		// prepare the cluster for filtering
 		final Cluster cluster;
 		if (cluster_id > -1) {
-			cluster = Cluster.find.byId(cluster_id);
+			Cluster foundCluster = Cluster.find.byId(cluster_id);
+			if (foundCluster != null && foundCluster.getProject() != null
+					&& foundCluster.getProject().getId().equals(ds.getProject().getId())) {
+				cluster = foundCluster;
+			} else {
+				cluster = new Cluster("Cluster");
+				cluster.setId(-1l);
+			}
 		} else {
 			cluster = new Cluster("Cluster");
 			cluster.setId(-1l);
 		}
 
-		// add other ids
+		// add other ids (ensuring they belong to this project)
 		if (participant_id > -1) {
 			Participant p = Participant.find.byId(participant_id);
-			if (p != null) {
+			if (p != null && p.getProject() != null && p.getProject().getId().equals(ds.getProject().getId())) {
 				cluster.getParticipants().add(p);
 			}
 		}
 
 		if (device_id > -1) {
 			Device d = Device.find.byId(device_id);
-			if (d != null) {
+			if (d != null && d.getProject() != null && d.getProject().getId().equals(ds.getProject().getId())) {
 				cluster.getDevices().add(d);
 			}
 		}
 
-		if (participant_id > -1) {
+		if (wearable_id > -1) {
 			Wearable w = Wearable.find.byId(wearable_id);
-			if (w != null) {
+			if (w != null && w.getProject() != null && w.getProject().getId().equals(ds.getProject().getId())) {
 				cluster.getWearables().add(w);
 			}
 		}
@@ -844,12 +858,14 @@ public class DatasetApiController extends AbstractApiController {
 
 		// device id is given and in the project?
 		Device device = opt.get();
-		if (!ds.isOpenParticipation() && !ds.getProject().getId().equals(device.getProject().getId())) {
+		if (device.getProject() != null && ds.getProject().getId().equals(device.getProject().getId())) {
+			CompletableFuture.runAsync(() -> tssc.addRecord(device, new Date(), activity, data));
+		} else if (ds.isOpenParticipation()) {
+			// device belongs to another project, but open participation is enabled: accept as open textual id
+			CompletableFuture.runAsync(() -> tssc.addRecord(sourceId, new Date(), activity, data));
+		} else {
 			return forbidden(errorJSONResponseObject("Source device not permitted"));
 		}
-
-		// submit
-		CompletableFuture.runAsync(() -> tssc.addRecord(device, new Date(), activity, data));
 
 		// response
 		return ok(okJSONResponseObject("Record added."));
@@ -1313,8 +1329,9 @@ public class DatasetApiController extends AbstractApiController {
 				String fileName = fileParts.get(i).getFilename();
 
 				// restrict file type
-				if (FileTypeUtils.looksLikeExecutableFile(fileName)) {
-					logger.error("Executable file upload attempt blocked");
+				if (FileTypeUtils.looksLikeExecutableFile(fileName)
+						|| !FileTypeUtils.validateAndLog(fileParts.get(i), FileTypeUtils.FileCategory.ANY)) {
+					logger.error("Executable or invalid file upload attempt blocked");
 					success = false;
 					continue;
 				}

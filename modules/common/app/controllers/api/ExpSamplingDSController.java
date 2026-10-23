@@ -294,7 +294,7 @@ public class ExpSamplingDSController extends AbstractDSController {
 			LabNotesEntry.log(ExpSamplingDSController.class, LabNotesEntryType.DOWNLOAD,
 					"Dataset downloaded: " + ds.getName(), ds.getProject());
 			return ok(requestedFile).as("application/x-download").withHeader("Content-disposition",
-					"attachment; filename=" + fileName);
+					"attachment; filename=" + FileTypeUtils.sanitizeFilename(fileName));
 		}
 
 		return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
