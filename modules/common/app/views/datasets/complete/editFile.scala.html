@@ -240,48 +240,61 @@
     });
 
     document.querySelector('#playgroundReloadBtn').addEventListener('click', (e) => {
-      document.querySelector('#playgroundContent').contentWindow.location.reload();
-    })
+      const iframe = document.querySelector('#playgroundContent');
+      if (iframe) {
+        iframe.src = iframe.src;
+      }
+    });
 
-    let iframe = document.querySelector('iframe');
-    iframe.onload = function() {
-      let messageContainer = document.querySelector('.console > div');
-      while(messageContainer.children.length > 0) {
+    const messageContainer = document.querySelector('.console > div');
+    const printMessage = (msg) => {
+      if (!messageContainer) return;
+      messageContainer.insertAdjacentHTML("beforeend", msg);
+      while (messageContainer.children.length > 100) {
         messageContainer.firstElementChild.remove();
       }
-
-      // Event listener for the playground
-      let iflog = iframe.contentWindow.window.console.log;
-      iframe.contentWindow.window.console.log = function(...args) {
-        printMessage(`<p>&gt; ${serialize(args)}</p>`)
-        iflog.apply(iframe.contentWindow.window.console, args);
-      }
-      let iferr = iframe.contentWindow.window.console.error;
-      iframe.contentWindow.window.console.error = function(...args) {
-        printMessage(`<p><error>&gt; ${serialize(args)}</error></p>`)
-        iferr.apply(iframe.contentWindow.window.console, args);
-      }
-      iframe.contentWindow.window.onerror = (e, url, line, col) => {
-        printMessage(`<p><error>&gt; ${e} at ${url.substring(url.lastIndexOf("/"))} line ${line}:${col}</error></p>`)
-        return false;
-      }
-
-      const serialize = (args) => {
-        return args.map(j => {
-          if(Array.isArray(j) || Object.prototype.toString.call(j) === '[object Object]') { return JSON.stringify(j); }
-          if(typeof j === 'number' || typeof j === 'boolean' || j === null) { return j; }
-          return j.toString();
-        }).join(" ");
-      }
-
-      const printMessage = (msg) => {
-        messageContainer.insertAdjacentHTML("beforeend", msg);
-        while (messageContainer.children.length > 100) {
-          messageContainer.firstElementChild.remove();
-        }
-        document.querySelector('.console > span').innerText = `Console (${messageContainer.children.length})`;        
+      const countEl = document.querySelector('.console > span');
+      if (countEl) {
+        countEl.innerText = `Console (${messageContainer.children.length})`;
       }
     };
+
+    const escapeHtml = (str) => {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    };
+
+    let iframe = document.querySelector('#playgroundContent');
+    if (iframe) {
+      iframe.onload = function() {
+        if (messageContainer) {
+          while (messageContainer.children.length > 0) {
+            messageContainer.firstElementChild.remove();
+          }
+        }
+        const countEl = document.querySelector('.console > span');
+        if (countEl) {
+          countEl.innerText = 'Console (0)';
+        }
+      };
+    }
+
+    window.addEventListener('message', (event) => {
+      const currentIframe = document.querySelector('#playgroundContent');
+      if (!currentIframe || event.source !== currentIframe.contentWindow) return;
+      const data = event.data;
+      if (!data || data.source !== 'df-playground-console') return;
+      if (data.type === 'log') {
+        printMessage(`<p>&gt; ${escapeHtml(data.message)}</p>`);
+      } else if (data.type === 'error') {
+        printMessage(`<p><error>&gt; ${escapeHtml(data.message)}</error></p>`);
+      }
+    });
 
     // Event listener for the beforeunload event
     window.addEventListener('beforeunload', function(e) {

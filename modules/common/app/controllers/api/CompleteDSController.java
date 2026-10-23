@@ -841,7 +841,9 @@ public class CompleteDSController extends AbstractDSController {
 		LabNotesEntry.log(CompleteDSController.class, LabNotesEntryType.DOWNLOAD, "Dataset downloaded: " + ds.getName(),
 				ds.getProject());
 
-		return cs(() -> ok(requestedFile).as("application/x-download"));
+		return cs(() -> ok(requestedFile, false).as("application/x-download")
+				.withHeader("X-Content-Type-Options", "nosniff")
+				.withHeader("Content-Security-Policy", "sandbox"));
 	}
 
 	/**
@@ -890,7 +892,9 @@ public class CompleteDSController extends AbstractDSController {
 		LabNotesEntry.log(CompleteDSController.class, LabNotesEntryType.DOWNLOAD, "Dataset downloaded: " + ds.getName(),
 				ds.getProject());
 
-		return cs(() -> ok(requestedFile).as("application/x-download"));
+		return cs(() -> ok(requestedFile, false).as("application/x-download")
+				.withHeader("X-Content-Type-Options", "nosniff")
+				.withHeader("Content-Security-Policy", "sandbox"));
 	}
 
 	/**
@@ -943,7 +947,9 @@ public class CompleteDSController extends AbstractDSController {
 			File file = requestedFile.get();
 			LabNotesEntry.log(CompleteDSController.class, LabNotesEntryType.DOWNLOAD,
 					"Dataset file downloaded publicly: " + ds.getName() + " (" + file.getName() + ")", ds.getProject());
-			return cs(() -> ok(file));
+			return cs(() -> ok(file, false).as("application/x-download")
+					.withHeader("X-Content-Type-Options", "nosniff")
+					.withHeader("Content-Security-Policy", "sandbox"));
 		}
 
 		return cs(() -> notFound("File not found."));

@@ -3,6 +3,7 @@ package controllers;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
@@ -68,6 +69,7 @@ import utils.DatasetUtils;
 import utils.auth.Hash;
 import utils.auth.TokenResolverUtil;
 import utils.rendering.FormMarkdown;
+import utils.rendering.PlaygroundBridgeUtil;
 import utils.validators.AbstractValidator;
 import utils.validators.FileTypeUtils;
 import utils.validators.Validators;
@@ -1217,8 +1219,8 @@ public class DatasetsController extends AbstractAsyncController {
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-	private static final String WEB_CSP_SANDBOX = "sandbox allow-scripts allow-forms allow-same-origin allow-downloads allow-modals allow-popups";
-	private static final String WEB_CSP_COMMON = "connect-src 'self' https: wss:; form-action 'self'; base-uri 'self'";
+	private static final String WEB_CSP_SANDBOX = "sandbox allow-scripts allow-forms allow-downloads allow-modals allow-popups";
+	private static final String WEB_CSP_COMMON = "connect-src 'self' https: wss:; form-action 'self' https:; base-uri 'self'";
 
 	// For internal authenticated access: includes frame-ancestors 'self' to prevent clickjacking
 	private static final String WEB_CSP_HEADER = WEB_CSP_SANDBOX + "; frame-ancestors 'self'; " + WEB_CSP_COMMON;
@@ -1293,7 +1295,7 @@ public class DatasetsController extends AbstractAsyncController {
 		if (lower.endsWith(".eot")) {
 			return "application/vnd.ms-fontobject";
 		}
-		if (lower.endsWith(".txt")) {
+		if (lower.endsWith(".txt") || lower.endsWith(".md") || lower.endsWith(".markdown")) {
 			return "text/plain; charset=utf-8";
 		}
 		if (lower.endsWith(".csv")) {
@@ -1323,10 +1325,31 @@ public class DatasetsController extends AbstractAsyncController {
 		if (file != null) {
 			String detected = FileTypeUtils.detectMime(file);
 			if (detected != null && !detected.isEmpty() && !detected.equals("application/octet-stream")) {
+				String lowerDetected = detected.toLowerCase();
+				if (lowerDetected.contains("html") || lowerDetected.contains("xml") || lowerDetected.contains("svg")
+						|| lowerDetected.contains("javascript") || lowerDetected.contains("ecmascript")) {
+					return "text/plain; charset=utf-8";
+				}
 				return detected;
 			}
 		}
 		return "application/octet-stream";
+	}
+
+	private static String extractSafeFileName(String rawPath) {
+		if (rawPath == null || rawPath.isEmpty()) {
+			return "";
+		}
+		String decoded = utils.StringUtils.url2s(rawPath).trim();
+		if (decoded.isEmpty() || decoded.contains("..") || decoded.contains("\\") || decoded.indexOf('\0') >= 0) {
+			return null;
+		}
+		try {
+			java.nio.file.Path p = Paths.get(decoded).getFileName();
+			return p != null ? p.toString() : null;
+		} catch (Exception e) {
+			return null;
+		}
 	}
 
 	/**
@@ -1352,6 +1375,10 @@ public class DatasetsController extends AbstractAsyncController {
 
 		// high-load possibility, wrap in CompletableFuture
 		return CompletableFuture.supplyAsync(() -> {
+
+			if (filePath != null && !filePath.isEmpty() && extractSafeFileName(filePath) == null) {
+				return notFound("Invalid path.");
+			}
 
 			// check ownership or collaboration
 			Optional<String> usernameOpt = getAuthenticatedUserName(request);
@@ -1422,26 +1449,21 @@ public class DatasetsController extends AbstractAsyncController {
 
 			CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
 
-			// treatment of index or missing filename
-			if (filePath.equals("")) {
-				// first check whether we have a configured entry point
+			// Determine target file: if empty, resolve configured or default entry point
+			String targetFile = filePath != null ? filePath : "";
+			if (targetFile.equals("")) {
 				String entryPointFile = ds.configuration(Dataset.WEB_ACCESS_ENTRY, "");
-				if (!entryPointFile.isEmpty()) {
-					return redirect(routes.DatasetsController.web(id, entryPointFile));
+				if (entryPointFile.isEmpty()) {
+					if (cpds.getFile("index.html").isPresent()) {
+						entryPointFile = "index.html";
+					} else if (cpds.getFile("index.md").isPresent()) {
+						entryPointFile = "index.md";
+					}
 				}
+				targetFile = entryPointFile;
+			}
 
-				// if there is no entry point, we try default entry points: index.html
-				Optional<File> htmlIndexFile = cpds.getFile("index.html");
-				if (htmlIndexFile.isPresent()) {
-					return redirect(routes.DatasetsController.web(id, "index.html"));
-				}
-
-				// if there is no entry point, we try default entry points: index.md
-				Optional<File> mdIndexFile = cpds.getFile("index.md");
-				if (mdIndexFile.isPresent()) {
-					return redirect(routes.DatasetsController.web(id, "index.md"));
-				}
-
+			if (targetFile.isEmpty()) {
 				// no entry points present
 				if (usernameOpt.isPresent()) {
 					return notFound(views.html.datasets.complete.web.render(project, ds,
@@ -1453,11 +1475,23 @@ public class DatasetsController extends AbstractAsyncController {
 				}
 			}
 
-			// ensure we have a decoded file path
-			final String decodedFilePath = utils.StringUtils.url2s(filePath).trim();
+			// ensure we have a decoded and validated file name
+			final String filename = extractSafeFileName(targetFile);
+			if (filename == null || filename.isEmpty()) {
+				return notFound("Invalid path.");
+			}
+			final String lowerFilename = filename.toLowerCase();
 
-			// remove path from filename
-			final String filename = Paths.get(decodedFilePath).getFileName().toString();
+			// For HTML/Markdown pages: redirect to tokenized route so opaque sandboxed frames can load subresources without cookies
+			if (lowerFilename.endsWith(".html") || lowerFilename.endsWith(".htm") || lowerFilename.endsWith(".md") || lowerFilename.endsWith(".markdown")) {
+				String publicToken = ds.configuration(Dataset.WEB_ACCESS_TOKEN, "");
+				if (!publicToken.isEmpty()) {
+					return redirect(routes.DatasetsController.webToken(publicToken, filename));
+				}
+				String viewerToken = tokenResolverUtil.createViewerToken(id,
+						System.currentTimeMillis() + TokenResolverUtil.VIEWER_TOKEN_VALIDITY_MS);
+				return redirect(routes.DatasetsController.webViewer(viewerToken, filename));
+			}
 
 			// request the file
 			Optional<File> requestedFile = cpds.getFile(filename);
@@ -1478,42 +1512,19 @@ public class DatasetsController extends AbstractAsyncController {
 
 			// check the file for special website properties
 			File file = requestedFile.get();
-			String lowerFilename = filename.toLowerCase();
-			if ((lowerFilename.endsWith(".md") || lowerFilename.endsWith(".markdown")) && file.length() < 1024 * 1024) {
-				// read file contents
-				try {
-					String contents = new String(Files.readAllBytes(Paths.get(file.getAbsolutePath())));
-					return ok(views.html.datasets.complete.webmd.render(project, ds, FormMarkdown.renderHtml(contents)))
-							.as("text/html; charset=utf-8")
-							.withHeader("Content-Security-Policy", WEB_CSP_HEADER)
-							.withHeader("X-Content-Type-Options", "nosniff");
-				} catch (IOException e) {
-					// log and return the file
-					logger.error("Markdown transformation failed: " + file.getAbsolutePath());
-					return ok(file).as("text/html; charset=utf-8")
-							.withHeader("Content-Security-Policy", WEB_CSP_HEADER)
-							.withHeader("X-Content-Type-Options", "nosniff");
-				}
-			} else if (lowerFilename.endsWith(".html") || lowerFilename.endsWith(".htm")) {
-				return ok(file).as("text/html; charset=utf-8")
-						.withHeader("Content-Security-Policy", WEB_CSP_HEADER)
-						.withHeader("X-Content-Type-Options", "nosniff");
+			String mimeType = getWebAssetMimeType(filename, file);
+			Result res = ok(file).as(mimeType).withHeader("X-Content-Type-Options", "nosniff")
+					.withHeader("Access-Control-Allow-Origin", "*")
+					.withHeader("Content-Security-Policy", WEB_CSP_HEADER);
+			if (lowerFilename.endsWith(".min.js") || lowerFilename.endsWith(".min.css")) {
+				return res.withHeader("Cache-Control", "max-age=3600");
+			} else if (lowerFilename.endsWith(".js") || lowerFilename.endsWith(".css")) {
+				return res.withHeader("Cache-Control", "max-age=60");
+			} else if (FileTypeUtils.looksLikeImageFile(file) || lowerFilename.endsWith(".woff")
+					|| lowerFilename.endsWith(".woff2") || lowerFilename.endsWith(".ttf") || lowerFilename.endsWith(".otf")) {
+				return res.withHeader("Cache-Control", "max-age=3600");
 			} else {
-				String mimeType = getWebAssetMimeType(filename, file);
-				Result res = ok(file).as(mimeType).withHeader("X-Content-Type-Options", "nosniff");
-				if (lowerFilename.endsWith(".svg")) {
-					res = res.withHeader("Content-Security-Policy", WEB_CSP_HEADER);
-				}
-				if (lowerFilename.endsWith(".min.js") || lowerFilename.endsWith(".min.css")) {
-					return res.withHeader("Cache-Control", "max-age=3600");
-				} else if (lowerFilename.endsWith(".js") || lowerFilename.endsWith(".css")) {
-					return res.withHeader("Cache-Control", "max-age=60");
-				} else if (FileTypeUtils.looksLikeImageFile(file) || lowerFilename.endsWith(".woff")
-						|| lowerFilename.endsWith(".woff2") || lowerFilename.endsWith(".ttf") || lowerFilename.endsWith(".otf")) {
-					return res.withHeader("Cache-Control", "max-age=3600");
-				} else {
-					return res;
-				}
+				return res;
 			}
 		});
 	}
@@ -1530,6 +1541,10 @@ public class DatasetsController extends AbstractAsyncController {
 
 		// high-load possibility, wrap in CompletableFuture
 		return CompletableFuture.supplyAsync(() -> {
+
+			if (filepath != null && !filepath.isEmpty() && extractSafeFileName(filepath) == null) {
+				return notFound("Invalid path.");
+			}
 
 			String webTokenStr = webToken;
 
@@ -1577,7 +1592,7 @@ public class DatasetsController extends AbstractAsyncController {
 			CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
 
 			// treatment of index or missing filename
-			if (filepath.equals("")) {
+			if (filepath == null || filepath.equals("")) {
 
 				// first check whether we have a configured entry point
 				String entryPointFile = ds.configuration(Dataset.WEB_ACCESS_ENTRY, "");
@@ -1602,8 +1617,11 @@ public class DatasetsController extends AbstractAsyncController {
 						: redirect(LANDING).addingToSession(request, "error", "No content available at this point.");
 			}
 
-			// remove path from filename
-			final String filename = Paths.get(filepath).getFileName().toString();
+			// remove path from filename safely
+			final String filename = extractSafeFileName(filepath);
+			if (filename == null || filename.isEmpty()) {
+				return notFound("Invalid path.");
+			}
 
 			// request the file
 			Optional<File> requestedFile = cpds.getFile(filename);
@@ -1614,32 +1632,178 @@ public class DatasetsController extends AbstractAsyncController {
 
 			// check the file for special website properties
 			File file = requestedFile.get();
-			String lowerFilename = filename.toLowerCase();
+			String lowerFilename = file.getName().toLowerCase();
 			if ((lowerFilename.endsWith(".md") || lowerFilename.endsWith(".markdown")) && file.length() < 1024 * 1024) {
 				// read file contents
 				try {
 					String contents = new String(Files.readAllBytes(Paths.get(file.getAbsolutePath())));
-					return ok(views.html.datasets.complete.webmd.render(project, ds, FormMarkdown.renderHtml(contents)))
+					return ok(views.html.datasets.complete.webmdStandalone.render(ds, FormMarkdown.renderHtml(contents)))
 							.as("text/html; charset=utf-8")
 							.withHeader("Content-Security-Policy", WEB_TOKEN_CSP_HEADER)
 							.withHeader("X-Content-Type-Options", "nosniff");
 				} catch (IOException e) {
-					// log and return the file
+					// log and return the file safely as plain text
 					logger.error("Markdown transformation failed: " + file.getAbsolutePath());
-					return ok(file).as("text/html; charset=utf-8")
+					return ok(file).as("text/plain; charset=utf-8")
 							.withHeader("Content-Security-Policy", WEB_TOKEN_CSP_HEADER)
 							.withHeader("X-Content-Type-Options", "nosniff");
 				}
 			} else if (lowerFilename.endsWith(".html") || lowerFilename.endsWith(".htm")) {
+				String bridgedHtml = PlaygroundBridgeUtil.injectHtmlBridge(file);
+				if (bridgedHtml != null) {
+					return ok(bridgedHtml).as("text/html; charset=utf-8")
+							.withHeader("Content-Security-Policy", WEB_TOKEN_CSP_HEADER)
+							.withHeader("X-Content-Type-Options", "nosniff");
+				}
 				return ok(file).as("text/html; charset=utf-8")
 						.withHeader("Content-Security-Policy", WEB_TOKEN_CSP_HEADER)
 						.withHeader("X-Content-Type-Options", "nosniff");
 			} else {
 				String mimeType = getWebAssetMimeType(filename, file);
-				Result res = ok(file).as(mimeType).withHeader("X-Content-Type-Options", "nosniff");
-				if (lowerFilename.endsWith(".svg")) {
-					res = res.withHeader("Content-Security-Policy", WEB_TOKEN_CSP_HEADER);
+				Result res = ok(file).as(mimeType).withHeader("X-Content-Type-Options", "nosniff")
+						.withHeader("Access-Control-Allow-Origin", "*")
+						.withHeader("Content-Security-Policy", WEB_TOKEN_CSP_HEADER);
+				if (lowerFilename.endsWith(".min.js") || lowerFilename.endsWith(".min.css")) {
+					return res.withHeader("Cache-Control", "max-age=3600");
+				} else if (lowerFilename.endsWith(".js") || lowerFilename.endsWith(".css")) {
+					return res.withHeader("Cache-Control", "max-age=60");
+				} else if (FileTypeUtils.looksLikeImageFile(file) || lowerFilename.endsWith(".woff")
+						|| lowerFilename.endsWith(".woff2") || lowerFilename.endsWith(".ttf") || lowerFilename.endsWith(".otf")) {
+					return res.withHeader("Cache-Control", "max-age=3600");
+				} else {
+					return res;
 				}
+			}
+		});
+	}
+
+	/**
+	 * canonical ephemeral viewer token URL format
+	 * 
+	 * @param request
+	 * @param token
+	 * @param filepath
+	 * @return
+	 */
+	public CompletionStage<Result> webViewer(Request request, String token, String filepath) {
+
+		// high-load possibility, wrap in CompletableFuture
+		return CompletableFuture.supplyAsync(() -> {
+
+			if (filepath != null && !filepath.isEmpty() && extractSafeFileName(filepath) == null) {
+				return notFound("Invalid path.");
+			}
+
+			String viewerTokenStr = token;
+			TokenResolverUtil.ViewerTokenInfo tokenInfo = tokenResolverUtil.resolveViewerToken(viewerTokenStr);
+			if (tokenInfo == null) {
+				// try without path ending
+				viewerTokenStr = viewerTokenStr.replaceAll("[/].*", "");
+				tokenInfo = tokenResolverUtil.resolveViewerToken(viewerTokenStr);
+				if (tokenInfo == null) {
+					return forbidden("Invalid viewer token.");
+				}
+			}
+
+			// If token has expired:
+			if (tokenInfo.isExpired()) {
+				if (isWebAsset(filepath)) {
+					return forbidden("Viewer token expired.");
+				}
+				// Auto-renewal redirect for HTML page requests / entry points
+				return redirect(routes.DatasetsController.web(tokenInfo.getDatasetId(), filepath));
+			}
+
+			long id = tokenInfo.getDatasetId();
+
+			// check if project exists
+			Dataset ds = Dataset.find.byId(id);
+			if (ds == null) {
+				return notFound();
+			}
+
+			// check data set type
+			if (!ds.getDsType().equals(DatasetType.COMPLETE)) {
+				return notFound();
+			}
+
+			// check project
+			Project project = ds.getProject();
+			project.refresh();
+
+			CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
+
+			// treatment of index or missing filename
+			if (filepath == null || filepath.equals("")) {
+
+				// first check whether we have a configured entry point
+				String entryPointFile = ds.configuration(Dataset.WEB_ACCESS_ENTRY, "");
+				if (!entryPointFile.isEmpty()) {
+					return redirect(routes.DatasetsController.webViewer(viewerTokenStr, entryPointFile));
+				}
+
+				// if there is no entry point, we try default entry points: index.html
+				Optional<File> htmlIndexFile = cpds.getFile("index.html");
+				if (htmlIndexFile.isPresent()) {
+					return redirect(routes.DatasetsController.webViewer(viewerTokenStr, "index.html"));
+				}
+
+				// if there is no entry point, we try default entry points: index.md
+				Optional<File> mdIndexFile = cpds.getFile("index.md");
+				if (mdIndexFile.isPresent()) {
+					return redirect(routes.DatasetsController.webViewer(viewerTokenStr, "index.md"));
+				}
+
+				// no index files present
+				return notFound();
+			}
+
+			// remove path from filename safely
+			final String filename = extractSafeFileName(filepath);
+			if (filename == null || filename.isEmpty()) {
+				return notFound("Invalid path.");
+			}
+
+			// request the file
+			Optional<File> requestedFile = cpds.getFile(filename);
+			// file does not exist
+			if (!requestedFile.isPresent()) {
+				return notFound(isWebAsset(filename) ? "Asset not found: " + filename : "File not found.");
+			}
+
+			// check the file for special website properties
+			File file = requestedFile.get();
+			String lowerFilename = file.getName().toLowerCase();
+			if ((lowerFilename.endsWith(".md") || lowerFilename.endsWith(".markdown")) && file.length() < 1024 * 1024) {
+				// read file contents
+				try {
+					String contents = new String(Files.readAllBytes(Paths.get(file.getAbsolutePath())));
+					return ok(views.html.datasets.complete.webmdStandalone.render(ds, FormMarkdown.renderHtml(contents)))
+							.as("text/html; charset=utf-8")
+							.withHeader("Content-Security-Policy", WEB_TOKEN_CSP_HEADER)
+							.withHeader("X-Content-Type-Options", "nosniff");
+				} catch (IOException e) {
+					// log and return the file safely as plain text
+					logger.error("Markdown transformation failed: " + file.getAbsolutePath());
+					return ok(file).as("text/plain; charset=utf-8")
+							.withHeader("Content-Security-Policy", WEB_TOKEN_CSP_HEADER)
+							.withHeader("X-Content-Type-Options", "nosniff");
+				}
+			} else if (lowerFilename.endsWith(".html") || lowerFilename.endsWith(".htm")) {
+				String bridgedHtml = PlaygroundBridgeUtil.injectHtmlBridge(file);
+				if (bridgedHtml != null) {
+					return ok(bridgedHtml).as("text/html; charset=utf-8")
+							.withHeader("Content-Security-Policy", WEB_TOKEN_CSP_HEADER)
+							.withHeader("X-Content-Type-Options", "nosniff");
+				}
+				return ok(file).as("text/html; charset=utf-8")
+						.withHeader("Content-Security-Policy", WEB_TOKEN_CSP_HEADER)
+						.withHeader("X-Content-Type-Options", "nosniff");
+			} else {
+				String mimeType = getWebAssetMimeType(filename, file);
+				Result res = ok(file).as(mimeType).withHeader("X-Content-Type-Options", "nosniff")
+						.withHeader("Access-Control-Allow-Origin", "*")
+						.withHeader("Content-Security-Policy", WEB_TOKEN_CSP_HEADER);
 				if (lowerFilename.endsWith(".min.js") || lowerFilename.endsWith(".min.css")) {
 					return res.withHeader("Cache-Control", "max-age=3600");
 				} else if (lowerFilename.endsWith(".js") || lowerFilename.endsWith(".css")) {

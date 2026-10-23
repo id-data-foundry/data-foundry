@@ -24,6 +24,7 @@ public class TokenResolverUtil {
 	private final String PROJECT_COLLABORATOR_TOKEN_KEY;
 	private final String PROJECT_SUBSCRIBER_TOKEN_KEY;
 	private final String PROJECT_DATASET_TOKEN_KEY;
+	private final String PROJECT_VIEWER_TOKEN_KEY;
 	private final String EMAIL_RESET_SEC_KEY;
 	private final String USER_SIGN_UP_KEY;
 
@@ -58,6 +59,7 @@ public class TokenResolverUtil {
 			PROJECT_COLLABORATOR_TOKEN_KEY = tokenKey + "_collaborator";
 			PROJECT_SUBSCRIBER_TOKEN_KEY = tokenKey + "_subscriber";
 			PROJECT_DATASET_TOKEN_KEY = tokenKey + "_dataset";
+			PROJECT_VIEWER_TOKEN_KEY = tokenKey + "_viewer";
 			EMAIL_RESET_SEC_KEY = tokenKey + "_email";
 			USER_SIGN_UP_KEY = tokenKey + "_register";
 		} else {
@@ -67,6 +69,7 @@ public class TokenResolverUtil {
 			PROJECT_COLLABORATOR_TOKEN_KEY = null;
 			PROJECT_SUBSCRIBER_TOKEN_KEY = null;
 			PROJECT_DATASET_TOKEN_KEY = null;
+			PROJECT_VIEWER_TOKEN_KEY = null;
 			EMAIL_RESET_SEC_KEY = null;
 			USER_SIGN_UP_KEY = null;
 			logger.error("'" + ConfigurationUtils.DF_KEYS_PROJECT_TOKEN + "' is not defined and no 'play.http.secret.key' fallback found.");
@@ -418,6 +421,73 @@ public class TokenResolverUtil {
 	 */
 	public Long getDatasetIdFromToken(String token) {
 		return retrieveFirstIdFromToken(token, PROJECT_DATASET_TOKEN_KEY);
+	}
+
+	public static final long VIEWER_TOKEN_VALIDITY_MS = 2 * 60 * 60 * 1000L; // 2 hours
+
+	public static class ViewerTokenInfo {
+		private final Long datasetId;
+		private final long expiry;
+		private final boolean expired;
+
+		public ViewerTokenInfo(Long datasetId, long expiry, boolean expired) {
+			this.datasetId = datasetId;
+			this.expiry = expiry;
+			this.expired = expired;
+		}
+
+		public Long getDatasetId() {
+			return datasetId;
+		}
+
+		public long getExpiry() {
+			return expiry;
+		}
+
+		public boolean isExpired() {
+			return expired;
+		}
+	}
+
+	/**
+	 * create an ephemeral viewer token for dataset access with an expiry timestamp
+	 * 
+	 * @param datasetId
+	 * @param expiryMs
+	 * @return
+	 */
+	public String createViewerToken(Long datasetId, long expiryMs) {
+		String nonce = java.util.UUID.randomUUID().toString().substring(0, 8);
+		String payload = datasetId + ":" + expiryMs + ":" + nonce;
+		return base64Encode(SymEncryption.encryptToken(payload, PROJECT_VIEWER_TOKEN_KEY));
+	}
+
+	/**
+	 * resolve an ephemeral viewer token, returning dataset id and expiration state
+	 * 
+	 * @param token
+	 * @return ViewerTokenInfo or null if token is invalid/corrupted
+	 */
+	public ViewerTokenInfo resolveViewerToken(String token) {
+		if (token == null || token.isEmpty()) {
+			return null;
+		}
+		String decrypted = SymEncryption.decryptToken(base64Decode(token), PROJECT_VIEWER_TOKEN_KEY);
+		if (decrypted == null || !decrypted.contains(":")) {
+			return null;
+		}
+		String[] parts = decrypted.split(":");
+		if (parts.length < 2) {
+			return null;
+		}
+		try {
+			Long datasetId = Long.parseLong(parts[0]);
+			long expiry = Long.parseLong(parts[1]);
+			boolean expired = System.currentTimeMillis() > expiry;
+			return new ViewerTokenInfo(datasetId, expiry, expired);
+		} catch (NumberFormatException e) {
+			return null;
+		}
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////

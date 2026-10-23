@@ -162,11 +162,15 @@ GET         /datasets/httpPostDiagnostics/:id			        controllers.DatasetsCont
 GET         /datasets/OOCSIDiagnostics/:id				        controllers.DatasetsController.oocsiDiagnostics(request: Request, id: Long)
 
 GET 		/datasets/web/:id/entrypoint							controllers.DatasetsController.webEntryPointSelection(request: Request, id: Long)
-POST 		/datasets/web/:id/entrypoint							controllers.DatasetsController.webEntryPointSelection(request: Request, id: Long)
+POST 		/datasets/web/:id/entrypoint							controllers.DatasetsController.saveWebEntryPointSelection(request: Request, id: Long)
 
 GET 		/datasets/web/:id/*filepath							controllers.DatasetsController.web(request: Request, id: Long, filepath: String)
 GET 		/datasets/web/:id/									controllers.DatasetsController.web(request: Request, id: Long, filepath: String ?= "")
 GET 		/datasets/web/:id									controllers.DatasetsController.webRedirect(request: Request, id: Long)
+
+GET 		/web/view/*token/:filepath							controllers.DatasetsController.webViewer(request: Request, token: String, filepath: String)
+GET 		/web/view/*token/									controllers.DatasetsController.webViewer(request: Request, token: String, filepath: String ?= "")
+GET 		/web/view/*token									controllers.DatasetsController.webViewer(request: Request, token: String, filepath: String ?= "")
 
 GET 		/web/*token/:filepath								controllers.DatasetsController.webToken(request: Request, token: String, filepath: String)
 GET 		/web/*token/											controllers.DatasetsController.webToken(request: Request, token: String, filepath: String ?= "")
