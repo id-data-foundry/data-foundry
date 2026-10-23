@@ -583,11 +583,11 @@ public class CodingAgentController extends AbstractAsyncController {
 					String localProxyUrl = CodingAgentUtils.resolveLocalProxyUrl(config);
 
 					OpenAIChatModel mainModel = OpenAIChatModel.builder().modelName(mainModelName)
-							.apiKey(aiAPIService.getInternalDocumentationAPIKey()).baseUrl(localProxyUrl)
+							.apiKey(aiAPIService.getInternalSystemKey()).baseUrl(localProxyUrl)
 							.generateOptions(mainOptions).build();
 
 					OpenAIChatModel subAgentModel = OpenAIChatModel.builder().modelName(subAgentModelName)
-							.apiKey(aiAPIService.getInternalDocumentationAPIKey()).baseUrl(localProxyUrl)
+							.apiKey(aiAPIService.getInternalSystemKey()).baseUrl(localProxyUrl)
 							.generateOptions(subAgentOptions).build();
 
 					// Build shared read-only tool and sub-agent mutation tool

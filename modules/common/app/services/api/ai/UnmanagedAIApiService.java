@@ -84,6 +84,10 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 	private final String internalDocumentationAPIKey = "df-internal-"
 			+ UUID.randomUUID().toString().replace("-", "").substring(0, 16);
 
+	// unexposed internal system key strictly for backend JVM services (CodingAgent, Chatbot, refresh probes)
+	private final String internalSystemKey = "df-system-"
+			+ UUID.randomUUID().toString().replace("-", "").substring(0, 16);
+
 	// dedicated single-threaded daemon executor to offload usage logging from the request completion path
 	private final ExecutorService dbLogExecutor = Executors.newSingleThreadExecutor(r -> {
 		Thread t = new Thread(r, "df-ai-usage-logger");
@@ -141,7 +145,7 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 
 	protected RemoteApiRequest createModelsRequestForRefresh() {
 		return new RemoteApiRequest(REQUEST_TASK_MODELS, REFRESH_PROBE_TIMEOUT_MS, "SYSTEM",
-				getInternalDocumentationAPIKey(), -1L);
+				getInternalSystemKey(), -1L);
 	}
 
 	@Override
@@ -303,8 +307,9 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 		// 3. check and map requested model
 		preProcessRequest(request);
 
-		// 4. fast track local documentation API requests
-		if (request.getUserApiKey().equals(getInternalDocumentationAPIKey()) && request.getRequestedTokens() <= 1) {
+		// 4. fast track local documentation API requests and internal system requests
+		if ((request.getUserApiKey().equals(getInternalDocumentationAPIKey()) && request.getRequestedTokens() <= 1)
+				|| request.getUserApiKey().equals(getInternalSystemKey())) {
 			return dispatchWithPermit(request);
 		}
 
@@ -378,10 +383,10 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 		// 2. map model, apply defaults (same as the buffered path)
 		preProcessRequest(request);
 
-		// 3. credits + throttle, unless this is the internal documentation key
-		boolean internalDocs = request.getUserApiKey().equals(getInternalDocumentationAPIKey())
-				&& request.getRequestedTokens() <= 1;
-		if (!internalDocs) {
+		// 3. credits + throttle, unless this is the internal documentation key or internal system key
+		boolean internalBypass = (request.getUserApiKey().equals(getInternalDocumentationAPIKey())
+				&& request.getRequestedTokens() <= 1) || request.getUserApiKey().equals(getInternalSystemKey());
+		if (!internalBypass) {
 			Optional<String> error = checkAndUpdateCredits(request.getUserApiKey(), request.getRequestedTokens());
 			if (error.isPresent()) {
 				if (error.get().contains("No valid API key")) {
@@ -568,7 +573,7 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 		if (apiKey == null) {
 			return false;
 		}
-		if (apiKey.equals(getInternalDocumentationAPIKey())) {
+		if (apiKey.equals(getInternalDocumentationAPIKey()) || apiKey.equals(getInternalSystemKey())) {
 			return true;
 		}
 		Optional<String> check = checkCredits(apiKey);
@@ -826,6 +831,10 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 		return internalDocumentationAPIKey;
 	}
 
+	public String getInternalSystemKey() {
+		return internalSystemKey;
+	}
+
 	/**
 	 * parse a chat completion response from the AI backend
 	 *
@@ -921,7 +930,8 @@ public class UnmanagedAIApiService extends AbstractAIApiService implements ApiSe
 						username = details.username();
 						email = details.email();
 						projectId = details.projectId();
-					} else if (apiKey.equals(getInternalDocumentationAPIKey())) {
+					} else if (apiKey.equals(getInternalDocumentationAPIKey())
+							|| apiKey.equals(getInternalSystemKey())) {
 						if (explicitUsername != null && !explicitUsername.trim().isEmpty()
 								&& !"SYSTEM".equalsIgnoreCase(explicitUsername)) {
 							username = explicitUsername;

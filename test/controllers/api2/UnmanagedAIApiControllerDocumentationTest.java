@@ -14,6 +14,7 @@ import com.typesafe.config.ConfigFactory;
 import controllers.api2.UnmanagedAIApiController.ApiCall;
 import play.mvc.Http;
 import play.mvc.Http.Request;
+import services.api.ApiServiceConstants;
 import services.api.ai.LocalModelMetadata;
 import services.api.ai.UnmanagedAIApiService;
 
@@ -239,6 +240,53 @@ public class UnmanagedAIApiControllerDocumentationTest {
 
 		String resolvedKey = controller.checkDocumentationAPIKey(request, "dummy_key");
 		assertEquals("Must not grant documentation key when unauthenticated", "dummy_key", resolvedKey);
+	}
+
+	@Test
+	public void testAuthorizeAcceptsInternalSystemKeyWithoutSession() {
+		testUserAuth.authenticated = false;
+		String systemKey = controller.aiApiService.getInternalSystemKey();
+		Request request = new Http.RequestBuilder()
+				.method("POST")
+				.uri("/v1/chat/completions")
+				.header("Host", "localhost:9000")
+				.header("Authorization", "Bearer " + systemKey)
+				.header(ApiServiceConstants.X_API_USER, "agent@example.com")
+				.build();
+
+		Optional<ApiCall> call = controller.authorize(request);
+		assertTrue("Internal system key must be authorized without session", call.isPresent());
+		assertEquals("agent@example.com", call.get().username());
+		assertEquals(systemKey, call.get().apiKey());
+	}
+
+	@Test
+	public void testAuthorizeRejectsDocumentationKeyWithoutSession() {
+		testUserAuth.authenticated = false;
+		Request request = new Http.RequestBuilder()
+				.method("POST")
+				.uri("/v1/chat/completions")
+				.header("Host", "datafoundry.tue.nl")
+				.header("Authorization", "Bearer " + internalDocsKey)
+				.build();
+
+		Optional<ApiCall> call = controller.authorize(request);
+		assertFalse("Documentation key must be rejected without active session", call.isPresent());
+	}
+
+	@Test
+	public void testAuthorizeAcceptsDocumentationKeyWithSession() {
+		testUserAuth.authenticated = true;
+		Request request = new Http.RequestBuilder()
+				.method("POST")
+				.uri("/v1/chat/completions")
+				.header("Host", "datafoundry.tue.nl")
+				.header("Authorization", "Bearer " + internalDocsKey)
+				.build();
+
+		Optional<ApiCall> call = controller.authorize(request);
+		assertTrue("Documentation key must be accepted with active session", call.isPresent());
+		assertEquals(internalDocsKey, call.get().apiKey());
 	}
 
 	@Test

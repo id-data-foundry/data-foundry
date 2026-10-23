@@ -437,7 +437,7 @@ public class ChatbotController extends AbstractAsyncController {
 					String localProxyUrl = CodingAgentUtils.resolveLocalProxyUrl(config);
 
 					OpenAIChatModel mainModel = OpenAIChatModel.builder().modelName(mainModelName)
-							.apiKey(aiAPIService.getInternalDocumentationAPIKey()).baseUrl(localProxyUrl)
+							.apiKey(aiAPIService.getInternalSystemKey()).baseUrl(localProxyUrl)
 							.generateOptions(mainOptions).build();
 
 					Toolkit toolkit = new Toolkit();

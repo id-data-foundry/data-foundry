@@ -62,6 +62,17 @@ public class UnmanagedAIApiController extends Controller implements ApiServiceCo
 		if (apiKey == null || apiKey.isEmpty()) {
 			return Optional.empty();
 		}
+		// 1. Internal server-to-server calls (CodingAgent, Chatbot) using the unexposed system key
+		if (apiKey.equals(aiApiService.getInternalSystemKey())) {
+			String username = request.header(ApiServiceConstants.X_API_USER).orElse("SYSTEM");
+			return Optional.of(new ApiCall(username, apiKey));
+		}
+		// 2. Require an active authenticated user session when using the internal documentation API key
+		if (apiKey.equals(aiApiService.getInternalDocumentationAPIKey())) {
+			if (userAuth == null || userAuth.getUsername(request).isEmpty() || !UserAuth.isValidRequestContext(request)) {
+				return Optional.empty();
+			}
+		}
 		String username = request.header(ApiServiceConstants.X_API_USER).orElse("");
 		return Optional.of(new ApiCall(username, apiKey));
 	}

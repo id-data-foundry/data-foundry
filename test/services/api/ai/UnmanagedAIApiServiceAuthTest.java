@@ -236,7 +236,7 @@ public class UnmanagedAIApiServiceAuthTest {
 
 		RemoteApiRequest req = service.createModelsRequestForRefresh();
 		assertEquals("SYSTEM", req.getUsername());
-		assertEquals(service.getInternalDocumentationAPIKey(), req.getUserApiKey());
+		assertEquals(service.getInternalSystemKey(), req.getUserApiKey());
 		assertEquals("models", req.getType());
 		assertEquals("/models", req.getPath());
 	}
