@@ -56,7 +56,7 @@
                         The study starts on a separate page:
                     </p>
                     <p>
-                        <a href="@controllers.routes.DatasetsController.webToken(participantStudyDataset.configuration(Dataset.WEB_ACCESS_TOKEN, ""),"")"
+                        <a href="@controllers.routes.DatasetsController.webToken(participantStudyDataset.getEffectiveWebToken(),"")"
                             class="btn" 
                             target="_blank" rel="noopener">
                             Open study page

@@ -184,9 +184,9 @@ public class AdminController extends AbstractAsyncController {
 		}
 
 		ExpressionList<Dataset> query = Dataset.find.query().where();
-		// filter by COMPLETE type and presence of WEB_ACCESS_TOKEN in configuration
-		query = query.eq("dsType", DatasetType.COMPLETE).raw("configuration like ?",
-				"%" + Dataset.WEB_ACCESS_TOKEN + "%");
+		// filter by COMPLETE type and presence of WEB_ACCESS_TOKEN or PUBLIC_ACCESS_TOKEN in configuration
+		query = query.eq("dsType", DatasetType.COMPLETE).raw("(configuration like ? or configuration like ?)",
+				"%" + Dataset.WEB_ACCESS_TOKEN + "%", "%" + Dataset.PUBLIC_ACCESS_TOKEN + "%");
 
 		PagedList<Dataset> pagedDatasets = query.orderBy("id desc").setMaxRows(20).setFirstRow(page * 20)
 				.findPagedList();

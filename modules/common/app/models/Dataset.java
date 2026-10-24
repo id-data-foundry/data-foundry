@@ -473,7 +473,33 @@ public class Dataset extends Model {
 	 */
 	public boolean isWebsiteLive() {
 		return this.getDsType().equals(DatasetType.COMPLETE) && !isScript() && !isChatbot() && !isSavedExport()
-				&& !isStudyManagement() && !configuration.getOrDefault(WEB_ACCESS_TOKEN, "").trim().isEmpty();
+				&& !isStudyManagement() && hasWebOrPublicToken();
+	}
+
+	/**
+	 * return the active web token, falling back to legacy public_access_token if web_access_token is absent
+	 * 
+	 * @return non-null token string or empty string
+	 */
+	public String getEffectiveWebToken() {
+		String webToken = this.configuration(WEB_ACCESS_TOKEN, "");
+		if (webToken != null && !webToken.trim().isEmpty()) {
+			return webToken.trim();
+		}
+		String publicToken = this.configuration(PUBLIC_ACCESS_TOKEN, "");
+		if (publicToken != null && !publicToken.trim().isEmpty()) {
+			return publicToken.trim();
+		}
+		return "";
+	}
+
+	/**
+	 * check whether either a modern web token or legacy public access token is configured
+	 * 
+	 * @return true if an effective web token exists
+	 */
+	public boolean hasWebOrPublicToken() {
+		return !getEffectiveWebToken().isEmpty();
 	}
 
 	/**

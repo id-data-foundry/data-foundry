@@ -44,7 +44,7 @@
 				<td>@ds.getProject().getOwner().getName()</td>
 				<td>
 				    @if(ds.isWebsiteLive()) {
-				        <a href="@controllers.routes.DatasetsController.webToken(ds.configuration(models.Dataset.WEB_ACCESS_TOKEN, ""), "")" target="_blank">Open</a>
+				        <a href="@controllers.routes.DatasetsController.webToken(ds.getEffectiveWebToken(), "")" target="_blank">Open</a>
 				    } else {
 				        -
 				    }

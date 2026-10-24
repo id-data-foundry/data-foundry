@@ -897,6 +897,18 @@ public class CompleteDSController extends AbstractDSController {
 				.withHeader("Content-Security-Policy", "sandbox"));
 	}
 
+	private static boolean isWebPageOrAsset(String filename) {
+		if (filename == null) {
+			return false;
+		}
+		String lower = filename.toLowerCase();
+		return lower.endsWith(".html") || lower.endsWith(".htm") || lower.endsWith(".md") || lower.endsWith(".markdown")
+				|| lower.endsWith(".css") || lower.endsWith(".js") || lower.endsWith(".mjs")
+				|| lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".gif")
+				|| lower.endsWith(".webp") || lower.endsWith(".svg") || lower.endsWith(".ico") || lower.endsWith(".avif")
+				|| lower.endsWith(".woff") || lower.endsWith(".woff2") || lower.endsWith(".ttf") || lower.endsWith(".otf");
+	}
+
 	/**
 	 * download file with dataset id, file name, and access_token
 	 * 
@@ -933,10 +945,14 @@ public class CompleteDSController extends AbstractDSController {
 			return cs(() -> status(GONE, "The project is not active, download is not available anymore."));
 		}
 
-		// check if the token is current
+		// check if the token is current (accept either public_access_token or web_access_token)
 		String pat = ds.getConfiguration().get(Dataset.PUBLIC_ACCESS_TOKEN);
-		if (pat == null || pat.trim().isEmpty()
-				|| !MessageDigest.isEqual(pat.getBytes(StandardCharsets.UTF_8), token.getBytes(StandardCharsets.UTF_8))) {
+		String wat = ds.getConfiguration().get(Dataset.WEB_ACCESS_TOKEN);
+		boolean matchesPat = pat != null && !pat.trim().isEmpty()
+				&& MessageDigest.isEqual(pat.getBytes(StandardCharsets.UTF_8), token.getBytes(StandardCharsets.UTF_8));
+		boolean matchesWat = wat != null && !wat.trim().isEmpty()
+				&& MessageDigest.isEqual(wat.getBytes(StandardCharsets.UTF_8), token.getBytes(StandardCharsets.UTF_8));
+		if (!matchesPat && !matchesWat) {
 			return redirectCS(HOME);
 		}
 
@@ -947,6 +963,12 @@ public class CompleteDSController extends AbstractDSController {
 			File file = requestedFile.get();
 			LabNotesEntry.log(CompleteDSController.class, LabNotesEntryType.DOWNLOAD,
 					"Dataset file downloaded publicly: " + ds.getName() + " (" + file.getName() + ")", ds.getProject());
+
+			// If requesting an HTML/Markdown page or web asset, redirect to sandboxed webToken route so it opens in browser
+			if (isWebPageOrAsset(fileName)) {
+				return redirectCS(controllers.routes.DatasetsController.webToken(token, fileName));
+			}
+
 			return cs(() -> ok(file, false).as("application/x-download")
 					.withHeader("X-Content-Type-Options", "nosniff")
 					.withHeader("Content-Security-Policy", "sandbox"));

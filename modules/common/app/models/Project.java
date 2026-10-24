@@ -1082,7 +1082,7 @@ public class Project extends Model {
 		return this.datasets.stream()
 				.filter(d -> d.getDsType() == DatasetType.COMPLETE && d.isActive()
 						&& Dataset.PARTICIPANT_STUDY_PAGE.equals(d.getTargetObject())
-						&& !d.configuration(Dataset.WEB_ACCESS_TOKEN, "").isEmpty())
+						&& d.hasWebOrPublicToken())
 				.findFirst().orElse(Dataset.EMPTY_DATASET);
 	}
 
@@ -1095,7 +1095,7 @@ public class Project extends Model {
 		return this.datasets.stream()
 				.filter(d -> d.getDsType() == DatasetType.COMPLETE && d.isActive()
 						&& Dataset.PARTICIPANT_DASHBOARD_PAGE.equals(d.getTargetObject())
-						&& !d.configuration(Dataset.WEB_ACCESS_TOKEN, "").isEmpty())
+						&& d.hasWebOrPublicToken())
 				.findFirst().orElse(Dataset.EMPTY_DATASET);
 	}
 

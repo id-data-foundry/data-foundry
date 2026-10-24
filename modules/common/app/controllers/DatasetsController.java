@@ -1423,8 +1423,8 @@ public class DatasetsController extends AbstractAsyncController {
 			final boolean framedPage = !framedPageOpt.isEmpty() && framedPageOpt.get();
 
 			// no public access --> check user credentials
-			// further checks needed if project is not public
-			if (!project.isPublicProject()) {
+			// further checks needed if project is not public and dataset does not have a public web token
+			if (!project.isPublicProject() && !ds.hasWebOrPublicToken()) {
 				// access is ok, if this project belongs to the logged-in user or they are collaborating
 				// no user --> check participant
 				if (usernameOpt.isEmpty() || !project.visibleFor(usernameOpt.get())) {
@@ -1500,7 +1500,7 @@ public class DatasetsController extends AbstractAsyncController {
 
 			// For HTML/Markdown pages: redirect to tokenized route so opaque sandboxed frames can load subresources without cookies
 			if (lowerFilename.endsWith(".html") || lowerFilename.endsWith(".htm") || lowerFilename.endsWith(".md") || lowerFilename.endsWith(".markdown")) {
-				String publicToken = ds.configuration(Dataset.WEB_ACCESS_TOKEN, "");
+				String publicToken = ds.getEffectiveWebToken();
 				if (!publicToken.isEmpty()) {
 					return redirect(routes.DatasetsController.webToken(publicToken, filename));
 				}
@@ -1586,9 +1586,12 @@ public class DatasetsController extends AbstractAsyncController {
 				return notFound();
 			}
 
-			// check token existance and correctness
-			if (ds.configuration(Dataset.WEB_ACCESS_TOKEN, "").isEmpty()
-					|| !Hash.constantTimeEquals(ds.configuration(Dataset.WEB_ACCESS_TOKEN, ""), webTokenStr)) {
+			// check token existance and correctness (accept either modern web_access_token or legacy public_access_token)
+			String webAccessToken = ds.configuration(Dataset.WEB_ACCESS_TOKEN, "");
+			String publicAccessToken = ds.configuration(Dataset.PUBLIC_ACCESS_TOKEN, "");
+			boolean tokenMatches = (!webAccessToken.isEmpty() && Hash.constantTimeEquals(webAccessToken, webTokenStr))
+					|| (!publicAccessToken.isEmpty() && Hash.constantTimeEquals(publicAccessToken, webTokenStr));
+			if (!tokenMatches) {
 				return notFound();
 			}
 
@@ -1600,7 +1603,7 @@ public class DatasetsController extends AbstractAsyncController {
 			// abort if there is no user logged in, or the project does not belong to the logged-in user or they are
 			// collaborating, AND web access token is not set
 			if ((usernameOpt.isEmpty() || !project.editableBy(usernameOpt.get()))
-					&& ds.configuration(Dataset.WEB_ACCESS_TOKEN, "").isEmpty()) {
+					&& !ds.hasWebOrPublicToken()) {
 				return redirect(HOME).addingToSession(request, "error",
 						"Website not accessible for guests at the moment.");
 			}

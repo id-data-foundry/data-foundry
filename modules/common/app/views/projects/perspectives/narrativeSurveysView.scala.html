@@ -50,7 +50,7 @@
           @for(fileList <- tweeFiles) {
           <tr>
             <td class="col s12 l8">
-              @fileList.link (<a href="@routes.DatasetsController.webToken(dataset.configuration(Dataset.WEB_ACCESS_TOKEN, ""), fileList.link.replace(".twee", ".html")).absoluteURL(request)" target="_blank" rel="noopener">open in tab</a>)
+              @fileList.link (<a href="@routes.DatasetsController.webToken(dataset.getEffectiveWebToken(), fileList.link.replace(".twee", ".html")).absoluteURL(request)" target="_blank" rel="noopener">open in tab</a>)
             </td>
             <td class="col s12 l4 right-align">
               <a href="@api.routes.CompleteDSController.editFile(dataset.getId(),fileList.getId())" class="green-text" target="_blank">edit</a> |
@@ -100,20 +100,20 @@
           <tr>
             <td class="col s12 l10">
               @fileList.link
-              @if(!dataset.configuration(Dataset.WEB_ACCESS_TOKEN, "").isEmpty()) {
+              @if(!dataset.getEffectiveWebToken().isEmpty()) {
               <br>
               <details>
                 <summary>Embed link</summary>
                 <code><pre>
 
-&lt;img src="@routes.DatasetsController.webToken(dataset.configuration(Dataset.WEB_ACCESS_TOKEN, ""), fileList.link).absoluteURL(request)"&gt;
+&lt;img src="@routes.DatasetsController.webToken(dataset.getEffectiveWebToken(), fileList.link).absoluteURL(request)"&gt;
                 </pre></code>
               </details>
               }
             </td>
             <td class="col s12 l2 right-align">
-              @if(!dataset.configuration(Dataset.WEB_ACCESS_TOKEN, "").isEmpty()) {
-              <a href="@routes.DatasetsController.webToken(dataset.configuration(Dataset.WEB_ACCESS_TOKEN, ""), fileList.link).absoluteURL(request)" target="_blank" rel="noopener">view</a> |
+              @if(!dataset.getEffectiveWebToken().isEmpty()) {
+              <a href="@routes.DatasetsController.webToken(dataset.getEffectiveWebToken(), fileList.link).absoluteURL(request)" target="_blank" rel="noopener">view</a> |
               }
               <form hx-delete="@controllers.tools.routes.NarrativeSurveysController.deleteImage(dataset.getId(),fileList.getId())"
                     hx-target="closest tr"

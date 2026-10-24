@@ -49,10 +49,14 @@
           <tr>
             <td class="col s12 l5">
               @fileList.link
-              @if(!dataset.configuration(Dataset.WEB_ACCESS_TOKEN, "").isEmpty()) {
               @if(fileList.link.endsWith(".html") || fileList.link.endsWith(".md")) {
-              (<a href="@routes.DatasetsController.webToken(dataset.configuration(Dataset.WEB_ACCESS_TOKEN, ""), fileList.link).absoluteURL(request)" target="_blank" rel="noopener">open in tab</a>)
-              }
+                @defining(dataset.getEffectiveWebToken()) { effectiveToken =>
+                  @if(!effectiveToken.isEmpty) {
+                    (<a href="@routes.DatasetsController.webToken(effectiveToken, fileList.link).absoluteURL(request)" target="_blank" rel="noopener">open in tab</a>)
+                  } else {
+                    (<a href="@routes.DatasetsController.web(dataset.getId(), fileList.link).absoluteURL(request)" target="_blank" rel="noopener">open in tab</a>)
+                  }
+                }
               }
             </td>
             <td class="col s12 l2">@fileList.caption</td>
@@ -153,7 +157,7 @@
     <div class="col s12">
       <div class="card">
         <div class="card-content">
-          <details ontoggle="toggleMermaidWorkflow(this)">
+          <details ontoggle="toggleDiagramWorkflow(this)">
             <summary style="cursor: pointer; font-weight: 500;">How it works (Workflow Diagram)</summary>
             <div style="margin-top: 15px;">
               <p>
@@ -166,10 +170,10 @@
                 <b>What you can do</b>: You can publish web pages directly using <b>Web Access Tokens</b>, stream changes via <b>OOCSI</b>, or download raw files.
               </p>
             </div>
-            <div class="mermaid-loading progress" style="display: none; margin-top: 20px;">
+            <div class="diagram-loading progress" style="display: none; margin-top: 20px;">
               <div class="indeterminate"></div>
             </div>
-            <div class="mermaid" style="display: none; margin-top: 20px; justify-content: center;">
+            <div class="pele" style="display: none; margin-top: 20px;">
               sequenceDiagram
                 participant U as Web UI / API
                 participant DS as Existing Dataset
@@ -192,7 +196,7 @@
     </div>
   </div>
 
-  @elements.mermaidHelper()
+  @elements.diagramHelper()
   }
 
   @elements.dataset.config.standard(dataset, user)

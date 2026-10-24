@@ -103,8 +103,14 @@
         </select>
       </form>
       <button class="btn disabled" id="saveBtn">Save</button>
-      @if(fileName.endsWith(".html") && !dataset.configuration(Dataset.WEB_ACCESS_TOKEN, "").isEmpty()) {
-        <a class="btn blue" href="@routes.DatasetsController.webToken(dataset.configuration(Dataset.WEB_ACCESS_TOKEN, ""), fileName)" target="_blank" rel="noopener">Open</a>
+      @if(fileName.endsWith(".html")) {
+        @defining(dataset.getEffectiveWebToken()) { effectiveToken =>
+          @if(!effectiveToken.isEmpty) {
+            <a class="btn blue" href="@routes.DatasetsController.webToken(effectiveToken, fileName)" target="_blank" rel="noopener">Open</a>
+          } else {
+            <a class="btn blue" href="@routes.DatasetsController.web(dataset.getId(), fileName)" target="_blank" rel="noopener">Open</a>
+          }
+        }
       }
       <a class="btn-flat grey-text" href="@routes.DatasetsController.view(dataset.getId())">Cancel</a>
     </div>

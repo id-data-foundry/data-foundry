@@ -368,16 +368,41 @@ public class CompleteDSViewTest extends WithApplication {
 		assertTrue("Unrecognized extension with HTML magic bytes must be downgraded to text/plain", sniffResult.contentType().orElse("").startsWith("text/plain"));
 		assertTrue("All webViewer responses must include Content-Security-Policy", sniffResult.header("Content-Security-Policy").isPresent());
 
-		// 15. Verify CompleteDSController.downloadFilePublic forces attachment download, nosniff, and CSP sandbox (Finding 1 fix)
+		// 15. Verify CompleteDSController.downloadFilePublic redirects web pages/assets to webToken (legacy support)
+		// and forces attachment download, nosniff, and CSP sandbox for data files (Finding 1 fix)
 		String publicAccessToken = tokenResolverUtil.getDatasetToken(dataset.getId());
 		dataset.getConfiguration().put(Dataset.PUBLIC_ACCESS_TOKEN, publicAccessToken);
+		dataset.getConfiguration().remove(Dataset.WEB_ACCESS_TOKEN);
 		dataset.update();
 
-		Result publicDownloadRes = completeDSController.downloadFilePublic("index.html", publicAccessToken).toCompletableFuture().get();
-		assertEquals(OK, publicDownloadRes.status());
-		assertEquals("application/x-download", publicDownloadRes.contentType().orElse(""));
-		assertEquals("nosniff", publicDownloadRes.header("X-Content-Type-Options").orElse(""));
-		assertEquals("sandbox", publicDownloadRes.header("Content-Security-Policy").orElse(""));
-		assertTrue("Content-Disposition must be attachment", publicDownloadRes.header("Content-Disposition").orElse("").startsWith("attachment"));
+		assertTrue("Dataset should report website is live with legacy public token", dataset.isWebsiteLive());
+		assertEquals(publicAccessToken, dataset.getEffectiveWebToken());
+
+		// 15a. HTML requests via downloadFilePublic must redirect to /web/:token/:filepath
+		Result publicHtmlRedirectRes = completeDSController.downloadFilePublic("index.html", publicAccessToken).toCompletableFuture().get();
+		assertEquals(SEE_OTHER, publicHtmlRedirectRes.status());
+		assertEquals("/web/" + publicAccessToken + "/index.html", publicHtmlRedirectRes.redirectLocation().orElse(""));
+
+		// 15b. Legacy public token must be accepted by DatasetsController.webToken with sandbox CSP
+		Http.Request legacyTokenReq = createAuthenticatedRequest(GET, "/web/" + publicAccessToken + "/index.html", null);
+		Result legacyWebTokenRes = datasetsController.webToken(legacyTokenReq, publicAccessToken, "index.html").toCompletableFuture().get();
+		assertEquals(OK, legacyWebTokenRes.status());
+		assertTrue(legacyWebTokenRes.contentType().orElse("").contains("text/html"));
+		assertTrue(legacyWebTokenRes.header("Content-Security-Policy").orElse("").contains("sandbox"));
+		assertFalse("WebToken CSP must NOT contain allow-same-origin", legacyWebTokenRes.header("Content-Security-Policy").orElse("").contains("allow-same-origin"));
+
+		// 15c. Non-web data files via downloadFilePublic force attachment download
+		File csvFile = File.createTempFile("data", ".csv");
+		Files.write(csvFile.toPath(), "col1,col2\nval1,val2\n".getBytes(StandardCharsets.UTF_8));
+		completeDS.storeFile(csvFile, "data.csv");
+		completeDS.addRecord("data.csv", "CSV", new Date());
+		csvFile.delete();
+
+		Result publicCsvRes = completeDSController.downloadFilePublic("data.csv", publicAccessToken).toCompletableFuture().get();
+		assertEquals(OK, publicCsvRes.status());
+		assertEquals("application/x-download", publicCsvRes.contentType().orElse(""));
+		assertEquals("nosniff", publicCsvRes.header("X-Content-Type-Options").orElse(""));
+		assertEquals("sandbox", publicCsvRes.header("Content-Security-Policy").orElse(""));
+		assertTrue("Content-Disposition must be attachment", publicCsvRes.header("Content-Disposition").orElse("").startsWith("attachment"));
 	}
 }
