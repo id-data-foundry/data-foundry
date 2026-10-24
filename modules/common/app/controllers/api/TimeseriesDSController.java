@@ -703,9 +703,10 @@ public class TimeseriesDSController extends AbstractDSController {
 			return cs(() -> redirect(HOME).addingToSession(request, "error", "We could not find this dataset."));
 		}
 
-		// check if the token is current
+		// check if the token is current (accept either public_access_token or web_access_token)
 		String pat = ds.getConfiguration().get(Dataset.PUBLIC_ACCESS_TOKEN);
-		if (!Hash.constantTimeEquals(token, pat)) {
+		String wat = ds.getConfiguration().get(Dataset.WEB_ACCESS_TOKEN);
+		if (!tokenResolverUtil.isTokenMatch(token, pat) && !tokenResolverUtil.isTokenMatch(token, wat)) {
 			return redirectCS(HOME);
 		}
 

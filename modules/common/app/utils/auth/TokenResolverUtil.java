@@ -121,7 +121,20 @@ public class TokenResolverUtil {
 	 * @return
 	 */
 	public String getRawCollabToken(String token) {
-		return SymEncryption.decryptToken(token, PROJECT_COLLABORATOR_TOKEN_KEY);
+		String res = SymEncryption.decryptToken(token, PROJECT_COLLABORATOR_TOKEN_KEY);
+		if (res == null && token != null) {
+			res = SymEncryption.decryptToken(normalizeToken(token), PROJECT_COLLABORATOR_TOKEN_KEY);
+		}
+		if (res == null && PROJECT_COLLABORATOR_TOKEN_KEY != null && PROJECT_COLLABORATOR_TOKEN_KEY.contains("_")) {
+			String legacySuffix = PROJECT_COLLABORATOR_TOKEN_KEY.substring(PROJECT_COLLABORATOR_TOKEN_KEY.indexOf('_'));
+			if (!legacySuffix.equals(PROJECT_COLLABORATOR_TOKEN_KEY)) {
+				res = SymEncryption.decryptToken(token, legacySuffix);
+				if (res == null && token != null) {
+					res = SymEncryption.decryptToken(normalizeToken(token), legacySuffix);
+				}
+			}
+		}
+		return res;
 	}
 
 	/**
@@ -131,7 +144,20 @@ public class TokenResolverUtil {
 	 * @return
 	 */
 	public String getRawSubscriptionToken(String token) {
-		return SymEncryption.decryptToken(token, PROJECT_SUBSCRIBER_TOKEN_KEY);
+		String res = SymEncryption.decryptToken(token, PROJECT_SUBSCRIBER_TOKEN_KEY);
+		if (res == null && token != null) {
+			res = SymEncryption.decryptToken(normalizeToken(token), PROJECT_SUBSCRIBER_TOKEN_KEY);
+		}
+		if (res == null && PROJECT_SUBSCRIBER_TOKEN_KEY != null && PROJECT_SUBSCRIBER_TOKEN_KEY.contains("_")) {
+			String legacySuffix = PROJECT_SUBSCRIBER_TOKEN_KEY.substring(PROJECT_SUBSCRIBER_TOKEN_KEY.indexOf('_'));
+			if (!legacySuffix.equals(PROJECT_SUBSCRIBER_TOKEN_KEY)) {
+				res = SymEncryption.decryptToken(token, legacySuffix);
+				if (res == null && token != null) {
+					res = SymEncryption.decryptToken(normalizeToken(token), legacySuffix);
+				}
+			}
+		}
+		return res;
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -548,13 +574,54 @@ public class TokenResolverUtil {
 	 * @return
 	 */
 	private Long retrieveFirstIdFromToken(String token, String key) {
-		// try new token scheme with decode first
-		Long firstIdFromToken = SymEncryption.getFirstIdFromToken(base64Decode(token), key);
-		if (firstIdFromToken == -1l) {
-			// if no result, try old scheme without decode
-			firstIdFromToken = SymEncryption.getFirstIdFromToken(token, key);
+		if (token == null || token.trim().isEmpty()) {
+			return -1L;
 		}
-		return firstIdFromToken;
+		Long id = tryRetrieveFirstId(token, key);
+		if (id != -1L) {
+			return id;
+		}
+		String normalized = normalizeToken(token);
+		if (normalized != null && !normalized.equals(token)) {
+			id = tryRetrieveFirstId(normalized, key);
+			if (id != -1L) {
+				return id;
+			}
+		}
+		// Fallback to legacy default key suffix (e.g., "_dataset")
+		if (key != null && key.contains("_")) {
+			String legacySuffixKey = key.substring(key.indexOf('_'));
+			if (!legacySuffixKey.equals(key)) {
+				id = tryRetrieveFirstId(token, legacySuffixKey);
+				if (id != -1L) {
+					return id;
+				}
+				if (normalized != null && !normalized.equals(token)) {
+					id = tryRetrieveFirstId(normalized, legacySuffixKey);
+					if (id != -1L) {
+						return id;
+					}
+				}
+			}
+		}
+		return -1L;
+	}
+
+	private Long tryRetrieveFirstId(String token, String key) {
+		if (token == null || token.trim().isEmpty()) {
+			return -1L;
+		}
+		// try with decode first (handles double-encoded tokens)
+		String decoded = base64Decode(token);
+		Long firstId = -1L;
+		if (decoded != null && !decoded.equals("-- invalid token --")) {
+			firstId = SymEncryption.getFirstIdFromToken(decoded, key);
+		}
+		if (firstId == -1L) {
+			// if no result, try token directly
+			firstId = SymEncryption.getFirstIdFromToken(token, key);
+		}
+		return firstId;
 	}
 
 	/**
@@ -565,6 +632,23 @@ public class TokenResolverUtil {
 	 * @return
 	 */
 	private Long retrieveFirstIdFromBase32Token(String token, String key) {
+		Long id = tryRetrieveFirstIdFromBase32(token, key);
+		if (id != -1L) {
+			return id;
+		}
+		if (key != null && key.contains("_")) {
+			String legacySuffixKey = key.substring(key.indexOf('_'));
+			if (!legacySuffixKey.equals(key)) {
+				id = tryRetrieveFirstIdFromBase32(token, legacySuffixKey);
+				if (id != -1L) {
+					return id;
+				}
+			}
+		}
+		return -1L;
+	}
+
+	private Long tryRetrieveFirstIdFromBase32(String token, String key) {
 		// try new token scheme with decode first
 		Long firstIdFromToken = SymEncryption.getFirstIdFromToken(base32Decode(token), key);
 		if (firstIdFromToken == -1l) {
@@ -582,13 +666,52 @@ public class TokenResolverUtil {
 	 * @return
 	 */
 	private Long retrieveSecondIdFromToken(String token, String key) {
-		// try new token scheme with decode first
-		Long secondIdFromToken = SymEncryption.getSecondIdFromToken(base64Decode(token), key);
-		if (secondIdFromToken == -1l) {
-			// if no result, try old scheme without decode
-			secondIdFromToken = SymEncryption.getSecondIdFromToken(token, key);
+		if (token == null || token.trim().isEmpty()) {
+			return -1L;
 		}
-		return secondIdFromToken;
+		Long id = tryRetrieveSecondId(token, key);
+		if (id != -1L) {
+			return id;
+		}
+		String normalized = normalizeToken(token);
+		if (normalized != null && !normalized.equals(token)) {
+			id = tryRetrieveSecondId(normalized, key);
+			if (id != -1L) {
+				return id;
+			}
+		}
+		// Fallback to legacy default key suffix
+		if (key != null && key.contains("_")) {
+			String legacySuffixKey = key.substring(key.indexOf('_'));
+			if (!legacySuffixKey.equals(key)) {
+				id = tryRetrieveSecondId(token, legacySuffixKey);
+				if (id != -1L) {
+					return id;
+				}
+				if (normalized != null && !normalized.equals(token)) {
+					id = tryRetrieveSecondId(normalized, legacySuffixKey);
+					if (id != -1L) {
+						return id;
+					}
+				}
+			}
+		}
+		return -1L;
+	}
+
+	private Long tryRetrieveSecondId(String token, String key) {
+		if (token == null || token.trim().isEmpty()) {
+			return -1L;
+		}
+		String decoded = base64Decode(token);
+		Long secondId = -1L;
+		if (decoded != null && !decoded.equals("-- invalid token --")) {
+			secondId = SymEncryption.getSecondIdFromToken(decoded, key);
+		}
+		if (secondId == -1L) {
+			secondId = SymEncryption.getSecondIdFromToken(token, key);
+		}
+		return secondId;
 	}
 
 	/**
@@ -599,13 +722,52 @@ public class TokenResolverUtil {
 	 * @return
 	 */
 	private String getSecondStringFromToken(String token, String key) {
-		// try new token scheme with decode first
-		String secondStringFromToken = SymEncryption.getSecondStringFromToken(base64Decode(token), key);
-		if (secondStringFromToken == null) {
-			// if no result, try old scheme without decode
-			secondStringFromToken = SymEncryption.getSecondStringFromToken(token, key);
+		if (token == null || token.trim().isEmpty()) {
+			return null;
 		}
-		return secondStringFromToken;
+		String val = tryGetSecondString(token, key);
+		if (val != null) {
+			return val;
+		}
+		String normalized = normalizeToken(token);
+		if (normalized != null && !normalized.equals(token)) {
+			val = tryGetSecondString(normalized, key);
+			if (val != null) {
+				return val;
+			}
+		}
+		// Fallback to legacy default key suffix
+		if (key != null && key.contains("_")) {
+			String legacySuffixKey = key.substring(key.indexOf('_'));
+			if (!legacySuffixKey.equals(key)) {
+				val = tryGetSecondString(token, legacySuffixKey);
+				if (val != null) {
+					return val;
+				}
+				if (normalized != null && !normalized.equals(token)) {
+					val = tryGetSecondString(normalized, legacySuffixKey);
+					if (val != null) {
+						return val;
+					}
+				}
+			}
+		}
+		return null;
+	}
+
+	private String tryGetSecondString(String token, String key) {
+		if (token == null || token.trim().isEmpty()) {
+			return null;
+		}
+		String decoded = base64Decode(token);
+		String str = null;
+		if (decoded != null && !decoded.equals("-- invalid token --")) {
+			str = SymEncryption.getSecondStringFromToken(decoded, key);
+		}
+		if (str == null) {
+			str = SymEncryption.getSecondStringFromToken(token, key);
+		}
+		return str;
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -647,11 +809,111 @@ public class TokenResolverUtil {
 	 * @return
 	 */
 	public String base64Decode(String str) {
-		try {
-			return new String(Base64.getUrlDecoder().decode(str));
-		} catch (IllegalArgumentException e) {
+		if (str == null) {
 			return "-- invalid token --";
 		}
+		String s = normalizeToken(str);
+		try {
+			return new String(Base64.getUrlDecoder().decode(s), StandardCharsets.UTF_8);
+		} catch (IllegalArgumentException e) {
+			try {
+				return new String(Base64.getDecoder().decode(s), StandardCharsets.UTF_8);
+			} catch (IllegalArgumentException e2) {
+				return "-- invalid token --";
+			}
+		}
+	}
+
+	/**
+	 * Normalize token by URL-decoding percent-encoded characters and restoring spaces to '+'.
+	 * 
+	 * @param token
+	 * @return
+	 */
+	public String normalizeToken(String token) {
+		if (token == null) {
+			return null;
+		}
+		String normalized = token.trim();
+		if (normalized.contains("%")) {
+			try {
+				normalized = java.net.URLDecoder.decode(normalized, StandardCharsets.UTF_8);
+			} catch (Exception ignored) {
+			}
+		}
+		if (normalized.contains(" ")) {
+			normalized = normalized.replace(' ', '+');
+		}
+		return normalized;
+	}
+
+	/**
+	 * Timing-safe token matching comparing candidate against configured token,
+	 * accounting for URL percent-encoding, space-plus conversions, and single vs double base64 encoding.
+	 * 
+	 * @param candidate
+	 * @param configured
+	 * @return true if candidate matches configured token
+	 */
+	public boolean isTokenMatch(String candidate, String configured) {
+		if (candidate == null || configured == null) {
+			return false;
+		}
+		String cand = candidate.trim();
+		String conf = configured.trim();
+		if (cand.isEmpty() || conf.isEmpty()) {
+			return false;
+		}
+
+		if (Hash.constantTimeEquals(cand, conf)) {
+			return true;
+		}
+
+		String normCand = normalizeToken(cand);
+		String normConf = normalizeToken(conf);
+		if (Hash.constantTimeEquals(normCand, conf) || Hash.constantTimeEquals(cand, normConf)
+				|| Hash.constantTimeEquals(normCand, normConf)) {
+			return true;
+		}
+
+		// Check Base64 decoded forms
+		String decCand = base64Decode(cand);
+		if (!"-- invalid token --".equals(decCand)) {
+			if (Hash.constantTimeEquals(decCand, conf) || Hash.constantTimeEquals(decCand, normConf)) {
+				return true;
+			}
+		}
+		String decNormCand = base64Decode(normCand);
+		if (!"-- invalid token --".equals(decNormCand)) {
+			if (Hash.constantTimeEquals(decNormCand, conf) || Hash.constantTimeEquals(decNormCand, normConf)) {
+				return true;
+			}
+		}
+
+		String decConf = base64Decode(conf);
+		if (!"-- invalid token --".equals(decConf)) {
+			if (Hash.constantTimeEquals(cand, decConf) || Hash.constantTimeEquals(normCand, decConf)) {
+				return true;
+			}
+		}
+		String decNormConf = base64Decode(normConf);
+		if (!"-- invalid token --".equals(decNormConf)) {
+			if (Hash.constantTimeEquals(cand, decNormConf) || Hash.constantTimeEquals(normCand, decNormConf)) {
+				return true;
+			}
+		}
+
+		// Check Base64 encoded forms
+		String encCand = base64Encode(cand);
+		if (Hash.constantTimeEquals(encCand, conf) || Hash.constantTimeEquals(encCand, normConf)) {
+			return true;
+		}
+		String encNormCand = base64Encode(normCand);
+		if (Hash.constantTimeEquals(encNormCand, conf) || Hash.constantTimeEquals(encNormCand, normConf)) {
+			return true;
+		}
+
+		return false;
 	}
 
 }

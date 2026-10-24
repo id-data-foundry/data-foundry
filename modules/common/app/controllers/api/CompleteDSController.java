@@ -725,9 +725,7 @@ public class CompleteDSController extends AbstractDSController {
 			if (fileType.equalsIgnoreCase("gg")) {
 				// render notebook editor
 				return ok(views.html.tools.starboard.editNotebook.render(csrfToken(request), ds, fileId, fileName,
-						fileType, fileContents, request)) //
-						.withHeader("Cross-Origin-Embedder-Policy", "require-corp") //
-						.withHeader("Cross-Origin-Opener-Policy", "same-origin");
+						fileType, fileContents, request));
 			} else if (fileType.equalsIgnoreCase("twee") || fileType.equalsIgnoreCase("tw")) {
 				// redirect to Twine editor
 				return redirect(controllers.tools.routes.NarrativeSurveysController.loadTwee(id, fileId));
@@ -948,11 +946,7 @@ public class CompleteDSController extends AbstractDSController {
 		// check if the token is current (accept either public_access_token or web_access_token)
 		String pat = ds.getConfiguration().get(Dataset.PUBLIC_ACCESS_TOKEN);
 		String wat = ds.getConfiguration().get(Dataset.WEB_ACCESS_TOKEN);
-		boolean matchesPat = pat != null && !pat.trim().isEmpty()
-				&& MessageDigest.isEqual(pat.getBytes(StandardCharsets.UTF_8), token.getBytes(StandardCharsets.UTF_8));
-		boolean matchesWat = wat != null && !wat.trim().isEmpty()
-				&& MessageDigest.isEqual(wat.getBytes(StandardCharsets.UTF_8), token.getBytes(StandardCharsets.UTF_8));
-		if (!matchesPat && !matchesWat) {
+		if (!tokenResolverUtil.isTokenMatch(token, pat) && !tokenResolverUtil.isTokenMatch(token, wat)) {
 			return redirectCS(HOME);
 		}
 
@@ -971,6 +965,7 @@ public class CompleteDSController extends AbstractDSController {
 
 			return cs(() -> ok(file, false).as("application/x-download")
 					.withHeader("X-Content-Type-Options", "nosniff")
+					.withHeader("Access-Control-Allow-Origin", "*")
 					.withHeader("Content-Security-Policy", "sandbox"));
 		}
 

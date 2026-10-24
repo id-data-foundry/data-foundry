@@ -31,7 +31,6 @@ import controllers.auth.UserAuth;
 import datasets.DatasetConnector;
 import io.ebean.DB;
 import io.ebean.SqlQuery;
-import io.ebean.SqlRow;
 import models.Dataset;
 import models.DatasetType;
 import models.Person;
@@ -653,8 +652,8 @@ public class DataExportController extends AbstractAsyncController {
 						count[0]++;
 						if (count[0] >= 256) {
 							try {
-								QueueOfferResult res = sourceActor
-										.offer(ByteString.fromString(batch.toString())).toCompletableFuture().get();
+								QueueOfferResult res = sourceActor.offer(ByteString.fromString(batch.toString()))
+										.toCompletableFuture().get();
 								batch.setLength(0);
 								count[0] = 0;
 								if (!QueueOfferResult.enqueued().equals(res)) {

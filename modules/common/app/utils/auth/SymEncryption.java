@@ -81,11 +81,19 @@ public class SymEncryption {
 			return null;
 		}
 
-		if (encryptedValue.startsWith(V2_PREFIX)) {
-			return decryptV2(encryptedValue.substring(V2_PREFIX.length()), secretKey);
+		String val = encryptedValue;
+		if (val.contains("%")) {
+			try {
+				val = java.net.URLDecoder.decode(val, StandardCharsets.UTF_8);
+			} catch (Exception ignored) {
+			}
 		}
 
-		return decryptLegacy(encryptedValue, secretKey);
+		if (val.startsWith(V2_PREFIX)) {
+			return decryptV2(val.substring(V2_PREFIX.length()), secretKey);
+		}
+
+		return decryptLegacy(val, secretKey);
 	}
 
 	private static final String decryptV2(final String encryptedValueWithoutPrefix, final String secretKey) {
@@ -117,19 +125,31 @@ public class SymEncryption {
 		logger.warn("Decrypting legacy token without v2 prefix. Legacy tokens are deprecated.");
 		String decryptedValue = null;
 		try {
+			String normalized = encryptedValue;
+			if (normalized != null) {
+				if (normalized.contains("%")) {
+					try {
+						normalized = java.net.URLDecoder.decode(normalized, StandardCharsets.UTF_8);
+					} catch (Exception ignored) {
+					}
+				}
+				if (normalized.contains(" ")) {
+					normalized = normalized.replace(' ', '+');
+				}
+			}
 			final Key key = generateLegacyKeyFromString(secretKey);
 			final Cipher c = Cipher.getInstance(ALGORITHM);
 			c.init(Cipher.DECRYPT_MODE, key);
 			byte[] decorVal;
 			try {
-				decorVal = Base64.getDecoder().decode(encryptedValue);
+				decorVal = Base64.getDecoder().decode(normalized);
 			} catch (IllegalArgumentException e) {
-				decorVal = Base64.getUrlDecoder().decode(encryptedValue);
+				decorVal = Base64.getUrlDecoder().decode(normalized);
 			}
 			final byte[] decValue = c.doFinal(decorVal);
 			decryptedValue = new String(decValue, StandardCharsets.UTF_8);
 		} catch (Exception ex) {
-			// do nothing
+			logger.debug("Legacy decryption failed: " + ex.getMessage());
 		}
 		return decryptedValue;
 	}

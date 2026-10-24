@@ -3,7 +3,6 @@ package controllers;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
@@ -422,8 +421,7 @@ public class DatasetsController extends AbstractAsyncController {
 		if (filePath.isPresent()) {
 			File file = new File(filePath.get());
 			if (file.exists()) {
-				String fileName = (String) cache.get("cachedTemporaryFileName_" + token)
-						.orElse(file.getName());
+				String fileName = (String) cache.get("cachedTemporaryFileName_" + token).orElse(file.getName());
 				return ok(file, false, Optional.of(fileName)).as("application/zip");
 			}
 		}
@@ -686,9 +684,10 @@ public class DatasetsController extends AbstractAsyncController {
 			return cs(() -> status(GONE, "The project is not active, download is not available anymore."));
 		}
 
-		// check if the token is current
+		// check if the token is current (accept either public_access_token or web_access_token)
 		String pat = ds.getConfiguration().get(Dataset.PUBLIC_ACCESS_TOKEN);
-		if (!Hash.constantTimeEquals(token, pat)) {
+		String wat = ds.getConfiguration().get(Dataset.WEB_ACCESS_TOKEN);
+		if (!tokenResolverUtil.isTokenMatch(token, pat) && !tokenResolverUtil.isTokenMatch(token, wat)) {
 			return cs(() -> redirect(HOME).addingToSession(request, "error", "The dataset is not accessible."));
 		}
 
@@ -710,7 +709,8 @@ public class DatasetsController extends AbstractAsyncController {
 			cluster.setId(-1l);
 		}
 
-		return downloadExternalPublic(request, id, ds, cluster, limit, start, end);
+		return downloadExternalPublic(request, id, ds, cluster, limit, start, end)
+				.thenApply(res -> res.withHeader("Access-Control-Allow-Origin", "*"));
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -741,7 +741,8 @@ public class DatasetsController extends AbstractAsyncController {
 			}, ds, limit, start, end);
 		case LINKED: {
 			String target = ds.getTargetObject();
-			if (target != null && (target.startsWith("http://") || target.startsWith("https://") || target.startsWith("/"))) {
+			if (target != null
+					&& (target.startsWith("http://") || target.startsWith("https://") || target.startsWith("/"))) {
 				return redirectCS(Call.apply("GET", target, ""));
 			}
 			return redirectCS(controllers.routes.DatasetsController.view(ds.getId()));
@@ -802,7 +803,8 @@ public class DatasetsController extends AbstractAsyncController {
 			}, ds, limit, start, end);
 		case LINKED: {
 			String target = ds.getTargetObject();
-			if (target != null && (target.startsWith("http://") || target.startsWith("https://") || target.startsWith("/"))) {
+			if (target != null
+					&& (target.startsWith("http://") || target.startsWith("https://") || target.startsWith("/"))) {
 				return redirectCS(Call.apply("GET", target, ""));
 			}
 			return redirectCS(controllers.routes.DatasetsController.view(ds.getId()));
@@ -870,7 +872,8 @@ public class DatasetsController extends AbstractAsyncController {
 			return completeDSController.downloadInternal(Function.identity(), ds, limit, start, end);
 		case LINKED: {
 			String target = ds.getTargetObject();
-			if (target != null && (target.startsWith("http://") || target.startsWith("https://") || target.startsWith("/"))) {
+			if (target != null
+					&& (target.startsWith("http://") || target.startsWith("https://") || target.startsWith("/"))) {
 				return redirectCS(Call.apply("GET", target, ""));
 			}
 			return redirectCS(controllers.routes.DatasetsController.view(ds.getId()));
@@ -1196,9 +1199,10 @@ public class DatasetsController extends AbstractAsyncController {
 			return cs(() -> status(GONE, "The project is not active, download is not available anymore."));
 		}
 
-		// check if the token is current
+		// check if the token is current (accept either public_access_token or web_access_token)
 		String pat = ds.getConfiguration().get(Dataset.PUBLIC_ACCESS_TOKEN);
-		if (!Hash.constantTimeEquals(token, pat)) {
+		String wat = ds.getConfiguration().get(Dataset.WEB_ACCESS_TOKEN);
+		if (!tokenResolverUtil.isTokenMatch(token, pat) && !tokenResolverUtil.isTokenMatch(token, wat)) {
 			return cs(() -> redirect(HOME).addingToSession(request, "error", "The dataset is not accessible."));
 		}
 
@@ -1229,7 +1233,7 @@ public class DatasetsController extends AbstractAsyncController {
 			}
 
 			return ok(tempFile).withHeader(CONTENT_DISPOSITION, "attachment; filename=" + cluster.getSlug() + ".json")
-					.as(MimeTypes.JSON);
+					.as(MimeTypes.JSON).withHeader("Access-Control-Allow-Origin", "*");
 		});
 	}
 
@@ -1251,11 +1255,12 @@ public class DatasetsController extends AbstractAsyncController {
 		String lower = filename.toLowerCase();
 		return lower.endsWith(".css") || lower.endsWith(".js") || lower.endsWith(".mjs") || lower.endsWith(".cjs")
 				|| lower.endsWith(".png") || lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".gif")
-				|| lower.endsWith(".webp") || lower.endsWith(".svg") || lower.endsWith(".ico") || lower.endsWith(".avif")
-				|| lower.endsWith(".woff") || lower.endsWith(".woff2") || lower.endsWith(".ttf") || lower.endsWith(".otf")
-				|| lower.endsWith(".eot") || lower.endsWith(".json") || lower.endsWith(".map") || lower.endsWith(".txt")
-				|| lower.endsWith(".csv") || lower.endsWith(".xml") || lower.endsWith(".pdf") || lower.endsWith(".mp3")
-				|| lower.endsWith(".wav") || lower.endsWith(".ogg") || lower.endsWith(".mp4") || lower.endsWith(".webm");
+				|| lower.endsWith(".webp") || lower.endsWith(".svg") || lower.endsWith(".ico")
+				|| lower.endsWith(".avif") || lower.endsWith(".woff") || lower.endsWith(".woff2")
+				|| lower.endsWith(".ttf") || lower.endsWith(".otf") || lower.endsWith(".eot") || lower.endsWith(".json")
+				|| lower.endsWith(".map") || lower.endsWith(".txt") || lower.endsWith(".csv") || lower.endsWith(".xml")
+				|| lower.endsWith(".pdf") || lower.endsWith(".mp3") || lower.endsWith(".wav") || lower.endsWith(".ogg")
+				|| lower.endsWith(".mp4") || lower.endsWith(".webm");
 	}
 
 	private static String getWebAssetMimeType(String filename, File file) {
@@ -1498,8 +1503,10 @@ public class DatasetsController extends AbstractAsyncController {
 			}
 			final String lowerFilename = filename.toLowerCase();
 
-			// For HTML/Markdown pages: redirect to tokenized route so opaque sandboxed frames can load subresources without cookies
-			if (lowerFilename.endsWith(".html") || lowerFilename.endsWith(".htm") || lowerFilename.endsWith(".md") || lowerFilename.endsWith(".markdown")) {
+			// For HTML/Markdown pages: redirect to tokenized route so opaque sandboxed frames can load subresources
+			// without cookies
+			if (lowerFilename.endsWith(".html") || lowerFilename.endsWith(".htm") || lowerFilename.endsWith(".md")
+					|| lowerFilename.endsWith(".markdown")) {
 				String publicToken = ds.getEffectiveWebToken();
 				if (!publicToken.isEmpty()) {
 					return redirect(routes.DatasetsController.webToken(publicToken, filename));
@@ -1537,7 +1544,8 @@ public class DatasetsController extends AbstractAsyncController {
 			} else if (lowerFilename.endsWith(".js") || lowerFilename.endsWith(".css")) {
 				return res.withHeader("Cache-Control", "max-age=60");
 			} else if (FileTypeUtils.looksLikeImageFile(file) || lowerFilename.endsWith(".woff")
-					|| lowerFilename.endsWith(".woff2") || lowerFilename.endsWith(".ttf") || lowerFilename.endsWith(".otf")) {
+					|| lowerFilename.endsWith(".woff2") || lowerFilename.endsWith(".ttf")
+					|| lowerFilename.endsWith(".otf")) {
 				return res.withHeader("Cache-Control", "max-age=3600");
 			} else {
 				return res;
@@ -1586,11 +1594,12 @@ public class DatasetsController extends AbstractAsyncController {
 				return notFound();
 			}
 
-			// check token existance and correctness (accept either modern web_access_token or legacy public_access_token)
+			// check token existance and correctness (accept either modern web_access_token or legacy
+			// public_access_token)
 			String webAccessToken = ds.configuration(Dataset.WEB_ACCESS_TOKEN, "");
 			String publicAccessToken = ds.configuration(Dataset.PUBLIC_ACCESS_TOKEN, "");
-			boolean tokenMatches = (!webAccessToken.isEmpty() && Hash.constantTimeEquals(webAccessToken, webTokenStr))
-					|| (!publicAccessToken.isEmpty() && Hash.constantTimeEquals(publicAccessToken, webTokenStr));
+			boolean tokenMatches = tokenResolverUtil.isTokenMatch(webTokenStr, webAccessToken)
+					|| tokenResolverUtil.isTokenMatch(webTokenStr, publicAccessToken);
 			if (!tokenMatches) {
 				return notFound();
 			}
@@ -1602,8 +1611,7 @@ public class DatasetsController extends AbstractAsyncController {
 			Optional<String> usernameOpt = getAuthenticatedUserName(request);
 			// abort if there is no user logged in, or the project does not belong to the logged-in user or they are
 			// collaborating, AND web access token is not set
-			if ((usernameOpt.isEmpty() || !project.editableBy(usernameOpt.get()))
-					&& !ds.hasWebOrPublicToken()) {
+			if ((usernameOpt.isEmpty() || !project.editableBy(usernameOpt.get())) && !ds.hasWebOrPublicToken()) {
 				return redirect(HOME).addingToSession(request, "error",
 						"Website not accessible for guests at the moment.");
 			}
@@ -1656,9 +1664,9 @@ public class DatasetsController extends AbstractAsyncController {
 				// read file contents
 				try {
 					String contents = new String(Files.readAllBytes(Paths.get(file.getAbsolutePath())));
-					return ok(views.html.datasets.complete.webmdStandalone.render(ds, FormMarkdown.renderHtml(contents)))
-							.as("text/html; charset=utf-8")
-							.withHeader("Content-Security-Policy", WEB_TOKEN_CSP_HEADER)
+					return ok(
+							views.html.datasets.complete.webmdStandalone.render(ds, FormMarkdown.renderHtml(contents)))
+							.as("text/html; charset=utf-8").withHeader("Content-Security-Policy", WEB_TOKEN_CSP_HEADER)
 							.withHeader("X-Content-Type-Options", "nosniff");
 				} catch (IOException e) {
 					// log and return the file safely as plain text
@@ -1687,7 +1695,8 @@ public class DatasetsController extends AbstractAsyncController {
 				} else if (lowerFilename.endsWith(".js") || lowerFilename.endsWith(".css")) {
 					return res.withHeader("Cache-Control", "max-age=60");
 				} else if (FileTypeUtils.looksLikeImageFile(file) || lowerFilename.endsWith(".woff")
-						|| lowerFilename.endsWith(".woff2") || lowerFilename.endsWith(".ttf") || lowerFilename.endsWith(".otf")) {
+						|| lowerFilename.endsWith(".woff2") || lowerFilename.endsWith(".ttf")
+						|| lowerFilename.endsWith(".otf")) {
 					return res.withHeader("Cache-Control", "max-age=3600");
 				} else {
 					return res;
@@ -1797,9 +1806,9 @@ public class DatasetsController extends AbstractAsyncController {
 				// read file contents
 				try {
 					String contents = new String(Files.readAllBytes(Paths.get(file.getAbsolutePath())));
-					return ok(views.html.datasets.complete.webmdStandalone.render(ds, FormMarkdown.renderHtml(contents)))
-							.as("text/html; charset=utf-8")
-							.withHeader("Content-Security-Policy", WEB_TOKEN_CSP_HEADER)
+					return ok(
+							views.html.datasets.complete.webmdStandalone.render(ds, FormMarkdown.renderHtml(contents)))
+							.as("text/html; charset=utf-8").withHeader("Content-Security-Policy", WEB_TOKEN_CSP_HEADER)
 							.withHeader("X-Content-Type-Options", "nosniff");
 				} catch (IOException e) {
 					// log and return the file safely as plain text
@@ -1828,7 +1837,8 @@ public class DatasetsController extends AbstractAsyncController {
 				} else if (lowerFilename.endsWith(".js") || lowerFilename.endsWith(".css")) {
 					return res.withHeader("Cache-Control", "max-age=60");
 				} else if (FileTypeUtils.looksLikeImageFile(file) || lowerFilename.endsWith(".woff")
-						|| lowerFilename.endsWith(".woff2") || lowerFilename.endsWith(".ttf") || lowerFilename.endsWith(".otf")) {
+						|| lowerFilename.endsWith(".woff2") || lowerFilename.endsWith(".ttf")
+						|| lowerFilename.endsWith(".otf")) {
 					return res.withHeader("Cache-Control", "max-age=3600");
 				} else {
 					return res;
@@ -1851,8 +1861,7 @@ public class DatasetsController extends AbstractAsyncController {
 		// list files to choose an entry point from
 		CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
 		List<TimedMedia> files = cpds.getFiles();
-		return ok(
-				views.html.elements.dataset.config.outletWebAccessEntryPoint.render(ds, files, csrfToken(request)));
+		return ok(views.html.elements.dataset.config.outletWebAccessEntryPoint.render(ds, files, csrfToken(request)));
 	}
 
 	@Authenticated(UserAuth.class)
@@ -1876,8 +1885,7 @@ public class DatasetsController extends AbstractAsyncController {
 		// we set the entry point here:
 		// entrypoint -1 means no or default entry point
 		String selectedEntryPoint = filename.get().toString();
-		ds.getConfiguration().put(Dataset.WEB_ACCESS_ENTRY,
-				selectedEntryPoint.equals("-1") ? "" : selectedEntryPoint);
+		ds.getConfiguration().put(Dataset.WEB_ACCESS_ENTRY, selectedEntryPoint.equals("-1") ? "" : selectedEntryPoint);
 		ds.update();
 
 		return noContent();
@@ -2267,9 +2275,9 @@ public class DatasetsController extends AbstractAsyncController {
 		case COMPLETE:
 			return completeDSController.duplicate(request, id);
 		// case LINKED:
-		// 	return linkedDSController.duplicate(request, id);
+		// return linkedDSController.duplicate(request, id);
 		// case ES:
-		// 	return expSamplingDSController.duplicate(request, id);
+		// return expSamplingDSController.duplicate(request, id);
 		case MOVEMENT:
 			return movementDSController.duplicate(request, id);
 		case MEDIA:

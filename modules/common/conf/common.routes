@@ -509,6 +509,7 @@ GET 		/tools/starboard										controllers.tools.StarboardController.index(requ
 POST 		/tools/starboard										controllers.tools.StarboardController.addNotebook(request: Request)
 GET 		/tools/starboard/datasets							controllers.tools.StarboardController.datasets(request: Request)
 GET 		/tools/starboard/export/:datasetId/:fileId			controllers.tools.StarboardController.exportJupyterNotebook(request: Request, datasetId: Long, fileId: Long)
+GET 		/tools/starboard/runner/:datasetId/:fileId			controllers.tools.StarboardController.runner(request: Request, datasetId: Long, fileId: Long)
 
 # tools: twine
 POST		/tools/twine/:id/activate							controllers.tools.NarrativeSurveysController.addNarrativeSurveyView(request: Request, id: Long)

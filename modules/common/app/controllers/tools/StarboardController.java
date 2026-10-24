@@ -2,6 +2,7 @@ package controllers.tools;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Date;
 import java.util.List;
@@ -160,6 +161,47 @@ public class StarboardController extends AbstractAsyncController {
 			// conversion issue
 			return notFound("Conversion failed, export unsuccessful.");
 		}
+	}
+
+	@Authenticated(UserAuth.class)
+	public Result runner(Request request, long datasetId, long fileId) {
+		Person user = getAuthenticatedUserOrReturn(request, forbidden("You are not logged in."));
+
+		Dataset ds = Dataset.find.byId(datasetId);
+		if (ds == null || !user.canEdit(ds.getProject())) {
+			return forbidden("Dataset not found or not accessible.");
+		}
+
+		CompleteDS cds = datasetConnector.getTypedDatasetDS(ds);
+		Optional<File> requestedFileOpt = cds.getFile(fileId);
+		if (!requestedFileOpt.isPresent()) {
+			return notFound("File was not found in dataset.");
+		}
+
+		File requestedFile = requestedFileOpt.get();
+		if (!requestedFile.exists()) {
+			return notFound("File was not found in dataset.");
+		}
+
+		String fileName = requestedFile.getName();
+		String fileContents = "";
+		try {
+			fileContents = org.apache.commons.io.FileUtils.readFileToString(requestedFile, StandardCharsets.UTF_8);
+		} catch (IOException e) {
+			fileContents = "";
+		}
+
+		return ok(views.html.tools.starboard.runner.render(ds, fileId, fileName, fileContents))
+				.as("text/html; charset=utf-8")
+				.withHeader("X-Content-Type-Options", "nosniff")
+				.withHeader("Content-Security-Policy",
+						"sandbox allow-scripts allow-modals allow-downloads allow-forms allow-popups; "
+								+ "connect-src * data: blob: 'self' http: https: ws: wss:; "
+								+ "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https: http:; "
+								+ "style-src 'self' 'unsafe-inline' https: http:; "
+								+ "font-src 'self' https: http: data:; "
+								+ "img-src * data: blob: 'self' http: https:; "
+								+ "frame-ancestors 'self';");
 	}
 
 	/**

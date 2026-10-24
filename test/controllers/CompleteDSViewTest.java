@@ -15,10 +15,15 @@ import static play.test.Helpers.contentAsString;
 import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.security.Key;
+import java.util.Arrays;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
+import javax.crypto.Cipher;
+import javax.crypto.spec.SecretKeySpec;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -28,6 +33,7 @@ import org.pac4j.core.profile.ProfileManager;
 import org.pac4j.play.PlayWebContext;
 
 import controllers.api.CompleteDSController;
+import controllers.tools.StarboardController;
 import datasets.DatasetConnector;
 import models.Dataset;
 import models.DatasetType;
@@ -48,6 +54,7 @@ public class CompleteDSViewTest extends WithApplication {
 	private TokenResolverUtil tokenResolverUtil;
 	private CompleteDSController completeDSController;
 	private DatasetsController datasetsController;
+	private StarboardController starboardController;
 	private SessionStore sessionStore;
 
 	private Person ownerUser;
@@ -72,6 +79,7 @@ public class CompleteDSViewTest extends WithApplication {
 		tokenResolverUtil = app.injector().instanceOf(TokenResolverUtil.class);
 		completeDSController = app.injector().instanceOf(CompleteDSController.class);
 		datasetsController = app.injector().instanceOf(DatasetsController.class);
+		starboardController = app.injector().instanceOf(StarboardController.class);
 		sessionStore = app.injector().instanceOf(SessionStore.class);
 
 		ownerUser = new Person();
@@ -402,7 +410,175 @@ public class CompleteDSViewTest extends WithApplication {
 		assertEquals(OK, publicCsvRes.status());
 		assertEquals("application/x-download", publicCsvRes.contentType().orElse(""));
 		assertEquals("nosniff", publicCsvRes.header("X-Content-Type-Options").orElse(""));
+		assertEquals("*", publicCsvRes.header("Access-Control-Allow-Origin").orElse(""));
 		assertEquals("sandbox", publicCsvRes.header("Content-Security-Policy").orElse(""));
 		assertTrue("Content-Disposition must be attachment", publicCsvRes.header("Content-Disposition").orElse("").startsWith("attachment"));
+	}
+
+	@Test
+	public void testStarboardSandboxing() throws Exception {
+		// 1. Create a Starboard .gg file in the complete dataset
+		File ggFile = File.createTempFile("notebook", ".gg");
+		Files.write(ggFile.toPath(), "# %% [javascript]\nconsole.log('hello');\n".getBytes(StandardCharsets.UTF_8));
+		completeDS.storeFile(ggFile, "analysis.gg");
+		completeDS.addRecord("analysis.gg", "Starboard notebook", new Date());
+		ggFile.delete();
+
+		long ggFileId = completeDS.getLatestFileVersionId("analysis.gg").orElse(-1L);
+		assertTrue("Starboard file ID should be valid", ggFileId > 0);
+
+		// 2. Test editFile shell renders sandboxed iframe
+		Http.Request editRequest = createAuthenticatedRequest(GET, "/datasets/existing/edit/" + dataset.getId() + "/" + ggFileId, ownerUser);
+		Result editResult = completeDSController.editFile(editRequest, dataset.getId(), ggFileId);
+		assertEquals(OK, editResult.status());
+		String editBody = contentAsString(editResult);
+		assertTrue("Edit page should use collapsed-layout bodyClass", editBody.contains("class=\"collapsed-layout\""));
+		assertTrue("Edit page should include sidenav", editBody.contains("id=\"sidenav\""));
+		assertTrue("Edit page should include breadcrumbs navigation", editBody.contains("class=\"breadcrumb\""));
+		assertTrue("Edit page should contain sandboxed starboardFrame", editBody.contains("id=\"starboardFrame\""));
+		assertTrue("starboardFrame should have sandbox attribute", editBody.contains("sandbox=\"allow-scripts allow-modals allow-downloads allow-forms allow-popups\""));
+		assertTrue("starboardFrame should target runner endpoint", editBody.contains("/tools/starboard/runner/" + dataset.getId() + "/" + ggFileId));
+		assertFalse("Edit page should NOT load starboard-notebook.js directly in host origin", editBody.contains("vendor/starboard/starboard-notebook.js"));
+		assertFalse("Edit page should not have COEP", editResult.header("Cross-Origin-Embedder-Policy").isPresent());
+
+		// 3. Test runner endpoint delivers strict CSP sandbox without allow-same-origin
+		Http.Request runnerRequest = createAuthenticatedRequest(GET, "/tools/starboard/runner/" + dataset.getId() + "/" + ggFileId, ownerUser);
+		Result runnerResult = starboardController.runner(runnerRequest, dataset.getId(), ggFileId);
+		assertEquals(OK, runnerResult.status());
+		assertFalse("Runner must NOT require COEP so opaque origin can load subresources without CORP", runnerResult.header("Cross-Origin-Embedder-Policy").isPresent());
+		assertFalse("Runner must NOT set COOP same-origin", runnerResult.header("Cross-Origin-Opener-Policy").isPresent());
+		assertTrue("Runner response must include Content-Security-Policy", runnerResult.header("Content-Security-Policy").isPresent());
+		String csp = runnerResult.header("Content-Security-Policy").get();
+		assertTrue("Runner CSP must enforce sandbox", csp.contains("sandbox allow-scripts"));
+		assertFalse("Runner CSP must NOT include allow-same-origin (must remain opaque null origin)", csp.contains("allow-same-origin"));
+		assertTrue("Runner CSP must permit connect-src for external libraries and datasets", csp.contains("connect-src * data: blob: 'self' http: https: ws: wss:;"));
+		assertEquals("nosniff", runnerResult.header("X-Content-Type-Options").orElse(""));
+
+		String runnerBody = contentAsString(runnerResult);
+		assertTrue("Runner body must contain storage polyfill", runnerBody.contains("createStore"));
+		assertTrue("Runner body must set initialNotebookContent", runnerBody.contains("window.initialNotebookContent"));
+		assertTrue("Runner body must configure starboardArtifactsUrl", runnerBody.contains("window.starboardArtifactsUrl"));
+
+		// 4. Test unauthorized user cannot access runner
+		Person otherUser = new Person();
+		otherUser.setFirstname("Other");
+		otherUser.setLastname("User");
+		otherUser.setEmail("other_" + UUID.randomUUID() + "@example.com");
+		otherUser.setUser_id(UUID.randomUUID().toString());
+		otherUser.save();
+
+		Http.Request unauthorizedRunnerReq = createAuthenticatedRequest(GET, "/tools/starboard/runner/" + dataset.getId() + "/" + ggFileId, otherUser);
+		Result unauthResult = starboardController.runner(unauthorizedRunnerReq, dataset.getId(), ggFileId);
+		assertEquals(FORBIDDEN, unauthResult.status());
+
+		// 5. Test datasets helper endpoint (HTMX target) for tokenized vs un-tokenized datasets
+		Http.Request datasetsReq = createAuthenticatedRequest(GET, "/tools/starboard/datasets", ownerUser);
+		Result datasetsRes = starboardController.datasets(datasetsReq);
+		assertEquals(OK, datasetsRes.status());
+		String datasetsBody = contentAsString(datasetsRes);
+		// dataset currently has no PUBLIC_ACCESS_TOKEN
+		assertTrue("Datasets helper should indicate unconfigured token", datasetsBody.contains("No public access token configured"));
+		assertTrue("Datasets helper should link to dataset configuration", datasetsBody.contains("/datasets/" + dataset.getId()));
+
+		// Now configure PUBLIC_ACCESS_TOKEN on dataset
+		String testToken = tokenResolverUtil.getDatasetToken(dataset.getId());
+		dataset.getConfiguration().put(Dataset.PUBLIC_ACCESS_TOKEN, testToken);
+		dataset.update();
+
+		Result datasetsResWithToken = starboardController.datasets(datasetsReq);
+		assertEquals(OK, datasetsResWithToken.status());
+		String datasetsBodyWithToken = contentAsString(datasetsResWithToken);
+		assertTrue("Datasets helper should show JavaScript snippet with public token", datasetsBodyWithToken.contains("/datasets/downloadPublic/json/" + testToken));
+		assertTrue("Datasets helper should show Python snippet with public token", datasetsBodyWithToken.contains("/datasets/downloadPublic/" + testToken));
+
+		// 6. Test public token endpoints return Access-Control-Allow-Origin: *
+		Http.Request publicJsonReq = createAuthenticatedRequest(GET, "/datasets/downloadPublic/json/" + testToken, null);
+		Result publicJsonRes = datasetsController.downloadJsonPublic(publicJsonReq, testToken, -1L, -1L, -1L, -1L).toCompletableFuture().get();
+		assertEquals(OK, publicJsonRes.status());
+		assertEquals("*", publicJsonRes.header("Access-Control-Allow-Origin").orElse(""));
+
+		Http.Request publicCsvReq = createAuthenticatedRequest(GET, "/datasets/downloadPublic/" + testToken, null);
+		Result publicCsvRes2 = datasetsController.downloadPublic(publicCsvReq, testToken, -1L, -1L, -1L, -1L).toCompletableFuture().get();
+		assertEquals(OK, publicCsvRes2.status());
+		assertEquals("*", publicCsvRes2.header("Access-Control-Allow-Origin").orElse(""));
+	}
+
+	private String generateLegacyToken(String payload, String secretKey) throws Exception {
+		byte[] keyVal = Base64.getEncoder().encode(secretKey.getBytes(StandardCharsets.UTF_8));
+		Key key = new SecretKeySpec(Arrays.copyOf(keyVal, 16), "AES");
+		Cipher c = Cipher.getInstance("AES");
+		c.init(Cipher.ENCRYPT_MODE, key);
+		byte[] enc = c.doFinal(payload.getBytes(StandardCharsets.UTF_8));
+		return Base64.getEncoder().encodeToString(enc);
+	}
+
+	@Test
+	public void testLegacyTokenAndWebTokenPublicDownload() throws Exception {
+		// 1. Test dataset 15 with the user's exact token: QWw4bDRpOEV6Y3RaQTBtUlY1UXAzZz09
+		// Create datasets until ID 15 exists in H2
+		Dataset ds15 = dataset;
+		while (ds15.getId() < 15L) {
+			ds15 = datasetConnector.create("Dataset " + UUID.randomUUID(), DatasetType.COMPLETE, project, "Desc", "Target", "true");
+			ds15.save();
+		}
+		assertEquals(Long.valueOf(15L), ds15.getId());
+
+		String userToken = "QWw4bDRpOEV6Y3RaQTBtUlY1UXAzZz09";
+		ds15.getConfiguration().put(Dataset.PUBLIC_ACCESS_TOKEN, userToken);
+		ds15.update();
+
+		// A. JSON download with exact token
+		Http.Request jsonReq = createAuthenticatedRequest(GET, "/datasets/downloadPublic/json/" + userToken, null);
+		Result jsonRes = datasetsController.downloadJsonPublic(jsonReq, userToken, -1L, -1L, -1L, -1L).toCompletableFuture().get();
+		assertEquals(OK, jsonRes.status());
+		assertEquals("*", jsonRes.header("Access-Control-Allow-Origin").orElse(""));
+
+		// B. CSV download with exact token
+		Http.Request csvReq = createAuthenticatedRequest(GET, "/datasets/downloadPublic/" + userToken, null);
+		Result csvRes = datasetsController.downloadPublic(csvReq, userToken, -1L, -1L, -1L, -1L).toCompletableFuture().get();
+		assertEquals(OK, csvRes.status());
+		assertEquals("*", csvRes.header("Access-Control-Allow-Origin").orElse(""));
+
+		// C. Single-encoded legacy token Al8l4i8EzctZA0mRV5Qp3g==
+		String singleEncodedToken = "Al8l4i8EzctZA0mRV5Qp3g==";
+		Http.Request singleReq = createAuthenticatedRequest(GET, "/datasets/downloadPublic/json/" + singleEncodedToken, null);
+		Result singleRes = datasetsController.downloadJsonPublic(singleReq, singleEncodedToken, -1L, -1L, -1L, -1L).toCompletableFuture().get();
+		assertEquals(OK, singleRes.status());
+
+		// D. Percent-encoded legacy token Al8l4i8EzctZA0mRV5Qp3g%3D%3D
+		String percentEncodedToken = "Al8l4i8EzctZA0mRV5Qp3g%3D%3D";
+		Http.Request percentReq = createAuthenticatedRequest(GET, "/datasets/downloadPublic/json/" + percentEncodedToken, null);
+		Result percentRes = datasetsController.downloadJsonPublic(percentReq, percentEncodedToken, -1L, -1L, -1L, -1L).toCompletableFuture().get();
+		assertEquals(OK, percentRes.status());
+
+		// 2. Test WEB_ACCESS_TOKEN configuration allows download without PUBLIC_ACCESS_TOKEN
+		ds15.getConfiguration().remove(Dataset.PUBLIC_ACCESS_TOKEN);
+		ds15.getConfiguration().put(Dataset.WEB_ACCESS_TOKEN, userToken);
+		ds15.update();
+
+		Result webTokenJsonRes = datasetsController.downloadJsonPublic(jsonReq, userToken, -1L, -1L, -1L, -1L).toCompletableFuture().get();
+		assertEquals(OK, webTokenJsonRes.status());
+
+		Result webTokenCsvRes = datasetsController.downloadPublic(csvReq, userToken, -1L, -1L, -1L, -1L).toCompletableFuture().get();
+		assertEquals(OK, webTokenCsvRes.status());
+
+		// 3. Test starboard datasets helper snippet rendering with WEB_ACCESS_TOKEN
+		Http.Request helperReq = createAuthenticatedRequest(GET, "/tools/starboard/datasets", ownerUser);
+		Result helperRes = starboardController.datasets(helperReq);
+		assertEquals(OK, helperRes.status());
+		String helperBody = contentAsString(helperRes);
+		assertTrue(helperBody.contains("/datasets/downloadPublic/json/" + userToken));
+		assertTrue(helperBody.contains("/datasets/downloadPublic/" + userToken));
+
+		// 4. Test CompleteDSController.downloadFilePublic with legacy token
+		CompleteDS cpds15 = (CompleteDS) datasetConnector.getDatasetDS(ds15);
+		File testFile = File.createTempFile("legacy_pub_test", ".txt");
+		Files.write(testFile.toPath(), "Legacy File Content".getBytes(StandardCharsets.UTF_8));
+		cpds15.storeFile(testFile, "public_test.txt");
+		cpds15.addRecord("public_test.txt", "Description", new Date());
+		testFile.delete();
+
+		Result fileRes = completeDSController.downloadFilePublic("public_test.txt", userToken).toCompletableFuture().get();
+		assertEquals(OK, fileRes.status());
 	}
 }

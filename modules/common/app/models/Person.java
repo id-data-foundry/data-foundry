@@ -5,7 +5,6 @@ import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.JsonNode;
@@ -618,11 +617,9 @@ public class Person extends Model {
 		this.lastname = lastname;
 	}
 
-	private static final String[] LASTNAME_PREFIXES = {
-		"van der", "van den", "van de", "van", "von", "de", "der", "den",
-		"del", "della", "dello", "degli", "dei", "du", "des", "d'", "da",
-		"das", "do", "dos", "af", "av", "mac", "mc", "o'", "le", "la", "el"
-	};
+	private static final String[] LASTNAME_PREFIXES = { "van der", "van den", "van de", "van", "von", "de", "der",
+			"den", "del", "della", "dello", "degli", "dei", "du", "des", "d'", "da", "das", "do", "dos", "af", "av",
+			"mac", "mc", "o'", "le", "la", "el" };
 
 	static {
 		java.util.Arrays.sort(LASTNAME_PREFIXES, (a, b) -> Integer.compare(b.length(), a.length()));

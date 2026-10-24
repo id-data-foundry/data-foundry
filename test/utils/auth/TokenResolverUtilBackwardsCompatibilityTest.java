@@ -1,6 +1,7 @@
 package utils.auth;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
@@ -363,5 +364,45 @@ public class TokenResolverUtilBackwardsCompatibilityTest {
 		String decodedToken = URLDecoder.decode(token, StandardCharsets.UTF_8);
 		assertEquals("Token must be unaffected by standard application/x-www-form-urlencoded decoding",
 				token, decodedToken);
+	}
+
+	@Test
+	public void testLegacyTokenFallbackWithoutProjectKeyPrefix() {
+		// Exact token from user request: QWw4bDRpOEV6Y3RaQTBtUlY1UXAzZz09
+		// It outer-decodes to Al8l4i8EzctZA0mRV5Qp3g== and decrypts to "15:-:87346929" under key "_dataset"
+		String exactUserToken = "QWw4bDRpOEV6Y3RaQTBtUlY1UXAzZz09";
+		Long resolvedDatasetId = tokenResolverUtil.getDatasetIdFromToken(exactUserToken);
+		assertEquals(Long.valueOf(15L), resolvedDatasetId);
+
+		// Single-encoded legacy token
+		String singleEncoded = "Al8l4i8EzctZA0mRV5Qp3g==";
+		assertEquals(Long.valueOf(15L), tokenResolverUtil.getDatasetIdFromToken(singleEncoded));
+
+		// Percent-encoded variant of single-encoded token
+		String percentEncoded = "Al8l4i8EzctZA0mRV5Qp3g%3D%3D";
+		assertEquals(Long.valueOf(15L), tokenResolverUtil.getDatasetIdFromToken(percentEncoded));
+	}
+
+	@Test
+	public void testIsTokenMatch() {
+		String exactUserToken = "QWw4bDRpOEV6Y3RaQTBtUlY1UXAzZz09";
+		String singleEncoded = "Al8l4i8EzctZA0mRV5Qp3g==";
+		String percentEncoded = "Al8l4i8EzctZA0mRV5Qp3g%3D%3D";
+
+		// Direct match
+		assertTrue(tokenResolverUtil.isTokenMatch(exactUserToken, exactUserToken));
+
+		// Cross match (double-encoded candidate vs single-encoded configured, and vice versa)
+		assertTrue(tokenResolverUtil.isTokenMatch(exactUserToken, singleEncoded));
+		assertTrue(tokenResolverUtil.isTokenMatch(singleEncoded, exactUserToken));
+
+		// Percent-encoded matching
+		assertTrue(tokenResolverUtil.isTokenMatch(percentEncoded, exactUserToken));
+		assertTrue(tokenResolverUtil.isTokenMatch(percentEncoded, singleEncoded));
+
+		// Negative match
+		assertFalse(tokenResolverUtil.isTokenMatch("randomInvalidToken", exactUserToken));
+		assertFalse(tokenResolverUtil.isTokenMatch(null, exactUserToken));
+		assertFalse(tokenResolverUtil.isTokenMatch(exactUserToken, null));
 	}
 }
