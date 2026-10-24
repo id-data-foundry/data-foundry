@@ -30,8 +30,8 @@
   <div id="timelineProgress" class="progress" style="margin: 20px 0;">
     <div class="indeterminate"></div>
   </div>
-  <div id="projectFlowContainer" class="col s12" style="display: none; height: calc(200px+@{p.getAllDatasets().size() * 25 + 100}px); overflow: scroll;">
-    <div class="mermaid">
+  <div id="projectFlowContainer" class="col s12" style="display: none; height: calc(160px+@{p.getAllDatasets().size() * 16 + 80}px); overflow: scroll;">
+    <div class="pele">
       gantt
         dateFormat YYYY-MM-DD
         todayMarker stroke-width:5px, stroke:#5c6bc0, opacity:0.5
@@ -199,24 +199,18 @@
       hx-trigger="load"></div>
   </div>
 </div>
-@elements.mermaidHelper()
+@elements.diagramHelper()
 <script type="text/javascript">
-    document.addEventListener("DOMContentLoaded", (event) => {
-      ensureMermaidLoaded(function() {
-        const flowContainer = document.getElementById('projectFlowContainer');
-        const progress = document.getElementById('timelineProgress');
-        const mermaidNode = flowContainer ? flowContainer.querySelector('.mermaid') : null;
-        if (mermaidNode) {
-          window.mermaid.run({
-            nodes: [mermaidNode]
-          }).then(function() {
-            if (progress) progress.style.display = 'none';
-            if (flowContainer) flowContainer.style.display = 'block';
-          }).catch(function() {
-            if (progress) progress.style.display = 'none';
-            if (flowContainer) flowContainer.style.display = 'block';
-          });
+    document.addEventListener("DOMContentLoaded", function(event) {
+      ensurePeleLoaded(function() {
+        var flowContainer = document.getElementById('projectFlowContainer');
+        var progress = document.getElementById('timelineProgress');
+        if (flowContainer) flowContainer.style.display = 'block';
+        var diagrams = document.querySelectorAll('.pele, .mermaid');
+        if (diagrams.length > 0) {
+          renderPeleNodes(diagrams);
         }
+        if (progress) progress.style.display = 'none';
       });
     });
 </script>

@@ -231,7 +231,7 @@
   <div class="col s12">
     <div class="card">
       <div class="card-content">
-        <details ontoggle="toggleMermaidWorkflow(this)">
+        <details ontoggle="toggleDiagramWorkflow(this)">
           <summary style="cursor: pointer; font-weight: 500;">How do scripts work?</summary>
           <div style="margin-top: 15px;">
             <p>
@@ -244,10 +244,10 @@
               <b>Actions</b>: Scripts can trigger external actions or send out data by posting messages to <b>OOCSI channels</b> or sending <b>Telegram</b> replies and notifications to participants or researchers.
             </p>
           </div>
-          <div class="mermaid-loading progress" style="display: none; margin-top: 20px;">
+          <div class="diagram-loading progress" style="display: none; margin-top: 20px;">
             <div class="indeterminate"></div>
           </div>
-          <div class="mermaid" style="display: none; margin-top: 20px; justify-content: center;">
+          <div class="pele" style="display: none; margin-top: 20px;">
             sequenceDiagram
               participant O as OOCSI (In)
               participant T as Telegram (In)
@@ -752,5 +752,5 @@ else {
 
   </script>
 
-  @elements.mermaidHelper()
+  @elements.diagramHelper()
 }

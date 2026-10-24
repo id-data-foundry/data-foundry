@@ -276,7 +276,7 @@
     <div class="col s12">
       <div class="card">
         <div class="card-content">
-          <details ontoggle="toggleMermaidWorkflow(this)">
+          <details ontoggle="toggleDiagramWorkflow(this)">
             <summary style="cursor: pointer; font-weight: 500;">How it works (Workflow Diagram)</summary>
             <div style="margin-top: 15px;">
               <p>
@@ -289,10 +289,10 @@
                 <b>What you can do</b>: You can have the system notify an <b>OOCSI channel</b> when a new file arrives or export the list of files and metadata as a <b>CSV spreadsheet</b>.
               </p>
             </div>
-            <div class="mermaid-loading progress" style="display: none; margin-top: 20px;">
+            <div class="diagram-loading progress" style="display: none; margin-top: 20px;">
               <div class="indeterminate"></div>
             </div>
-            <div class="mermaid" style="display: none; margin-top: 20px; justify-content: center;">
+            <div class="pele" style="display: none; margin-top: 20px;">
               sequenceDiagram
                 participant U as Web UI / Browser
                 participant A as API / HTTP
@@ -341,7 +341,7 @@
     }
     </div>
 
-    @elements.mermaidHelper()
+    @elements.diagramHelper()
     }
 
     }

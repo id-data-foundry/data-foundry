@@ -178,7 +178,7 @@
     <div class="col s12">
       <div class="card">
         <div class="card-content">
-          <details ontoggle="toggleMermaidWorkflow(this)">
+          <details ontoggle="toggleDiagramWorkflow(this)">
             <summary style="cursor: pointer; font-weight: 500;">How it works (Workflow Diagram)</summary>
             <div style="margin-top: 15px;">
               <p>
@@ -191,10 +191,10 @@
                 <b>What you can do</b>: You can receive notifications of form submissions in real-time via <b>OOCSI</b> or export the collected form answers as a <b>CSV spreadsheet</b>.
               </p>
             </div>
-            <div class="mermaid-loading progress" style="display: none; margin-top: 20px;">
+            <div class="diagram-loading progress" style="display: none; margin-top: 20px;">
               <div class="indeterminate"></div>
             </div>
-            <div class="mermaid" style="display: none; margin-top: 20px; justify-content: center;">
+            <div class="pele" style="display: none; margin-top: 20px;">
               sequenceDiagram
                 participant P as Participant (Browser)
                 participant DS as Form Dataset
@@ -215,7 +215,7 @@
     </div>
   </div>
 
-  @elements.mermaidHelper()
+  @elements.diagramHelper()
   }
 
   @elements.dataset.config.standard(dataset, user)

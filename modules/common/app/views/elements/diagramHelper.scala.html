@@ -1,0 +1,112 @@
+@()
+
+@* Reusable lazy-loaded Pele diagram loader with Materialize theming, full-width scaling, and progress indicator support *@
+<style type="text/css">
+  .pele {
+    width: 100% !important;
+    display: block;
+    --pele-font: 'Arimo', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    --pele-font-mono: Consolas, Monaco, 'Ubuntu Mono', monospace;
+    --pele-bg: transparent;
+    --pele-fg: #212121;
+    --pele-muted: #757575;
+    --pele-line: #424242;
+    --pele-border: #81c784;
+    --pele-surface: #ffffff;
+    --pele-surface-alt: #f1f8e9;
+    --pele-accent: #2e7d32;
+    --pele-radius: 6px;
+  }
+  .idprojects .pele {
+    --pele-border: #7986cb;
+    --pele-surface-alt: #e8eaf6;
+    --pele-accent: #1e88e5;
+  }
+  .pele svg, svg.pele {
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    display: block;
+  }
+</style>
+
+<script type="text/javascript">
+  var peleLoadPromise = null;
+  function ensurePeleLoaded(onReady) {
+    if (window.pele) {
+      if (onReady) onReady();
+      return Promise.resolve();
+    }
+    if (!peleLoadPromise) {
+      peleLoadPromise = new Promise(function(resolve, reject) {
+        var script = document.createElement('script');
+        script.src = '@routes.Assets.versioned("javascripts/pele.min.js")';
+        script.type = 'text/javascript';
+        script.onload = function() { resolve(); };
+        script.onerror = function(err) { peleLoadPromise = null; reject(err); };
+        document.body.appendChild(script);
+      });
+    }
+    return peleLoadPromise.then(function() {
+      if (onReady) onReady();
+    });
+  }
+  var ensureMermaidLoaded = ensurePeleLoaded;
+
+  function renderPeleNodes(nodes) {
+    if (!nodes || !window.pele) return;
+    Array.from(nodes).forEach(function(container) {
+      if (!container || container.getAttribute('data-processed') === 'true') return;
+      var rawText = container.getAttribute('data-diagram-source') || container.textContent.trim();
+      container.setAttribute('data-diagram-source', rawText);
+      try {
+        var containerWidth = container.clientWidth || (container.parentElement ? container.parentElement.clientWidth : 0);
+        var options = {
+          config: {
+            gantt: {
+              barHeight: 14,
+              barGap: 4
+            }
+          }
+        };
+        if (containerWidth && containerWidth > 100) {
+          options.config.gantt.useWidth = Math.round(containerWidth);
+        }
+        var res = window.pele.render(rawText, options);
+        if (res && res.svg) {
+          container.innerHTML = res.svg;
+          container.setAttribute('data-processed', 'true');
+          container.classList.add('pele');
+          container.style.width = '100%';
+          container.style.display = 'block';
+        }
+      } catch (e) {
+        console.error("Pele render error:", e);
+      }
+    });
+  }
+
+  function toggleDiagramWorkflow(detailsElem) {
+    if (!detailsElem || !detailsElem.open) return;
+    var progress = detailsElem.querySelector('.diagram-loading, .mermaid-loading');
+    var container = detailsElem.querySelector('.pele, .mermaid');
+    if (!container) return;
+    
+    // If already rendered, ensure visible and exit
+    if (container.getAttribute('data-processed') === 'true') {
+      if (progress) progress.style.display = 'none';
+      container.style.display = 'block';
+      return;
+    }
+
+    if (progress) progress.style.display = 'block';
+    container.style.display = 'none';
+
+    ensurePeleLoaded(function() {
+      renderPeleNodes([container]);
+      if (progress) progress.style.display = 'none';
+      container.style.display = 'block';
+    });
+  }
+  var toggleMermaidWorkflow = toggleDiagramWorkflow;
+</script>

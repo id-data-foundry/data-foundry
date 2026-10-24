@@ -263,7 +263,7 @@
             </summary>
             @if(isAgentic) {
               @if(isMemoryEnabled && hasDocs) {
-              <div class="mermaid" style="margin-top: 16px; display: flex; justify-content: center;">
+              <div class="pele" style="margin-top: 16px;">
                 flowchart LR
                   User["👤 You\nAsk question or give task"] --> Assistant["🤖 Smart Agent\nPlans & calls tools"]
                   Assistant <-->|"On-demand search"| KB["📚 Knowledge Base\nUploaded docs"]
@@ -272,7 +272,7 @@
               </div>
               }
               @if(isMemoryEnabled && !hasDocs) {
-              <div class="mermaid" style="margin-top: 16px; display: flex; justify-content: center;">
+              <div class="pele" style="margin-top: 16px;">
                 flowchart LR
                   User["👤 You\nAsk question or give task"] --> Assistant["🤖 Smart Agent\nPlans & calls tools"]
                   Assistant <-->|"Saves facts & notes"| Memory["🧠 Memory & Notes\nSaved user facts & files"]
@@ -280,7 +280,7 @@
               </div>
               }
               @if(!isMemoryEnabled && hasDocs) {
-              <div class="mermaid" style="margin-top: 16px; display: flex; justify-content: center;">
+              <div class="pele" style="margin-top: 16px;">
                 flowchart LR
                   User["👤 You\nAsk question or give task"] --> Assistant["🤖 Smart Agent\nPlans & calls tools"]
                   Assistant <-->|"On-demand search"| KB["📚 Knowledge Base\nUploaded docs"]
@@ -288,7 +288,7 @@
               </div>
               }
               @if(!isMemoryEnabled && !hasDocs) {
-              <div class="mermaid" style="margin-top: 16px; display: flex; justify-content: center;">
+              <div class="pele" style="margin-top: 16px;">
                 flowchart LR
                   User["👤 You\nAsk question or give task"] --> Assistant["🤖 Smart Agent\nDirect reasoning"]
                   Assistant --> Output["✨ Answer\nAgent response"]
@@ -296,7 +296,7 @@
               }
             } else {
               @if(hasDocs) {
-              <div class="mermaid" style="margin-top: 16px; display: flex; justify-content: center;">
+              <div class="pele" style="margin-top: 16px;">
                 flowchart LR
                   User["👤 You\nAsk question"] --> Search["🔍 Search\nFinds relevant document chunks"]
                   Search --> KB["📚 Knowledge Base\nUploaded docs"]
@@ -306,7 +306,7 @@
                   AI --> Output["✨ Answer\nResponse with document sources"]
               </div>
               } else {
-              <div class="mermaid" style="margin-top: 16px; display: flex; justify-content: center;">
+              <div class="pele" style="margin-top: 16px;">
                 flowchart LR
                   User["👤 You\nAsk question"] --> Prompt["📝 Prompt\nSystem prompt + message"]
                   Prompt --> AI["🤖 Chatbot\nDirect completion"]
@@ -576,24 +576,16 @@
     });
   </script>
 
-  <script src="@routes.Assets.versioned("javascripts/mermaid.min.js")" type="text/javascript"></script>
-  <script>
-    mermaid.initialize({
-      startOnLoad: true,
-      theme: 'default',
-      securityLevel: 'loose'
-    });
-
+  @elements.diagramHelper()
+  <script type="text/javascript">
     document.addEventListener('DOMContentLoaded', function() {
-      const details = document.getElementById('workflow-details');
+      var details = document.getElementById('workflow-details');
       if (details) {
         details.addEventListener('toggle', function() {
-          if (details.open && window.mermaid) {
-            try {
-              mermaid.run();
-            } catch (e) {
-              // ignore if already rendered
-            }
+          if (details.open) {
+            ensurePeleLoaded(function() {
+              renderPeleNodes(details.querySelectorAll('.pele, .mermaid'));
+            });
           }
         });
       }
