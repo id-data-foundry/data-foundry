@@ -43,7 +43,7 @@
 					}
 				</p>
 				<p>
-					Initialize the entity dataset with your project resources: add a row per <a href="@api.routes.EntityDSController.tableAddParticipants(ds.getId())">participant</a>, <a href="@api.routes.EntityDSController.tableAddWearables(ds.getId())">wearable</a>, or <a href="@api.routes.EntityDSController.tableAddDevices(ds.getId())">device</a>.
+					Initialize the entity dataset with your project resources: add a row per <a href="javascript:void(0)" hx-post="@api.routes.EntityDSController.tableAddParticipants(ds.getId())" hx-headers='{"Csrf-Token": "@play.filters.csrf.CSRF.getToken(request).map(_.value).orElse("")"}' hx-swap="none" onclick="setTimeout(function(){location.reload();},800)">participant</a>, <a href="javascript:void(0)" hx-post="@api.routes.EntityDSController.tableAddWearables(ds.getId())" hx-headers='{"Csrf-Token": "@play.filters.csrf.CSRF.getToken(request).map(_.value).orElse("")"}' hx-swap="none" onclick="setTimeout(function(){location.reload();},800)">wearable</a>, or <a href="javascript:void(0)" hx-post="@api.routes.EntityDSController.tableAddDevices(ds.getId())" hx-headers='{"Csrf-Token": "@play.filters.csrf.CSRF.getToken(request).map(_.value).orElse("")"}' hx-swap="none" onclick="setTimeout(function(){location.reload();},800)">device</a>.
 				</p>
 			</div>
 		</div>

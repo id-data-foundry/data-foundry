@@ -505,6 +505,7 @@ public class EntityDSController extends AbstractDSController {
 	}
 
 	@Authenticated(UserAuth.class)
+	@RequireCSRFCheck
 	public Result tableAddParticipants(Request request, Long id) {
 		String username = getAuthenticatedUserNameOrReturn(request, redirect(LANDING));
 
@@ -518,7 +519,7 @@ public class EntityDSController extends AbstractDSController {
 
 		Project p = ds.getProject();
 		p.refresh();
-		if (!p.visibleFor(username)) {
+		if (!p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error", "Project not accessible.");
 		}
 
@@ -534,6 +535,7 @@ public class EntityDSController extends AbstractDSController {
 	}
 
 	@Authenticated(UserAuth.class)
+	@RequireCSRFCheck
 	public Result tableAddWearables(Request request, Long id) {
 		String username = getAuthenticatedUserNameOrReturn(request, redirect(LANDING));
 
@@ -547,7 +549,7 @@ public class EntityDSController extends AbstractDSController {
 
 		Project p = ds.getProject();
 		p.refresh();
-		if (!p.visibleFor(username)) {
+		if (!p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error", "Project not accessible.");
 		}
 
@@ -563,6 +565,7 @@ public class EntityDSController extends AbstractDSController {
 	}
 
 	@Authenticated(UserAuth.class)
+	@RequireCSRFCheck
 	public Result tableAddDevices(Request request, Long id) {
 		String username = getAuthenticatedUserNameOrReturn(request, redirect(LANDING));
 
@@ -576,7 +579,7 @@ public class EntityDSController extends AbstractDSController {
 
 		Project p = ds.getProject();
 		p.refresh();
-		if (!p.visibleFor(username)) {
+		if (!p.editableBy(username)) {
 			return redirect(HOME).addingToSession(request, "error", "Project not accessible.");
 		}
 
