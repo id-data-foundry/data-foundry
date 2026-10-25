@@ -569,6 +569,11 @@ public class CompleteDSViewTest extends WithApplication {
 		String helperBody = contentAsString(helperRes);
 		assertTrue(helperBody.contains("/datasets/downloadPublic/json/" + userToken));
 		assertTrue(helperBody.contains("/datasets/downloadPublic/" + userToken));
+		assertFalse("datasets helper should not contain material-icons font icons", helperBody.contains("material-icons"));
+		assertFalse("datasets helper should not contain unicode triangle bullet", helperBody.contains("&#5125;"));
+		assertTrue("datasets helper should render project-icon svg", helperBody.contains("project-icon"));
+		assertTrue("datasets helper should render dataset-icon svg", helperBody.contains("dataset-icon"));
+		assertTrue("datasets helper should render dataset-lock-icon svg for unconfigured dataset", helperBody.contains("dataset-lock-icon"));
 
 		// 4. Test CompleteDSController.downloadFilePublic with legacy token
 		CompleteDS cpds15 = (CompleteDS) datasetConnector.getDatasetDS(ds15);

@@ -1,5 +1,23 @@
 @(projects : List[models.Project])(implicit request: Http.Request)
 <div class="card-panel grey lighten-4" style="margin-top: 1rem; border: 1px solid #ddd; border-radius: 4px;">
+	<style type="text/css">
+		.datasets-helper-project .project-icon svg {
+			width: 20px;
+			height: 20px;
+			vertical-align: middle;
+		}
+		.datasets-helper-item .dataset-icon svg {
+			width: 18px;
+			height: 18px;
+			vertical-align: middle;
+		}
+		.datasets-helper-item .dataset-lock-icon svg {
+			width: 16px;
+			height: 16px;
+			vertical-align: middle;
+			fill: currentColor;
+		}
+	</style>
 	<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
 		<h6 style="margin: 0;"><strong>Access data from your datasets in a notebook</strong></h6>
 		<a id="helpCloseBtn" class="btn-flat btn-small" style="cursor: pointer;">&times; close</a>
@@ -8,14 +26,17 @@
 		Select a project and dataset to view code snippets for your notebook cells (JavaScript / Python). Note that datasets must have a public access token configured to allow sandboxed notebook access.
 	</p>
 	@for(p <- projects) {
-	<div style="margin-bottom: 0.5rem;">
-		<a class="project btn-flat" style="padding-left: 0; font-weight: 600; cursor: pointer;">
-			<i class="material-icons tiny left">folder</i>@p.getName()
+	<div style="margin-bottom: 0.5rem;" class="datasets-helper-project">
+		<a class="project btn-flat" style="padding-left: 0; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center;">
+			<i class="project-icon" style="margin-right: 6px; display: inline-flex; align-items: center;">@elements.icon("project")</i>@p.getName()
 		</a>
 		<div class="datasets" style="margin-left: 1.5rem; margin-bottom: 1rem;">
 			@for(ds <- p.getDatasets()) {
-			<div style="margin-bottom: 0.75rem;">
-				<span>&#5125; <strong>@ds.getName()</strong></span>
+			<div style="margin-bottom: 0.75rem;" class="datasets-helper-item">
+				<span style="display: inline-flex; align-items: center; vertical-align: middle;">
+					<i class="dataset-icon" style="margin-right: 6px; display: inline-flex; align-items: center;">@elements.icon(ds.toIcon())</i>
+					<strong>@ds.getName()</strong>
+				</span>
 				@defining(ds.getEffectiveWebToken()) { pat =>
 					@if(!pat.isEmpty) {
 						<a class="btn-small waves-effect waves-light teal lighten-1 jsBtn" style="margin-left: 0.5rem;">JavaScript</a>
@@ -40,10 +61,10 @@ df = pd.read_csv(pyodide.http.open_url(url))
 # work with the DataFrame and print results
 print(df.head())</pre></code></div>
 					} else {
-						<span class="grey-text" style="font-size: 0.85rem; margin-left: 0.75rem;">
-							<i class="material-icons tiny left" style="margin-right: 4px;">lock_outline</i>
+						<span class="grey-text" style="font-size: 0.85rem; margin-left: 0.75rem; display: inline-flex; align-items: center;">
+							<i class="dataset-lock-icon" style="margin-right: 4px; display: inline-flex; align-items: center;">@elements.icon("lock")</i>
 							No public access token configured.
-							<a href="@routes.DatasetsController.view(ds.getId())" target="_blank" class="teal-text">Configure in dataset settings &rarr;</a>
+							<a href="@routes.DatasetsController.view(ds.getId())" target="_blank" class="teal-text" style="margin-left: 4px;">Configure in dataset settings &rarr;</a>
 						</span>
 					}
 				}
