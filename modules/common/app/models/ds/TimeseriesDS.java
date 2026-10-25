@@ -327,10 +327,13 @@ public class TimeseriesDS extends LinkedDS {
 
 	@Override
 	public void export(SourceQueueWithComplete<ByteString> queue, Cluster cluster, long limit, long start, long end) {
-		if (cluster != null) {
+		if (cluster != null && (cluster.getId() > -1 || !cluster.getDevices().isEmpty())) {
 			DatasetUtils.fillClusterSlots(cluster);
 		}
-		exportProjected(queue, cluster != null ? cluster.getDeviceList() : Collections.emptyList(), limit, start, end);
+		exportProjected(queue,
+				(cluster != null && (cluster.getId() > -1 || !cluster.getDevices().isEmpty())) ? cluster.getDeviceList()
+						: Collections.emptyList(),
+				limit, start, end);
 	}
 
 	public void export(SourceQueueWithComplete<ByteString> destinationQueue, List<Long> deviceIds, long limit,
@@ -514,7 +517,7 @@ public class TimeseriesDS extends LinkedDS {
 	@Override
 	public void exportProjectedToFile(FileWriter fileWriter, Cluster cluster, long limit, long start, long end) {
 		final String whereClause;
-		if (cluster.getDevices().isEmpty()) {
+		if (cluster == null || cluster.getDevices().isEmpty()) {
 			whereClause = timeFilterWhereClause(start, end);
 		} else {
 			whereClause = " WHERE device_id IN ("
@@ -589,7 +592,7 @@ public class TimeseriesDS extends LinkedDS {
 	public ArrayNode retrieveProjected(Cluster cluster, long limit, long start, long end) {
 
 		final String whereClause;
-		if (cluster.getDevices().isEmpty()) {
+		if (cluster == null || cluster.getDevices().isEmpty()) {
 			whereClause = timeFilterWhereClause(start, end);
 		} else {
 			whereClause = " WHERE device_id IN ("

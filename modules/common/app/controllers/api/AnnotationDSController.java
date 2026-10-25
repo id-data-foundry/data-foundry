@@ -316,7 +316,7 @@ public class AnnotationDSController extends AbstractDSController {
 	}
 
 	public CompletionStage<Result> downloadExternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
-		return CompletableFuture.supplyAsync(() -> internalExport(ds, cluster.getId(), limit, start, end))
+		return CompletableFuture.supplyAsync(() -> internalExport(ds, cluster != null ? cluster.getId() : -1l, limit, start, end))
 				.thenApplyAsync(chunks -> ok().chunked(chunks)
 						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
 						.as("text/csv"));
@@ -324,7 +324,7 @@ public class AnnotationDSController extends AbstractDSController {
 	}
 
 	public CompletionStage<Result> downloadInternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
-		return CompletableFuture.supplyAsync(() -> internalExport(ds, cluster.getId(), limit, start, end))
+		return CompletableFuture.supplyAsync(() -> internalExport(ds, cluster != null ? cluster.getId() : -1l, limit, start, end))
 				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
 
 	}

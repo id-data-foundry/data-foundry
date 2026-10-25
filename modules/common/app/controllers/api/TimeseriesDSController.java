@@ -630,11 +630,13 @@ public class TimeseriesDSController extends AbstractDSController {
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////// .
 
 	public CompletionStage<Result> downloadExternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
-		if (cluster != null) {
+		if (cluster != null && (cluster.getId() > -1 || !cluster.getDevices().isEmpty())) {
 			DatasetUtils.fillClusterSlots(cluster);
 		}
 		// get device ids (if cluster is given)
-		final List<Long> deviceIds = cluster != null ? cluster.getDeviceList() : Collections.emptyList();
+		final List<Long> deviceIds = (cluster != null && (cluster.getId() > -1 || !cluster.getDevices().isEmpty()))
+				? cluster.getDeviceList()
+				: Collections.emptyList();
 		return CompletableFuture.supplyAsync(() -> internalExport(ds, deviceIds, limit, start, end))
 				.thenApplyAsync(chunks -> ok().chunked(chunks)
 						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
@@ -642,11 +644,13 @@ public class TimeseriesDSController extends AbstractDSController {
 	}
 
 	public CompletionStage<Result> downloadInternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
-		if (cluster != null) {
+		if (cluster != null && (cluster.getId() > -1 || !cluster.getDevices().isEmpty())) {
 			DatasetUtils.fillClusterSlots(cluster);
 		}
 		// get device ids (if cluster is given)
-		final List<Long> deviceIds = cluster != null ? cluster.getDeviceList() : Collections.emptyList();
+		final List<Long> deviceIds = (cluster != null && (cluster.getId() > -1 || !cluster.getDevices().isEmpty()))
+				? cluster.getDeviceList()
+				: Collections.emptyList();
 		return CompletableFuture.supplyAsync(() -> internalExport(ds, deviceIds, limit, start, end))
 				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
 	}

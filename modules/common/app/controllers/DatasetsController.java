@@ -482,9 +482,7 @@ public class DatasetsController extends AbstractAsyncController {
 				cluster = clusterOpt.get();
 			}
 		} else {
-			// create empty cluster just in memory
-			cluster = new Cluster("data");
-			cluster.setId(-1l);
+			cluster = null;
 		}
 
 		// only show if user is owner or guest within DF
@@ -704,9 +702,7 @@ public class DatasetsController extends AbstractAsyncController {
 				cluster = cl.get();
 			}
 		} else {
-			// create empty cluster just in memory
-			cluster = new Cluster("data");
-			cluster.setId(-1l);
+			cluster = null;
 		}
 
 		return downloadExternalPublic(request, id, ds, cluster, limit, start, end)
@@ -952,9 +948,7 @@ public class DatasetsController extends AbstractAsyncController {
 				cluster = cl.get();
 			}
 		} else {
-			// create empty cluster just in memory
-			cluster = new Cluster("data");
-			cluster.setId(-1l);
+			cluster = null;
 		}
 
 		// only show if user is owner or guest within DF
@@ -982,7 +976,8 @@ public class DatasetsController extends AbstractAsyncController {
 				return notFound();
 			}
 
-			return ok(tempFile).withHeader(CONTENT_DISPOSITION, "attachment; filename=" + cluster.getSlug() + ".json")
+			String filename = (cluster != null ? cluster.getSlug() : "data") + ".json";
+			return ok(tempFile).withHeader(CONTENT_DISPOSITION, "attachment; filename=" + filename)
 					.as(MimeTypes.JSON);
 		});
 	}
@@ -1028,7 +1023,8 @@ public class DatasetsController extends AbstractAsyncController {
 			return notFound();
 		}
 
-		return ok(tempFile).withHeader(CONTENT_DISPOSITION, "attachment; filename=" + cluster.getSlug() + ".json")
+		String filename = (cluster != null ? cluster.getSlug() : "data") + ".json";
+		return ok(tempFile).withHeader(CONTENT_DISPOSITION, "attachment; filename=" + filename)
 				.as(MimeTypes.JSON);
 	}
 
@@ -1098,7 +1094,8 @@ public class DatasetsController extends AbstractAsyncController {
 				return notFound();
 			}
 
-			return ok(tempFile).withHeader(CONTENT_DISPOSITION, "attachment; filename=" + cluster.getSlug() + ".json")
+			String filename = (cluster != null ? cluster.getSlug() : "data") + ".json";
+			return ok(tempFile).withHeader(CONTENT_DISPOSITION, "attachment; filename=" + filename)
 					.as(MimeTypes.JSON);
 		});
 	}
@@ -1219,9 +1216,7 @@ public class DatasetsController extends AbstractAsyncController {
 				cluster = cl.get();
 			}
 		} else {
-			// create empty cluster just in memory
-			cluster = new Cluster("data");
-			cluster.setId(-1l);
+			cluster = null;
 		}
 
 		return CompletableFuture.supplyAsync(() -> {
@@ -1232,7 +1227,8 @@ public class DatasetsController extends AbstractAsyncController {
 				return notFound();
 			}
 
-			return ok(tempFile).withHeader(CONTENT_DISPOSITION, "attachment; filename=" + cluster.getSlug() + ".json")
+			String filename = (cluster != null ? cluster.getSlug() : "data") + ".json";
+			return ok(tempFile).withHeader(CONTENT_DISPOSITION, "attachment; filename=" + filename)
 					.as(MimeTypes.JSON).withHeader("Access-Control-Allow-Origin", "*");
 		});
 	}

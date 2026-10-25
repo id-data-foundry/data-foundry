@@ -1,6 +1,7 @@
 package controllers.api;
 
 import java.io.File;
+import java.util.Collections;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
@@ -308,7 +309,7 @@ public class MovementDSController extends AbstractDSController {
 
 	public CompletionStage<Result> downloadExternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
 		// get participant ids (if cluster is given)
-		final List<Long> participantIds = cluster.getParticipantList();
+		final List<Long> participantIds = cluster != null ? cluster.getParticipantList() : Collections.emptyList();
 		return CompletableFuture.supplyAsync(() -> internalExport(ds, participantIds, limit, start, end))
 				.thenApplyAsync(chunks -> ok().chunked(chunks)
 						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
@@ -317,7 +318,7 @@ public class MovementDSController extends AbstractDSController {
 
 	public CompletionStage<Result> downloadInternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
 		// get participant ids (if cluster is given)
-		final List<Long> participantIds = cluster.getParticipantList();
+		final List<Long> participantIds = cluster != null ? cluster.getParticipantList() : Collections.emptyList();
 		return CompletableFuture.supplyAsync(() -> internalExport(ds, participantIds, limit, start, end))
 				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
 	}

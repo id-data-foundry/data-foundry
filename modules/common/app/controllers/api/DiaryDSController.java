@@ -1,5 +1,6 @@
 package controllers.api;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -165,7 +166,7 @@ public class DiaryDSController extends AbstractDSController {
 
 	public CompletionStage<Result> downloadExternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
 		// get participant ids from cluster
-		final List<Long> participantIds = cluster.getParticipantList();
+		final List<Long> participantIds = cluster != null ? cluster.getParticipantList() : Collections.emptyList();
 		return CompletableFuture.supplyAsync(() -> internalExport(ds, participantIds, limit, start, end))
 		        .thenApplyAsync(chunks -> ok().chunked(chunks)
 		                .withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
@@ -174,7 +175,7 @@ public class DiaryDSController extends AbstractDSController {
 
 	public CompletionStage<Result> downloadInternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
 		// get participant ids from cluster
-		final List<Long> participantIds = cluster.getParticipantList();
+		final List<Long> participantIds = cluster != null ? cluster.getParticipantList() : Collections.emptyList();
 		return CompletableFuture.supplyAsync(() -> internalExport(ds, participantIds, limit, start, end))
 		        .thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
 	}

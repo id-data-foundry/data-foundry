@@ -226,7 +226,9 @@ public class GoogleFitDSController extends AbstractDSController {
 	 */
 	public CompletionStage<Result> downloadExternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
 		// get wearable ids (if cluster is given)
-		final List<Long> wearablesIds = cluster.getWearableList();
+		final List<Long> wearablesIds = (cluster != null && (cluster.getId() > -1 || !cluster.getWearables().isEmpty()))
+				? cluster.getWearableList()
+				: null;
 		return CompletableFuture.supplyAsync(() -> internalExportRaw(ds, wearablesIds, limit, start, end))
 		        .thenApplyAsync(chunks -> ok().chunked(chunks)
 		                .withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
@@ -244,7 +246,9 @@ public class GoogleFitDSController extends AbstractDSController {
 	 */
 	public CompletionStage<Result> downloadInternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
 		// get wearable ids (if cluster is given)
-		final List<Long> wearablesIds = cluster.getWearableList();
+		final List<Long> wearablesIds = (cluster != null && (cluster.getId() > -1 || !cluster.getWearables().isEmpty()))
+				? cluster.getWearableList()
+				: null;
 		return CompletableFuture.supplyAsync(() -> internalExportRaw(ds, wearablesIds, limit, start, end))
 		        .thenApplyAsync(chunks -> ok().chunked(chunks)
 		                .withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
