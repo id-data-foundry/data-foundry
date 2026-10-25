@@ -630,11 +630,11 @@ public class TimeseriesDSController extends AbstractDSController {
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////// .
 
 	public CompletionStage<Result> downloadExternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
-		if (cluster != null && (cluster.getId() > -1 || !cluster.getDevices().isEmpty())) {
+		if (cluster != null && cluster.isFilterable()) {
 			DatasetUtils.fillClusterSlots(cluster);
 		}
 		// get device ids (if cluster is given)
-		final List<Long> deviceIds = (cluster != null && (cluster.getId() > -1 || !cluster.getDevices().isEmpty()))
+		final List<Long> deviceIds = (cluster != null && cluster.isFilterable())
 				? cluster.getDeviceList()
 				: Collections.emptyList();
 		return CompletableFuture.supplyAsync(() -> internalExport(ds, deviceIds, limit, start, end))
@@ -644,11 +644,11 @@ public class TimeseriesDSController extends AbstractDSController {
 	}
 
 	public CompletionStage<Result> downloadInternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
-		if (cluster != null && (cluster.getId() > -1 || !cluster.getDevices().isEmpty())) {
+		if (cluster != null && cluster.isFilterable()) {
 			DatasetUtils.fillClusterSlots(cluster);
 		}
 		// get device ids (if cluster is given)
-		final List<Long> deviceIds = (cluster != null && (cluster.getId() > -1 || !cluster.getDevices().isEmpty()))
+		final List<Long> deviceIds = (cluster != null && cluster.isFilterable())
 				? cluster.getDeviceList()
 				: Collections.emptyList();
 		return CompletableFuture.supplyAsync(() -> internalExport(ds, deviceIds, limit, start, end))

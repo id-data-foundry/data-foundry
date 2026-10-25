@@ -1,6 +1,7 @@
 package controllers;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 import static play.mvc.Http.Status.OK;
@@ -32,6 +33,7 @@ import models.ds.EntityDS;
 import models.ds.TimeseriesDS;
 import models.sr.Cluster;
 import models.sr.Device;
+import models.sr.Participant;
 import play.Application;
 import play.inject.guice.GuiceApplicationBuilder;
 import play.libs.Json;
@@ -241,5 +243,97 @@ public class DatasetDownloadTest extends WithApplication {
 		assertTrue(body.contains("res_1"));
 		assertTrue(body.contains("res_2"));
 		assertTrue(body.contains("res_3"));
+	}
+
+	@Test
+	public void testTimeseriesDownloadParticipantWithoutClusterSucceeds() throws Exception {
+		Participant participant = Participant.createInstance("Test", "Participant",
+				"part_" + UUID.randomUUID().toString().substring(0, 8) + "@example.com", project);
+		participant.save();
+		project.getParticipants().add(participant);
+		project.update();
+
+		Http.Request request = createAuthenticatedRequest(GET,
+				"/datasets/download/" + timeseriesDs.getId() + "/participant/" + participant.getId(), ownerUser);
+
+		Result result = datasetsController
+				.downloadParticipant(request, timeseriesDs.getId(), participant.getId(), -1L, -1L, -1L)
+				.toCompletableFuture().get();
+		assertEquals(OK, result.status());
+
+		String body = contentAsString(result, mat);
+		assertNotNull(body);
+		String[] lines = body.trim().split("\n");
+		// Participant has no devices, so only header row returned
+		assertEquals("Participant without devices should return only header row", 1, lines.length);
+	}
+
+	@Test
+	public void testTimeseriesDownloadDeviceWithoutClusterSucceeds() throws Exception {
+		// device1 has 55 records and is NOT associated with any cluster
+		Http.Request request = createAuthenticatedRequest(GET,
+				"/datasets/download/" + timeseriesDs.getId() + "/device/" + device1.getId(), ownerUser);
+
+		Result result = datasetsController
+				.downloadDevice(request, timeseriesDs.getId(), device1.getId(), -1L, -1L, -1L)
+				.toCompletableFuture().get();
+		assertEquals(OK, result.status());
+
+		String body = contentAsString(result, mat);
+		assertNotNull(body);
+		String[] lines = body.trim().split("\n");
+		// 1 header row + 55 data rows for device1
+		assertEquals("Device without cluster should return 56 lines (1 header + 55 data rows)", 56, lines.length);
+	}
+
+	@Test
+	public void testEntityDownloadParticipantWithoutClusterSucceeds() throws Exception {
+		Participant participant = Participant.createInstance("Entity", "Participant",
+				"entity_part_" + UUID.randomUUID().toString().substring(0, 8) + "@example.com", project);
+		participant.setRefId("res_1");
+		participant.save();
+		project.getParticipants().add(participant);
+		project.update();
+
+		Http.Request request = createAuthenticatedRequest(GET,
+				"/datasets/download/" + entityDs.getId() + "/participant/" + participant.getId(), ownerUser);
+
+		Result result = datasetsController
+				.downloadParticipant(request, entityDs.getId(), participant.getId(), -1L, -1L, -1L)
+				.toCompletableFuture().get();
+		assertEquals(OK, result.status());
+
+		String body = contentAsString(result, mat);
+		assertNotNull(body);
+		assertTrue("CSV should contain entity record for participant res_1", body.contains("res_1"));
+	}
+
+	@Test
+	public void testClusterHelperMethods() {
+		Cluster transientCluster = new Cluster("Transient");
+		// No ID, empty resources
+		assertFalse(transientCluster.hasValidId());
+		assertFalse(transientCluster.isFilterable());
+
+		// Dummy cluster with id -1
+		transientCluster.setId(-1L);
+		assertFalse(transientCluster.hasValidId());
+		assertFalse(transientCluster.isFilterable());
+
+		// Persisted cluster with positive ID
+		transientCluster.setId(42L);
+		assertTrue(transientCluster.hasValidId());
+		assertTrue(transientCluster.isFilterable());
+
+		// Transient cluster with null ID but participant
+		Cluster participantCluster = new Cluster("PartCluster");
+		participantCluster.getParticipants().add(new Participant("dummy@example.com"));
+		assertFalse(participantCluster.hasValidId());
+		assertTrue(participantCluster.isFilterable());
+
+		// In-memory cluster with id -1 and participant
+		participantCluster.setId(-1L);
+		assertFalse(participantCluster.hasValidId());
+		assertTrue(participantCluster.isFilterable());
 	}
 }

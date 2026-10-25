@@ -239,6 +239,19 @@ public class Cluster extends Model {
 		return id;
 	}
 
+	public boolean hasValidId() {
+		return this.id != null && this.id > -1;
+	}
+
+	public boolean isFilterable() {
+		if (this.id != null && this.id > -1) {
+			return true;
+		}
+		return (this.devices != null && !this.devices.isEmpty())
+				|| (this.participants != null && !this.participants.isEmpty())
+				|| (this.wearables != null && !this.wearables.isEmpty());
+	}
+
 	public void setId(Long id) {
 		this.id = id;
 	}

@@ -663,7 +663,7 @@ public class EntityDS extends LinkedDS {
 	}
 
 	private String resourceIdWhereClause(Cluster cluster, long start, long end) {
-		if (cluster == null || (cluster.getId() <= -1 && cluster.getParticipants().isEmpty())) {
+		if (cluster == null || !cluster.isFilterable()) {
 			return " WHERE id IN (SELECT MAX(id) FROM " + dataTableName + " GROUP BY resource_id) "
 					+ timeFilterWhereClause(start, end).replace("WHERE", "AND");
 		}

@@ -81,7 +81,7 @@ public class AnnotationDS extends LinkedDS {
 	}
 
 	public void addRecord(Cluster cluster, Date ts, String title, String text) {
-		addRecord(cluster != null ? cluster.getId() : -1, ts, title, text);
+		addRecord((cluster != null && cluster.hasValidId()) ? cluster.getId() : -1L, ts, title, text);
 	}
 
 	public void addRecord(Long cluster_id, Date ts, String title, String text) {
@@ -113,7 +113,7 @@ public class AnnotationDS extends LinkedDS {
 
 	@Override
 	public void export(SourceQueueWithComplete<ByteString> queue, Cluster cluster, long limit, long start, long end) {
-		export(queue, cluster.getId(), limit, start, end);
+		export(queue, (cluster != null && cluster.hasValidId()) ? cluster.getId() : -1L, limit, start, end);
 	}
 
 	public void export(SourceQueueWithComplete<ByteString> queue, long cluster_id, long limit, long start, long end) {
@@ -178,7 +178,7 @@ public class AnnotationDS extends LinkedDS {
 	public ArrayNode retrieveProjected(Cluster cluster, long limit, long start, long end) {
 
 		final String whereClause;
-		if (cluster.getId() == -1l) {
+		if (cluster == null || !cluster.hasValidId()) {
 			whereClause = timeFilterWhereClause(start, end);
 		} else {
 			whereClause = " WHERE cluster_id IN (" + cluster.getId() + ") "
