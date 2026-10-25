@@ -192,7 +192,7 @@
 					<p>
 						@elements.icon("insert_drive_file")
 						<a href="@api.routes.CompleteDSController.downloadLatestFile(smds.getId(),file.link)">@file.caption</a>
-						<a hx-get="@routes.ProjectsController.studyManagementRemoveFile(p.getId(),file.getId(),file.link)" hx-target="#studyContainer" class="red-text right">delete</a>
+						<a href="javascript:void(0)" hx-post="@routes.ProjectsController.studyManagementRemoveFile(p.getId(),file.getId(),file.link)" hx-headers='{"Csrf-Token": "@csrfToken"}' hx-target="#studyContainer" class="red-text right">delete</a>
 					</p>
 					}
 				</div>
@@ -203,6 +203,7 @@
 					<b>Upload files</b>
 				</p>
 				<form>
+					<input type="hidden" name="csrfToken" value="@csrfToken">
 					<div class="file-field input-field">
 					  <div class="btn">
 					    <span>File</span>
@@ -219,7 +220,7 @@
 						<option value="participant_survey">Participant survey</option>
 						<option value="other_file">Other</option>
 					</select>
-					<a hx-post="@routes.ProjectsController.studyManagementAddFile(p.getId())" hx-target="#studyContainer" hx-encoding="multipart/form-data" class="btn green">Submit</a>
+					<a hx-post="@routes.ProjectsController.studyManagementAddFile(p.getId())" hx-headers='{"Csrf-Token": "@csrfToken"}' hx-target="#studyContainer" hx-encoding="multipart/form-data" class="btn green">Submit</a>
 					<script type="text/javascript">
 						$(document).ready(function(){
 						    $('#description').formSelect();

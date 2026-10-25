@@ -1377,7 +1377,8 @@ public class ProjectsController extends AbstractAsyncController {
 
 	}
 
-	@AddCSRFToken
+	@Authenticated(UserAuth.class)
+	@RequireCSRFCheck
 	public Result studyManagementAddFile(Request request, Long id) {
 
 		// check if user exists
@@ -1420,8 +1421,10 @@ public class ProjectsController extends AbstractAsyncController {
 						String fileName = nss(fileParts.get(i).getFilename());
 
 						// restrict file type
-						if (!FileTypeUtils.looksLikeDocumentFile(fileName)) {
-							logger.error("No other file than document files allowed here.");
+						if (FileTypeUtils.looksLikeExecutableFile(fileName)
+								|| !FileTypeUtils.looksLikeDocumentFile(fileName)
+								|| !FileTypeUtils.validateAndLog(fileParts.get(i), FileTypeUtils.FileCategory.ANY)) {
+							logger.error("No other file than safe document files allowed here: " + fileName);
 							continue;
 						}
 
@@ -1449,7 +1452,8 @@ public class ProjectsController extends AbstractAsyncController {
 		return studyManagement(request, id);
 	}
 
-	@AddCSRFToken
+	@Authenticated(UserAuth.class)
+	@RequireCSRFCheck
 	public Result studyManagementRemoveFile(Request request, Long id, Long fileId, String fileName) {
 		// check if user exists
 		String username = getAuthenticatedUserNameOrReturn(request,

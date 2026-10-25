@@ -133,7 +133,7 @@ GET			/projects/:id/openSignup/:open						controllers.ProjectsController.openSig
 GET			/projects/:id/selectParticipantDashboard				controllers.ProjectsController.selectParticipantDashboard(request: Request, id: Long, ds_id: Long ?= -1L)
 GET			/projects/:id/selectParticipantPage					controllers.ProjectsController.selectParticipantStudy(request: Request, id: Long, ds_id: Long ?= -1L)
 POST 		/projects/:id/studyManagement/addFile				controllers.ProjectsController.studyManagementAddFile(request: Request, id: Long)
-GET 		/projects/:id/studyManagement/removeFile				controllers.ProjectsController.studyManagementRemoveFile(request: Request, id: Long, fileId: Long, filename: String)
+POST 		/projects/:id/studyManagement/removeFile				controllers.ProjectsController.studyManagementRemoveFile(request: Request, id: Long, fileId: Long, filename: String)
 
 GET 		/projects/:id/timeseries								controllers.ProjectsController.timeseries(request: Request, id: Long)
 GET 		/projects/visualize/:id									controllers.ProjectsController.visualize(request: Request, id: Long, clusterId: Long ?= -1L, participantId: Long ?= -1L, deviceId: Long ?= -1L, datasetId: Long ?= -1L)
