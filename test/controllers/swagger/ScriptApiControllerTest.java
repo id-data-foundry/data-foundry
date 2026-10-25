@@ -166,6 +166,9 @@ public class ScriptApiControllerTest extends WithApplication {
 
 		Result result = route(app, authenticatedRequest(GET, "/api/v2/scripts/log/" + ds.getId(), token));
 		assertEquals(OK, result.status());
+		assertEquals("sandbox", result.header("Content-Security-Policy").orElse(""));
+		assertEquals("nosniff", result.header("X-Content-Type-Options").orElse(""));
+		assertTrue(result.contentType().orElse("").contains("text/plain"));
 	}
 
 	@Test

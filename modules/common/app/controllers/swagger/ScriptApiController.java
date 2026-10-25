@@ -362,7 +362,9 @@ public class ScriptApiController extends AbstractApiController {
 
 		// compile output HTML string
 		String output = actor.messages.stream().collect(Collectors.joining());
-		return ok(output);
+		return ok(output).as("text/plain")
+				.withHeader("Content-Security-Policy", "sandbox")
+				.withHeader("X-Content-Type-Options", "nosniff");
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////////////
