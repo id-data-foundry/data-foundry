@@ -210,14 +210,33 @@ public class NarrativeSurveysController extends AbstractAsyncController {
 		return ok(views.html.tools.twine.analysis.render(project, surveyName, dataJson));
 	}
 
+	@Authenticated(UserAuth.class)
 	@RequireCSRFCheck
 	public Result uploadImage(Request request, long id, long dsId) {
+		Person user = getAuthenticatedUserOrReturn(request, redirect(LANDING));
+		Project project = Project.find.byId(id);
+		if (project == null || !project.editableBy(user)) {
+			return redirect(LANDING).addingToSession(request, "error", "You cannot edit this project.");
+		}
+
+		Dataset ds = Dataset.find.byId(dsId);
+		if (ds == null || ds.getProject() == null || ds.getProject().getId() != id || !ds.editableBy(user.getEmail())) {
+			return redirect(LANDING).addingToSession(request, "error", "Dataset is not available or not part of this project.");
+		}
+
 		completeDSController.uploadFile(request, dsId);
 		return redirect(controllers.routes.ProjectsController.viewNarrativeSurvey(id));
 	}
 
+	@Authenticated(UserAuth.class)
 	@RequireCSRFCheck
 	public Result deleteImage(Request request, long id, long fileId) {
+		Person user = getAuthenticatedUserOrReturn(request, forbidden());
+		Dataset ds = Dataset.find.byId(id);
+		if (ds == null || !ds.editableBy(user.getEmail())) {
+			return forbidden();
+		}
+
 		completeDSController.delete(request, id, fileId);
 		return ok();
 	}
