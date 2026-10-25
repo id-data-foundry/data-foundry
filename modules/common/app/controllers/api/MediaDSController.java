@@ -65,6 +65,7 @@ public class MediaDSController extends AbstractDSController {
 	}
 
 	@Authenticated(UserAuth.class)
+	@AddCSRFToken
 	public Result view(Request request, Long id) {
 		String username = getAuthenticatedUserNameOrReturn(request, redirect(LANDING));
 
@@ -538,6 +539,7 @@ public class MediaDSController extends AbstractDSController {
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	@Authenticated(UserAuth.class)
+	@RequireCSRFCheck
 	public Result uploadFile(Request request, Long id) {
 		String username = getAuthenticatedUserNameOrReturn(request, redirect(LANDING));
 

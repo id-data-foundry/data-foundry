@@ -170,6 +170,7 @@
         <div class="row">
           <div class="col s12 m6 l8">
             <form action="@api.routes.MediaDSController.uploadFile(dataset.getId())" method="POST" enctype="multipart/form-data">
+              <input type="hidden" name="csrfToken" value="@play.filters.csrf.CSRF.getToken(request).map(_.value).orElse("")">
               <div class="input-field file-field">
                 <div class="btn">
                   <span>File</span>
