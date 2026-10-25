@@ -217,4 +217,56 @@ public class MediaListingQueryOptimizationTest extends WithApplication {
 		List<TimedMedia> p2Files = expDS.getFiles(Collections.singletonList(participant2));
 		assertEquals(0, p2Files.size());
 	}
+
+	@Test
+	public void testMediaDSGetCoverOrFirstImage() throws Exception {
+		Dataset ds = datasetConnector.create("Media DS Cover Test", DatasetType.MEDIA, project, "Desc", "Target", "true");
+		ds.save();
+		MediaDS mediaDS = (MediaDS) datasetConnector.getDatasetDS(ds);
+		assertNotNull(mediaDS);
+
+		// Empty initially
+		assertTrue(mediaDS.getCoverOrFirstImage().isEmpty());
+
+		// 1. Add movie only -> should still return empty
+		File fMovie = createTempTestFile("movie data");
+		mediaDS.storeFile(fMovie, "clip.mp4");
+		mediaDS.addRecord(participant1, "clip.mp4", "A Movie", new Date(1000000000L), "movie");
+		fMovie.delete();
+		assertTrue(mediaDS.getCoverOrFirstImage().isEmpty());
+
+		// 2. Add an image -> should return this image
+		File fImg1 = createTempTestFile("image 1 data");
+		mediaDS.storeFile(fImg1, "pic1.jpg");
+		mediaDS.addRecord(participant1, "pic1.jpg", "Image 1", new Date(2000000000L), "image");
+		fImg1.delete();
+
+		var imgOpt = mediaDS.getCoverOrFirstImage();
+		assertTrue(imgOpt.isPresent());
+		assertEquals("pic1.jpg", imgOpt.get().getLink());
+		assertTrue(imgOpt.get().isRegularImage());
+		assertEquals((Long) ds.getId(), imgOpt.get().ds_id);
+
+		// 3. Add a newer image -> should return newer image
+		File fImg2 = createTempTestFile("image 2 data");
+		mediaDS.storeFile(fImg2, "pic2.jpg");
+		mediaDS.addRecord(participant2, "pic2.jpg", "Image 2", new Date(3000000000L), "image");
+		fImg2.delete();
+
+		var newerImgOpt = mediaDS.getCoverOrFirstImage();
+		assertTrue(newerImgOpt.isPresent());
+		assertEquals("pic2.jpg", newerImgOpt.get().getLink());
+
+		// 4. Add a cover (even with an older timestamp) -> cover MUST have priority over regular images
+		File fCover = createTempTestFile("cover data");
+		mediaDS.storeFile(fCover, "main_cover.png");
+		mediaDS.addRecord(participant1, "main_cover.png", "Main Cover", new Date(1500000000L), "cover");
+		fCover.delete();
+
+		var coverOpt = mediaDS.getCoverOrFirstImage();
+		assertTrue(coverOpt.isPresent());
+		assertEquals("main_cover.png", coverOpt.get().getLink());
+		assertTrue(coverOpt.get().isCover());
+		assertEquals((Long) ds.getId(), coverOpt.get().ds_id);
+	}
 }

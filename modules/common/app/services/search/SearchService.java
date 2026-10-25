@@ -230,7 +230,10 @@ public class SearchService implements ScheduledService {
 	 */
 	protected List<Project> performSearch(Query query, int numHits) {
 		List<Long> projectIds = performIDSearch(query, numHits);
-		return Project.find.query().where().in("id", projectIds).findList();
+		if (projectIds.isEmpty()) {
+			return Collections.emptyList();
+		}
+		return Project.find.query().fetch("owner").where().in("id", projectIds).findList();
 	}
 
 	/**
@@ -308,7 +311,11 @@ public class SearchService implements ScheduledService {
 			// do nothing, this will always work because it's in memory
 		}
 
-		return Project.find.query().where().in("id", projectIds).findList();
+		if (projectIds.isEmpty()) {
+			return Collections.emptyList();
+		}
+
+		return Project.find.query().fetch("owner").where().in("id", projectIds).findList();
 	}
 
 	@Override

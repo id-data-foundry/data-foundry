@@ -520,6 +520,67 @@ public class MediaDS extends CompleteDS {
 		return getNFiles(1000);
 	}
 
+	/**
+	 * retrieve the cover image or first regular image for this media dataset.
+	 * Prioritizes 'cover' status first, then 'image' status, ordered by newest timestamp.
+	 * Resolves at most a single file on disk, avoiding scanning up to 1,000 files.
+	 * 
+	 * @return Optional containing the TimedMedia cover/image or empty if none exists
+	 */
+	public Optional<TimedMedia> getCoverOrFirstImage() {
+		final List<RawMediaRow> rows = new ArrayList<>(5);
+		final Set<Long> pids = new HashSet<>(4);
+		try (Transaction transaction = DB.beginTransaction();
+				Connection connection = transaction.connection();
+				PreparedStatement stmt = connection
+						.prepareStatement("SELECT id, ts, file_name, description, status, participant_id FROM "
+								+ maxIdJoinExpression(dataTableNameRawFiles)
+								+ " WHERE status IN ('cover', 'image') ORDER BY CASE WHEN status = 'cover' THEN 0 ELSE 1 END, ts DESC LIMIT 5;");
+				ResultSet rs = stmt.executeQuery()) {
+
+			while (rs.next()) {
+				long pid = DataUtils.parseLong(rs.getString("participant_id"));
+				rows.add(new RawMediaRow(rs.getLong("id"), rs.getTimestamp("ts"), rs.getString("file_name"),
+						rs.getString("description"), rs.getString("status"), pid));
+				if (pid > 0) {
+					pids.add(pid);
+				}
+			}
+			transaction.commit();
+		} catch (SQLException e) {
+			logger.error("Error in retrieving cover or first image.", e);
+			Notifications.call("Exception", e.getLocalizedMessage());
+		} catch (Exception e) {
+			logger.error("Error in retrieving cover or first image.", e);
+			Notifications.call("Exception", e.getLocalizedMessage());
+		}
+
+		if (rows.isEmpty()) {
+			return Optional.empty();
+		}
+
+		Map<Long, Participant> participantMap = loadParticipants(pids);
+		FolderSnapshot snap = snapshotFolder();
+		for (RawMediaRow row : rows) {
+			String filename = row.filename();
+			Timestamp timestamp = row.timestamp();
+			Optional<File> fileOpt = snap.resolve(filename);
+			if (fileOpt.isEmpty() && timestamp != null) {
+				filename = timestamp.getTime() + "_" + filename;
+				fileOpt = snap.resolve(filename);
+			}
+
+			if (fileOpt.isPresent()) {
+				Participant participant = row.participantId() > 0 ? participantMap.get(row.participantId()) : null;
+				TimedMedia tm = new TimedMedia(row.id(), timestamp, filename, row.status(), row.description(),
+						participant, dataset.getId());
+				return Optional.of(tm);
+			}
+		}
+
+		return Optional.empty();
+	}
+
 	private record RawMediaRow(long id, Timestamp timestamp, String filename, String description, String status,
 			long participantId) {
 	}
