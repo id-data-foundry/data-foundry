@@ -270,6 +270,20 @@ public final class FileTypeUtils {
 	 * @return true if the file is allowed (and logged)
 	 */
 	public static boolean validateAndLog(Http.MultipartFormData.FilePart<TemporaryFile> fp, FileCategory category) {
+		return validateAndLog(fp, new FileCategory[] { category });
+	}
+
+	/**
+	 * Validate a Multipart FilePart<TemporaryFile> against one or more acceptable categories.
+	 *
+	 * @param fp         MultipartFile part (may be null)
+	 * @param categories expected categories (allowed if matching any)
+	 * @return true if the file is allowed (and logged)
+	 */
+	public static boolean validateAndLog(Http.MultipartFormData.FilePart<TemporaryFile> fp, FileCategory... categories) {
+		if (categories == null || categories.length == 0) {
+			return validateAndLog(fp, FileCategory.ANY);
+		}
 		if (fp == null) {
 			logger.warn("validateAndLog: file part is null");
 			return false;
@@ -297,12 +311,20 @@ public final class FileTypeUtils {
 					"Content-Type declared=" + declared + " detected=" + detected + " for file=" + fp.getFilename());
 		}
 
-		boolean allowed = isAllowedMime(detected, category);
-		if (!allowed) {
-			logger.error("Upload rejected: file " + fp.getFilename() + " detected as " + detected
-					+ " which is not allowed for category " + category);
+		for (FileCategory category : categories) {
+			if (isAllowedMime(detected, category)) {
+				return true;
+			}
 		}
-		return allowed;
+
+		if (categories.length == 1) {
+			logger.error("Upload rejected: file " + fp.getFilename() + " detected as " + detected
+					+ " which is not allowed for category " + categories[0]);
+		} else {
+			logger.error("Upload rejected: file " + fp.getFilename() + " detected as " + detected
+					+ " which is not allowed for categories " + Arrays.toString(categories));
+		}
+		return false;
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -66,7 +66,7 @@ public class CompleteDSViewTest extends WithApplication {
 	protected Application provideApplication() {
 		return new GuiceApplicationBuilder()
 				.configure("db.default.driver", "org.h2.Driver")
-				.configure("db.default.url", "jdbc:h2:mem:play;DB_CLOSE_DELAY=-1")
+				.configure("db.default.url", "jdbc:h2:mem:completed_ds_view_test;DB_CLOSE_DELAY=-1")
 				.configure("play.evolutions.db.default.autoApply", true)
 				.configure("df.keys.project", "test-project-token-secret-123456")
 				.configure("df.keys.registration", Collections.singletonList("reg-key"))
@@ -515,12 +515,22 @@ public class CompleteDSViewTest extends WithApplication {
 	@Test
 	public void testLegacyTokenAndWebTokenPublicDownload() throws Exception {
 		// 1. Test dataset 15 with the user's exact token: QWw4bDRpOEV6Y3RaQTBtUlY1UXAzZz09
-		// Create datasets until ID 15 exists in H2
-		Dataset ds15 = dataset;
-		while (ds15.getId() < 15L) {
-			ds15 = datasetConnector.create("Dataset " + UUID.randomUUID(), DatasetType.COMPLETE, project, "Desc", "Target", "true");
-			ds15.save();
+		// Ensure dataset with ID 15 exists in H2
+		Dataset ds15 = Dataset.find.byId(15L);
+		if (ds15 == null) {
+			Dataset current = dataset;
+			while (current == null || current.getId() < 15L) {
+				current = datasetConnector.create("Dataset " + UUID.randomUUID(), DatasetType.COMPLETE, project, "Desc", "Target", "true");
+				current.save();
+			}
+			ds15 = Dataset.find.byId(15L);
+		} else {
+			ds15.setDsType(DatasetType.COMPLETE);
+			ds15.setProject(project);
+			ds15.setName("Dataset 15");
+			ds15.update();
 		}
+		assertNotNull("Dataset with ID 15 must exist", ds15);
 		assertEquals(Long.valueOf(15L), ds15.getId());
 
 		String userToken = "QWw4bDRpOEV6Y3RaQTBtUlY1UXAzZz09";

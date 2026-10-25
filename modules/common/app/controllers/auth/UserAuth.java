@@ -28,6 +28,19 @@ public class UserAuth extends play.mvc.Security.Authenticator {
 	@Inject
 	private SessionStore sessionStore;
 
+	private static String normalizeHost(String host) {
+		if (host == null) {
+			return null;
+		}
+		String h = host.trim().toLowerCase();
+		if (h.endsWith(":80")) {
+			return h.substring(0, h.length() - 3);
+		} else if (h.endsWith(":443")) {
+			return h.substring(0, h.length() - 4);
+		}
+		return h;
+	}
+
 	/**
 	 * Validates that the request origin and fetch metadata are safe from cross-site
 	 * subresource exploitation (e.g. from sandboxed or opaque origins).
@@ -52,7 +65,9 @@ public class UserAuth extends play.mvc.Security.Authenticator {
 				try {
 					java.net.URI uri = java.net.URI.create(originVal);
 					String originAuthority = uri.getRawAuthority();
-					if (originAuthority == null || !originAuthority.equalsIgnoreCase(reqHost)) {
+					String normalizedOrigin = normalizeHost(originAuthority);
+					String normalizedReqHost = normalizeHost(reqHost);
+					if (normalizedOrigin == null || !normalizedOrigin.equalsIgnoreCase(normalizedReqHost)) {
 						return false;
 					}
 				} catch (IllegalArgumentException e) {

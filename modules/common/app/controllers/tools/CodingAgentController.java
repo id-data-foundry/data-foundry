@@ -84,6 +84,19 @@ public class CodingAgentController extends AbstractAsyncController {
 
 	private static final Logger.ALogger logger = Logger.of(CodingAgentController.class);
 
+	private static String normalizeHost(String host) {
+		if (host == null) {
+			return null;
+		}
+		String h = host.trim().toLowerCase();
+		if (h.endsWith(":80")) {
+			return h.substring(0, h.length() - 3);
+		} else if (h.endsWith(":443")) {
+			return h.substring(0, h.length() - 4);
+		}
+		return h;
+	}
+
 	private final Environment environment;
 	private final DatasetConnector datasetConnector;
 	private final UnmanagedAIApiService aiAPIService;
@@ -213,7 +226,9 @@ public class CodingAgentController extends AbstractAsyncController {
 				try {
 					java.net.URI uri = java.net.URI.create(originVal);
 					String originAuthority = uri.getRawAuthority();
-					if (originAuthority == null || !originAuthority.equalsIgnoreCase(reqHost)) {
+					String normalizedOrigin = normalizeHost(originAuthority);
+					String normalizedReqHost = normalizeHost(reqHost);
+					if (normalizedOrigin == null || !normalizedOrigin.equalsIgnoreCase(normalizedReqHost)) {
 						return Flow.fromSinkAndSource(Sink.ignore(),
 								Source.single(Json.newObject().put("type", "error").put("message", "Forbidden")));
 					}
