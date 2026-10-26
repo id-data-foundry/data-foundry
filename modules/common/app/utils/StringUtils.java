@@ -120,4 +120,25 @@ public class StringUtils {
 				: scrambled;
 	}
 
+	/**
+	 * sanitize label for Mermaid/Pele Gantt diagrams
+	 * 
+	 * @param name
+	 * @param fallback
+	 * @return
+	 */
+	static public final String sanitizeGanttLabel(String name, String fallback) {
+		if (name == null) {
+			return fallback != null ? fallback.trim() : "";
+		}
+		String sanitized = name.replaceAll("[^\\p{L}\\p{N}_\\-+ ]", "").trim();
+		if (sanitized.isEmpty()) {
+			sanitized = (fallback != null && !fallback.trim().isEmpty()) ? fallback.trim() : "Item";
+		}
+		if (sanitized.matches("(?i)^(click|call|gantt|section|title|accTitle|accDescr|accDescription|weekday|weekend)\\b.*")) {
+			sanitized = "\u200B" + sanitized;
+		}
+		return sanitized;
+	}
+
 }

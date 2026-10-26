@@ -44,16 +44,20 @@
         Post project phase                           :  pro4, after pro3, 21M
         Project freeze (export archive)              :done,  milestone, pro5, after pro4, 1d
 
+        @if(!p.getAllDatasets().isEmpty()) {
         section Datasets
         @for(ds <- p.getAllDatasets()) {
-          @ds.getName().replaceAll("[^\\p{L}\\p{N}_\\-+ ]", "") : @if(ds.isActive()){active,} ds_@ds.getId(), @ds.startDate(), @ds.endDate()
+          @utils.StringUtils.sanitizeGanttLabel(ds.getName(), "Dataset " + ds.getId()) : @if(ds.isActive()){active,} ds_@ds.getId(), @ds.startDate(), @ds.endDate()
           click ds_@ds.getId() href "@routes.DatasetsController.view(ds.getId())"
         }
+        }
 
+        @if(!p.getParticipants().isEmpty()) {
         section Participants
         @for(pa <- p.getParticipants()) {
-          @pa.getName().replaceAll("[^\\p{L}\\p{N}_\\-+ ]", "") : milestone pa_@pa.getId(), @pa.startDate(), @pa.startDate()
+          @utils.StringUtils.sanitizeGanttLabel(pa.getName(), "Participant " + pa.getId()) : milestone pa_@pa.getId(), @pa.startDate(), @pa.startDate()
           click pa_@pa.getId() href "@routes.ParticipantsController.view(pa.getId())"
+        }
         }
     </div>
   </div>

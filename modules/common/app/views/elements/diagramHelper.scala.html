@@ -53,6 +53,17 @@
   }
   var ensureMermaidLoaded = ensurePeleLoaded;
 
+  function preprocessPeleSource(text) {
+    if (!text || !/^\s*gantt\b/m.test(text)) return text;
+    var reserved = /^\s*(click|call|gantt|section|title|accTitle|accDescr|accDescription|weekday|weekend)\b/i;
+    return text.split('\n').map(function(line) {
+      if (reserved.test(line) && line.indexOf(':') !== -1) {
+        return line.replace(/^(\s*)([^\s].*)$/, '$1' + String.fromCharCode(8203) + '$2');
+      }
+      return line;
+    }).join('\n');
+  }
+
   function renderPeleNodes(nodes) {
     if (!nodes || !window.pele) return;
     Array.from(nodes).forEach(function(container) {
@@ -60,6 +71,7 @@
       var rawText = container.getAttribute('data-diagram-source') || container.textContent.trim();
       container.setAttribute('data-diagram-source', rawText);
       try {
+        var processedText = preprocessPeleSource(rawText);
         var containerWidth = container.clientWidth || (container.parentElement ? container.parentElement.clientWidth : 0);
         var options = {
           config: {
@@ -72,7 +84,7 @@
         if (containerWidth && containerWidth > 100) {
           options.config.gantt.useWidth = Math.round(containerWidth);
         }
-        var res = window.pele.render(rawText, options);
+        var res = window.pele.render(processedText, options);
         if (res && res.svg) {
           container.innerHTML = res.svg;
           container.setAttribute('data-processed', 'true');
@@ -82,6 +94,8 @@
         }
       } catch (e) {
         console.error("Pele render error:", e);
+        container.innerHTML = '<div class="card-panel red lighten-5 red-text text-darken-4" style="margin: 10px 0; font-size: 0.9rem;"><strong>Diagram rendering error:</strong> ' + (e && e.message ? e.message.replace(/</g, '&lt;') : 'Could not render diagram.') + '</div>';
+        container.style.display = 'block';
       }
     });
   }
