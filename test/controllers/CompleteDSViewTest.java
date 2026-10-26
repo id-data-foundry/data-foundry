@@ -399,6 +399,24 @@ public class CompleteDSViewTest extends WithApplication {
 		assertTrue(legacyWebTokenRes.header("Content-Security-Policy").orElse("").contains("sandbox"));
 		assertFalse("WebToken CSP must NOT contain allow-same-origin", legacyWebTokenRes.header("Content-Security-Policy").orElse("").contains("allow-same-origin"));
 
+		// 15b-1. webToken with ?view=tab renders sandboxed shell (webTab)
+		Http.Request tabViewReq = createAuthenticatedRequest(GET, "/web/" + publicAccessToken + "/index.html?view=tab", null);
+		Result tabViewRes = datasetsController.webToken(tabViewReq, publicAccessToken, "index.html").toCompletableFuture().get();
+		assertEquals(OK, tabViewRes.status());
+		String tabHtml = contentAsString(tabViewRes);
+		assertTrue("webTab shell must render an iframe", tabHtml.contains("<iframe"));
+		assertTrue("iframe must have sandbox", tabHtml.contains("sandbox="));
+		assertTrue("iframe must allow-scripts", tabHtml.contains("allow-scripts"));
+		assertFalse("webTab shell must NOT have allow-same-origin", tabHtml.contains("allow-same-origin"));
+
+		// 15b-2. webToken with percent-encoded token (?view=tab) resolves correctly
+		String percentEncodedToken = java.net.URLEncoder.encode(publicAccessToken, StandardCharsets.UTF_8);
+		Http.Request percentTokenReq = createAuthenticatedRequest(GET, "/web/" + percentEncodedToken + "/index.html?view=tab", null);
+		Result percentTokenRes = datasetsController.webToken(percentTokenReq, percentEncodedToken, "index.html").toCompletableFuture().get();
+		assertEquals(OK, percentTokenRes.status());
+		String percentHtml = contentAsString(percentTokenRes);
+		assertTrue(percentHtml.contains("<iframe"));
+
 		// 15c. Non-web data files via downloadFilePublic force attachment download
 		File csvFile = File.createTempFile("data", ".csv");
 		Files.write(csvFile.toPath(), "col1,col2\nval1,val2\n".getBytes(StandardCharsets.UTF_8));
@@ -595,5 +613,41 @@ public class CompleteDSViewTest extends WithApplication {
 
 		Result fileRes = completeDSController.downloadFilePublic("public_test.txt", userToken).toCompletableFuture().get();
 		assertEquals(OK, fileRes.status());
+	}
+
+	@Test
+	public void testEditFileHtmlDoesNotPrematurelyCloseScript() throws Exception {
+		// 1. Create an HTML file in the complete dataset
+		File htmlFile = File.createTempFile("prototype", ".html");
+		Files.write(htmlFile.toPath(), "<!DOCTYPE html><html><head><title>Test</title></head><body>Hello</body></html>".getBytes(StandardCharsets.UTF_8));
+		completeDS.storeFile(htmlFile, "prototype.html");
+		completeDS.addRecord("prototype.html", "Prototype", new Date());
+		htmlFile.delete();
+
+		long htmlFileId = completeDS.getLatestFileVersionId("prototype.html").orElse(-1L);
+		assertTrue("HTML file ID should be valid", htmlFileId > 0);
+
+		// 2. Request editFile view
+		Http.Request editRequest = createAuthenticatedRequest(GET, "/datasets/existing/edit/" + dataset.getId() + "/" + htmlFileId, ownerUser);
+		Result editResult = completeDSController.editFile(editRequest, dataset.getId(), htmlFileId);
+		assertEquals(OK, editResult.status());
+		String editBody = contentAsString(editResult);
+
+		// 3. Verify bridge script is safely escaped with \u003c and does NOT have unescaped </script> inside JS
+		assertTrue("Edit page must define escaped bridgeScript", editBody.contains("const bridgeScript = \"\\u003cscript>"));
+		assertTrue("Edit page must escape closing script tag as \\u003c/script>", editBody.contains("\\u003c/script>"));
+
+		// 4. Verify that between <script type="text/javascript"> and const baseHref there is no premature literal </script>
+		int scriptStart = editBody.indexOf("<script type=\"text/javascript\">");
+		int baseHrefIdx = editBody.indexOf("const baseHref");
+		assertTrue("Script start must be found", scriptStart > 0);
+		assertTrue("baseHref must be found after script start", baseHrefIdx > scriptStart);
+		String scriptSnippet = editBody.substring(scriptStart, baseHrefIdx);
+		assertFalse("Script snippet before baseHref must NOT contain unescaped </script> tag", scriptSnippet.contains("</script>"));
+
+		// 5. Verify playground iframe and editor initialization are present
+		assertTrue("Edit page must contain playground iframe", editBody.contains("id=\"playgroundContent\""));
+		assertTrue("Edit page must contain preparePlaygroundHtml", editBody.contains("function preparePlaygroundHtml"));
+		assertTrue("Edit page must contain CodeFlask init", editBody.contains("new CodeFlask"));
 	}
 }

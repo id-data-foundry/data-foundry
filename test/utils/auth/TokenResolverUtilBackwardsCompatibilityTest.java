@@ -384,6 +384,33 @@ public class TokenResolverUtilBackwardsCompatibilityTest {
 	}
 
 	@Test
+	public void testLegacyTokenFallbackWithUnderscoresInSecretKey() {
+		// Secret key with multiple underscores, simulating application.conf
+		Map<String, Object> map = new HashMap<>();
+		map.put(ConfigurationUtils.DF_KEYS_PROJECT_TOKEN, "change_me___change_me___key_with_underscores_999");
+		map.put(ConfigurationUtils.DF_KEYS_REGISTRATION_ACCESS, Collections.singletonList("test-reg-key"));
+		Config config = ConfigFactory.parseMap(map);
+		TokenResolverUtil utilWithUnderscores = new TokenResolverUtil(config);
+
+		// Double-encoded legacy token
+		String exactUserToken = "QWw4bDRpOEV6Y3RaQTBtUlY1UXAzZz09";
+		Long resolved = utilWithUnderscores.getDatasetIdFromToken(exactUserToken);
+		assertEquals("Double-encoded legacy token must resolve under underscore secret", Long.valueOf(15L), resolved);
+
+		// Single-encoded legacy token
+		String singleEncoded = "Al8l4i8EzctZA0mRV5Qp3g==";
+		assertEquals("Single-encoded legacy token must resolve under underscore secret", Long.valueOf(15L), utilWithUnderscores.getDatasetIdFromToken(singleEncoded));
+
+		// Percent-encoded variant of single-encoded token
+		String percentEncoded = "Al8l4i8EzctZA0mRV5Qp3g%3D%3D";
+		assertEquals("Percent-encoded legacy token must resolve under underscore secret", Long.valueOf(15L), utilWithUnderscores.getDatasetIdFromToken(percentEncoded));
+
+		// Missing padding variant
+		String unpadded = "Al8l4i8EzctZA0mRV5Qp3g";
+		assertEquals("Unpadded legacy token must resolve under underscore secret", Long.valueOf(15L), utilWithUnderscores.getDatasetIdFromToken(unpadded));
+	}
+
+	@Test
 	public void testIsTokenMatch() {
 		String exactUserToken = "QWw4bDRpOEV6Y3RaQTBtUlY1UXAzZz09";
 		String singleEncoded = "Al8l4i8EzctZA0mRV5Qp3g==";

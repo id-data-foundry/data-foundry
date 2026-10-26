@@ -1,6 +1,7 @@
 package utils.rendering;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
@@ -118,5 +119,32 @@ public class PlaygroundBridgeUtilTest {
 
 		String result = PlaygroundBridgeUtil.injectHtmlBridge(tempFile);
 		assertNull("Files exceeding size limit must return null", result);
+	}
+
+	@Test
+	public void testBridgeScriptAsJsLiteralDoesNotContainClosingScriptTag() {
+		String jsLiteral = PlaygroundBridgeUtil.getBridgeScriptAsJsLiteral();
+		assertNotNull(jsLiteral);
+		assertTrue("Must start with double quote", jsLiteral.startsWith("\""));
+		assertTrue("Must end with double quote", jsLiteral.endsWith("\""));
+		assertFalse("Must NOT contain literal </script> which prematurely ends HTML <script> elements", jsLiteral.contains("</script>"));
+		assertFalse("Must NOT contain literal <script>", jsLiteral.contains("<script>"));
+		assertTrue("Must escape '<' as '\\u003c'", jsLiteral.contains("\\u003cscript>"));
+		assertTrue("Must escape '</' as '\\u003c/'", jsLiteral.contains("\\u003c/script>"));
+
+		// When unescaped/parsed by JSON parser, it must equal the original BRIDGE_SCRIPT
+		String unescaped = play.libs.Json.parse(jsLiteral).asText();
+		assertEquals("Unescaped literal must equal original BRIDGE_SCRIPT", PlaygroundBridgeUtil.BRIDGE_SCRIPT, unescaped);
+	}
+
+	@Test
+	public void testBridgeRawJsDoesNotContainScriptTags() {
+		String rawJs = PlaygroundBridgeUtil.getBridgeRawJs();
+		assertNotNull(rawJs);
+		assertFalse("Must not contain <script>", rawJs.contains("<script>"));
+		assertFalse("Must not contain </script>", rawJs.contains("</script>"));
+		assertTrue("Must contain localStorage polyfill", rawJs.contains("window.localStorage"));
+		assertTrue("Must contain sessionStorage polyfill", rawJs.contains("window.sessionStorage"));
+		assertTrue("Must contain console forwarder", rawJs.contains("df-playground-console"));
 	}
 }

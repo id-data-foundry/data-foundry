@@ -44,8 +44,8 @@ public class TokenResolverUtil {
 			if (config.hasPath("play.http.secret.key")) {
 				String playSecret = config.getString("play.http.secret.key").trim();
 				if (!playSecret.isEmpty()) {
-					tokenKey = com.google.common.hash.Hashing.sha256()
-							.hashString(playSecret, StandardCharsets.UTF_8).toString().substring(0, 32);
+					tokenKey = com.google.common.hash.Hashing.sha256().hashString(playSecret, StandardCharsets.UTF_8)
+							.toString().substring(0, 32);
 					logger.warn("'" + ConfigurationUtils.DF_KEYS_PROJECT_TOKEN
 							+ "' is empty or not configured. Falling back to derived key from 'play.http.secret.key' to keep operational.");
 				}
@@ -72,7 +72,8 @@ public class TokenResolverUtil {
 			PROJECT_VIEWER_TOKEN_KEY = null;
 			EMAIL_RESET_SEC_KEY = null;
 			USER_SIGN_UP_KEY = null;
-			logger.error("'" + ConfigurationUtils.DF_KEYS_PROJECT_TOKEN + "' is not defined and no 'play.http.secret.key' fallback found.");
+			logger.error("'" + ConfigurationUtils.DF_KEYS_PROJECT_TOKEN
+					+ "' is not defined and no 'play.http.secret.key' fallback found.");
 			System.exit(1);
 		}
 
@@ -89,8 +90,10 @@ public class TokenResolverUtil {
 				&& REGISTRATION_ACCESS_KEY.stream().anyMatch(k -> k != null && !k.trim().isEmpty());
 
 		if (!ssoActive && !hasValidRegistrationKey) {
-			logger.warn("SECURITY WARNING: SSO is not active and no non-empty registration access key is configured in '"
-					+ ConfigurationUtils.DF_KEYS_REGISTRATION_ACCESS + "'. Registration may be open to anyone!");
+			logger.warn(
+					"SECURITY WARNING: SSO is not active and no non-empty registration access key is configured in '"
+							+ ConfigurationUtils.DF_KEYS_REGISTRATION_ACCESS
+							+ "'. Registration may be open to anyone!");
 		}
 	}
 
@@ -107,8 +110,7 @@ public class TokenResolverUtil {
 			return false;
 		}
 
-		return REGISTRATION_ACCESS_KEY.stream()
-				.filter(k -> k != null && !k.trim().isEmpty())
+		return REGISTRATION_ACCESS_KEY.stream().filter(k -> k != null && !k.trim().isEmpty())
 				.anyMatch(k -> k.equals(accessKey));
 	}
 
@@ -126,7 +128,8 @@ public class TokenResolverUtil {
 			res = SymEncryption.decryptToken(normalizeToken(token), PROJECT_COLLABORATOR_TOKEN_KEY);
 		}
 		if (res == null && PROJECT_COLLABORATOR_TOKEN_KEY != null && PROJECT_COLLABORATOR_TOKEN_KEY.contains("_")) {
-			String legacySuffix = PROJECT_COLLABORATOR_TOKEN_KEY.substring(PROJECT_COLLABORATOR_TOKEN_KEY.indexOf('_'));
+			String legacySuffix = PROJECT_COLLABORATOR_TOKEN_KEY
+					.substring(PROJECT_COLLABORATOR_TOKEN_KEY.lastIndexOf('_'));
 			if (!legacySuffix.equals(PROJECT_COLLABORATOR_TOKEN_KEY)) {
 				res = SymEncryption.decryptToken(token, legacySuffix);
 				if (res == null && token != null) {
@@ -149,7 +152,7 @@ public class TokenResolverUtil {
 			res = SymEncryption.decryptToken(normalizeToken(token), PROJECT_SUBSCRIBER_TOKEN_KEY);
 		}
 		if (res == null && PROJECT_SUBSCRIBER_TOKEN_KEY != null && PROJECT_SUBSCRIBER_TOKEN_KEY.contains("_")) {
-			String legacySuffix = PROJECT_SUBSCRIBER_TOKEN_KEY.substring(PROJECT_SUBSCRIBER_TOKEN_KEY.indexOf('_'));
+			String legacySuffix = PROJECT_SUBSCRIBER_TOKEN_KEY.substring(PROJECT_SUBSCRIBER_TOKEN_KEY.lastIndexOf('_'));
 			if (!legacySuffix.equals(PROJECT_SUBSCRIBER_TOKEN_KEY)) {
 				res = SymEncryption.decryptToken(token, legacySuffix);
 				if (res == null && token != null) {
@@ -499,6 +502,18 @@ public class TokenResolverUtil {
 			return null;
 		}
 		String decrypted = SymEncryption.decryptToken(base64Decode(token), PROJECT_VIEWER_TOKEN_KEY);
+		if (decrypted == null) {
+			decrypted = SymEncryption.decryptToken(token, PROJECT_VIEWER_TOKEN_KEY);
+		}
+		if (decrypted == null && token != null) {
+			String norm = normalizeToken(token);
+			if (norm != null && !norm.equals(token)) {
+				decrypted = SymEncryption.decryptToken(base64Decode(norm), PROJECT_VIEWER_TOKEN_KEY);
+				if (decrypted == null) {
+					decrypted = SymEncryption.decryptToken(norm, PROJECT_VIEWER_TOKEN_KEY);
+				}
+			}
+		}
 		if (decrypted == null || !decrypted.contains(":")) {
 			return null;
 		}
@@ -590,7 +605,7 @@ public class TokenResolverUtil {
 		}
 		// Fallback to legacy default key suffix (e.g., "_dataset")
 		if (key != null && key.contains("_")) {
-			String legacySuffixKey = key.substring(key.indexOf('_'));
+			String legacySuffixKey = key.substring(key.lastIndexOf('_'));
 			if (!legacySuffixKey.equals(key)) {
 				id = tryRetrieveFirstId(token, legacySuffixKey);
 				if (id != -1L) {
@@ -598,6 +613,33 @@ public class TokenResolverUtil {
 				}
 				if (normalized != null && !normalized.equals(token)) {
 					id = tryRetrieveFirstId(normalized, legacySuffixKey);
+					if (id != -1L) {
+						return id;
+					}
+				}
+			}
+			// Explicit fallback to "_dataset" for dataset token resolution
+			if (PROJECT_DATASET_TOKEN_KEY != null && PROJECT_DATASET_TOKEN_KEY.equals(key)) {
+				id = tryRetrieveFirstId(token, "_dataset");
+				if (id != -1L) {
+					return id;
+				}
+				if (normalized != null && !normalized.equals(token)) {
+					id = tryRetrieveFirstId(normalized, "_dataset");
+					if (id != -1L) {
+						return id;
+					}
+				}
+			}
+			// Try base key before suffix (raw project secret without '_dataset')
+			String baseKey = key.substring(0, key.lastIndexOf('_'));
+			if (!baseKey.isEmpty() && !baseKey.equals(key)) {
+				id = tryRetrieveFirstId(token, baseKey);
+				if (id != -1L) {
+					return id;
+				}
+				if (normalized != null && !normalized.equals(token)) {
+					id = tryRetrieveFirstId(normalized, baseKey);
 					if (id != -1L) {
 						return id;
 					}
@@ -637,7 +679,7 @@ public class TokenResolverUtil {
 			return id;
 		}
 		if (key != null && key.contains("_")) {
-			String legacySuffixKey = key.substring(key.indexOf('_'));
+			String legacySuffixKey = key.substring(key.lastIndexOf('_'));
 			if (!legacySuffixKey.equals(key)) {
 				id = tryRetrieveFirstIdFromBase32(token, legacySuffixKey);
 				if (id != -1L) {
@@ -682,7 +724,7 @@ public class TokenResolverUtil {
 		}
 		// Fallback to legacy default key suffix
 		if (key != null && key.contains("_")) {
-			String legacySuffixKey = key.substring(key.indexOf('_'));
+			String legacySuffixKey = key.substring(key.lastIndexOf('_'));
 			if (!legacySuffixKey.equals(key)) {
 				id = tryRetrieveSecondId(token, legacySuffixKey);
 				if (id != -1L) {
@@ -738,7 +780,7 @@ public class TokenResolverUtil {
 		}
 		// Fallback to legacy default key suffix
 		if (key != null && key.contains("_")) {
-			String legacySuffixKey = key.substring(key.indexOf('_'));
+			String legacySuffixKey = key.substring(key.lastIndexOf('_'));
 			if (!legacySuffixKey.equals(key)) {
 				val = tryGetSecondString(token, legacySuffixKey);
 				if (val != null) {
@@ -819,6 +861,18 @@ public class TokenResolverUtil {
 			try {
 				return new String(Base64.getDecoder().decode(s), StandardCharsets.UTF_8);
 			} catch (IllegalArgumentException e2) {
+				// Try with padding restored for standard base64 if padding was stripped
+				int pad = (4 - (s.length() % 4)) % 4;
+				if (pad > 0) {
+					StringBuilder sb = new StringBuilder(s);
+					for (int i = 0; i < pad; i++) {
+						sb.append('=');
+					}
+					try {
+						return new String(Base64.getDecoder().decode(sb.toString()), StandardCharsets.UTF_8);
+					} catch (IllegalArgumentException ignored) {
+					}
+				}
 				return "-- invalid token --";
 			}
 		}
@@ -848,8 +902,8 @@ public class TokenResolverUtil {
 	}
 
 	/**
-	 * Timing-safe token matching comparing candidate against configured token,
-	 * accounting for URL percent-encoding, space-plus conversions, and single vs double base64 encoding.
+	 * Timing-safe token matching comparing candidate against configured token, accounting for URL percent-encoding,
+	 * space-plus conversions, and single vs double base64 encoding.
 	 * 
 	 * @param candidate
 	 * @param configured

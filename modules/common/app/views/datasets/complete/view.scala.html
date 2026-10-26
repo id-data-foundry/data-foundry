@@ -52,9 +52,9 @@
               @if(fileList.link.endsWith(".html") || fileList.link.endsWith(".md")) {
                 @defining(dataset.getEffectiveWebToken()) { effectiveToken =>
                   @if(!effectiveToken.isEmpty) {
-                    (<a href="@routes.DatasetsController.webToken(effectiveToken, fileList.link).absoluteURL(request)" target="_blank" rel="noopener">open in tab</a>)
+                    (<a href="@routes.DatasetsController.webToken(effectiveToken, fileList.link).absoluteURL(request)?view=tab" target="_blank" rel="noopener">open in tab</a>)
                   } else {
-                    (<a href="@routes.DatasetsController.web(dataset.getId(), fileList.link).absoluteURL(request)" target="_blank" rel="noopener">open in tab</a>)
+                    (<a href="@routes.DatasetsController.web(dataset.getId(), fileList.link).absoluteURL(request)?view=tab" target="_blank" rel="noopener">open in tab</a>)
                   }
                 }
               }

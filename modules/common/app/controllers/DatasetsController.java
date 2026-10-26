@@ -3,6 +3,7 @@ package controllers;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.List;
@@ -1369,6 +1370,33 @@ public class DatasetsController extends AbstractAsyncController {
 		}
 	}
 
+	private Result renderSandboxedShell(Request request, Dataset ds, String filename, File file, String baseHref) {
+		String lowerFilename = filename.toLowerCase();
+		String content = "";
+		try {
+			if (lowerFilename.endsWith(".md") || lowerFilename.endsWith(".markdown")) {
+				String raw = new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
+				content = views.html.datasets.complete.webmdStandalone.render(ds, FormMarkdown.renderHtml(raw)).body();
+			} else {
+				String bridged = PlaygroundBridgeUtil.injectHtmlBridge(file);
+				content = bridged != null ? bridged : new String(Files.readAllBytes(file.toPath()), StandardCharsets.UTF_8);
+			}
+		} catch (Exception e) {
+			content = "<!DOCTYPE html><html><body><p>Could not read file contents.</p></body></html>";
+		}
+
+		String baseTag = "<base href=\"" + baseHref + "\">";
+		if (content.toLowerCase().contains("<head")) {
+			content = content.replaceFirst("(?i)(<head[^>]*>)", "$1\n" + java.util.regex.Matcher.quoteReplacement(baseTag));
+		} else {
+			content = baseTag + "\n" + content;
+		}
+
+		String base64Content = java.util.Base64.getEncoder().encodeToString(content.getBytes(StandardCharsets.UTF_8));
+		return ok(views.html.datasets.complete.webTab.render(ds, filename, base64Content))
+				.as("text/html; charset=utf-8").withHeader("X-Frame-Options", "SAMEORIGIN");
+	}
+
 	/**
 	 * redirect to index
 	 * 
@@ -1503,13 +1531,14 @@ public class DatasetsController extends AbstractAsyncController {
 			// without cookies
 			if (lowerFilename.endsWith(".html") || lowerFilename.endsWith(".htm") || lowerFilename.endsWith(".md")
 					|| lowerFilename.endsWith(".markdown")) {
+				String viewParam = "tab".equalsIgnoreCase(request.getQueryString("view")) ? "?view=tab" : "";
 				String publicToken = ds.getEffectiveWebToken();
 				if (!publicToken.isEmpty()) {
-					return redirect(routes.DatasetsController.webToken(publicToken, filename));
+					return redirect(routes.DatasetsController.webToken(publicToken, filename).url() + viewParam);
 				}
 				String viewerToken = tokenResolverUtil.createViewerToken(id,
 						System.currentTimeMillis() + TokenResolverUtil.VIEWER_TOKEN_VALIDITY_MS);
-				return redirect(routes.DatasetsController.webViewer(viewerToken, filename));
+				return redirect(routes.DatasetsController.webViewer(viewerToken, filename).url() + viewParam);
 			}
 
 			// request the file
@@ -1566,27 +1595,56 @@ public class DatasetsController extends AbstractAsyncController {
 				return notFound("Invalid path.");
 			}
 
-			String webTokenStr = webToken;
-
-			// try to resolve the token to the dataset id
-			long id = tokenResolverUtil.getDatasetIdFromToken(webTokenStr);
-			if (id <= 0) {
-				// try without path ending
-				webTokenStr = webTokenStr.replaceAll("[/].*", "");
-				id = tokenResolverUtil.getDatasetIdFromToken(webTokenStr);
-				if (id <= 0) {
-					return notFound();
+			String rawToken = webToken != null ? webToken.trim() : "";
+			String decodedToken = rawToken;
+			if (rawToken.contains("%")) {
+				try {
+					decodedToken = java.net.URLDecoder.decode(rawToken, StandardCharsets.UTF_8);
+				} catch (Exception ignored) {
 				}
 			}
+
+			// try to resolve the token to the dataset id algorithmically
+			long id = tokenResolverUtil.getDatasetIdFromToken(rawToken);
+			if (id <= 0 && !decodedToken.equals(rawToken)) {
+				id = tokenResolverUtil.getDatasetIdFromToken(decodedToken);
+			}
+			// try with trailing slash stripped
+			if (id <= 0 && rawToken.endsWith("/")) {
+				id = tokenResolverUtil.getDatasetIdFromToken(rawToken.replaceAll("/+$", ""));
+			}
+			if (id <= 0 && decodedToken.endsWith("/")) {
+				id = tokenResolverUtil.getDatasetIdFromToken(decodedToken.replaceAll("/+$", ""));
+			}
+			// try without path ending as fallback
+			if (id <= 0 && rawToken.contains("/")) {
+				id = tokenResolverUtil.getDatasetIdFromToken(rawToken.replaceAll("[/].*", ""));
+			}
+			if (id <= 0 && decodedToken.contains("/")) {
+				id = tokenResolverUtil.getDatasetIdFromToken(decodedToken.replaceAll("[/].*", ""));
+			}
+			if (id <= 0) {
+				logger.warn("[webToken 404] Could not decrypt token to dataset ID: '{}' (decoded: '{}')", rawToken, decodedToken);
+				return notFound();
+			}
+
+			String canonicalToken = !decodedToken.isEmpty() ? decodedToken : rawToken;
+			canonicalToken = canonicalToken.replaceAll("/+$", "");
+			if (canonicalToken.contains("/")) {
+				canonicalToken = canonicalToken.replaceAll("[/].*", "");
+			}
+			String webTokenStr = canonicalToken;
 
 			// check if project exists
 			Dataset ds = Dataset.find.byId(id);
 			if (ds == null) {
+				logger.warn("[webToken 404] Dataset ID {} not found in database", id);
 				return notFound();
 			}
 
 			// check data set type
 			if (!ds.getDsType().equals(DatasetType.COMPLETE)) {
+				logger.warn("[webToken 404] Dataset ID {} dsType {} is not COMPLETE", id, ds.getDsType());
 				return notFound();
 			}
 
@@ -1594,9 +1652,13 @@ public class DatasetsController extends AbstractAsyncController {
 			// public_access_token)
 			String webAccessToken = ds.configuration(Dataset.WEB_ACCESS_TOKEN, "");
 			String publicAccessToken = ds.configuration(Dataset.PUBLIC_ACCESS_TOKEN, "");
-			boolean tokenMatches = tokenResolverUtil.isTokenMatch(webTokenStr, webAccessToken)
-					|| tokenResolverUtil.isTokenMatch(webTokenStr, publicAccessToken);
+			boolean tokenMatches = tokenResolverUtil.isTokenMatch(rawToken, webAccessToken)
+					|| tokenResolverUtil.isTokenMatch(rawToken, publicAccessToken)
+					|| tokenResolverUtil.isTokenMatch(decodedToken, webAccessToken)
+					|| tokenResolverUtil.isTokenMatch(decodedToken, publicAccessToken);
 			if (!tokenMatches) {
+				logger.warn("[webToken 404] Token mismatch for dataset {}. Received: '{}' (decoded: '{}'), configured wat: '{}', pat: '{}'",
+						id, rawToken, decodedToken, webAccessToken, publicAccessToken);
 				return notFound();
 			}
 
@@ -1656,6 +1718,11 @@ public class DatasetsController extends AbstractAsyncController {
 			// check the file for special website properties
 			File file = requestedFile.get();
 			String lowerFilename = file.getName().toLowerCase();
+			if ("tab".equalsIgnoreCase(request.getQueryString("view")) && (lowerFilename.endsWith(".html")
+					|| lowerFilename.endsWith(".htm") || lowerFilename.endsWith(".md")
+					|| lowerFilename.endsWith(".markdown"))) {
+				return renderSandboxedShell(request, ds, filename, file, "/web/" + webTokenStr + "/");
+			}
 			if ((lowerFilename.endsWith(".md") || lowerFilename.endsWith(".markdown")) && file.length() < 1024 * 1024) {
 				// read file contents
 				try {
@@ -1718,16 +1785,42 @@ public class DatasetsController extends AbstractAsyncController {
 				return notFound("Invalid path.");
 			}
 
-			String viewerTokenStr = token;
-			TokenResolverUtil.ViewerTokenInfo tokenInfo = tokenResolverUtil.resolveViewerToken(viewerTokenStr);
-			if (tokenInfo == null) {
-				// try without path ending
-				viewerTokenStr = viewerTokenStr.replaceAll("[/].*", "");
-				tokenInfo = tokenResolverUtil.resolveViewerToken(viewerTokenStr);
-				if (tokenInfo == null) {
-					return forbidden("Invalid viewer token.");
+			String rawToken = token != null ? token.trim() : "";
+			String decodedToken = rawToken;
+			if (rawToken.contains("%")) {
+				try {
+					decodedToken = java.net.URLDecoder.decode(rawToken, StandardCharsets.UTF_8);
+				} catch (Exception ignored) {
 				}
 			}
+
+			TokenResolverUtil.ViewerTokenInfo tokenInfo = tokenResolverUtil.resolveViewerToken(rawToken);
+			if (tokenInfo == null && !decodedToken.equals(rawToken)) {
+				tokenInfo = tokenResolverUtil.resolveViewerToken(decodedToken);
+			}
+			if (tokenInfo == null && rawToken.endsWith("/")) {
+				tokenInfo = tokenResolverUtil.resolveViewerToken(rawToken.replaceAll("/+$", ""));
+			}
+			if (tokenInfo == null && decodedToken.endsWith("/")) {
+				tokenInfo = tokenResolverUtil.resolveViewerToken(decodedToken.replaceAll("/+$", ""));
+			}
+			if (tokenInfo == null && rawToken.contains("/")) {
+				tokenInfo = tokenResolverUtil.resolveViewerToken(rawToken.replaceAll("[/].*", ""));
+			}
+			if (tokenInfo == null && decodedToken.contains("/")) {
+				tokenInfo = tokenResolverUtil.resolveViewerToken(decodedToken.replaceAll("[/].*", ""));
+			}
+			if (tokenInfo == null) {
+				logger.warn("[webViewer 403] Invalid viewer token: '{}' (decoded: '{}')", rawToken, decodedToken);
+				return forbidden("Invalid viewer token.");
+			}
+
+			String canonicalToken = !decodedToken.isEmpty() ? decodedToken : rawToken;
+			canonicalToken = canonicalToken.replaceAll("/+$", "");
+			if (canonicalToken.contains("/")) {
+				canonicalToken = canonicalToken.replaceAll("[/].*", "");
+			}
+			String viewerTokenStr = canonicalToken;
 
 			// If token has expired:
 			if (tokenInfo.isExpired()) {
@@ -1798,6 +1891,11 @@ public class DatasetsController extends AbstractAsyncController {
 			// check the file for special website properties
 			File file = requestedFile.get();
 			String lowerFilename = file.getName().toLowerCase();
+			if ("tab".equalsIgnoreCase(request.getQueryString("view")) && (lowerFilename.endsWith(".html")
+					|| lowerFilename.endsWith(".htm") || lowerFilename.endsWith(".md")
+					|| lowerFilename.endsWith(".markdown"))) {
+				return renderSandboxedShell(request, ds, filename, file, "/web/view/" + viewerTokenStr + "/");
+			}
 			if ((lowerFilename.endsWith(".md") || lowerFilename.endsWith(".markdown")) && file.length() < 1024 * 1024) {
 				// read file contents
 				try {

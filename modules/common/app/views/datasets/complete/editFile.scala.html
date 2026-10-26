@@ -103,12 +103,12 @@
         </select>
       </form>
       <button class="btn disabled" id="saveBtn">Save</button>
-      @if(fileName.endsWith(".html")) {
+      @if(fileName.endsWith(".html") || fileName.endsWith(".htm") || fileName.endsWith(".md")) {
         @defining(dataset.getEffectiveWebToken()) { effectiveToken =>
           @if(!effectiveToken.isEmpty) {
-            <a class="btn blue" href="@routes.DatasetsController.webToken(effectiveToken, fileName)" target="_blank" rel="noopener">Open</a>
+            <a class="btn blue" href="@routes.DatasetsController.webToken(effectiveToken, fileName)?view=tab" target="_blank" rel="noopener">Open</a>
           } else {
-            <a class="btn blue" href="@routes.DatasetsController.web(dataset.getId(), fileName)" target="_blank" rel="noopener">Open</a>
+            <a class="btn blue" href="@routes.DatasetsController.web(dataset.getId(), fileName)?view=tab" target="_blank" rel="noopener">Open</a>
           }
         }
       }
@@ -125,7 +125,7 @@
       <form id="playgroundSelector" style="flex: 2;">
         <select>
         @for(fileList <- htmlFiles) {
-          <option value="@routes.DatasetsController.web(dataset.getId(),fileList.link)" @if(fileList.getId().equals(fileId)) {selected}>@fileList.link</option>
+          <option value="@controllers.api.routes.CompleteDSController.downloadFile(dataset.getId(), fileList.getId())" @if(fileList.getId().equals(fileId)) {selected}>@fileList.link</option>
         }
         </select>
       </form>
@@ -139,11 +139,7 @@
       </span>
       } else {
       <iframe id="playgroundContent" 
-              @if(fileName.indexOf(".html") > -1) {
-              src="@routes.DatasetsController.web(dataset.getId(),fileName)"
-              } else {
-              src="@routes.DatasetsController.web(dataset.getId(),htmlFiles.get(0).link)"
-              }
+              sandbox="allow-scripts allow-forms allow-modals allow-popups"
               style="border: 0; width: 100%; height: 100%;"></iframe>
       }
     </div>
@@ -175,11 +171,51 @@
         }
     }
 
+    const bridgeScript = @Html(utils.rendering.PlaygroundBridgeUtil.getBridgeScriptAsJsLiteral());
+    const baseHref = ('@routes.DatasetsController.web(dataset.getId(), "")').replace(/\/+$/, '') + '/';
+
+    function preparePlaygroundHtml(rawHtml) {
+      if (!rawHtml) return '';
+      let content = rawHtml;
+      const baseTag = '<base href="' + baseHref + '">';
+      if (content.toLowerCase().includes('<head')) {
+        content = content.replace(/(<head[^>]*>)/i, '$1\n' + baseTag + '\n' + bridgeScript);
+      } else {
+        content = baseTag + '\n' + bridgeScript + '\n' + content;
+      }
+      return content;
+    }
+
+    function updatePlayground(rawHtml) {
+      const iframe = document.getElementById('playgroundContent');
+      if (iframe) {
+        iframe.srcdoc = preparePlaygroundHtml(rawHtml);
+      }
+    }
+
+    function loadPlaygroundSelectedFile() {
+      const selector = document.querySelector('#playgroundSelector select');
+      if (!selector || !selector.value) return;
+      fetch(selector.value)
+        .then(res => res.text())
+        .then(data => {
+          updatePlayground(data);
+        })
+        .catch(err => {
+          console.error("Failed to load playground file:", err);
+        });
+    }
+
     // download file contents and insert into editor
     fetch("@controllers.api.routes.CompleteDSController.downloadFile(dataset.getId(), fileId)")
       .then((response) => response.text())
       .then((data) => {
         flask.updateCode(data);
+        @if(fileName.endsWith(".html") || fileName.endsWith(".htm")) {
+          updatePlayground(data);
+        } else {
+          loadPlaygroundSelectedFile();
+        }
         setTimeout(() => {
           flask.onUpdate((code) => {
               document.getElementById('saveBtn').classList.remove('disabled');
@@ -209,8 +245,12 @@
             document.getElementById('saveBtn').classList.add('disabled');
                 M.toast({html: 'File saved.', classes: 'green darken-2'});
 
-                // reload iframe on success
-                document.querySelector('#playgroundContent').contentWindow.location.reload();
+                // update playground on success
+                @if(fileName.endsWith(".html") || fileName.endsWith(".htm")) {
+                  updatePlayground(flask.getCode());
+                } else {
+                  loadPlaygroundSelectedFile();
+                }
             } else {
               if(response.status == 403) {
                   M.toast({html: 'Problem saving file changes, you are logged out.', classes: 'red darken-2'});
@@ -241,14 +281,15 @@
     document.querySelector('#fileSelector select').addEventListener('change', function(e) {
       window.location.href = this.value;
     });
-    document.querySelector('#playgroundSelector select').addEventListener('change', function(e) {
-      document.querySelector('#playgroundContent').src = this.value;
+    document.querySelector('#playgroundSelector select')?.addEventListener('change', function(e) {
+      loadPlaygroundSelectedFile();
     });
 
-    document.querySelector('#playgroundReloadBtn').addEventListener('click', (e) => {
-      const iframe = document.querySelector('#playgroundContent');
-      if (iframe) {
-        iframe.src = iframe.src;
+    document.querySelector('#playgroundReloadBtn')?.addEventListener('click', (e) => {
+      @if(fileName.endsWith(".html") || fileName.endsWith(".htm")) {
+        updatePlayground(flask.getCode());
+      } else {
+        loadPlaygroundSelectedFile();
       }
     });
 

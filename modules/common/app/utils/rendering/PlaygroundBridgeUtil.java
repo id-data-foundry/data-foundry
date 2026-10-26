@@ -12,8 +12,7 @@ public class PlaygroundBridgeUtil {
 
 	public static final long MAX_BRIDGE_FILE_SIZE = 5 * 1024 * 1024L;
 
-	public static final String BRIDGE_SCRIPT = """
-			<script>
+	public static final String BRIDGE_RAW_JS = """
 			(function() {
 			  function createStore() {
 			    var store = {};
@@ -76,8 +75,9 @@ public class PlaygroundBridgeUtil {
 			    };
 			  }
 			})();
-			</script>
 			""";
+
+	public static final String BRIDGE_SCRIPT = "<script>\n" + BRIDGE_RAW_JS + "\n</script>\n";
 
 	/**
 	 * Returns the raw bridge script including script tags.
@@ -86,6 +86,26 @@ public class PlaygroundBridgeUtil {
 	 */
 	public static String getBridgeScript() {
 		return BRIDGE_SCRIPT;
+	}
+
+	/**
+	 * Returns the raw bridge JavaScript code without enclosing &lt;script&gt; tags.
+	 *
+	 * @return bridge JavaScript string
+	 */
+	public static String getBridgeRawJs() {
+		return BRIDGE_RAW_JS;
+	}
+
+	/**
+	 * Returns the bridge script wrapped in &lt;script&gt; tags and JSON-stringified with all
+	 * '&lt;' escaped as '\\u003c'. Safe for direct embedding inside inline JavaScript blocks
+	 * in HTML templates without prematurely closing the enclosing &lt;script&gt; element.
+	 *
+	 * @return JSON string literal safe for inline JavaScript
+	 */
+	public static String getBridgeScriptAsJsLiteral() {
+		return play.libs.Json.stringify(play.libs.Json.toJson(BRIDGE_SCRIPT)).replace("<", "\\u003c");
 	}
 
 	/**
