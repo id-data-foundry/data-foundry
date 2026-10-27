@@ -198,6 +198,7 @@ public class StarboardController extends AbstractAsyncController {
 						"sandbox allow-scripts allow-modals allow-downloads allow-forms allow-popups; "
 								+ "connect-src * data: blob: 'self' http: https: ws: wss:; "
 								+ "script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https: http:; "
+								+ "worker-src 'self' blob:; "
 								+ "style-src 'self' 'unsafe-inline' https: http:; "
 								+ "font-src 'self' https: http: data:; "
 								+ "img-src * data: blob: 'self' http: https:; "
