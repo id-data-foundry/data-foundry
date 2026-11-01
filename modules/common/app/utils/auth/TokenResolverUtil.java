@@ -27,8 +27,12 @@ public class TokenResolverUtil {
 	private final String PROJECT_VIEWER_TOKEN_KEY;
 	private final String EMAIL_RESET_SEC_KEY;
 	private final String USER_SIGN_UP_KEY;
+	private final long maxParticipationTokenAgeMs;
 
 	public final List<String> REGISTRATION_ACCESS_KEY;
+
+	@Inject(optional = true)
+	private play.api.db.evolutions.DynamicEvolutions dynamicEvolutions;
 
 	@Inject
 	public TokenResolverUtil(Config config) {
@@ -95,6 +99,13 @@ public class TokenResolverUtil {
 							+ ConfigurationUtils.DF_KEYS_REGISTRATION_ACCESS
 							+ "'. Registration may be open to anyone!");
 		}
+
+		if (config.hasPath("df.auth.participationTokenMaxAgeDays")) {
+			long days = config.getLong("df.auth.participationTokenMaxAgeDays");
+			this.maxParticipationTokenAgeMs = days > 0 ? days * 86_400_000L : 0L;
+		} else {
+			this.maxParticipationTokenAgeMs = 0L;
+		}
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -127,16 +138,6 @@ public class TokenResolverUtil {
 		if (res == null && token != null) {
 			res = SymEncryption.decryptToken(normalizeToken(token), PROJECT_COLLABORATOR_TOKEN_KEY);
 		}
-		if (res == null && PROJECT_COLLABORATOR_TOKEN_KEY != null && PROJECT_COLLABORATOR_TOKEN_KEY.contains("_")) {
-			String legacySuffix = PROJECT_COLLABORATOR_TOKEN_KEY
-					.substring(PROJECT_COLLABORATOR_TOKEN_KEY.lastIndexOf('_'));
-			if (!legacySuffix.equals(PROJECT_COLLABORATOR_TOKEN_KEY)) {
-				res = SymEncryption.decryptToken(token, legacySuffix);
-				if (res == null && token != null) {
-					res = SymEncryption.decryptToken(normalizeToken(token), legacySuffix);
-				}
-			}
-		}
 		return res;
 	}
 
@@ -150,15 +151,6 @@ public class TokenResolverUtil {
 		String res = SymEncryption.decryptToken(token, PROJECT_SUBSCRIBER_TOKEN_KEY);
 		if (res == null && token != null) {
 			res = SymEncryption.decryptToken(normalizeToken(token), PROJECT_SUBSCRIBER_TOKEN_KEY);
-		}
-		if (res == null && PROJECT_SUBSCRIBER_TOKEN_KEY != null && PROJECT_SUBSCRIBER_TOKEN_KEY.contains("_")) {
-			String legacySuffix = PROJECT_SUBSCRIBER_TOKEN_KEY.substring(PROJECT_SUBSCRIBER_TOKEN_KEY.lastIndexOf('_'));
-			if (!legacySuffix.equals(PROJECT_SUBSCRIBER_TOKEN_KEY)) {
-				res = SymEncryption.decryptToken(token, legacySuffix);
-				if (res == null && token != null) {
-					res = SymEncryption.decryptToken(normalizeToken(token), legacySuffix);
-				}
-			}
 		}
 		return res;
 	}
@@ -342,7 +334,28 @@ public class TokenResolverUtil {
 	 * @return
 	 */
 	public String getParticipationToken(Long projectId, Long participantId) {
+		Long creationTs = resolveParticipantCreationTimestamp(projectId, participantId);
+		if (creationTs != null) {
+			return base64Encode(SymEncryption.getTokenWithThirdId(projectId, participantId, creationTs,
+					PROJECT_PARTICIPATION_TOKEN_KEY));
+		}
 		return createToken(projectId, participantId, PROJECT_PARTICIPATION_TOKEN_KEY);
+	}
+
+	/**
+	 * get participation token for a Participant entity, embedding its creation timestamp
+	 * 
+	 * @param participant participant entity
+	 * @return participation token
+	 */
+	public String getParticipationToken(models.sr.Participant participant) {
+		if (participant == null || participant.getProject() == null) {
+			return "";
+		}
+		long creationTs = participant.getCreation() != null ? participant.getCreation().getTime()
+				: System.currentTimeMillis();
+		return base64Encode(SymEncryption.getTokenWithThirdId(participant.getProject().getId(), participant.getId(),
+				creationTs, PROJECT_PARTICIPATION_TOKEN_KEY));
 	}
 
 	/**
@@ -353,6 +366,11 @@ public class TokenResolverUtil {
 	 * @return
 	 */
 	public String getBase32ParticipationToken(Long projectId, Long participantId) {
+		Long creationTs = resolveParticipantCreationTimestamp(projectId, participantId);
+		if (creationTs != null) {
+			return base32Encode(SymEncryption.getTokenWithThirdId(projectId, participantId, creationTs,
+					PROJECT_PARTICIPATION_TOKEN_KEY)).toLowerCase();
+		}
 		return createBase32Token(projectId, participantId, PROJECT_PARTICIPATION_TOKEN_KEY).toLowerCase();
 	}
 
@@ -388,13 +406,116 @@ public class TokenResolverUtil {
 	}
 
 	/**
-	 * get participant id from participation token
+	 * get participant id from participation token, verifying creation-timestamp binding and time-based validity
 	 * 
 	 * @param token
 	 * @return
 	 */
 	public Long getParticipantIdFromParticipationToken(String token) {
-		return retrieveSecondIdFromToken(token, PROJECT_PARTICIPATION_TOKEN_KEY);
+		Long participantId = retrieveSecondIdFromToken(token, PROJECT_PARTICIPATION_TOKEN_KEY);
+		if (participantId == null || participantId <= 0) {
+			return participantId != null ? participantId : -1L;
+		}
+		Long projectId = retrieveFirstIdFromToken(token, PROJECT_PARTICIPATION_TOKEN_KEY);
+		Long thirdId = retrieveThirdIdFromToken(token, PROJECT_PARTICIPATION_TOKEN_KEY);
+		if (projectId == null || projectId <= 0 || thirdId == null) {
+			return -1L;
+		}
+		// Time-based validity check when 3rd component is a 64-bit millisecond timestamp
+		if (thirdId > Integer.MAX_VALUE && !isTimestampValid(thirdId)) {
+			return -1L;
+		}
+		// If Ebean is running and a Participant with this ID belongs to this project, validate creation binding
+		if (dynamicEvolutions != null) {
+			try {
+				models.sr.Participant p = models.sr.Participant.find.byId(participantId);
+				if (p != null && p.getProject() != null && p.getProject().getId().equals(projectId)) {
+					if (!isValidParticipationToken(token, p)) {
+						return -1L;
+					}
+				}
+			} catch (Exception | NoClassDefFoundError | ExceptionInInitializerError ignored) {
+				// Ebean not initialized (e.g. standalone crypto unit tests)
+			}
+		}
+		return participantId;
+	}
+
+	/**
+	 * Validate a participation token against a specific Participant's project, ID, creation timestamp, and TTL.
+	 * 
+	 * @param token       participation token
+	 * @param participant participant entity
+	 * @return true if valid
+	 */
+	public boolean isValidParticipationToken(String token, models.sr.Participant participant) {
+		if (token == null || token.trim().isEmpty() || participant == null || participant.getId() == null
+				|| participant.getProject() == null) {
+			return false;
+		}
+		Long projectId = retrieveFirstIdFromToken(token, PROJECT_PARTICIPATION_TOKEN_KEY);
+		Long participantId = retrieveSecondIdFromToken(token, PROJECT_PARTICIPATION_TOKEN_KEY);
+		Long thirdId = retrieveThirdIdFromToken(token, PROJECT_PARTICIPATION_TOKEN_KEY);
+		if (!participant.getProject().getId().equals(projectId) || !participant.getId().equals(participantId)
+				|| thirdId == null) {
+			return false;
+		}
+		boolean v2 = isV2Token(token);
+		if (v2) {
+			// Modern v2 participation tokens for a Participant must carry participant.getCreation().getTime()
+			if (participant.getCreation() == null) {
+				return false;
+			}
+			long expectedCreationMs = participant.getCreation().getTime();
+			if (Math.abs(thirdId - expectedCreationMs) >= 1000L) {
+				return false;
+			}
+			return isTimestampValid(thirdId);
+		} else {
+			// Pre-v2 legacy token: verify creation timestamp if embedded, plus time-based validity on participant creation
+			long effectiveTs = thirdId > Integer.MAX_VALUE ? thirdId
+					: (participant.getCreation() != null ? participant.getCreation().getTime() : 0L);
+			return effectiveTs <= 0L || isTimestampValid(effectiveTs);
+		}
+	}
+
+	private boolean isTimestampValid(long timestampMs) {
+		long now = System.currentTimeMillis();
+		if (timestampMs > now + 60_000L) {
+			return false;
+		}
+		if (maxParticipationTokenAgeMs > 0 && (now - timestampMs) > maxParticipationTokenAgeMs) {
+			return false;
+		}
+		return true;
+	}
+
+	private boolean isV2Token(String token) {
+		if (token == null) {
+			return false;
+		}
+		String norm = normalizeToken(token);
+		if (norm.startsWith(SymEncryption.V2_PREFIX)) {
+			return true;
+		}
+		String decoded = base64Decode(norm);
+		return decoded != null && decoded.startsWith(SymEncryption.V2_PREFIX);
+	}
+
+	private Long resolveParticipantCreationTimestamp(Long projectId, Long participantId) {
+		if (participantId == null || participantId <= 0 || dynamicEvolutions == null) {
+			return null;
+		}
+		try {
+			models.sr.Participant p = models.sr.Participant.find.byId(participantId);
+			if (p != null && p.getCreation() != null && p.getProject() != null
+					&& (projectId == null || p.getProject().getId().equals(projectId))) {
+				return p.getCreation().getTime();
+			}
+		} catch (Exception | NoClassDefFoundError | ExceptionInInitializerError ignored) {
+			// Ebean not initialized
+		}
+		return null;
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -449,7 +570,11 @@ public class TokenResolverUtil {
 	 * @return
 	 */
 	public Long getDatasetIdFromToken(String token) {
-		return retrieveFirstIdFromToken(token, PROJECT_DATASET_TOKEN_KEY);
+		Long id = retrieveFirstIdFromToken(token, PROJECT_DATASET_TOKEN_KEY);
+		if (id != -1L) {
+			return id;
+		}
+		return retrieveDatasetIdWithLegacyFallback(token);
 	}
 
 	public static final long VIEWER_TOKEN_VALIDITY_MS = 2 * 60 * 60 * 1000L; // 2 hours
@@ -603,37 +728,31 @@ public class TokenResolverUtil {
 				return id;
 			}
 		}
-		// Fallback to legacy default key suffix (e.g., "_dataset")
-		if (key != null && key.contains("_")) {
-			String legacySuffixKey = key.substring(key.lastIndexOf('_'));
-			if (!legacySuffixKey.equals(key)) {
-				id = tryRetrieveFirstId(token, legacySuffixKey);
-				if (id != -1L) {
-					return id;
-				}
-				if (normalized != null && !normalized.equals(token)) {
-					id = tryRetrieveFirstId(normalized, legacySuffixKey);
-					if (id != -1L) {
-						return id;
-					}
-				}
+		return -1L;
+	}
+
+	/**
+	 * Legacy fallback used strictly for dataset ID lookup in getDatasetIdFromToken, where callers always verify the
+	 * token string against the dataset's stored configuration via isTokenMatch.
+	 */
+	private Long retrieveDatasetIdWithLegacyFallback(String token) {
+		if (token == null || token.trim().isEmpty() || PROJECT_DATASET_TOKEN_KEY == null) {
+			return -1L;
+		}
+		String normalized = normalizeToken(token);
+		Long id = tryRetrieveFirstId(token, "_dataset");
+		if (id != -1L) {
+			return id;
+		}
+		if (normalized != null && !normalized.equals(token)) {
+			id = tryRetrieveFirstId(normalized, "_dataset");
+			if (id != -1L) {
+				return id;
 			}
-			// Explicit fallback to "_dataset" for dataset token resolution
-			if (PROJECT_DATASET_TOKEN_KEY != null && PROJECT_DATASET_TOKEN_KEY.equals(key)) {
-				id = tryRetrieveFirstId(token, "_dataset");
-				if (id != -1L) {
-					return id;
-				}
-				if (normalized != null && !normalized.equals(token)) {
-					id = tryRetrieveFirstId(normalized, "_dataset");
-					if (id != -1L) {
-						return id;
-					}
-				}
-			}
-			// Try base key before suffix (raw project secret without '_dataset')
-			String baseKey = key.substring(0, key.lastIndexOf('_'));
-			if (!baseKey.isEmpty() && !baseKey.equals(key)) {
+		}
+		if (PROJECT_DATASET_TOKEN_KEY.contains("_")) {
+			String baseKey = PROJECT_DATASET_TOKEN_KEY.substring(0, PROJECT_DATASET_TOKEN_KEY.lastIndexOf('_'));
+			if (!baseKey.isEmpty() && !baseKey.equals(PROJECT_DATASET_TOKEN_KEY)) {
 				id = tryRetrieveFirstId(token, baseKey);
 				if (id != -1L) {
 					return id;
@@ -674,20 +793,7 @@ public class TokenResolverUtil {
 	 * @return
 	 */
 	private Long retrieveFirstIdFromBase32Token(String token, String key) {
-		Long id = tryRetrieveFirstIdFromBase32(token, key);
-		if (id != -1L) {
-			return id;
-		}
-		if (key != null && key.contains("_")) {
-			String legacySuffixKey = key.substring(key.lastIndexOf('_'));
-			if (!legacySuffixKey.equals(key)) {
-				id = tryRetrieveFirstIdFromBase32(token, legacySuffixKey);
-				if (id != -1L) {
-					return id;
-				}
-			}
-		}
-		return -1L;
+		return tryRetrieveFirstIdFromBase32(token, key);
 	}
 
 	private Long tryRetrieveFirstIdFromBase32(String token, String key) {
@@ -722,22 +828,6 @@ public class TokenResolverUtil {
 				return id;
 			}
 		}
-		// Fallback to legacy default key suffix
-		if (key != null && key.contains("_")) {
-			String legacySuffixKey = key.substring(key.lastIndexOf('_'));
-			if (!legacySuffixKey.equals(key)) {
-				id = tryRetrieveSecondId(token, legacySuffixKey);
-				if (id != -1L) {
-					return id;
-				}
-				if (normalized != null && !normalized.equals(token)) {
-					id = tryRetrieveSecondId(normalized, legacySuffixKey);
-					if (id != -1L) {
-						return id;
-					}
-				}
-			}
-		}
 		return -1L;
 	}
 
@@ -754,6 +844,39 @@ public class TokenResolverUtil {
 			secondId = SymEncryption.getSecondIdFromToken(token, key);
 		}
 		return secondId;
+	}
+
+	private Long retrieveThirdIdFromToken(String token, String key) {
+		if (token == null || token.trim().isEmpty()) {
+			return null;
+		}
+		Long id = tryRetrieveThirdId(token, key);
+		if (id != null) {
+			return id;
+		}
+		String normalized = normalizeToken(token);
+		if (normalized != null && !normalized.equals(token)) {
+			id = tryRetrieveThirdId(normalized, key);
+			if (id != null) {
+				return id;
+			}
+		}
+		return null;
+	}
+
+	private Long tryRetrieveThirdId(String token, String key) {
+		if (token == null || token.trim().isEmpty()) {
+			return null;
+		}
+		String decoded = base64Decode(token);
+		Long thirdId = null;
+		if (decoded != null && !decoded.equals("-- invalid token --")) {
+			thirdId = SymEncryption.getThirdIdFromToken(decoded, key);
+		}
+		if (thirdId == null) {
+			thirdId = SymEncryption.getThirdIdFromToken(token, key);
+		}
+		return thirdId;
 	}
 
 	/**
@@ -776,22 +899,6 @@ public class TokenResolverUtil {
 			val = tryGetSecondString(normalized, key);
 			if (val != null) {
 				return val;
-			}
-		}
-		// Fallback to legacy default key suffix
-		if (key != null && key.contains("_")) {
-			String legacySuffixKey = key.substring(key.lastIndexOf('_'));
-			if (!legacySuffixKey.equals(key)) {
-				val = tryGetSecondString(token, legacySuffixKey);
-				if (val != null) {
-					return val;
-				}
-				if (normalized != null && !normalized.equals(token)) {
-					val = tryGetSecondString(normalized, legacySuffixKey);
-					if (val != null) {
-						return val;
-					}
-				}
 			}
 		}
 		return null;

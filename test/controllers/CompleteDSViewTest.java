@@ -428,7 +428,8 @@ public class CompleteDSViewTest extends WithApplication {
 		assertEquals(OK, publicCsvRes.status());
 		assertEquals("application/x-download", publicCsvRes.contentType().orElse(""));
 		assertEquals("nosniff", publicCsvRes.header("X-Content-Type-Options").orElse(""));
-		assertEquals("*", publicCsvRes.header("Access-Control-Allow-Origin").orElse(""));
+		assertEquals("null", publicCsvRes.header("Access-Control-Allow-Origin").orElse(""));
+		assertEquals("Origin", publicCsvRes.header("Vary").orElse(""));
 		assertEquals("sandbox", publicCsvRes.header("Content-Security-Policy").orElse(""));
 		assertTrue("Content-Disposition must be attachment", publicCsvRes.header("Content-Disposition").orElse("").startsWith("attachment"));
 	}
@@ -509,16 +510,18 @@ public class CompleteDSViewTest extends WithApplication {
 		assertTrue("Datasets helper should show JavaScript snippet with public token", datasetsBodyWithToken.contains("/datasets/downloadPublic/json/" + testToken));
 		assertTrue("Datasets helper should show Python snippet with public token", datasetsBodyWithToken.contains("/datasets/downloadPublic/" + testToken));
 
-		// 6. Test public token endpoints return Access-Control-Allow-Origin: *
+		// 6. Test public token endpoints return Access-Control-Allow-Origin: null and Vary: Origin (never *)
 		Http.Request publicJsonReq = createAuthenticatedRequest(GET, "/datasets/downloadPublic/json/" + testToken, null);
 		Result publicJsonRes = datasetsController.downloadJsonPublic(publicJsonReq, testToken, -1L, -1L, -1L, -1L).toCompletableFuture().get();
 		assertEquals(OK, publicJsonRes.status());
-		assertEquals("*", publicJsonRes.header("Access-Control-Allow-Origin").orElse(""));
+		assertEquals("null", publicJsonRes.header("Access-Control-Allow-Origin").orElse(""));
+		assertEquals("Origin", publicJsonRes.header("Vary").orElse(""));
 
 		Http.Request publicCsvReq = createAuthenticatedRequest(GET, "/datasets/downloadPublic/" + testToken, null);
 		Result publicCsvRes2 = datasetsController.downloadPublic(publicCsvReq, testToken, -1L, -1L, -1L, -1L).toCompletableFuture().get();
 		assertEquals(OK, publicCsvRes2.status());
-		assertEquals("*", publicCsvRes2.header("Access-Control-Allow-Origin").orElse(""));
+		assertEquals("null", publicCsvRes2.header("Access-Control-Allow-Origin").orElse(""));
+		assertEquals("Origin", publicCsvRes2.header("Vary").orElse(""));
 	}
 
 	private String generateLegacyToken(String payload, String secretKey) throws Exception {
@@ -559,13 +562,15 @@ public class CompleteDSViewTest extends WithApplication {
 		Http.Request jsonReq = createAuthenticatedRequest(GET, "/datasets/downloadPublic/json/" + userToken, null);
 		Result jsonRes = datasetsController.downloadJsonPublic(jsonReq, userToken, -1L, -1L, -1L, -1L).toCompletableFuture().get();
 		assertEquals(OK, jsonRes.status());
-		assertEquals("*", jsonRes.header("Access-Control-Allow-Origin").orElse(""));
+		assertEquals("null", jsonRes.header("Access-Control-Allow-Origin").orElse(""));
+		assertEquals("Origin", jsonRes.header("Vary").orElse(""));
 
 		// B. CSV download with exact token
 		Http.Request csvReq = createAuthenticatedRequest(GET, "/datasets/downloadPublic/" + userToken, null);
 		Result csvRes = datasetsController.downloadPublic(csvReq, userToken, -1L, -1L, -1L, -1L).toCompletableFuture().get();
 		assertEquals(OK, csvRes.status());
-		assertEquals("*", csvRes.header("Access-Control-Allow-Origin").orElse(""));
+		assertEquals("null", csvRes.header("Access-Control-Allow-Origin").orElse(""));
+		assertEquals("Origin", csvRes.header("Vary").orElse(""));
 
 		// C. Single-encoded legacy token Al8l4i8EzctZA0mRV5Qp3g==
 		String singleEncodedToken = "Al8l4i8EzctZA0mRV5Qp3g==";
@@ -579,31 +584,35 @@ public class CompleteDSViewTest extends WithApplication {
 		Result percentRes = datasetsController.downloadJsonPublic(percentReq, percentEncodedToken, -1L, -1L, -1L, -1L).toCompletableFuture().get();
 		assertEquals(OK, percentRes.status());
 
-		// 2. Test WEB_ACCESS_TOKEN configuration allows download without PUBLIC_ACCESS_TOKEN
+		// 2. Test that WEB_ACCESS_TOKEN alone must NOT allow public data downloads
 		ds15.getConfiguration().remove(Dataset.PUBLIC_ACCESS_TOKEN);
 		ds15.getConfiguration().put(Dataset.WEB_ACCESS_TOKEN, userToken);
 		ds15.update();
 
 		Result webTokenJsonRes = datasetsController.downloadJsonPublic(jsonReq, userToken, -1L, -1L, -1L, -1L).toCompletableFuture().get();
-		assertEquals(OK, webTokenJsonRes.status());
+		assertEquals("WEB_ACCESS_TOKEN must be rejected on downloadJsonPublic", SEE_OTHER, webTokenJsonRes.status());
 
 		Result webTokenCsvRes = datasetsController.downloadPublic(csvReq, userToken, -1L, -1L, -1L, -1L).toCompletableFuture().get();
-		assertEquals(OK, webTokenCsvRes.status());
+		assertEquals("WEB_ACCESS_TOKEN must be rejected on downloadPublic", SEE_OTHER, webTokenCsvRes.status());
 
-		// 3. Test starboard datasets helper snippet rendering with WEB_ACCESS_TOKEN
+		// 3. Test starboard datasets helper auto-provisions PUBLIC_ACCESS_TOKEN when WEB_ACCESS_TOKEN is present
 		Http.Request helperReq = createAuthenticatedRequest(GET, "/tools/starboard/datasets", ownerUser);
 		Result helperRes = starboardController.datasets(helperReq);
 		assertEquals(OK, helperRes.status());
 		String helperBody = contentAsString(helperRes);
-		assertTrue(helperBody.contains("/datasets/downloadPublic/json/" + userToken));
-		assertTrue(helperBody.contains("/datasets/downloadPublic/" + userToken));
+		Dataset refreshedDs15 = Dataset.find.byId(15L);
+		String autoPat = refreshedDs15.getConfiguration().get(Dataset.PUBLIC_ACCESS_TOKEN);
+		assertNotNull("Starboard datasets helper must auto-provision PUBLIC_ACCESS_TOKEN", autoPat);
+		assertFalse("Auto-provisioned PUBLIC_ACCESS_TOKEN must not be empty", autoPat.isEmpty());
+		assertTrue(helperBody.contains("/datasets/downloadPublic/json/" + autoPat));
+		assertTrue(helperBody.contains("/datasets/downloadPublic/" + autoPat));
 		assertFalse("datasets helper should not contain material-icons font icons", helperBody.contains("material-icons"));
 		assertFalse("datasets helper should not contain unicode triangle bullet", helperBody.contains("&#5125;"));
 		assertTrue("datasets helper should render project-icon svg", helperBody.contains("project-icon"));
 		assertTrue("datasets helper should render dataset-icon svg", helperBody.contains("dataset-icon"));
 		assertTrue("datasets helper should render dataset-lock-icon svg for unconfigured dataset", helperBody.contains("dataset-lock-icon"));
 
-		// 4. Test CompleteDSController.downloadFilePublic with legacy token
+		// 4. Test CompleteDSController.downloadFilePublic requires PUBLIC_ACCESS_TOKEN and rejects WEB_ACCESS_TOKEN
 		CompleteDS cpds15 = (CompleteDS) datasetConnector.getDatasetDS(ds15);
 		File testFile = File.createTempFile("legacy_pub_test", ".txt");
 		Files.write(testFile.toPath(), "Legacy File Content".getBytes(StandardCharsets.UTF_8));
@@ -611,8 +620,28 @@ public class CompleteDSViewTest extends WithApplication {
 		cpds15.addRecord("public_test.txt", "Description", new Date());
 		testFile.delete();
 
-		Result fileRes = completeDSController.downloadFilePublic("public_test.txt", userToken).toCompletableFuture().get();
-		assertEquals(OK, fileRes.status());
+		String distinctWebToken = tokenResolverUtil.getDatasetToken(15L);
+		refreshedDs15.getConfiguration().put(Dataset.WEB_ACCESS_TOKEN, distinctWebToken);
+		refreshedDs15.getConfiguration().put(Dataset.PUBLIC_ACCESS_TOKEN, userToken);
+		refreshedDs15.update();
+
+		Result fileResWithPat = completeDSController.downloadFilePublic("public_test.txt", userToken).toCompletableFuture().get();
+		assertEquals(OK, fileResWithPat.status());
+
+		Result fileResWithWat = completeDSController.downloadFilePublic("public_test.txt", distinctWebToken).toCompletableFuture().get();
+		assertEquals("WEB_ACCESS_TOKEN must be rejected on downloadFilePublic", SEE_OTHER, fileResWithWat.status());
+
+		// 5. Test that when WEB_ACCESS_TOKEN is explicitly empty (disabled), PUBLIC_ACCESS_TOKEN must NOT serve /web/
+		refreshedDs15.getConfiguration().put(Dataset.WEB_ACCESS_TOKEN, "");
+		refreshedDs15.getConfiguration().put(Dataset.PUBLIC_ACCESS_TOKEN, userToken);
+		refreshedDs15.update();
+
+		assertFalse("Dataset with disabled WEB_ACCESS_TOKEN must not report website live", refreshedDs15.isWebsiteLive());
+		assertEquals("", refreshedDs15.getEffectiveWebToken());
+
+		Http.Request webTokenDisabledReq = createAuthenticatedRequest(GET, "/web/" + userToken + "/index.html", null);
+		Result webTokenDisabledRes = datasetsController.webToken(webTokenDisabledReq, userToken, "index.html").toCompletableFuture().get();
+		assertEquals("PUBLIC_ACCESS_TOKEN must not serve /web/ when WEB_ACCESS_TOKEN is disabled", NOT_FOUND, webTokenDisabledRes.status());
 	}
 
 	@Test

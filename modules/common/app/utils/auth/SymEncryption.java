@@ -181,6 +181,14 @@ public class SymEncryption {
 		return encryptToken(firstId + ":" + secondId + ":" + randomNumberGenerator.nextInt(), key);
 	}
 
+	public static String getTokenWithThirdId(Long firstId, Long secondId, long thirdId, String key) {
+		return encryptToken(firstId + ":" + secondId + ":" + thirdId, key);
+	}
+
+	public static String getStableTokenWithThirdId(Long firstId, Long secondId, long thirdId, String key) {
+		return encryptStableToken(firstId + ":" + secondId + ":" + thirdId, key);
+	}
+
 	/**
 	 * generic way to pack project id and person id into a token
 	 * 
@@ -242,6 +250,26 @@ public class SymEncryption {
 			return Long.parseLong(dec.split(":")[1]);
 		} catch (Exception e) {
 			return -1l;
+		}
+	}
+
+	/**
+	 * generic way to unpack the third long component (e.g. creation timestamp or random int) from token
+	 * 
+	 * @param token
+	 * @param key
+	 * @return third component as Long, or null if invalid/absent
+	 */
+	public static Long getThirdIdFromToken(String token, String key) {
+		try {
+			String dec = decryptToken(token, key);
+			if (dec == null) {
+				return null;
+			}
+			String[] parts = dec.split(":");
+			return parts.length >= 3 ? Long.parseLong(parts[2]) : null;
+		} catch (Exception e) {
+			return null;
 		}
 	}
 

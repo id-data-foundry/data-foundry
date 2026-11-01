@@ -37,7 +37,7 @@
 					<i class="dataset-icon" style="margin-right: 6px; display: inline-flex; align-items: center;">@elements.icon(ds.toIcon())</i>
 					<strong>@ds.getName()</strong>
 				</span>
-				@defining(ds.getEffectiveWebToken()) { pat =>
+				@defining(ds.configuration(models.Dataset.PUBLIC_ACCESS_TOKEN, "").trim()) { pat =>
 					@if(!pat.isEmpty) {
 						<a class="btn-small waves-effect waves-light teal lighten-1 jsBtn" style="margin-left: 0.5rem;">JavaScript</a>
 						<a class="btn-small waves-effect waves-light blue darken-1 pyBtn" style="margin-left: 0.25rem;">Python</a>

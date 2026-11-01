@@ -294,4 +294,29 @@ public class ParticipationApiControllerSecurityTest extends WithApplication {
 		Result resultJson = route(app, requestJson);
 		assertEquals("ANNOTATION dataset export JSON must be forbidden for participants", FORBIDDEN, resultJson.status());
 	}
+
+	@Test
+	public void testParticipationTokenWithoutCreationTimestampRejected() {
+		// Valid token generated for persisted participantA embeds participantA.getCreation().getTime()
+		assertEquals(participantA.getId(), tokenResolver.getParticipantIdFromParticipationToken(tokenA));
+
+		// Forged v2 token with random 32-bit int 3rd component (e.g., minted via SymEncryption.getToken without creation timestamp)
+		String forgedRandom3rd = tokenResolver.base64Encode(
+				utils.auth.SymEncryption.getToken(project.getId(), participantA.getId(), "test-project-token-secret-123456_participation"));
+		assertEquals("Forged participation token without creation timestamp must resolve to -1L",
+				Long.valueOf(-1L), tokenResolver.getParticipantIdFromParticipationToken(forgedRandom3rd));
+
+		// Forged v2 token with wrong creation timestamp (off by 5 seconds)
+		long wrongCreation = participantA.getCreation().getTime() - 5000L;
+		String forgedWrongTs = tokenResolver.base64Encode(
+				utils.auth.SymEncryption.getTokenWithThirdId(project.getId(), participantA.getId(), wrongCreation, "test-project-token-secret-123456_participation"));
+		assertEquals("Forged participation token with wrong creation timestamp must resolve to -1L",
+				Long.valueOf(-1L), tokenResolver.getParticipantIdFromParticipationToken(forgedWrongTs));
+
+		// Forged token using legacy static suffix key "_participation"
+		String forgedStaticKey = tokenResolver.base64Encode(
+				utils.auth.SymEncryption.getTokenWithThirdId(project.getId(), participantA.getId(), participantA.getCreation().getTime(), "_participation"));
+		assertEquals("Forged participation token with static _participation key must resolve to -1L",
+				Long.valueOf(-1L), tokenResolver.getParticipantIdFromParticipationToken(forgedStaticKey));
+	}
 }

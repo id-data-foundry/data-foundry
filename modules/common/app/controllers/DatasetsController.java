@@ -683,10 +683,9 @@ public class DatasetsController extends AbstractAsyncController {
 			return cs(() -> status(GONE, "The project is not active, download is not available anymore."));
 		}
 
-		// check if the token is current (accept either public_access_token or web_access_token)
+		// check if the token is current (require public_access_token only)
 		String pat = ds.getConfiguration().get(Dataset.PUBLIC_ACCESS_TOKEN);
-		String wat = ds.getConfiguration().get(Dataset.WEB_ACCESS_TOKEN);
-		if (!tokenResolverUtil.isTokenMatch(token, pat) && !tokenResolverUtil.isTokenMatch(token, wat)) {
+		if (!tokenResolverUtil.isTokenMatch(token, pat)) {
 			return cs(() -> redirect(HOME).addingToSession(request, "error", "The dataset is not accessible."));
 		}
 
@@ -707,7 +706,18 @@ public class DatasetsController extends AbstractAsyncController {
 		}
 
 		return downloadExternalPublic(request, id, ds, cluster, limit, start, end)
-				.thenApply(res -> res.withHeader("Access-Control-Allow-Origin", "*"));
+				.thenApply(res -> applyPublicDownloadCors(request, res));
+	}
+
+	private Result applyPublicDownloadCors(Request request, Result res) {
+		String origin = request != null ? request.header("Origin").orElse("null") : "null";
+		String host = request != null ? request.host() : "";
+		if ("null".equals(origin)
+				|| (!host.isEmpty() && (origin.equalsIgnoreCase("https://" + host)
+						|| origin.equalsIgnoreCase("http://" + host)))) {
+			return res.withHeader("Access-Control-Allow-Origin", origin).withHeader("Vary", "Origin");
+		}
+		return res.withHeader("Vary", "Origin");
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1197,10 +1207,9 @@ public class DatasetsController extends AbstractAsyncController {
 			return cs(() -> status(GONE, "The project is not active, download is not available anymore."));
 		}
 
-		// check if the token is current (accept either public_access_token or web_access_token)
+		// check if the token is current (require public_access_token only)
 		String pat = ds.getConfiguration().get(Dataset.PUBLIC_ACCESS_TOKEN);
-		String wat = ds.getConfiguration().get(Dataset.WEB_ACCESS_TOKEN);
-		if (!tokenResolverUtil.isTokenMatch(token, pat) && !tokenResolverUtil.isTokenMatch(token, wat)) {
+		if (!tokenResolverUtil.isTokenMatch(token, pat)) {
 			return cs(() -> redirect(HOME).addingToSession(request, "error", "The dataset is not accessible."));
 		}
 
@@ -1229,8 +1238,9 @@ public class DatasetsController extends AbstractAsyncController {
 			}
 
 			String filename = (cluster != null ? cluster.getSlug() : "data") + ".json";
-			return ok(tempFile).withHeader(CONTENT_DISPOSITION, "attachment; filename=" + filename)
-					.as(MimeTypes.JSON).withHeader("Access-Control-Allow-Origin", "*");
+			Result res = ok(tempFile).withHeader(CONTENT_DISPOSITION, "attachment; filename=" + filename)
+					.as(MimeTypes.JSON);
+			return applyPublicDownloadCors(request, res);
 		});
 	}
 
@@ -1624,7 +1634,7 @@ public class DatasetsController extends AbstractAsyncController {
 				id = tokenResolverUtil.getDatasetIdFromToken(decodedToken.replaceAll("[/].*", ""));
 			}
 			if (id <= 0) {
-				logger.warn("[webToken 404] Could not decrypt token to dataset ID: '{}' (decoded: '{}')", rawToken, decodedToken);
+				logger.warn("[webToken 404] Could not decrypt token to dataset ID");
 				return notFound();
 			}
 
@@ -1648,17 +1658,13 @@ public class DatasetsController extends AbstractAsyncController {
 				return notFound();
 			}
 
-			// check token existance and correctness (accept either modern web_access_token or legacy
-			// public_access_token)
-			String webAccessToken = ds.configuration(Dataset.WEB_ACCESS_TOKEN, "");
-			String publicAccessToken = ds.configuration(Dataset.PUBLIC_ACCESS_TOKEN, "");
-			boolean tokenMatches = tokenResolverUtil.isTokenMatch(rawToken, webAccessToken)
-					|| tokenResolverUtil.isTokenMatch(rawToken, publicAccessToken)
-					|| tokenResolverUtil.isTokenMatch(decodedToken, webAccessToken)
-					|| tokenResolverUtil.isTokenMatch(decodedToken, publicAccessToken);
+			// check token existence and correctness against effective web token
+			String effectiveWebToken = ds.getEffectiveWebToken();
+			boolean tokenMatches = !effectiveWebToken.isEmpty()
+					&& (tokenResolverUtil.isTokenMatch(rawToken, effectiveWebToken)
+							|| tokenResolverUtil.isTokenMatch(decodedToken, effectiveWebToken));
 			if (!tokenMatches) {
-				logger.warn("[webToken 404] Token mismatch for dataset {}. Received: '{}' (decoded: '{}'), configured wat: '{}', pat: '{}'",
-						id, rawToken, decodedToken, webAccessToken, publicAccessToken);
+				logger.warn("[webToken 404] Token mismatch for dataset {}", id);
 				return notFound();
 			}
 
@@ -1811,7 +1817,7 @@ public class DatasetsController extends AbstractAsyncController {
 				tokenInfo = tokenResolverUtil.resolveViewerToken(decodedToken.replaceAll("[/].*", ""));
 			}
 			if (tokenInfo == null) {
-				logger.warn("[webViewer 403] Invalid viewer token: '{}' (decoded: '{}')", rawToken, decodedToken);
+				logger.warn("[webViewer 403] Invalid viewer token presented");
 				return forbidden("Invalid viewer token.");
 			}
 
@@ -2267,6 +2273,14 @@ public class DatasetsController extends AbstractAsyncController {
 
 		// configure the dataset with key and token
 		ds.getConfiguration().put(key, tokenResolverUtil.getDatasetToken(ds.getId()));
+		if (Dataset.PUBLIC_ACCESS_TOKEN.equals(key) && !ds.getConfiguration().containsKey(Dataset.WEB_ACCESS_TOKEN)) {
+			// Ensure generating a PUBLIC_ACCESS_TOKEN does not implicitly publish the dataset as a website
+			ds.getConfiguration().put(Dataset.WEB_ACCESS_TOKEN, "");
+		} else if (Dataset.WEB_ACCESS_TOKEN.equals(key)
+				&& ds.configuration(Dataset.PUBLIC_ACCESS_TOKEN, "").trim().isEmpty()) {
+			// Provision a distinct PUBLIC_ACCESS_TOKEN so Starboard notebooks have a dedicated download token
+			ds.getConfiguration().put(Dataset.PUBLIC_ACCESS_TOKEN, tokenResolverUtil.getDatasetToken(ds.getId()));
+		}
 		ds.update();
 		datasetUpdateQueue.enqueue(ds);
 

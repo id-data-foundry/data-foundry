@@ -21,6 +21,7 @@ import controllers.api.CompleteDSController;
 import controllers.auth.UserAuth;
 import datasets.DatasetConnector;
 import models.Dataset;
+import models.DatasetType;
 import models.Person;
 import models.Project;
 import models.ds.CompleteDS;
@@ -35,6 +36,7 @@ import play.mvc.Http.Request;
 import play.mvc.Result;
 import play.mvc.Security.Authenticated;
 import utils.DataUtils;
+import utils.auth.TokenResolverUtil;
 
 public class StarboardController extends AbstractAsyncController {
 
@@ -46,6 +48,9 @@ public class StarboardController extends AbstractAsyncController {
 
 	@Inject
 	SyncCacheApi cache;
+
+	@Inject
+	TokenResolverUtil tokenResolverUtil;
 
 	private static final Pattern URL_PATTERN = Pattern.compile("https?://[^/]+/web/[^/]+/(.+)");
 	private static final Pattern PYODIDE_OPEN_URL_PATTERN = Pattern.compile("pyodide\\.http\\.open_url\\(([^)]+)\\)");
@@ -128,6 +133,16 @@ public class StarboardController extends AbstractAsyncController {
 				redirect(LANDING).addingToSession(request, "error", "Please log in first to use this tool."));
 
 		List<Project> projects = user.getOwnAndCollabProjects();
+		for (Project p : projects) {
+			for (Dataset ds : p.getDatasets()) {
+				if (ds.getDsType() == DatasetType.COMPLETE
+						&& !ds.configuration(Dataset.WEB_ACCESS_TOKEN, "").trim().isEmpty()
+						&& ds.configuration(Dataset.PUBLIC_ACCESS_TOKEN, "").trim().isEmpty()) {
+					ds.getConfiguration().put(Dataset.PUBLIC_ACCESS_TOKEN, tokenResolverUtil.getDatasetToken(ds.getId()));
+					ds.update();
+				}
+			}
+		}
 
 		return ok(views.html.tools.starboard.comps.datasets.render(projects, request));
 	}

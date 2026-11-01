@@ -486,6 +486,9 @@ public class Dataset extends Model {
 		if (webToken != null && !webToken.trim().isEmpty()) {
 			return webToken.trim();
 		}
+		if (this.getConfiguration().containsKey(WEB_ACCESS_TOKEN)) {
+			return "";
+		}
 		String publicToken = this.configuration(PUBLIC_ACCESS_TOKEN, "");
 		if (publicToken != null && !publicToken.trim().isEmpty()) {
 			return publicToken.trim();

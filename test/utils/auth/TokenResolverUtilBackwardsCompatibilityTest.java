@@ -432,4 +432,90 @@ public class TokenResolverUtilBackwardsCompatibilityTest {
 		assertFalse(tokenResolverUtil.isTokenMatch(null, exactUserToken));
 		assertFalse(tokenResolverUtil.isTokenMatch(exactUserToken, null));
 	}
+
+	@Test
+	public void testLegacySuffixKeyForgeryRejected() throws Exception {
+		// Forging identity tokens using known static suffixes ("_participation", "_user",
+		// "_collaborator", "_subscriber", "_reviewer") without knowing MASTER_SECRET must fail.
+		String forgedPartLegacy = tokenResolverUtil.base64Encode(generateLegacyToken("42:777:12345678", "_participation"));
+		String forgedPartV2 = tokenResolverUtil.base64Encode(SymEncryption.getToken(42L, 777L, "_participation"));
+		assertEquals(Long.valueOf(-1L), tokenResolverUtil.getProjectIdFromParticipationToken(forgedPartLegacy));
+		assertEquals(Long.valueOf(-1L), tokenResolverUtil.getParticipantIdFromParticipationToken(forgedPartLegacy));
+		assertEquals(Long.valueOf(-1L), tokenResolverUtil.getProjectIdFromParticipationToken(forgedPartV2));
+		assertEquals(Long.valueOf(-1L), tokenResolverUtil.getParticipantIdFromParticipationToken(forgedPartV2));
+
+		String forgedB32 = tokenResolverUtil.base32Encode(SymEncryption.getToken(42L, 777L, "_participation")).toLowerCase();
+		assertEquals(Long.valueOf(-1L), tokenResolverUtil.getProjectIdFromBase32ParticipationToken(forgedB32));
+
+		long future = System.currentTimeMillis() + 1000000L;
+		String forgedUserToken = tokenResolverUtil.base64Encode(SymEncryption.getToken(1L, future, "_user"));
+		assertEquals(Long.valueOf(-1L), tokenResolverUtil.retrieveUserIdFromUserAccessToken(forgedUserToken));
+		assertEquals(Long.valueOf(-1L), tokenResolverUtil.retrieveTimeoutFromUserAccessToken(forgedUserToken));
+
+		String forgedCollabToken = tokenResolverUtil.base64Encode(SymEncryption.getToken(12L, "attacker@example.com", "_collaborator"));
+		assertEquals(Long.valueOf(-1L), tokenResolverUtil.getProjectIdFromCollaborationToken(forgedCollabToken));
+		org.junit.Assert.assertNull(tokenResolverUtil.getCollaboratorEmailFromCollaborationToken(forgedCollabToken));
+
+		String forgedSubToken = tokenResolverUtil.base64Encode(SymEncryption.getToken(34L, 890L, "_subscriber"));
+		assertEquals(Long.valueOf(-1L), tokenResolverUtil.getProjectIdFromSubscriptionToken(forgedSubToken));
+		assertEquals(Long.valueOf(-1L), tokenResolverUtil.getSubscriberIdFromSubscriptionToken(forgedSubToken));
+
+		String forgedReviewToken = tokenResolverUtil.base64Encode(SymEncryption.getToken(99L, 321L, "_reviewer"));
+		assertEquals(Long.valueOf(-1L), tokenResolverUtil.getProjectIdFromReviewToken(forgedReviewToken));
+		assertEquals(Long.valueOf(-1L), tokenResolverUtil.getReviewerIdFromReviewToken(forgedReviewToken));
+	}
+
+	@Test
+	public void testParticipationTokenCreationTimestampBindingAndValidity() {
+		models.Project project = new models.Project();
+		project.setId(42L);
+
+		models.sr.Participant participant = new models.sr.Participant("p777");
+		participant.setId(777L);
+		participant.setProject(project);
+		long creationMs = System.currentTimeMillis() - 60_000L;
+		participant.setCreation(new java.util.Date(creationMs));
+
+		// 1. Token generated from Participant embeds creation timestamp and validates
+		String validToken = tokenResolverUtil.getParticipationToken(participant);
+		assertTrue("Valid participation token must pass verification",
+				tokenResolverUtil.isValidParticipationToken(validToken, participant));
+
+		// 2. Forged v2 token with random 32-bit int 3rd component must be rejected
+		String forgedRandom3rd = tokenResolverUtil.base64Encode(SymEncryption.getToken(42L, 777L, participationKey));
+		assertFalse("Token with random 32-bit int instead of creation timestamp must be rejected",
+				tokenResolverUtil.isValidParticipationToken(forgedRandom3rd, participant));
+
+		// 3. Token with wrong creation timestamp (e.g., off by 10 seconds) must be rejected
+		String wrongCreationToken = tokenResolverUtil.base64Encode(
+				SymEncryption.getTokenWithThirdId(42L, 777L, creationMs - 10_000L, participationKey));
+		assertFalse("Token with mismatched creation timestamp must be rejected",
+				tokenResolverUtil.isValidParticipationToken(wrongCreationToken, participant));
+
+		// 4. Token with future creation timestamp must be rejected
+		models.sr.Participant futureParticipant = new models.sr.Participant("p778");
+		futureParticipant.setId(778L);
+		futureParticipant.setProject(project);
+		futureParticipant.setCreation(new java.util.Date(System.currentTimeMillis() + 3_600_000L));
+		String futureToken = tokenResolverUtil.getParticipationToken(futureParticipant);
+		assertFalse("Token with future timestamp must be rejected",
+				tokenResolverUtil.isValidParticipationToken(futureToken, futureParticipant));
+
+		// 5. Time-based expiration when df.auth.participationTokenMaxAgeDays is configured
+		Map<String, Object> mapWithMaxAge = new HashMap<>();
+		mapWithMaxAge.put(ConfigurationUtils.DF_KEYS_PROJECT_TOKEN, MASTER_SECRET);
+		mapWithMaxAge.put(ConfigurationUtils.DF_KEYS_REGISTRATION_ACCESS, Collections.singletonList("test-reg-key"));
+		mapWithMaxAge.put("df.auth.participationTokenMaxAgeDays", 30L);
+		TokenResolverUtil utilWithMaxAge = new TokenResolverUtil(ConfigFactory.parseMap(mapWithMaxAge));
+
+		models.sr.Participant expiredParticipant = new models.sr.Participant("p779");
+		expiredParticipant.setId(779L);
+		expiredParticipant.setProject(project);
+		expiredParticipant.setCreation(new java.util.Date(System.currentTimeMillis() - (31L * 24L * 3600L * 1000L)));
+		String expiredPartToken = utilWithMaxAge.getParticipationToken(expiredParticipant);
+		assertFalse("Token older than maxAgeDays must be rejected",
+				utilWithMaxAge.isValidParticipationToken(expiredPartToken, expiredParticipant));
+		assertTrue("Fresh token within maxAgeDays must be accepted",
+				utilWithMaxAge.isValidParticipationToken(validToken, participant));
+	}
 }

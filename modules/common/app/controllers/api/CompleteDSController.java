@@ -943,10 +943,9 @@ public class CompleteDSController extends AbstractDSController {
 			return cs(() -> status(GONE, "The project is not active, download is not available anymore."));
 		}
 
-		// check if the token is current (accept either public_access_token or web_access_token)
+		// check if the token is current (require public_access_token only)
 		String pat = ds.getConfiguration().get(Dataset.PUBLIC_ACCESS_TOKEN);
-		String wat = ds.getConfiguration().get(Dataset.WEB_ACCESS_TOKEN);
-		if (!tokenResolverUtil.isTokenMatch(token, pat) && !tokenResolverUtil.isTokenMatch(token, wat)) {
+		if (!tokenResolverUtil.isTokenMatch(token, pat)) {
 			return redirectCS(HOME);
 		}
 
@@ -965,7 +964,8 @@ public class CompleteDSController extends AbstractDSController {
 
 			return cs(() -> ok(file, false).as("application/x-download")
 					.withHeader("X-Content-Type-Options", "nosniff")
-					.withHeader("Access-Control-Allow-Origin", "*")
+					.withHeader("Access-Control-Allow-Origin", "null")
+					.withHeader("Vary", "Origin")
 					.withHeader("Content-Security-Policy", "sandbox"));
 		}
 
