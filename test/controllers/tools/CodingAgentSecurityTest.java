@@ -217,4 +217,36 @@ public class CodingAgentSecurityTest extends WithApplication {
 		WebSocket publicWs = codingAgentController.ws(dataset.getId());
 		assertNotNull(publicWs.apply(publicViewerReq).toCompletableFuture().get());
 	}
+
+	@Test
+	public void testPerTurnUserAttributionUpdatesOnDatasetContext() throws Exception {
+		java.lang.reflect.Method createCtxMethod = CodingAgentController.class.getDeclaredMethod(
+				"createDatasetContext", Long.class, String.class, String.class);
+		createCtxMethod.setAccessible(true);
+
+		java.lang.reflect.Method checkAndReloadMethod = CodingAgentController.class.getDeclaredMethod(
+				"checkAndReloadAgent", CodingAgentController.DatasetContext.class, Long.class, String.class, String.class);
+		checkAndReloadMethod.setAccessible(true);
+
+		String sessionId = dataset.getId() + "-session";
+		CodingAgentController.DatasetContext context = (CodingAgentController.DatasetContext) createCtxMethod.invoke(
+				codingAgentController, dataset.getId(), sessionId, ownerUser.getEmail());
+
+		assertEquals("Initial active user email must match owner", ownerUser.getEmail(), context.getActiveUserEmail());
+		io.agentscope.harness.agent.HarnessAgent initialAgent = context.agent();
+		assertNotNull("Agent must be initialized", initialAgent);
+
+		// Calling checkAndReloadAgent with the same user and unchanged AGENTS.md keeps the existing agent instance
+		checkAndReloadMethod.invoke(codingAgentController, context, dataset.getId(), sessionId, ownerUser.getEmail());
+		assertEquals("Active user email remains owner", ownerUser.getEmail(), context.getActiveUserEmail());
+		org.junit.Assert.assertSame("Agent instance should be reused when user and AGENTS.md are unchanged",
+				initialAgent, context.agent());
+
+		// Calling checkAndReloadAgent when collaborator summons @boter updates activeUserEmail and reloads agent headers
+		checkAndReloadMethod.invoke(codingAgentController, context, dataset.getId(), sessionId, collaboratorUser.getEmail());
+		assertEquals("Active user email must update to collaborator", collaboratorUser.getEmail(), context.getActiveUserEmail());
+		assertNotNull("Agent must be reloaded for collaborator", context.agent());
+		org.junit.Assert.assertNotSame("Agent instance should be refreshed with collaborator attribution headers",
+				initialAgent, context.agent());
+	}
 }

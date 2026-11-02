@@ -398,72 +398,78 @@ public class CodingAgentController extends AbstractAsyncController {
 				if (CodingAgentUtils.isAgentSummoned(message)) {
 					// Trigger AgentScope processing when @bot is summoned on dedicated work-stealing pool
 					CompletableFuture.runAsync(() -> {
-						context.setThinking(true);
-						try {
-							// Dynamically sync and reload workspace rules if they have changed
-							checkAndReloadAgent(context, datasetId, sessionId, userEmail);
+						synchronized (context) {
+							context.setThinking(true);
+							try {
+								// Dynamically sync and reload workspace rules or active user attribution if changed
+								checkAndReloadAgent(context, datasetId, sessionId, userEmail);
 
-							// Send typing: true
-							ObjectNode typingStart = Json.newObject().put("type", "typing").put("active", true);
-							Source.single((JsonNode) typingStart).runWith(context.sink(), materializer);
+								// Send typing: true
+								ObjectNode typingStart = Json.newObject().put("type", "typing").put("active", true);
+								Source.single((JsonNode) typingStart).runWith(context.sink(), materializer);
 
-							String agentPrompt = CodingAgentUtils.formatUserMessageForAgent(username, message);
-							Msg input = Msg.builder().role(MsgRole.USER).textContent(agentPrompt).build();
-							RuntimeContext runtimeCtx = RuntimeContext.builder().userId("global").sessionId(sessionId)
-									.build();
-							Msg response = context.agent().call(input, runtimeCtx).block();
-							if (response != null) {
-								String messageContent = CodingAgentUtils.cleanAgentOutput(response.getTextContent(),
-										context.cpds().getFolder());
-								ObjectNode agentMsg = Json.newObject().put("type", "chat")
-										.put("user", CodingAgentUtils.BOT_DISPLAY_NAME).put("message", messageContent)
-										.put("timestamp", new Date().getTime()).put("formattedTime", LocalDateTime.now()
-												.format(DateTimeFormatter.ofPattern("MMM d, HH:mm")));
+								String agentPrompt = CodingAgentUtils.formatUserMessageForAgent(username, message);
+								Msg input = Msg.builder().role(MsgRole.USER).textContent(agentPrompt).build();
+								RuntimeContext runtimeCtx = RuntimeContext.builder().userId("global")
+										.sessionId(sessionId).build();
+								Msg response = context.agent().call(input, runtimeCtx).block();
+								if (response != null) {
+									String messageContent = CodingAgentUtils.cleanAgentOutput(response.getTextContent(),
+											context.cpds().getFolder());
+									ObjectNode agentMsg = Json.newObject().put("type", "chat")
+											.put("user", CodingAgentUtils.BOT_DISPLAY_NAME)
+											.put("message", messageContent).put("timestamp", new Date().getTime())
+											.put("formattedTime", LocalDateTime.now()
+													.format(DateTimeFormatter.ofPattern("MMM d, HH:mm")));
 
-								// Extract token usage
-								ChatUsage usage = response.getChatUsage();
-								if (usage != null) {
-									agentMsg.put("inputTokens", usage.getInputTokens());
-									agentMsg.put("outputTokens", usage.getOutputTokens());
-									agentMsg.put("totalTokens", usage.getTotalTokens());
-									agentMsg.put("generationTime", usage.getTime());
+									// Extract token usage
+									ChatUsage usage = response.getChatUsage();
+									if (usage != null) {
+										agentMsg.put("inputTokens", usage.getInputTokens());
+										agentMsg.put("outputTokens", usage.getOutputTokens());
+										agentMsg.put("totalTokens", usage.getTotalTokens());
+										agentMsg.put("generationTime", usage.getTime());
+									}
+
+									context.history().append(agentMsg);
+									Source.single((JsonNode) agentMsg).runWith(context.sink(), materializer);
 								}
-
-								context.history().append(agentMsg);
-								Source.single((JsonNode) agentMsg).runWith(context.sink(), materializer);
+							} catch (Exception e) {
+								logger.error("Error in agent call", e);
+								String errorMsg = e.getMessage() != null ? e.getMessage()
+										: "Error communicating with agent";
+								ObjectNode errAgentMsg = Json.newObject().put("type", "chat")
+										.put("user", CodingAgentUtils.BOT_DISPLAY_NAME)
+										.put("message", "⚠️ " + errorMsg).put("timestamp", new Date().getTime())
+										.put("formattedTime", LocalDateTime.now()
+												.format(DateTimeFormatter.ofPattern("MMM d, HH:mm")));
+								context.history().append(errAgentMsg);
+								Source.single((JsonNode) errAgentMsg).runWith(context.sink(), materializer);
+							} finally {
+								context.setThinking(false);
+								// Send typing: false
+								ObjectNode typingEnd = Json.newObject().put("type", "typing").put("active", false);
+								Source.single((JsonNode) typingEnd).runWith(context.sink(), materializer);
 							}
-						} catch (Exception e) {
-							logger.error("Error in agent call", e);
-							String errorMsg = e.getMessage() != null ? e.getMessage() : "Error communicating with agent";
-							ObjectNode errAgentMsg = Json.newObject().put("type", "chat")
-									.put("user", CodingAgentUtils.BOT_DISPLAY_NAME)
-									.put("message", "⚠️ " + errorMsg)
-									.put("timestamp", new Date().getTime()).put("formattedTime", LocalDateTime.now()
-											.format(DateTimeFormatter.ofPattern("MMM d, HH:mm")));
-							context.history().append(errAgentMsg);
-							Source.single((JsonNode) errAgentMsg).runWith(context.sink(), materializer);
-						} finally {
-							context.setThinking(false);
-							// Send typing: false
-							ObjectNode typingEnd = Json.newObject().put("type", "typing").put("active", false);
-							Source.single((JsonNode) typingEnd).runWith(context.sink(), materializer);
 						}
 					}, agentExecutor);
 				} else {
 					// Record team discussion into Agent state memory without triggering LLM generation
-					try {
-						if (context.agent() != null) {
-							AgentState state = context.agent().getDelegate().getAgentState("global", sessionId);
-							if (state != null && state.contextMutable() != null) {
-								String formattedMsg = CodingAgentUtils.formatUserMessageForAgent(username, message);
-								Msg userContextMsg = Msg.builder().role(MsgRole.USER)
-										.textContent(formattedMsg).build();
-								state.contextMutable().add(userContextMsg);
-								context.agent().getDelegate().saveAgentState("global", sessionId);
+					synchronized (context) {
+						try {
+							if (context.agent() != null) {
+								AgentState state = context.agent().getDelegate().getAgentState("global", sessionId);
+								if (state != null && state.contextMutable() != null) {
+									String formattedMsg = CodingAgentUtils.formatUserMessageForAgent(username, message);
+									Msg userContextMsg = Msg.builder().role(MsgRole.USER).textContent(formattedMsg)
+											.build();
+									state.contextMutable().add(userContextMsg);
+									context.agent().getDelegate().saveAgentState("global", sessionId);
+								}
 							}
+						} catch (Exception e) {
+							logger.error("Error recording user message into agent state", e);
 						}
-					} catch (Exception e) {
-						logger.error("Error recording user message into agent state", e);
 					}
 				}
 			}
@@ -530,9 +536,12 @@ public class CodingAgentController extends AbstractAsyncController {
 			}
 
 			long currentLastModified = sourceAgentsMdOpt.map(File::lastModified).orElse(0L);
+			String normalizedUserEmail = userEmail != null ? userEmail : "";
+			boolean userChanged = !normalizedUserEmail.equals(context.getActiveUserEmail());
 
-			if (context.agent() == null || currentLastModified != context.getAgentsMdLastModified()) {
+			if (context.agent() == null || currentLastModified != context.getAgentsMdLastModified() || userChanged) {
 				context.setAgentsMdLastModified(currentLastModified);
+				context.setActiveUserEmail(normalizedUserEmail);
 
 				File agentscopeDir = new File(context.cpds().getFolder(), ".agentscope");
 				File targetAgentsMd = new File(agentscopeDir, "AGENTS.md");
@@ -677,8 +686,17 @@ public class CodingAgentController extends AbstractAsyncController {
 		private final CompleteDS cpds;
 		private final UncompactedHistory history;
 		private volatile long agentsMdLastModified = -1L;
+		private volatile String activeUserEmail = "";
 		private volatile boolean isThinking = false;
 		private final AtomicInteger activeConnections = new AtomicInteger(0);
+
+		public String getActiveUserEmail() {
+			return activeUserEmail;
+		}
+
+		public void setActiveUserEmail(String activeUserEmail) {
+			this.activeUserEmail = activeUserEmail != null ? activeUserEmail : "";
+		}
 
 		public int incrementConnections() {
 			return activeConnections.incrementAndGet();
