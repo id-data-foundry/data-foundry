@@ -32,6 +32,7 @@ public class MediaProcessingService {
 	public static final int PROCESS_TIMEOUT_MINUTES = 10;
 	public static final int FFMPEG_TIMEOUT_MINUTES = 2;
 	public static final int ESPEAK_TIMEOUT_SECONDS = 60;
+	private static final int MAX_PROCESS_OUTPUT_CHARS = 256 * 1024;
 
 	private final String PYTHON_INTERPRETER;
 
@@ -147,19 +148,33 @@ public class MediaProcessingService {
 				+ (pb.directory() != null ? pb.directory().getAbsolutePath() : "?") + "...");
 		try {
 			Process p = pb.start();
-			BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
-			String line;
-			while ((line = reader.readLine()) != null) {
-				sb.append(line + "\n");
+			Thread readerThread = new Thread(() -> {
+				try (BufferedReader reader = new BufferedReader(
+						new InputStreamReader(p.getInputStream(), java.nio.charset.StandardCharsets.UTF_8))) {
+					String line;
+					while ((line = reader.readLine()) != null) {
+						synchronized (sb) {
+							if (sb.length() < MAX_PROCESS_OUTPUT_CHARS) {
+								sb.append(line).append("\n");
+								cache.set(internalToken, sb.toString(), EXPIRATION_TIMEOUT_SECS);
+							}
+						}
+					}
+				} catch (IOException ignored) {
+				}
+			}, "ocr-stdout-drainer");
+			readerThread.setDaemon(true);
+			readerThread.start();
 
-				// update cache for independent retrieval
-				cache.set(internalToken, sb.toString(), EXPIRATION_TIMEOUT_SECS);
-			}
 			if (!p.waitFor(PROCESS_TIMEOUT_MINUTES, TimeUnit.MINUTES)) {
+				p.descendants().forEach(ProcessHandle::destroyForcibly);
 				p.destroyForcibly();
 				logger.error("OCR process timed out and was forcibly destroyed");
-				sb.append("\nThe OCR engine process timed out.");
+				synchronized (sb) {
+					sb.append("\nThe OCR engine process timed out.");
+				}
 			}
+			readerThread.join(2000);
 		} catch (IOException | InterruptedException e) {
 			logger.error("OCR problem I/O or Interrupted Exception", e);
 			sb.append("The OCR engine reported an I/O error.");
@@ -343,19 +358,33 @@ public class MediaProcessingService {
 					+ (pb.directory() != null ? pb.directory().getAbsolutePath() : "?") + "...");
 			try {
 				Process p = pb.start();
-				BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
-				String line;
-				while ((line = reader.readLine()) != null) {
-					sb.append(line + "\n");
+				Thread readerThread = new Thread(() -> {
+					try (BufferedReader reader = new BufferedReader(
+							new InputStreamReader(p.getInputStream(), java.nio.charset.StandardCharsets.UTF_8))) {
+						String line;
+						while ((line = reader.readLine()) != null) {
+							synchronized (sb) {
+								if (sb.length() < MAX_PROCESS_OUTPUT_CHARS) {
+									sb.append(line).append("\n");
+									cache.set(internalToken, sb.toString(), EXPIRATION_TIMEOUT_SECS);
+								}
+							}
+						}
+					} catch (IOException ignored) {
+					}
+				}, "stt-stdout-drainer");
+				readerThread.setDaemon(true);
+				readerThread.start();
 
-					// update cache for independent retrieval
-					cache.set(internalToken, sb.toString(), EXPIRATION_TIMEOUT_SECS);
-				}
 				if (!p.waitFor(PROCESS_TIMEOUT_MINUTES, TimeUnit.MINUTES)) {
+					p.descendants().forEach(ProcessHandle::destroyForcibly);
 					p.destroyForcibly();
 					logger.error("SpeechToText process timed out and was forcibly destroyed");
-					sb.append("\nThe speech detection engine process timed out.");
+					synchronized (sb) {
+						sb.append("\nThe speech detection engine process timed out.");
+					}
 				}
+				readerThread.join(2000);
 			} catch (IOException | InterruptedException e) {
 				logger.error("SpeechToText problem I/O or Interrupted Exception", e);
 				sb.append("The speech detection engine reported an I/O error.");
@@ -409,6 +438,7 @@ public class MediaProcessingService {
 		try {
 			Process p = pb.start();
 			if (!p.waitFor(ESPEAK_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+				p.descendants().forEach(ProcessHandle::destroyForcibly);
 				p.destroyForcibly();
 				logger.error("Speech generation process timed out and was forcibly destroyed");
 				throw new IOException("Speech generation process timed out");
@@ -447,6 +477,7 @@ public class MediaProcessingService {
 		try {
 			Process p = pb.start();
 			if (!p.waitFor(FFMPEG_TIMEOUT_MINUTES, TimeUnit.MINUTES)) {
+				p.descendants().forEach(ProcessHandle::destroyForcibly);
 				p.destroyForcibly();
 				logger.error("SpeechToText ffmpeg process timed out and was forcibly destroyed");
 			}

@@ -1,6 +1,6 @@
-@(datasetId: Long, userEmail: String, snapshot: utils.tools.ChatbotMemoryUtils.UserMemorySnapshot, statusBanner: String)
+@(datasetId: Long, userEmail: String, snapshot: utils.tools.ChatbotMemoryUtils.UserMemorySnapshot, statusBanner: String, csrfToken: String = "")
 
-<div class="user-memory-container" style="font-size: 0.9rem;">
+<div class="user-memory-container" style="font-size: 0.9rem;" hx-headers='{"Csrf-Token": "@csrfToken"}'>
   @if(statusBanner != null && !statusBanner.trim().isEmpty()) {
     <div style="background: #f0fdf4; border: 1px solid #bbf7d0; color: #166534; padding: 6px 12px; border-radius: 4px; margin-bottom: 12px; font-weight: 500;">
       @statusBanner

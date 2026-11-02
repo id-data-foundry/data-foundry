@@ -34,11 +34,40 @@ public class ChatbotMemoryUtilsTest {
 
 	@Test
 	public void testSanitizeUserId() {
-		assertEquals("user_john_at_example_com", ChatbotMemoryUtils.sanitizeUserId("john@example.com"));
-		assertEquals("user_jane_doe_at_tue_nl", ChatbotMemoryUtils.sanitizeUserId("Jane.Doe@tue.nl"));
+		assertTrue(ChatbotMemoryUtils.sanitizeUserId("john@example.com")
+				.matches("^user_john_at_example_com_[0-9a-f]{8}$"));
+		assertTrue(ChatbotMemoryUtils.sanitizeUserId("Jane.Doe@tue.nl")
+				.matches("^user_jane_doe_at_tue_nl_[0-9a-f]{8}$"));
 		assertEquals("user_unknown", ChatbotMemoryUtils.sanitizeUserId(null));
 		assertEquals("user_unknown", ChatbotMemoryUtils.sanitizeUserId("   "));
-		assertEquals("user_user_123", ChatbotMemoryUtils.sanitizeUserId("user!123"));
+		assertTrue(ChatbotMemoryUtils.sanitizeUserId("user!123").matches("^user_user_123_[0-9a-f]{8}$"));
+
+		// Distinct emails that previously normalized to the same clean prefix must not collide
+		String idDot = ChatbotMemoryUtils.sanitizeUserId("a.b@x.com");
+		String idUnderscore = ChatbotMemoryUtils.sanitizeUserId("a_b@x.com");
+		assertFalse("Distinct emails must produce distinct sanitized directory names", idDot.equals(idUnderscore));
+	}
+
+	@Test
+	public void testLegacyUserDirectoryMigration() throws Exception {
+		String email = "legacy.user@tue.nl";
+		File usersDir = new File(new File(tempDir, ".agentscope"), "users");
+		File legacyDir = new File(usersDir, ChatbotMemoryUtils.legacySanitizeUserId(email));
+		legacyDir.mkdirs();
+
+		File legacyProfile = new File(legacyDir, ChatbotMemoryUtils.MEMORY_PROFILE_FILE);
+		Files.writeString(legacyProfile.toPath(), "- **topic**: Migrated legacy profile\n");
+		File legacyNotes = new File(legacyDir, "notes.md");
+		Files.writeString(legacyNotes.toPath(), "# Legacy Notes");
+
+		// Accessing user memory should automatically migrate legacyDir to the new hashed directory
+		String loadedProfile = ChatbotMemoryUtils.loadUserProfile(tempDir, email);
+		assertTrue(loadedProfile.contains("Migrated legacy profile"));
+		assertEquals("# Legacy Notes", ChatbotMemoryUtils.readUserFile(tempDir, email, "notes.md"));
+
+		File migratedDir = new File(usersDir, ChatbotMemoryUtils.sanitizeUserId(email));
+		assertTrue("New hashed directory must exist after migration", migratedDir.exists());
+		assertFalse("Old legacy directory must be moved away", legacyDir.exists());
 	}
 
 	@Test

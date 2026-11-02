@@ -43,4 +43,18 @@ public class MarkdownRendererTest {
 		assertFalse("javascript: URL in image src must be neutralized", rendered.contains("javascript:alert(2)"));
 		assertTrue("Valid https link should be preserved", rendered.contains("href=\"https://example.com\""));
 	}
+
+	@Test
+	public void testControlCharacterObfuscatedAndNonHttpSchemesAreSanitized() {
+		MarkdownRenderer renderer = new MarkdownRenderer();
+		String obfuscated = "[tab](java&#x09;script:alert(1)) [newline](java&#10;script:alert(2)) [file](file:///etc/passwd) [data](data:text/html,<script>alert(3)</script>) [mail](mailto:user@example.com) [rel](/datasets/1)";
+		String rendered = renderer.render(obfuscated);
+
+		assertFalse("Tab-obfuscated javascript: URL must be neutralized", rendered.contains("alert(1)"));
+		assertFalse("Newline-obfuscated javascript: URL must be neutralized", rendered.contains("alert(2)"));
+		assertFalse("file: URL must be neutralized", rendered.contains("file:///etc/passwd"));
+		assertFalse("data: URL must be neutralized", rendered.contains("data:text/html"));
+		assertTrue("mailto: link must be preserved", rendered.contains("href=\"mailto:user@example.com\""));
+		assertTrue("Relative link must be preserved", rendered.contains("href=\"/datasets/1\""));
+	}
 }

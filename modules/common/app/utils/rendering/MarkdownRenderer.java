@@ -3,6 +3,7 @@ package utils.rendering;
 import java.io.IOException;
 import java.io.Reader;
 import java.util.Arrays;
+import java.util.Locale;
 
 import org.commonmark.ext.gfm.tables.TablesExtension;
 import org.commonmark.parser.Parser;
@@ -55,8 +56,14 @@ public class MarkdownRenderer {
 		if (url == null) {
 			return false;
 		}
-		String lower = url.trim().toLowerCase();
-		return lower.startsWith("javascript:") || lower.startsWith("vbscript:") || lower.startsWith("data:");
+		String cleaned = url.replaceAll("[\\x00-\\x20]+", "").toLowerCase(Locale.ROOT);
+		if (cleaned.isEmpty()) {
+			return false;
+		}
+		if (cleaned.startsWith("/") || cleaned.startsWith("#") || cleaned.startsWith("?") || !cleaned.contains(":")) {
+			return false;
+		}
+		return !(cleaned.startsWith("http://") || cleaned.startsWith("https://") || cleaned.startsWith("mailto:"));
 	}
 
 	public String render(String input) {

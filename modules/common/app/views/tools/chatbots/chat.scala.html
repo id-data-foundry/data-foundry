@@ -570,11 +570,16 @@
         setTimeout(() => {
           let input = document.querySelector('#userInput').value;
           document.querySelector('#userInput').value = '';
-          document.querySelector('#chat').insertAdjacentHTML("beforeend",
-            `<div class="msg-right">
-              <p class="role">user</p>
-              <article>${input}</article>
-            </div>`);
+          const msgDiv = document.createElement('div');
+          msgDiv.className = 'msg-right';
+          const roleP = document.createElement('p');
+          roleP.className = 'role';
+          roleP.textContent = 'user';
+          const article = document.createElement('article');
+          article.textContent = input;
+          msgDiv.appendChild(roleP);
+          msgDiv.appendChild(article);
+          document.querySelector('#chat').appendChild(msgDiv);
           setTimeout(scrollToBottom, 20);
         }, 10);
       });

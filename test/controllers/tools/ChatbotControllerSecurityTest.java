@@ -798,5 +798,159 @@ public class ChatbotControllerSecurityTest extends WithApplication {
 			emptyFile.delete();
 		}
 	}
+
+	@Test
+	public void testUserMemoryEndpointsRejectUnauthorizedUserOnPrivateChatbot() {
+		// Ensure chatbot is private
+		completeDataset.getConfiguration().remove(Dataset.CHATBOT_PUBLIC);
+		completeDataset.update();
+
+		Http.Request getReq = createAuthenticatedRequest(GET,
+				"/tools/chatbots/" + completeDataset.getId() + "/memory", participantUser);
+		assertEquals(FORBIDDEN, chatbotController.getUserMemory(getReq, completeDataset.getId()).status());
+
+		Http.Request resetReq = createAuthenticatedRequest(POST,
+				"/tools/chatbots/" + completeDataset.getId() + "/memory/reset", participantUser);
+		assertEquals(FORBIDDEN, chatbotController.resetUserMemory(resetReq, completeDataset.getId()).status());
+
+		Http.Request delFileReq = createAuthenticatedRequest(POST,
+				"/tools/chatbots/" + completeDataset.getId() + "/memory/file/delete", participantUser);
+		assertEquals(FORBIDDEN,
+				chatbotController.deleteUserFile(delFileReq, completeDataset.getId(), "notes.md").status());
+
+		Http.Request delProfileReq = createAuthenticatedRequest(POST,
+				"/tools/chatbots/" + completeDataset.getId() + "/memory/profile/delete", participantUser);
+		assertEquals(FORBIDDEN,
+				chatbotController.deleteUserProfileEntry(delProfileReq, completeDataset.getId(), "topic").status());
+	}
+
+	@Test
+	public void testTestEndpointRequiresEditorEvenWhenWebAccessTokenConfigured() {
+		completeDataset.getConfiguration().put(Dataset.WEB_ACCESS_TOKEN, "public-web-token");
+		completeDataset.update();
+
+		Http.Request nonEditorReq = createAuthenticatedRequest(GET,
+				"/tools/chatbots/" + completeDataset.getId() + "/test/valid-conv-123", participantUser);
+		Result res = chatbotController.test(nonEditorReq, completeDataset.getId(), "valid-conv-123");
+		assertEquals(SEE_OTHER, res.status());
+	}
+
+	@Test
+	public void testConversationIdValidationAndPathTraversalPrevention() {
+		assertTrue(ChatbotController.isValidConversationId("conv_123-abc"));
+		assertFalse(ChatbotController.isValidConversationId(null));
+		assertFalse(ChatbotController.isValidConversationId(""));
+		assertFalse(ChatbotController.isValidConversationId("../etc/passwd"));
+		assertFalse(ChatbotController.isValidConversationId("conv/../../secret"));
+		assertFalse(ChatbotController.isValidConversationId("conv with spaces"));
+
+		CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(completeDataset);
+		assertFalse(chatbotController.loadChatSession(cpds, "../etc/passwd").isPresent());
+	}
+
+	@Test
+	public void testStoredXssSanitizedInLoadedChatSessionAndFullPromptFenced() throws Exception {
+		CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(completeDataset);
+		String convId = "xss-session-" + UUID.randomUUID();
+
+		// Simulate a stored transcript with raw HTML in a user message
+		List<ConversationItem> items = new ArrayList<>();
+		items.add(new ConversationItem(ConversationItem.USER, "<script>alert('xss')</script>", Collections.emptyList(),
+				"<script>alert('xss')</script>"));
+		ConversationHistory history = new ConversationHistory(convId, items, ownerUser.getEmail());
+
+		File chatFile = new File(cpds.getFolder(), "chat_" + convId + ".json");
+		Files.writeString(chatFile.toPath(), Json.toJson(history).toPrettyString(), StandardCharsets.UTF_8);
+
+		try {
+			Optional<ConversationHistory> loadedOpt = chatbotController.loadChatSession(cpds, convId);
+			assertTrue(loadedOpt.isPresent());
+			String renderedUser = loadedOpt.get().items().get(0).renderedContent();
+			assertFalse("Unescaped script tag must not be present in loaded user turn",
+					renderedUser.contains("<script>"));
+			assertTrue("Escaped script tag must be present", renderedUser.contains("&lt;script&gt;"));
+		} finally {
+			if (chatFile.exists()) {
+				chatFile.delete();
+			}
+		}
+
+		// Verify RAG context in fullPrompt is fenced as untrusted reference data
+		ConversationItem itemWithContext = new ConversationItem(ConversationItem.USER, "Summarize",
+				"Chunk body", "<p>Summarize</p>");
+		String fullPrompt = itemWithContext.fullPrompt();
+		assertTrue(fullPrompt.contains("<knowledge_base_context trust=\"untrusted_reference_data\">"));
+		assertTrue(fullPrompt.contains("</knowledge_base_context>"));
+	}
+
+	@Test
+	public void testConversationOwnershipPreventsCrossUserHijack() throws Exception {
+		CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(completeDataset);
+		completeDataset.getConfiguration().put(Dataset.CHATBOT_PUBLIC, "true");
+		completeDataset.update();
+
+		String ownerConvId = "owner-private-conv-" + UUID.randomUUID();
+		List<ConversationItem> items = new ArrayList<>();
+		items.add(new ConversationItem(ConversationItem.USER, "Secret owner prompt", Collections.emptyList(),
+				"<p>Secret owner prompt</p>"));
+		ConversationHistory ownerHistory = new ConversationHistory(ownerConvId, items, ownerUser.getEmail());
+		cache.set("ChatController_chat_" + completeDataset.getId() + "_" + ownerConvId, ownerHistory, 3600);
+
+		// Another authenticated user attempting to view owner's conversationId is redirected to a new session
+		Http.Request otherUserChatReq = createAuthenticatedRequest(GET,
+				"/tools/chatbots/" + completeDataset.getId() + "/chat?conversationId=" + ownerConvId, participantUser);
+		Result chatRes = chatbotController.chat(otherUserChatReq, completeDataset.getId(), ownerConvId);
+		assertEquals(SEE_OTHER, chatRes.status());
+
+		// Another user attempting to append to owner's conversationId via internalChatProcess is blocked
+		ChatbotController.ConversationFragment fragment = chatbotController.internalChatProcess(ownerConvId,
+				participantUser, completeDataset, "Hijack attempt");
+		assertTrue(fragment.response().renderedContent().contains("not accessible"));
+		assertEquals(1, ownerHistory.items().size());
+	}
+
+	@Test
+	public void testChatApiScopesCallerIdentityAndProtectsOwnerMemory() throws Exception {
+		CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(completeDataset);
+
+		// 1. Non-collaborator Person participation token on private chatbot must be rejected with 403 Forbidden
+		completeDataset.getConfiguration().remove(Dataset.CHATBOT_PUBLIC);
+		completeDataset.update();
+		String nonOwnerToken = tokenResolver.getParticipationToken(project.getId(), participantUser.getId());
+		ObjectNode body = Json.newObject().put("message", "Hello");
+		Http.Request nonOwnerReq = new Http.RequestBuilder()
+				.method(POST)
+				.uri("/api/v1/chatbots/" + completeDataset.getId() + "/chat")
+				.header("Authorization", "Bearer " + nonOwnerToken)
+				.bodyJson(body)
+				.build();
+		Result nonOwnerRes = chatbotController.chatApi(nonOwnerReq, completeDataset.getId())
+				.toCompletableFuture().get(5, TimeUnit.SECONDS);
+		assertEquals(FORBIDDEN, nonOwnerRes.status());
+
+		// 2. Study Participant token on private chatbot must be rejected with 403 Forbidden
+		models.sr.Participant studyParticipant = new models.sr.Participant("study_part_" + UUID.randomUUID());
+		studyParticipant.save();
+		project.getParticipants().add(studyParticipant);
+		project.update();
+		String studyPartToken = tokenResolver.getParticipationToken(project.getId(), studyParticipant.getId());
+		Http.Request studyPartPrivReq = new Http.RequestBuilder()
+				.method(POST)
+				.uri("/api/v1/chatbots/" + completeDataset.getId() + "/chat")
+				.header("Authorization", "Bearer " + studyPartToken)
+				.bodyJson(body)
+				.build();
+		Result studyPartPrivRes = chatbotController.chatApi(studyPartPrivReq, completeDataset.getId())
+				.toCompletableFuture().get(5, TimeUnit.SECONDS);
+		assertEquals(FORBIDDEN, studyPartPrivRes.status());
+
+		// 3. Synthetic API/participant identities cannot read or write user memory via UserMemoryTool
+		ChatbotController.UserMemoryTool memoryTool = chatbotController.new UserMemoryTool(cpds.getFolder());
+		io.agentscope.core.agent.RuntimeContext apiRuntimeCtx = io.agentscope.core.agent.RuntimeContext.builder()
+				.userId("api_dataset_" + completeDataset.getId() + "@api.local").sessionId("s1").build();
+		String memResult = memoryTool.update_user_memory(apiRuntimeCtx, "secret", "should not save");
+		assertTrue(memResult.contains("disabled"));
+		assertEquals("", ChatbotMemoryUtils.loadUserProfile(cpds.getFolder(), ownerUser.getEmail()));
+	}
 }
 

@@ -52,4 +52,16 @@ public class MediaProcessingServiceTest extends WithApplication {
 		// Assert that the permit was released and no leak occurred
 		assertEquals(0, mediaProcessingService.getEnqueuedJobs());
 	}
+
+	@Test
+	public void testImageProcessingDrainsStdoutConcurrentlyAndCleansUpTempFile() throws Exception {
+		File tempImg = File.createTempFile("ocr_test_", ".png");
+		java.nio.file.Files.writeString(tempImg.toPath(), "dummy image bytes");
+
+		CompletionStage<String> stage = mediaProcessingService.scheduleMediaToTextProcess(tempImg, "en", "image/png",
+				"testUser", "token_ocr_test");
+		String result = stage.toCompletableFuture().get(10, TimeUnit.SECONDS);
+		assertTrue(result != null && !result.isEmpty());
+		assertEquals(0, mediaProcessingService.getEnqueuedJobs());
+	}
 }

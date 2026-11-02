@@ -33,6 +33,7 @@ public class ChatbotMemoryUtils {
 	public static final String MEMORY_PROFILE_FILE = "profile.md";
 	public static final String MEMORY_NOTES_FILE = "notes.md";
 	public static final String SESSIONS_INDEX_FILE = "sessions.json";
+	private static final String USER_ID_MARKER_FILE = ".user_id";
 
 	public record UserSessionSummary(String id, String title, long createdAt, long lastUpdatedAt) {
 		public String formattedDate() {
@@ -45,17 +46,39 @@ public class ChatbotMemoryUtils {
 	}
 
 	/**
-	 * Sanitize user ID (email or username) into a safe filesystem directory name.
-	 *
-	 * @param rawUserId user email or identifier
-	 * @return clean directory name
+	 * Legacy sanitization helper used solely to locate and migrate pre-existing user memory directories.
 	 */
-	public static String sanitizeUserId(String rawUserId) {
+	static String legacySanitizeUserId(String rawUserId) {
 		if (rawUserId == null || rawUserId.trim().isEmpty()) {
 			return "user_unknown";
 		}
 		String clean = rawUserId.trim().toLowerCase(Locale.ROOT).replace("@", "_at_").replaceAll("[^a-z0-9_-]", "_");
 		return "user_" + clean;
+	}
+
+	/**
+	 * Sanitize user ID (email or username) into a collision-free safe filesystem directory name.
+	 *
+	 * @param rawUserId user email or identifier
+	 * @return clean directory name with short SHA-256 suffix
+	 */
+	public static String sanitizeUserId(String rawUserId) {
+		if (rawUserId == null || rawUserId.trim().isEmpty()) {
+			return "user_unknown";
+		}
+		String normalized = rawUserId.trim().toLowerCase(Locale.ROOT);
+		String clean = normalized.replace("@", "_at_").replaceAll("[^a-z0-9_-]", "_");
+		try {
+			java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-256");
+			byte[] digest = md.digest(normalized.getBytes(StandardCharsets.UTF_8));
+			StringBuilder hex = new StringBuilder(8);
+			for (int i = 0; i < 4; i++) {
+				hex.append(String.format("%02x", digest[i]));
+			}
+			return "user_" + clean + "_" + hex;
+		} catch (java.security.NoSuchAlgorithmException e) {
+			return "user_" + clean;
+		}
 	}
 
 	/**
@@ -73,17 +96,44 @@ public class ChatbotMemoryUtils {
 
 	/**
 	 * Resolve the strictly sandboxed directory for a given user within a dataset's .agentscope directory.
+	 * Automatically migrates legacy pre-hash directories on first access.
 	 *
 	 * @param datasetFolder dataset directory on disk
 	 * @param rawUserId     raw user ID/email
 	 * @return verified user directory
 	 */
-	public static File getUserDirectory(File datasetFolder, String rawUserId) {
+	public static synchronized File getUserDirectory(File datasetFolder, String rawUserId) {
 		File agentscopeDir = new File(datasetFolder, ".agentscope");
 		File usersDir = new File(agentscopeDir, "users");
 		File userDir = new File(usersDir, sanitizeUserId(rawUserId));
+		String normalized = (rawUserId != null) ? rawUserId.trim().toLowerCase(Locale.ROOT) : "";
+		if (!userDir.exists() && !normalized.isEmpty()) {
+			File legacyDir = new File(usersDir, legacySanitizeUserId(rawUserId));
+			if (legacyDir.exists() && legacyDir.isDirectory()) {
+				try {
+					File marker = new File(legacyDir, USER_ID_MARKER_FILE);
+					boolean canMigrate = !marker.exists()
+							|| FileUtils.readFileToString(marker, StandardCharsets.UTF_8).trim().equals(normalized);
+					if (canMigrate) {
+						FileUtils.moveDirectory(legacyDir, userDir);
+						FileUtils.writeStringToFile(new File(userDir, USER_ID_MARKER_FILE), normalized,
+								StandardCharsets.UTF_8);
+					}
+				} catch (IOException e) {
+					logger.warn("Could not migrate legacy user memory directory for {}", rawUserId, e);
+				}
+			}
+		}
 		if (!userDir.exists()) {
 			userDir.mkdirs();
+			if (!normalized.isEmpty()) {
+				try {
+					FileUtils.writeStringToFile(new File(userDir, USER_ID_MARKER_FILE), normalized,
+							StandardCharsets.UTF_8);
+				} catch (IOException e) {
+					logger.debug("Could not write user marker file", e);
+				}
+			}
 		}
 		return userDir;
 	}
