@@ -45,6 +45,8 @@ import nl.tue.id.oocsi.OOCSIEvent;
 import nl.tue.id.oocsi.client.protocol.EventHandler;
 import play.Logger;
 import play.libs.Json;
+import services.inlets.OOCSIService;
+import utils.validators.Validators;
 import services.api.ApiServiceConstants;
 import services.api.ai.UnmanagedAIApiService;
 import services.api.js.JSDBApiRequest;
@@ -911,6 +913,11 @@ public class JSActor implements ApiServiceConstants {
 
 	public void sendOOCSIMessage(String channelName, String message) {
 		if (message.equals("undefined")) {
+			return;
+		}
+
+		if (channelName != null && !Validators.get(OOCSIService.OOCSI_CHANNEL).validate(channelName)) {
+			logger.warn("Actor script attempted to send OOCSI message to reserved channel: {}", channelName);
 			return;
 		}
 

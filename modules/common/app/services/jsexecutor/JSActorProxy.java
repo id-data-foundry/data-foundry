@@ -10,6 +10,8 @@ import com.google.gson.JsonObject;
 
 import play.libs.Json;
 import services.api.ApiServiceConstants;
+import services.inlets.OOCSIService;
+import utils.validators.Validators;
 
 public class JSActorProxy {
 
@@ -151,6 +153,10 @@ public class JSActorProxy {
 	public void sendOOCSIMessage(String channel, String data) {
 		// check request validity
 		if (ttl < System.currentTimeMillis()) {
+			return;
+		}
+
+		if (channel != null && !Validators.get(OOCSIService.OOCSI_CHANNEL).validate(channel)) {
 			return;
 		}
 

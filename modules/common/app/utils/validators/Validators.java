@@ -17,21 +17,27 @@ public class Validators {
 	};
 
 	static {
-		validators.put("OOCSI_backup", new AbstractValidator() {
+		AbstractValidator channelValidator = new AbstractValidator() {
 			private final List<String> BUSY_CHANNELS = new ArrayList<String>(
 			        Arrays.asList("testchannel", "timechannel", "echochannel", "OOCSI_events", "OOCSI_connections",
 			                "OOCSI_channels", "OOCSI_clients", "OOCSI_metrics"));
 
 			@Override
 			public boolean validate(String value) {
+				if (value == null) {
+					return true;
+				}
 				return BUSY_CHANNELS.stream().noneMatch(c -> value.startsWith(c));
 			}
 
 			@Override
 			public String explainNo(String key, String value) {
-				return "The channel '" + value + "' is not allowed for an OOCSI_channel subscription.";
+				return "The channel '" + value + "' is not allowed for an OOCSI channel.";
 			}
-		});
+		};
+		validators.put("OOCSI_channel", channelValidator);
+		validators.put("OOCSI_output", channelValidator);
+		validators.put("OOCSI_backup", channelValidator);
 		validators.put("OOCSI_service", new AbstractValidator() {
 			private final List<String> BUSY_CHANNELS = new ArrayList<String>(
 			        Arrays.asList("testchannel", "timechannel", "echochannel", "OOCSI_events", "OOCSI_connections",
@@ -39,6 +45,9 @@ public class Validators {
 
 			@Override
 			public boolean validate(String value) {
+				if (value == null) {
+					return true;
+				}
 				return BUSY_CHANNELS.stream().noneMatch(c -> value.startsWith(c));
 			}
 

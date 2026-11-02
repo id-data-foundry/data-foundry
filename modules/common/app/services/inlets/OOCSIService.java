@@ -198,17 +198,22 @@ public class OOCSIService implements ScheduledService {
 			if (ds.getDsType() == DatasetType.IOT) {
 				// channel subscription
 				channelName = ds.configuration(OOCSI_CHANNEL, "");
-				if (!channelName.isEmpty() || datasetSubscriptionList.containsKey(ds.getId())) {
-					refreshDatasetSubscription(ds, channelName);
+				boolean valid = Validators.get(OOCSI_CHANNEL).validate(channelName);
+				if (!valid && !channelName.isEmpty()) {
+					logger.warn("Skipping invalid or reserved OOCSI channel for dataset {}: {}", ds.getId(), channelName);
+				}
+				if ((valid && !channelName.isEmpty()) || datasetSubscriptionList.containsKey(ds.getId())) {
+					refreshDatasetSubscription(ds, valid ? channelName : "");
 				}
 			} else if (ds.getDsType() == DatasetType.ENTITY) {
 				// channel subscription
 				channelName = ds.configuration(OOCSI_BACKUP, "");
-				if (!channelName.isEmpty()) {
-					// filter out "busy" channel names
-					if (Validators.get(OOCSI_BACKUP).validate(channelName)) {
-						refreshDatasetSubscription(ds, channelName);
-					}
+				boolean valid = Validators.get(OOCSI_BACKUP).validate(channelName);
+				if (!valid && !channelName.isEmpty()) {
+					logger.warn("Skipping invalid or reserved OOCSI backup channel for dataset {}: {}", ds.getId(), channelName);
+				}
+				if ((valid && !channelName.isEmpty()) || datasetSubscriptionList.containsKey(ds.getId())) {
+					refreshDatasetSubscription(ds, valid ? channelName : "");
 				}
 
 				// service registration
