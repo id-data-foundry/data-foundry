@@ -125,6 +125,7 @@
       }, 5000);
 
       function onMessage(event) {
+          if (event.source !== frame.contentWindow) return;
           if (!event.data || typeof event.data !== 'object') return;
           if (event.data.type === 'NOTEBOOK_CONTENT_RESPONSE' && event.data.requestId === requestId) {
               clearTimeout(timeout);
@@ -195,6 +196,8 @@
   });
 
   window.addEventListener('message', function(event) {
+      const frame = document.getElementById('starboardFrame');
+      if (!frame || event.source !== frame.contentWindow) return;
       if (event.data && event.data.type === 'TRIGGER_SAVE') {
           saveNotebook();
       }

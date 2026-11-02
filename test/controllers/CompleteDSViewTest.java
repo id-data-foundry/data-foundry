@@ -679,4 +679,25 @@ public class CompleteDSViewTest extends WithApplication {
 		assertTrue("Edit page must contain preparePlaygroundHtml", editBody.contains("function preparePlaygroundHtml"));
 		assertTrue("Edit page must contain CodeFlask init", editBody.contains("new CodeFlask"));
 	}
+
+	@Test
+	public void testEditFileNotebookSetsCrossOriginOpenerPolicyAndSourceChecks() throws Exception {
+		File ggFile = File.createTempFile("notebook", ".gg");
+		Files.write(ggFile.toPath(), "# %% [javascript]\nconsole.log('hello');".getBytes(StandardCharsets.UTF_8));
+		completeDS.storeFile(ggFile, "notebook.gg");
+		completeDS.addRecord("notebook.gg", "Notebook", new Date());
+		ggFile.delete();
+
+		long ggFileId = completeDS.getLatestFileVersionId("notebook.gg").orElse(-1L);
+		assertTrue("GG file ID should be valid", ggFileId > 0);
+
+		Http.Request editRequest = createAuthenticatedRequest(GET, "/datasets/existing/edit/" + dataset.getId() + "/" + ggFileId, ownerUser);
+		Result editResult = completeDSController.editFile(editRequest, dataset.getId(), ggFileId);
+		assertEquals(OK, editResult.status());
+		assertTrue("Response must have Cross-Origin-Opener-Policy header", editResult.header("Cross-Origin-Opener-Policy").isPresent());
+		assertEquals("Cross-Origin-Opener-Policy must be same-origin", "same-origin", editResult.header("Cross-Origin-Opener-Policy").get());
+
+		String body = contentAsString(editResult);
+		assertTrue("Must check event.source against iframe contentWindow in onMessage", body.contains("event.source !== frame.contentWindow"));
+	}
 }
