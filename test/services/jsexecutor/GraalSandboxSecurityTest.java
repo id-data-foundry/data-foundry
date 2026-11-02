@@ -85,4 +85,50 @@ public class GraalSandboxSecurityTest {
 			assertEquals(124750, ((Number) result).intValue());
 		}
 	}
+
+	@Test
+	public void testStatementLimitTripsOnPaddedScriptWithManyLines() {
+		GraalSandbox sandbox = GraalSandboxes.create();
+		try {
+			StringBuilder sb = new StringBuilder();
+			for (int i = 0; i < 2500; i++) {
+				sb.append("// line padding ").append(i).append("\n");
+			}
+			sb.append("var i = 0; while(true) { i++; }");
+			sandbox.eval(sb.toString());
+			fail("Padded script with >2000 lines should still trip statement limits");
+		} catch (Exception e) {
+			assertTrue(e instanceof delight.nashornsandbox.exceptions.ScriptCPUAbuseException
+					|| (e.getMessage() != null && (e.getMessage().toLowerCase().contains("statement")
+					|| e.getMessage().toLowerCase().contains("limit") || e.getMessage().toLowerCase().contains("cpu")
+					|| e.getMessage().toLowerCase().contains("resource"))));
+		}
+	}
+
+	@Test
+	public void testStatementLimitTripsOnPaddedScriptWithLargePayload() {
+		GraalSandbox sandbox = GraalSandboxes.create();
+		try {
+			StringBuilder sb = new StringBuilder("/* ");
+			for (int i = 0; i < 60000; i++) {
+				sb.append('a');
+			}
+			sb.append(" */\nvar i = 0; while(true) { i++; }");
+			sandbox.eval(sb.toString());
+			fail("Padded script with >50000 chars should still trip statement limits");
+		} catch (Exception e) {
+			assertTrue(e instanceof delight.nashornsandbox.exceptions.ScriptCPUAbuseException
+					|| (e.getMessage() != null && (e.getMessage().toLowerCase().contains("statement")
+					|| e.getMessage().toLowerCase().contains("limit") || e.getMessage().toLowerCase().contains("cpu")
+					|| e.getMessage().toLowerCase().contains("resource"))));
+		}
+	}
+
+	@Test
+	public void testSandboxCloseDisposesContextCleanly() {
+		GraalSandbox sandbox = GraalSandboxes.create();
+		sandbox.close();
+		// Repeated close must be safe
+		sandbox.close();
+	}
 }

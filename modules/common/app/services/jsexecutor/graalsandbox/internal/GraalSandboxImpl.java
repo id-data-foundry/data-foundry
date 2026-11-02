@@ -69,6 +69,19 @@ public class GraalSandboxImpl extends NashornSandboxImpl implements GraalSandbox
 		this(SHARED_ENGINE, params);
 	}
 
+	private static final java.util.concurrent.atomic.AtomicReference<Source> BEAUTIFIER_SOURCE = new java.util.concurrent.atomic.AtomicReference<>();
+
+	private static boolean isBeautifierSource(Source src) {
+		if (src.getLength() != 221041 && src.getLength() != 221087) {
+			return false;
+		}
+		CharSequence chars = src.getCharacters();
+		if (chars == null || chars.length() < 100) {
+			return false;
+		}
+		return chars.subSequence(0, 100).toString().startsWith("(function webpackUniversalModuleDefinition");
+	}
+
 	public GraalSandboxImpl(Engine engine, String... params) {
 		super(GraalJSScriptEngine.create(engine != null ? engine : SHARED_ENGINE, Context.newBuilder("js")
 		        .allowPolyglotAccess(org.graalvm.polyglot.PolyglotAccess.NONE)
@@ -78,8 +91,11 @@ public class GraalSandboxImpl extends NashornSandboxImpl implements GraalSandbox
 		            if (src == null || src.isInternal()) {
 		                return false;
 		            }
-		            // Exclude large library scripts like js-beautify (5900+ lines) from statement limits
-		            if (src.getLineCount() > 2000 || src.getLength() > 50000) {
+		            if (src == BEAUTIFIER_SOURCE.get()) {
+		                return false;
+		            }
+		            if (isBeautifierSource(src)) {
+		                BEAUTIFIER_SOURCE.compareAndSet(null, src);
 		                return false;
 		            }
 		            return true;
@@ -226,6 +242,20 @@ public class GraalSandboxImpl extends NashornSandboxImpl implements GraalSandbox
 				}
 			}
 			throw e;
+		}
+	}
+
+	@Override
+	public void close() {
+		try {
+			if (this.scriptEngine instanceof GraalJSScriptEngine) {
+				Context polyglotContext = ((GraalJSScriptEngine) this.scriptEngine).getPolyglotContext();
+				if (polyglotContext != null) {
+					polyglotContext.close(true);
+				}
+			}
+		} catch (Exception e) {
+			LOG.warn("Error closing polyglot context", e);
 		}
 	}
 }

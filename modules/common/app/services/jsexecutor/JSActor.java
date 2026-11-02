@@ -535,11 +535,22 @@ public class JSActor implements ApiServiceConstants {
 					}
 
 					// release the sandbox
-					trialExecutionPermission.tryAcquire();
-					trialSandbox = null;
-					// release the lock
-					trialExecutionPermission.release();
-					logger.error("Trial sandbox reset for " + owner + " (" + getDatasetId() + ")");
+					if (trialExecutionPermission.tryAcquire()) {
+						try {
+							if (trialSandbox instanceof AutoCloseable) {
+								try {
+									((AutoCloseable) trialSandbox).close();
+								} catch (Exception ex) {
+									// ignore
+								}
+							}
+							trialSandbox = null;
+						} finally {
+							// release the lock
+							trialExecutionPermission.release();
+						}
+						logger.error("Trial sandbox reset for " + owner + " (" + getDatasetId() + ")");
+					}
 				});
 			} else {
 				// really unexpected stuff
@@ -570,6 +581,20 @@ public class JSActor implements ApiServiceConstants {
 		setChannel("");
 		compiledExecutionPermission.drainPermits();
 		compiledProgram = false;
+		if (this.sandbox instanceof AutoCloseable) {
+			try {
+				((AutoCloseable) this.sandbox).close();
+			} catch (Exception e) {
+				// ignore
+			}
+		}
+		if (this.trialSandbox instanceof AutoCloseable) {
+			try {
+				((AutoCloseable) this.trialSandbox).close();
+			} catch (Exception e) {
+				// ignore
+			}
+		}
 		logger.info("Script inactive and stopped for " + owner + " (" + getDatasetId() + ")");
 	}
 

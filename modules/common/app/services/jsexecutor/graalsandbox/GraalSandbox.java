@@ -4,7 +4,10 @@ import javax.script.Bindings;
 
 import delight.nashornsandbox.NashornSandbox;
 
-public interface GraalSandbox extends NashornSandbox {
+public interface GraalSandbox extends NashornSandbox, AutoCloseable {
 
 	public Bindings createNewBindings();
+
+	@Override
+	void close();
 }
