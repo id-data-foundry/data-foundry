@@ -130,7 +130,7 @@ public class ParticipationApiController extends AbstractApiController {
 			String output = views.html.elements.api.participantJSAPI.render(participant, request).toString()
 					.replace("</script>", "");
 			return ok(output).as(TEXT_JAVASCRIPT);
-		});
+		}, dbExecutor());
 	}
 
 	public CompletionStage<Result> anonymousJSAPI(Request request, long projectId) {
@@ -173,7 +173,7 @@ public class ParticipationApiController extends AbstractApiController {
 				// no participant found, and project not available or auto sign-up not granted
 				return redirect(controllers.api.js.routes.ParticipationApiController.jsAPI());
 			}
-		});
+		}, dbExecutor());
 	}
 
 	public CompletionStage<Result> diaryEntry(Request request) {
@@ -222,7 +222,7 @@ public class ParticipationApiController extends AbstractApiController {
 			dds.addRecord(participant, new Date(), title, text);
 
 			return ok(Json.newObject()).as("application/json");
-		});
+		}, dbExecutor());
 	}
 
 	public CompletionStage<Result> logEntry(Request request) {
@@ -314,7 +314,7 @@ public class ParticipationApiController extends AbstractApiController {
 			lds.addRecord(devices.isEmpty() ? null : devices.get(0), new Date(), activity, data);
 
 			return ok(Json.newObject()).as("application/json");
-		});
+		}, dbExecutor());
 	}
 
 	public CompletionStage<Result> uploadImage(Request request) {
@@ -402,7 +402,7 @@ public class ParticipationApiController extends AbstractApiController {
 			}
 
 			return ok();
-		});
+		}, dbExecutor());
 	}
 
 	public CompletionStage<Result> getItem(Request request, String idStr) {
@@ -452,7 +452,7 @@ public class ParticipationApiController extends AbstractApiController {
 			EntityDS entityDS = (EntityDS) datasetConnector.getDatasetDS(ds);
 			return ok(entityDS.getItem(participant.getRefId(), Optional.empty()).orElse(Json.newObject()))
 					.as("application/json");
-		});
+		}, dbExecutor());
 	}
 
 	public CompletionStage<Result> setItem(Request request, String idStr) {
@@ -505,7 +505,7 @@ public class ParticipationApiController extends AbstractApiController {
 			EntityDS entityDS = (EntityDS) datasetConnector.getDatasetDS(ds);
 			return ok(entityDS.updateItem(participant.getRefId(), Optional.empty(), jn).orElse(Json.newObject()))
 					.as("application/json");
-		});
+		}, dbExecutor());
 	}
 
 	public CompletionStage<Result> getDataCSV(Request request, long id, long limit, long start, long end) {
@@ -570,7 +570,7 @@ public class ParticipationApiController extends AbstractApiController {
 			} catch (InterruptedException | ExecutionException e) {
 				return tooManyRequests();
 			}
-		});
+		}, dbExecutor());
 	}
 
 	public CompletionStage<Result> getDataJson(Request request, long id, long limit, long start, long end) {
@@ -630,6 +630,6 @@ public class ParticipationApiController extends AbstractApiController {
 			DatasetUtils.fillClusterSlots(cluster);
 
 			return ok(datasetConnector.getDatasetDS(ds).retrieveProjected(cluster, limit, start, end));
-		});
+		}, dbExecutor());
 	}
 }

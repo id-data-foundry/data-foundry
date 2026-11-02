@@ -388,16 +388,16 @@ public class SurveyDSController extends AbstractDSController {
 
 	public CompletionStage<Result> downloadExternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
 		final List<Long> participantIds = cluster != null ? cluster.getParticipantList() : Collections.emptyList();
-		return CompletableFuture.supplyAsync(() -> internalExport(ds, participantIds, limit, start, end))
+		return CompletableFuture.supplyAsync(() -> internalExport(ds, participantIds, limit, start, end), dbExecutor())
 				.thenApplyAsync(chunks -> ok().chunked(chunks)
 						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
-						.as("text/csv"));
+						.as("text/csv"), dbExecutor());
 	}
 
 	public CompletionStage<Result> downloadInternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
 		final List<Long> participantIds = cluster != null ? cluster.getParticipantList() : Collections.emptyList();
-		return CompletableFuture.supplyAsync(() -> internalExport(ds, participantIds, limit, start, end))
-				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
+		return CompletableFuture.supplyAsync(() -> internalExport(ds, participantIds, limit, start, end), dbExecutor())
+				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"), dbExecutor());
 	}
 
 	@Authenticated(UserAuth.class)
@@ -420,10 +420,10 @@ public class SurveyDSController extends AbstractDSController {
 					controllers.api.routes.SurveyDSController.downloadRaw(id, -1L, -1l, -1l).relativeTo("/")));
 		}
 
-		return CompletableFuture.supplyAsync(() -> internalExportRaw(ds, limit, start, end))
+		return CompletableFuture.supplyAsync(() -> internalExportRaw(ds, limit, start, end), dbExecutor())
 				.thenApplyAsync(chunks -> ok().chunked(chunks)
 						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
-						.as("text/csv"));
+						.as("text/csv"), dbExecutor());
 	}
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -440,7 +440,7 @@ public class SurveyDSController extends AbstractDSController {
 			long end) {
 		SurveyDS fmsc = (SurveyDS) datasetConnector.getDatasetDS(ds);
 		return createStream().mapMaterializedValue(sourceActor -> {
-			CompletableFuture.runAsync(() -> fmsc.exportProjected(sourceActor, participantIds, limit, start, end));
+			CompletableFuture.runAsync(() -> fmsc.exportProjected(sourceActor, participantIds, limit, start, end), dbExecutor());
 			return sourceActor;
 		});
 	}
@@ -454,7 +454,7 @@ public class SurveyDSController extends AbstractDSController {
 	private Source<ByteString, ?> internalExportRaw(Dataset ds, long limit, long start, long end) {
 		SurveyDS fmsc = (SurveyDS) datasetConnector.getDatasetDS(ds);
 		return createStream().mapMaterializedValue(sourceActor -> {
-			CompletableFuture.runAsync(() -> fmsc.export(sourceActor, Collections.emptyList(), limit, start, end));
+			CompletableFuture.runAsync(() -> fmsc.export(sourceActor, Collections.emptyList(), limit, start, end), dbExecutor());
 			return sourceActor;
 		});
 	}

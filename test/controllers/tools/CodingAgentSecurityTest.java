@@ -249,4 +249,15 @@ public class CodingAgentSecurityTest extends WithApplication {
 		org.junit.Assert.assertNotSame("Agent instance should be refreshed with collaborator attribution headers",
 				initialAgent, context.agent());
 	}
+
+	@Test
+	public void testDatabaseExecutionContextConfiguredOnAsyncControllers() throws Exception {
+		java.lang.reflect.Method dbExecMethod = controllers.AbstractAsyncController.class.getDeclaredMethod("dbExecutor");
+		dbExecMethod.setAccessible(true);
+
+		Object exec = dbExecMethod.invoke(codingAgentController);
+		assertNotNull("dbExecutor must not be null", exec);
+		assertTrue("Injected controller should use DatabaseExecutionContext",
+				exec instanceof utils.concurrent.DatabaseExecutionContext);
+	}
 }

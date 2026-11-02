@@ -391,8 +391,8 @@ public class DataExportController extends AbstractAsyncController {
 			}
 		}
 
-		return CompletableFuture.supplyAsync(() -> internalExport(sql.toString(), samplingFactor, projection))
-				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
+		return CompletableFuture.supplyAsync(() -> internalExport(sql.toString(), samplingFactor, projection), dbExecutor())
+				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"), dbExecutor());
 	}
 
 	@Authenticated(UserAuth.class)

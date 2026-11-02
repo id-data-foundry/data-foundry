@@ -794,7 +794,7 @@ public class DatasetApiController extends AbstractApiController {
 
 		return CompletableFuture.supplyAsync(() -> {
 			return datasetsController.downloadJsonCluster(request, id, cluster, limit, start, end);
-		});
+		}, dbExecutor());
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -916,13 +916,13 @@ public class DatasetApiController extends AbstractApiController {
 		}
 
 		final Optional<String> finalToken = tempTokenOpt;
-		return CompletableFuture.supplyAsync(() -> eds.getItem(resource_id, finalToken)).thenApplyAsync(data -> {
+		return CompletableFuture.supplyAsync(() -> eds.getItem(resource_id, finalToken), dbExecutor()).thenApplyAsync(data -> {
 			if (data.isEmpty()) {
 				return notFound(errorJSONResponseObject("Item not found")).as("application/json");
 			} else {
 				return ok(data.get()).as("application/json");
 			}
-		}).exceptionally(e -> {
+		}, dbExecutor()).exceptionally(e -> {
 			logger.error("Entity dataset get problem", e);
 			return badRequest();
 		});
@@ -983,14 +983,14 @@ public class DatasetApiController extends AbstractApiController {
 		}
 
 		final Optional<String> finalToken = tempTokenOpt;
-		return CompletableFuture.supplyAsync(() -> eds.addItem(resource_id, finalToken, newData))
+		return CompletableFuture.supplyAsync(() -> eds.addItem(resource_id, finalToken, newData), dbExecutor())
 				.thenApplyAsync(data -> {
 					if (!data.isPresent()) {
 						return badRequest(errorJSONResponseObject("JSON data invalid")).as("application/json");
 					} else {
 						return ok(data.orElse(Json.newObject())).as("application/json");
 					}
-				}).exceptionally(e -> {
+				}, dbExecutor()).exceptionally(e -> {
 					logger.error("Entity dataset add problem", e);
 					return badRequest(errorJSONResponseObject("Unspecified problem in addItem"));
 				});
@@ -1051,14 +1051,14 @@ public class DatasetApiController extends AbstractApiController {
 		}
 
 		final Optional<String> finalToken = tempTokenOpt;
-		return CompletableFuture.supplyAsync(() -> eds.updateItem(resource_id, finalToken, newData))
+		return CompletableFuture.supplyAsync(() -> eds.updateItem(resource_id, finalToken, newData), dbExecutor())
 				.thenApplyAsync(data -> {
 					if (!data.isPresent()) {
 						return notFound(errorJSONResponseObject("Item not found")).as("application/json");
 					} else {
 						return ok(data.get()).as("application/json");
 					}
-				}).exceptionally(e -> {
+				}, dbExecutor()).exceptionally(e -> {
 					logger.error("Entity dataset update problem", e);
 					return badRequest();
 				});
@@ -1115,13 +1115,13 @@ public class DatasetApiController extends AbstractApiController {
 		}
 
 		final Optional<String> finalToken = tempTokenOpt;
-		return CompletableFuture.supplyAsync(() -> eds.deleteItem(resource_id, finalToken)).thenApplyAsync(data -> {
+		return CompletableFuture.supplyAsync(() -> eds.deleteItem(resource_id, finalToken), dbExecutor()).thenApplyAsync(data -> {
 			if (!data.isPresent()) {
 				return notFound(errorJSONResponseObject("Item not found")).as("application/json");
 			} else {
 				return ok(okJSONResponseObject("Item deleted")).as("application/json");
 			}
-		}).exceptionally(e -> {
+		}, dbExecutor()).exceptionally(e -> {
 			logger.error("Entity dataset delete problem", e);
 			return badRequest();
 		});

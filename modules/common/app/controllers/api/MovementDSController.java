@@ -267,7 +267,7 @@ public class MovementDSController extends AbstractDSController {
 
 			return redirect(controllers.routes.DatasetsController.view(ds.getId())).addingToSession(request, "error",
 					"Invalid request, no files have been included in the request.");
-		});
+		}, dbExecutor());
 	}
 
 	@Authenticated(UserAuth.class)
@@ -310,17 +310,17 @@ public class MovementDSController extends AbstractDSController {
 	public CompletionStage<Result> downloadExternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
 		// get participant ids (if cluster is given)
 		final List<Long> participantIds = cluster != null ? cluster.getParticipantList() : Collections.emptyList();
-		return CompletableFuture.supplyAsync(() -> internalExport(ds, participantIds, limit, start, end))
+		return CompletableFuture.supplyAsync(() -> internalExport(ds, participantIds, limit, start, end), dbExecutor())
 				.thenApplyAsync(chunks -> ok().chunked(chunks)
 						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
-						.as("text/csv"));
+						.as("text/csv"), dbExecutor());
 	}
 
 	public CompletionStage<Result> downloadInternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
 		// get participant ids (if cluster is given)
 		final List<Long> participantIds = cluster != null ? cluster.getParticipantList() : Collections.emptyList();
-		return CompletableFuture.supplyAsync(() -> internalExport(ds, participantIds, limit, start, end))
-				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
+		return CompletableFuture.supplyAsync(() -> internalExport(ds, participantIds, limit, start, end), dbExecutor())
+				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"), dbExecutor());
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -337,7 +337,7 @@ public class MovementDSController extends AbstractDSController {
 			long end) {
 		MovementDS mvsc = (MovementDS) datasetConnector.getDatasetDS(ds);
 		return createStream().mapMaterializedValue(sourceActor -> {
-			CompletableFuture.runAsync(() -> mvsc.export(sourceActor, participantIds, limit, start, end));
+			CompletableFuture.runAsync(() -> mvsc.export(sourceActor, participantIds, limit, start, end), dbExecutor());
 			return sourceActor;
 		});
 	}

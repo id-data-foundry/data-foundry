@@ -318,18 +318,18 @@ public class AnnotationDSController extends AbstractDSController {
 	public CompletionStage<Result> downloadExternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
 		return CompletableFuture
 				.supplyAsync(() -> internalExport(ds, (cluster != null && cluster.hasValidId()) ? cluster.getId() : -1L,
-						limit, start, end))
+						limit, start, end), dbExecutor())
 				.thenApplyAsync(chunks -> ok().chunked(chunks)
 						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
-						.as("text/csv"));
+						.as("text/csv"), dbExecutor());
 
 	}
 
 	public CompletionStage<Result> downloadInternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
 		return CompletableFuture
 				.supplyAsync(() -> internalExport(ds, (cluster != null && cluster.hasValidId()) ? cluster.getId() : -1L,
-						limit, start, end))
-				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
+						limit, start, end), dbExecutor())
+				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"), dbExecutor());
 
 	}
 
@@ -346,7 +346,7 @@ public class AnnotationDSController extends AbstractDSController {
 	private Source<ByteString, ?> internalExport(Dataset ds, long cluster_id, long limit, long start, long end) {
 		AnnotationDS ansc = (AnnotationDS) datasetConnector.getDatasetDS(ds);
 		return createStream().mapMaterializedValue(sourceActor -> {
-			CompletableFuture.runAsync(() -> ansc.export(sourceActor, cluster_id, limit, start, end));
+			CompletableFuture.runAsync(() -> ansc.export(sourceActor, cluster_id, limit, start, end), dbExecutor());
 			return sourceActor;
 		});
 	}

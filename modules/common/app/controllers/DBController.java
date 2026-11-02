@@ -74,7 +74,7 @@ public class DBController extends AbstractAsyncController {
 					</p>
 					<a href="/" class="btn">Back to home</a>
 					""");
-		});
+		}, dbExecutor());
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////

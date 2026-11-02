@@ -569,7 +569,7 @@ public class AdminController extends AbstractAsyncController {
 			lifeCycleService.deidentifyProject(p);
 
 			return redirect(routes.AdminController.actionableProject(id));
-		});
+		}, dbExecutor());
 	}
 
 	@RequireCSRFCheck
@@ -594,7 +594,7 @@ public class AdminController extends AbstractAsyncController {
 			lifeCycleService.archiveProject(p);
 
 			return redirect(routes.AdminController.actionableProject(id));
-		});
+		}, dbExecutor());
 	}
 
 	@RequireCSRFCheck
@@ -620,7 +620,7 @@ public class AdminController extends AbstractAsyncController {
 			lifeCycleService.freezeProject(Optional.of(request), p);
 
 			return redirect(routes.AdminController.actionableProject(id));
-		});
+		}, dbExecutor());
 	}
 
 	@RequireCSRFCheck

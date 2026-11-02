@@ -304,16 +304,16 @@ public class ExpSamplingDSController extends AbstractDSController {
 
 	public CompletionStage<Result> downloadExternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
 		final List<Long> participantIds = cluster != null ? cluster.getParticipantList() : Collections.emptyList();
-		return CompletableFuture.supplyAsync(() -> internalExport(ds, participantIds, limit, start, end))
+		return CompletableFuture.supplyAsync(() -> internalExport(ds, participantIds, limit, start, end), dbExecutor())
 				.thenApplyAsync(chunks -> ok().chunked(chunks)
 						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
-						.as("text/csv"));
+						.as("text/csv"), dbExecutor());
 	}
 
 	public CompletionStage<Result> downloadInternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
 		final List<Long> participantIds = cluster != null ? cluster.getParticipantList() : Collections.emptyList();
-		return CompletableFuture.supplyAsync(() -> internalExport(ds, participantIds, limit, start, end))
-				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
+		return CompletableFuture.supplyAsync(() -> internalExport(ds, participantIds, limit, start, end), dbExecutor())
+				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"), dbExecutor());
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -330,7 +330,7 @@ public class ExpSamplingDSController extends AbstractDSController {
 			long end) {
 		ExpSamplingDS essc = (ExpSamplingDS) datasetConnector.getDatasetDS(ds);
 		return createStream().mapMaterializedValue(sourceActor -> {
-			CompletableFuture.runAsync(() -> essc.exportProjected(sourceActor, participantIds, limit, start, end));
+			CompletableFuture.runAsync(() -> essc.exportProjected(sourceActor, participantIds, limit, start, end), dbExecutor());
 			return sourceActor;
 		});
 	}

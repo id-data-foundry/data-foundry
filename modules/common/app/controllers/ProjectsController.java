@@ -1882,9 +1882,9 @@ public class ProjectsController extends AbstractAsyncController {
 
 		// serve this stream with 200 OK
 		return CompletableFuture.supplyAsync(() -> createStream().mapMaterializedValue(sourceActor -> {
-			CompletableFuture.runAsync(() -> clds.timeseries(sourceActor, project));
+			CompletableFuture.runAsync(() -> clds.timeseries(sourceActor, project), dbExecutor());
 			return sourceActor;
-		})).thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
+		}), dbExecutor()).thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"), dbExecutor());
 	}
 
 	public Result labnotes(Request request, Long id) {

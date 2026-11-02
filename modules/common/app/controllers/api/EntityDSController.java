@@ -205,7 +205,7 @@ public class EntityDSController extends AbstractDSController {
 			// get items
 			final EntityDS eds = (EntityDS) datasetConnector.getDatasetDS(ds);
 			return ok(eds.getItemsNested()).as("application/json");
-		}).exceptionally(e -> {
+		}, dbExecutor()).exceptionally(e -> {
 			logger.error("Entity dataset index problem", e);
 			return badRequest();
 		});
@@ -229,7 +229,7 @@ public class EntityDSController extends AbstractDSController {
 			// get items
 			final EntityDS eds = (EntityDS) datasetConnector.getDatasetDS(ds);
 			return ok(eds.getItems()).as("application/json");
-		}).exceptionally(e -> {
+		}, dbExecutor()).exceptionally(e -> {
 			logger.error("Entity dataset index problem", e);
 			return badRequest();
 		});
@@ -253,7 +253,7 @@ public class EntityDSController extends AbstractDSController {
 			// get items
 			final EntityDS eds = (EntityDS) datasetConnector.getDatasetDS(ds);
 			return ok(eds.getItemsMatching(resource_id, Optional.of(token))).as("application/json");
-		}).exceptionally(e -> {
+		}, dbExecutor()).exceptionally(e -> {
 			logger.error("Entity dataset index problem", e);
 			return badRequest();
 		});
@@ -304,7 +304,7 @@ public class EntityDSController extends AbstractDSController {
 			} else {
 				return ok(data.orElse(Json.newObject())).as("application/json");
 			}
-		}).exceptionally(e -> {
+		}, dbExecutor()).exceptionally(e -> {
 			Throwable cause = e.getCause() != null ? e.getCause() : e;
 			if (cause instanceof ResponseException) {
 				return ((ResponseException) cause).getResponse();
@@ -353,7 +353,7 @@ public class EntityDSController extends AbstractDSController {
 			} else {
 				return ok(data.get()).as("application/json");
 			}
-		}).exceptionally(e -> {
+		}, dbExecutor()).exceptionally(e -> {
 			Throwable cause = e.getCause() != null ? e.getCause() : e;
 			if (cause instanceof ResponseException) {
 				return ((ResponseException) cause).getResponse();
@@ -409,7 +409,7 @@ public class EntityDSController extends AbstractDSController {
 			} else {
 				return ok(data.orElse(Json.newObject())).as("application/json");
 			}
-		}).exceptionally(e -> {
+		}, dbExecutor()).exceptionally(e -> {
 			Throwable cause = e.getCause() != null ? e.getCause() : e;
 			if (cause instanceof ResponseException) {
 				return ((ResponseException) cause).getResponse();
@@ -458,7 +458,7 @@ public class EntityDSController extends AbstractDSController {
 			} else {
 				return ok(data.get()).as("application/json");
 			}
-		}).exceptionally(e -> {
+		}, dbExecutor()).exceptionally(e -> {
 			Throwable cause = e.getCause() != null ? e.getCause() : e;
 			if (cause instanceof ResponseException) {
 				return ((ResponseException) cause).getResponse();
@@ -618,10 +618,10 @@ public class EntityDSController extends AbstractDSController {
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
 	public CompletionStage<Result> downloadExternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
-		return CompletableFuture.supplyAsync(() -> internalExport(ds, cluster, limit, start, end))
+		return CompletableFuture.supplyAsync(() -> internalExport(ds, cluster, limit, start, end), dbExecutor())
 				.thenApplyAsync(chunks -> ok().chunked(chunks)
 						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
-						.as("text/csv"));
+						.as("text/csv"), dbExecutor());
 	}
 
 	public CompletionStage<Result> downloadExternal(Dataset ds, long limit, long start, long end) {
@@ -629,8 +629,8 @@ public class EntityDSController extends AbstractDSController {
 	}
 
 	public CompletionStage<Result> downloadInternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
-		return CompletableFuture.supplyAsync(() -> internalExport(ds, cluster, limit, start, end))
-				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
+		return CompletableFuture.supplyAsync(() -> internalExport(ds, cluster, limit, start, end), dbExecutor())
+				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"), dbExecutor());
 	}
 
 	public CompletionStage<Result> downloadInternal(Dataset ds, long limit, long start, long end) {
@@ -659,10 +659,10 @@ public class EntityDSController extends AbstractDSController {
 					routes.EntityDSController.downloadRaw(id, limit, start, end).relativeTo("/")));
 		}
 
-		return CompletableFuture.supplyAsync(() -> internalExportRaw(ds, limit, start, end))
+		return CompletableFuture.supplyAsync(() -> internalExportRaw(ds, limit, start, end), dbExecutor())
 				.thenApplyAsync(chunks -> ok().chunked(chunks)
 						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
-						.as("text/csv"));
+						.as("text/csv"), dbExecutor());
 	}
 
 	public CompletionStage<Result> downloadRawPublic(Request request, String token) {
@@ -682,10 +682,10 @@ public class EntityDSController extends AbstractDSController {
 			return cs(() -> redirect(HOME).addingToSession(request, "error", "Dataset access token is incorrect."));
 		}
 
-		return CompletableFuture.supplyAsync(() -> internalExportRaw(ds, -1, -1, -1))
+		return CompletableFuture.supplyAsync(() -> internalExportRaw(ds, -1, -1, -1), dbExecutor())
 				.thenApplyAsync(chunks -> ok().chunked(chunks)
 						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
-						.as("text/csv"));
+						.as("text/csv"), dbExecutor());
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -702,7 +702,7 @@ public class EntityDSController extends AbstractDSController {
 	private Source<ByteString, ?> internalExport(Dataset ds, Cluster cluster, long limit, long start, long end) {
 		EntityDS tssc = (EntityDS) datasetConnector.getDatasetDS(ds);
 		return createStream().mapMaterializedValue(sourceActor -> {
-			CompletableFuture.runAsync(() -> tssc.exportProjected(sourceActor, cluster, start, end));
+			CompletableFuture.runAsync(() -> tssc.exportProjected(sourceActor, cluster, start, end), dbExecutor());
 			return sourceActor;
 		});
 	}
@@ -722,7 +722,7 @@ public class EntityDSController extends AbstractDSController {
 	private Source<ByteString, ?> internalExportRaw(Dataset ds, long limit, long start, long end) {
 		EntityDS tssc = (EntityDS) datasetConnector.getDatasetDS(ds);
 		return createStream().mapMaterializedValue(sourceActor -> {
-			CompletableFuture.runAsync(() -> tssc.exportLogProjected(sourceActor, start, end));
+			CompletableFuture.runAsync(() -> tssc.exportLogProjected(sourceActor, start, end), dbExecutor());
 			return sourceActor;
 		});
 	}

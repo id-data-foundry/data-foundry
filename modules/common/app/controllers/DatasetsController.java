@@ -990,7 +990,7 @@ public class DatasetsController extends AbstractAsyncController {
 			String filename = (cluster != null ? cluster.getSlug() : "data") + ".json";
 			return ok(tempFile).withHeader(CONTENT_DISPOSITION, "attachment; filename=" + filename)
 					.as(MimeTypes.JSON);
-		});
+		}, dbExecutor());
 	}
 
 	/**
@@ -1108,7 +1108,7 @@ public class DatasetsController extends AbstractAsyncController {
 			String filename = (cluster != null ? cluster.getSlug() : "data") + ".json";
 			return ok(tempFile).withHeader(CONTENT_DISPOSITION, "attachment; filename=" + filename)
 					.as(MimeTypes.JSON);
-		});
+		}, dbExecutor());
 	}
 
 	/**
@@ -1171,7 +1171,7 @@ public class DatasetsController extends AbstractAsyncController {
 		DatasetUtils.fillClusterSlots(cluster);
 		return CompletableFuture.supplyAsync(() -> {
 			return ok(datasetConnector.getDatasetDS(ds).retrieveProjected(cluster, limit, start, end));
-		});
+		}, dbExecutor());
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1241,7 +1241,7 @@ public class DatasetsController extends AbstractAsyncController {
 			Result res = ok(tempFile).withHeader(CONTENT_DISPOSITION, "attachment; filename=" + filename)
 					.as(MimeTypes.JSON);
 			return applyPublicDownloadCors(request, res);
-		});
+		}, dbExecutor());
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1585,7 +1585,7 @@ public class DatasetsController extends AbstractAsyncController {
 			} else {
 				return res;
 			}
-		});
+		}, dbExecutor());
 	}
 
 	/**
@@ -1771,7 +1771,7 @@ public class DatasetsController extends AbstractAsyncController {
 					return res;
 				}
 			}
-		});
+		}, dbExecutor());
 	}
 
 	/**
@@ -1944,7 +1944,7 @@ public class DatasetsController extends AbstractAsyncController {
 					return res;
 				}
 			}
-		});
+		}, dbExecutor());
 	}
 
 	@Authenticated(UserAuth.class)

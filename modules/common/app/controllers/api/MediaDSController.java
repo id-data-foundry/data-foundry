@@ -260,7 +260,7 @@ public class MediaDSController extends AbstractDSController {
 			fileName = fileName.replaceAll("\\s", "%");
 			return ok(requestedFile.get()).as("application/x-download").withHeader("Content-disposition",
 					"attachment; filename=" + fileName);
-		});
+		}, dbExecutor());
 
 	}
 
@@ -379,7 +379,7 @@ public class MediaDSController extends AbstractDSController {
 			}
 
 			return badRequest("Missing files.").as("application/json");
-		}).exceptionally(e -> {
+		}, dbExecutor()).exceptionally(e -> {
 			logger.error("Media dataset index problem", e);
 			return badRequest();
 		});
@@ -516,7 +516,7 @@ public class MediaDSController extends AbstractDSController {
 				logger.error("Media dataset update problem", e);
 				return badRequest();
 			}
-		}).exceptionally(e -> {
+		}, dbExecutor()).exceptionally(e -> {
 			logger.error("Media dataset update problem", e);
 			return badRequest();
 		});
@@ -752,7 +752,7 @@ public class MediaDSController extends AbstractDSController {
 			} else {
 				return authenticatedImage(request, id, fileName, scale);
 			}
-		});
+		}, dbExecutor());
 	}
 
 	@Authenticated(UserAuth.class)
@@ -817,18 +817,18 @@ public class MediaDSController extends AbstractDSController {
 			long limit, long start, long end) {
 		// get participant ids (if cluster is given)
 		final List<Long> participantIds = cluster != null ? cluster.getParticipantList() : Collections.emptyList();
-		return CompletableFuture.supplyAsync(() -> internalExport(ds, linkMapper, participantIds, limit, start, end))
+		return CompletableFuture.supplyAsync(() -> internalExport(ds, linkMapper, participantIds, limit, start, end), dbExecutor())
 				.thenApplyAsync(chunks -> ok().chunked(chunks)
 						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
-						.as("text/csv"));
+						.as("text/csv"), dbExecutor());
 	}
 
 	public CompletionStage<Result> downloadInternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
 		// get participant ids (if cluster is given)
 		final List<Long> participantIds = cluster != null ? cluster.getParticipantList() : Collections.emptyList();
 		return CompletableFuture
-				.supplyAsync(() -> internalExport(ds, Function.identity(), participantIds, limit, start, end))
-				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
+				.supplyAsync(() -> internalExport(ds, Function.identity(), participantIds, limit, start, end), dbExecutor())
+				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"), dbExecutor());
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -845,7 +845,7 @@ public class MediaDSController extends AbstractDSController {
 			List<Long> participantIds, long limit, long start, long end) {
 		MediaDS meds = (MediaDS) datasetConnector.getDatasetDS(ds);
 		return createStream().mapMaterializedValue(sourceActor -> {
-			CompletableFuture.runAsync(() -> meds.export(sourceActor, linkMapper, participantIds, limit, start, end));
+			CompletableFuture.runAsync(() -> meds.export(sourceActor, linkMapper, participantIds, limit, start, end), dbExecutor());
 			return sourceActor;
 		});
 	}

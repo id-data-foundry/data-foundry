@@ -4,6 +4,8 @@ import java.io.File;
 import java.util.Date;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ForkJoinPool;
 import java.util.function.Supplier;
 
 import org.apache.pekko.stream.OverflowStrategy;
@@ -37,6 +39,7 @@ import services.notifications.SystemNotificationService;
 import utils.DateUtils;
 import utils.StringUtils;
 import utils.auth.TokenResolverUtil;
+import utils.concurrent.DatabaseExecutionContext;
 
 public class AbstractAsyncController extends Controller {
 
@@ -110,6 +113,13 @@ public class AbstractAsyncController extends Controller {
 
 	@Inject
 	protected SystemNotificationService systemNotifications;
+
+	@Inject
+	protected DatabaseExecutionContext databaseExecutionContext;
+
+	protected Executor dbExecutor() {
+		return databaseExecutionContext != null ? databaseExecutionContext : ForkJoinPool.commonPool();
+	}
 
 	private static final Logger.ALogger logger = Logger.of(AbstractAsyncController.class);
 
@@ -317,7 +327,7 @@ public class AbstractAsyncController extends Controller {
 	 * @return
 	 */
 	protected CompletableFuture<Result> cs(Supplier<Result> rs) {
-		return CompletableFuture.supplyAsync(rs).exceptionally(e -> {
+		return CompletableFuture.supplyAsync(rs, dbExecutor()).exceptionally(e -> {
 			// handle redirect exceptions
 			if (e instanceof ResponseException) {
 				return ((ResponseException) e).getResponse();

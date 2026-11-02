@@ -283,7 +283,7 @@ public class DataLogger extends AbstractAsyncController {
 				logger.error("CSV parsing error in import.", e);
 			}
 			return ok("Imported " + lineCount.get() + " lines.");
-		});
+		}, dbExecutor());
 	}
 
 	/**
@@ -396,7 +396,7 @@ public class DataLogger extends AbstractAsyncController {
 				logger.error("JSON parsing error in import.", e);
 			}
 			return ok("Imported " + lineCount.get() + " lines.");
-		});
+		}, dbExecutor());
 
 	}
 
@@ -521,7 +521,7 @@ public class DataLogger extends AbstractAsyncController {
 					+ StringUtils.pluralize("record", itemMaps.size()) + " at " + new Date(), 300);
 
 			return ok();
-		}).exceptionally((e) -> {
+		}, dbExecutor()).exceptionally((e) -> {
 			return badRequest();
 		});
 	}

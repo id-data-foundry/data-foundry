@@ -184,7 +184,7 @@ public class ActivityLoggerController extends AbstractAsyncController {
 			ds.update();
 
 			return ok("Activities updated successfully");
-		}).exceptionally(e -> {
+		}, dbExecutor()).exceptionally(e -> {
 			logger.error("Error updating activities for dataset " + datasetId, e);
 			return internalServerError("Failed to update activities: " + e.getMessage());
 		});
@@ -249,7 +249,7 @@ public class ActivityLoggerController extends AbstractAsyncController {
 					"Participant " + participantId + " logged activity at " + new Date(), 300);
 
 			return ok("Activity logged successfully.");
-		}).exceptionally(e -> {
+		}, dbExecutor()).exceptionally(e -> {
 			logger.error("Error logging activity for dataset " + datasetId, e);
 			return internalServerError("Failed to log activity: " + e.getMessage());
 		});

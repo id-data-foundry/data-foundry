@@ -85,9 +85,9 @@ public abstract class AbstractDSController extends AbstractAsyncController {
 
 		// serve this stream with 200 OK
 		return CompletableFuture.supplyAsync(() -> createStream().mapMaterializedValue(sourceActor -> {
-			CompletableFuture.runAsync(() -> linkedDS.timeseries(sourceActor));
+			CompletableFuture.runAsync(() -> linkedDS.timeseries(sourceActor), dbExecutor());
 			return sourceActor;
-		})).thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
+		}), dbExecutor()).thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"), dbExecutor());
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////

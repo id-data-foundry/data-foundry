@@ -352,7 +352,7 @@ public class TimeseriesDSController extends AbstractDSController {
 
 			// response
 			return testing ? redirect(controllers.routes.DatasetsController.view(id)) : ok("");
-		});
+		}, dbExecutor());
 	}
 
 	/**
@@ -495,7 +495,7 @@ public class TimeseriesDSController extends AbstractDSController {
 					+ " " + StringUtils.pluralize("record", records.size()) + " at " + new Date(), 300);
 
 			return ok();
-		});
+		}, dbExecutor());
 	}
 
 	/**
@@ -624,7 +624,7 @@ public class TimeseriesDSController extends AbstractDSController {
 				logger.error(" - no valid data (CSV) given", e);
 				return badRequest("No valid data (CSV) given.");
 			}
-		});
+		}, dbExecutor());
 	}
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////// .
@@ -637,10 +637,10 @@ public class TimeseriesDSController extends AbstractDSController {
 		final List<Long> deviceIds = (cluster != null && cluster.isFilterable())
 				? cluster.getDeviceList()
 				: Collections.emptyList();
-		return CompletableFuture.supplyAsync(() -> internalExport(ds, deviceIds, limit, start, end))
+		return CompletableFuture.supplyAsync(() -> internalExport(ds, deviceIds, limit, start, end), dbExecutor())
 				.thenApplyAsync(chunks -> ok().chunked(chunks)
 						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
-						.as("text/csv"));
+						.as("text/csv"), dbExecutor());
 	}
 
 	public CompletionStage<Result> downloadInternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
@@ -651,8 +651,8 @@ public class TimeseriesDSController extends AbstractDSController {
 		final List<Long> deviceIds = (cluster != null && cluster.isFilterable())
 				? cluster.getDeviceList()
 				: Collections.emptyList();
-		return CompletableFuture.supplyAsync(() -> internalExport(ds, deviceIds, limit, start, end))
-				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
+		return CompletableFuture.supplyAsync(() -> internalExport(ds, deviceIds, limit, start, end), dbExecutor())
+				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"), dbExecutor());
 	}
 
 	@Authenticated(UserAuth.class)
@@ -690,10 +690,10 @@ public class TimeseriesDSController extends AbstractDSController {
 					routes.TimeseriesDSController.downloadRaw(id, cluster_id, limit, start, end).relativeTo("/")));
 		}
 
-		return CompletableFuture.supplyAsync(() -> internalExportRaw(ds, deviceIds, limit, start, end))
+		return CompletableFuture.supplyAsync(() -> internalExportRaw(ds, deviceIds, limit, start, end), dbExecutor())
 				.thenApplyAsync(chunks -> ok().chunked(chunks)
 						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
-						.as("text/csv"));
+						.as("text/csv"), dbExecutor());
 	}
 
 	public CompletionStage<Result> downloadRawPublic(Request request, String token) {
@@ -713,10 +713,10 @@ public class TimeseriesDSController extends AbstractDSController {
 			return redirectCS(HOME);
 		}
 
-		return CompletableFuture.supplyAsync(() -> internalExportRaw(ds, Collections.<Long>emptyList(), -1, -1, -1))
+		return CompletableFuture.supplyAsync(() -> internalExportRaw(ds, Collections.<Long>emptyList(), -1, -1, -1), dbExecutor())
 				.thenApplyAsync(chunks -> ok().chunked(chunks)
 						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
-						.as("text/csv"));
+						.as("text/csv"), dbExecutor());
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -730,7 +730,7 @@ public class TimeseriesDSController extends AbstractDSController {
 	private Source<ByteString, ?> internalExport(Dataset ds, List<Long> deviceIds, long limit, long start, long end) {
 		TimeseriesDS tssc = (TimeseriesDS) datasetConnector.getDatasetDS(ds);
 		return createStream().mapMaterializedValue(queue -> {
-			CompletableFuture.runAsync(() -> tssc.exportProjected(queue, deviceIds, limit, start, end));
+			CompletableFuture.runAsync(() -> tssc.exportProjected(queue, deviceIds, limit, start, end), dbExecutor());
 			return queue;
 		});
 	}
@@ -745,7 +745,7 @@ public class TimeseriesDSController extends AbstractDSController {
 			long end) {
 		TimeseriesDS tssc = (TimeseriesDS) datasetConnector.getDatasetDS(ds);
 		return createStream().mapMaterializedValue(queue -> {
-			CompletableFuture.runAsync(() -> tssc.export(queue, deviceIds, limit, start, end));
+			CompletableFuture.runAsync(() -> tssc.export(queue, deviceIds, limit, start, end), dbExecutor());
 			return queue;
 		});
 	}
@@ -788,7 +788,7 @@ public class TimeseriesDSController extends AbstractDSController {
 			// get items
 			final TimeseriesDS tds = (TimeseriesDS) datasetConnector.getDatasetDS(ds);
 			return ok(tds.getItemsNested()).as("application/json");
-		}).exceptionally(e -> {
+		}, dbExecutor()).exceptionally(e -> {
 			logger.error("IoT dataset index problem", e);
 			return badRequest();
 		});

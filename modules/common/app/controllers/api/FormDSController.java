@@ -357,15 +357,15 @@ public class FormDSController extends AbstractDSController {
 	}
 
 	public CompletionStage<Result> downloadExternal(Dataset ds, long limit, long start, long end) {
-		return CompletableFuture.supplyAsync(() -> internalExport(ds, limit, start, end))
+		return CompletableFuture.supplyAsync(() -> internalExport(ds, limit, start, end), dbExecutor())
 		        .thenApplyAsync(chunks -> ok().chunked(chunks)
 		                .withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
-		                .as("text/csv"));
+		                .as("text/csv"), dbExecutor());
 	}
 
 	public CompletionStage<Result> downloadInternal(Dataset ds, long limit, long start, long end) {
-		return CompletableFuture.supplyAsync(() -> internalExport(ds, limit, start, end))
-		        .thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
+		return CompletableFuture.supplyAsync(() -> internalExport(ds, limit, start, end), dbExecutor())
+		        .thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"), dbExecutor());
 	}
 
 	@Authenticated(UserAuth.class)
@@ -389,10 +389,10 @@ public class FormDSController extends AbstractDSController {
 			        controllers.api.routes.FormDSController.downloadRaw(id, -1L, -1l, -1l).relativeTo("/")));
 		}
 
-		return CompletableFuture.supplyAsync(() -> internalExportRaw(ds, limit, start, end))
+		return CompletableFuture.supplyAsync(() -> internalExportRaw(ds, limit, start, end), dbExecutor())
 		        .thenApplyAsync(chunks -> ok().chunked(chunks)
 		                .withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
-		                .as("text/csv"));
+		                .as("text/csv"), dbExecutor());
 	}
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -408,7 +408,7 @@ public class FormDSController extends AbstractDSController {
 	private Source<ByteString, ?> internalExport(Dataset ds, long limit, long start, long end) {
 		FormDS fmsc = (FormDS) datasetConnector.getDatasetDS(ds);
 		return createStream().mapMaterializedValue(sourceActor -> {
-			CompletableFuture.runAsync(() -> fmsc.exportProjected(sourceActor, limit, start, end));
+			CompletableFuture.runAsync(() -> fmsc.exportProjected(sourceActor, limit, start, end), dbExecutor());
 			return sourceActor;
 		});
 	}
@@ -422,7 +422,7 @@ public class FormDSController extends AbstractDSController {
 	private Source<ByteString, ?> internalExportRaw(Dataset ds, long limit, long start, long end) {
 		FormDS fmsc = (FormDS) datasetConnector.getDatasetDS(ds);
 		return createStream().mapMaterializedValue(sourceActor -> {
-			CompletableFuture.runAsync(() -> fmsc.export(sourceActor, limit, start, end));
+			CompletableFuture.runAsync(() -> fmsc.export(sourceActor, limit, start, end), dbExecutor());
 			return sourceActor;
 		});
 	}

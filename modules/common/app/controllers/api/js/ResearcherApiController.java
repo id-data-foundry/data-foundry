@@ -163,7 +163,7 @@ public class ResearcherApiController extends AbstractApiController {
 
 		return CompletableFuture.supplyAsync(() -> {
 			return datasetsController.downloadJsonCluster(request, id, cluster, limit, start, end);
-		});
+		}, dbExecutor());
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////

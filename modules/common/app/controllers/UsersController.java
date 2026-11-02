@@ -662,7 +662,7 @@ public class UsersController extends AbstractAsyncController {
 							"""
 							.formatted(lineCount - 1, invitesSent.get()))
 					.as(Http.MimeTypes.HTML);
-		});
+		}, dbExecutor());
 	}
 
 //	private String getAnnouncement() {

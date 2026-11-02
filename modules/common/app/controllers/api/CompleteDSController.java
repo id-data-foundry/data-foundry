@@ -985,10 +985,10 @@ public class CompleteDSController extends AbstractDSController {
 	public CompletionStage<Result> downloadExternal(Function<String, String> linkMapper, Dataset ds, long limit,
 			long start, long end) {
 
-		return CompletableFuture.supplyAsync(() -> internalExport(ds, linkMapper, limit, start, end))
+		return CompletableFuture.supplyAsync(() -> internalExport(ds, linkMapper, limit, start, end), dbExecutor())
 				.thenApplyAsync(chunks -> ok().chunked(chunks)
 						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
-						.as("text/csv"));
+						.as("text/csv"), dbExecutor());
 	}
 
 	/**
@@ -1001,8 +1001,8 @@ public class CompleteDSController extends AbstractDSController {
 	 */
 	public CompletionStage<Result> downloadInternal(Function<String, String> linkMapper, Dataset ds, long limit,
 			long start, long end) {
-		return CompletableFuture.supplyAsync(() -> internalExport(ds, linkMapper, limit, start, end))
-				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
+		return CompletableFuture.supplyAsync(() -> internalExport(ds, linkMapper, limit, start, end), dbExecutor())
+				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"), dbExecutor());
 	}
 
 	///////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1019,7 +1019,7 @@ public class CompleteDSController extends AbstractDSController {
 			long start, long end) {
 		CompleteDS cpds = (CompleteDS) datasetConnector.getDatasetDS(ds);
 		return createStream().mapMaterializedValue(sourceActor -> {
-			CompletableFuture.runAsync(() -> cpds.export(sourceActor, linkMapper, limit, start, end));
+			CompletableFuture.runAsync(() -> cpds.export(sourceActor, linkMapper, limit, start, end), dbExecutor());
 			return sourceActor;
 		});
 	}
@@ -1096,7 +1096,7 @@ public class CompleteDSController extends AbstractDSController {
 			}
 
 			return badRequest(Json.newObject().put("error", "Missing files.")).as("application/json");
-		}).exceptionally(e -> {
+		}, dbExecutor()).exceptionally(e -> {
 			logger.error("Complete dataset file upload api problem", e);
 			return badRequest();
 		});

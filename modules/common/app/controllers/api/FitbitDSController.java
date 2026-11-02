@@ -206,9 +206,9 @@ public class FitbitDSController extends AbstractDSController {
 
 		// serve this stream with 200 OK
 		return CompletableFuture.supplyAsync(() -> createStream().mapMaterializedValue(sourceActor -> {
-			CompletableFuture.runAsync(() -> lsc.timeseries(sourceActor));
+			CompletableFuture.runAsync(() -> lsc.timeseries(sourceActor), dbExecutor());
 			return sourceActor;
-		})).thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
+		}), dbExecutor()).thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"), dbExecutor());
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -227,10 +227,10 @@ public class FitbitDSController extends AbstractDSController {
 		final List<Long> wearablesIds = (cluster != null && cluster.isFilterable())
 				? cluster.getWearableList()
 				: null;
-		return CompletableFuture.supplyAsync(() -> internalExportRaw(ds, wearablesIds, limit, start, end))
+		return CompletableFuture.supplyAsync(() -> internalExportRaw(ds, wearablesIds, limit, start, end), dbExecutor())
 		        .thenApplyAsync(chunks -> ok().chunked(chunks)
 		                .withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
-		                .as("text/csv"));
+		                .as("text/csv"), dbExecutor());
 	}
 
 	/**
@@ -247,8 +247,8 @@ public class FitbitDSController extends AbstractDSController {
 		final List<Long> wearablesIds = (cluster != null && cluster.isFilterable())
 				? cluster.getWearableList()
 				: null;
-		return CompletableFuture.supplyAsync(() -> internalExportRaw(ds, wearablesIds, limit, start, end))
-		        .thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
+		return CompletableFuture.supplyAsync(() -> internalExportRaw(ds, wearablesIds, limit, start, end), dbExecutor())
+		        .thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"), dbExecutor());
 	}
 
 	/**
@@ -264,7 +264,7 @@ public class FitbitDSController extends AbstractDSController {
 	        long end) {
 		FitbitDS fbds = (FitbitDS) datasetConnector.getDatasetDS(ds);
 		return createStream().mapMaterializedValue(sourceActor -> {
-			CompletableFuture.runAsync(() -> fbds.export(sourceActor, wearablesIds, limit, start, end));
+			CompletableFuture.runAsync(() -> fbds.export(sourceActor, wearablesIds, limit, start, end), dbExecutor());
 			return sourceActor;
 		});
 	}

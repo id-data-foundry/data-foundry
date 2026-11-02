@@ -208,9 +208,9 @@ public class GoogleFitDSController extends AbstractDSController {
 
 		// serve this stream with 200 OK
 		return CompletableFuture.supplyAsync(() -> createStream().mapMaterializedValue(sourceActor -> {
-			CompletableFuture.runAsync(() -> lsc.timeseries(sourceActor));
+			CompletableFuture.runAsync(() -> lsc.timeseries(sourceActor), dbExecutor());
 			return sourceActor;
-		})).thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"));
+		}), dbExecutor()).thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"), dbExecutor());
 	}
 
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -229,10 +229,10 @@ public class GoogleFitDSController extends AbstractDSController {
 		final List<Long> wearablesIds = (cluster != null && cluster.isFilterable())
 				? cluster.getWearableList()
 				: null;
-		return CompletableFuture.supplyAsync(() -> internalExportRaw(ds, wearablesIds, limit, start, end))
+		return CompletableFuture.supplyAsync(() -> internalExportRaw(ds, wearablesIds, limit, start, end), dbExecutor())
 		        .thenApplyAsync(chunks -> ok().chunked(chunks)
 		                .withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
-		                .as("text/csv"));
+		                .as("text/csv"), dbExecutor());
 	}
 
 	/**
@@ -249,10 +249,10 @@ public class GoogleFitDSController extends AbstractDSController {
 		final List<Long> wearablesIds = (cluster != null && cluster.isFilterable())
 				? cluster.getWearableList()
 				: null;
-		return CompletableFuture.supplyAsync(() -> internalExportRaw(ds, wearablesIds, limit, start, end))
+		return CompletableFuture.supplyAsync(() -> internalExportRaw(ds, wearablesIds, limit, start, end), dbExecutor())
 		        .thenApplyAsync(chunks -> ok().chunked(chunks)
 		                .withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
-		                .as("text/csv"));
+		                .as("text/csv"), dbExecutor());
 	}
 
 	/**
@@ -268,7 +268,7 @@ public class GoogleFitDSController extends AbstractDSController {
 	        long end) {
 		GoogleFitDS gfds = (GoogleFitDS) datasetConnector.getDatasetDS(ds);
 		return createStream().mapMaterializedValue(sourceActor -> {
-			CompletableFuture.runAsync(() -> gfds.export(sourceActor, wearablesIds, limit, start, end));
+			CompletableFuture.runAsync(() -> gfds.export(sourceActor, wearablesIds, limit, start, end), dbExecutor());
 			return sourceActor;
 		});
 	}
