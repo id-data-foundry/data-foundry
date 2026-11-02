@@ -61,9 +61,7 @@ public class IconRoutingTest extends WithApplication {
 	public void testProdStaticAssetNotFound() {
 		Application prodApp = new GuiceApplicationBuilder()
 				.in(play.Mode.PROD)
-				.configure("db.default.driver", "org.h2.Driver")
-				.configure("db.default.url", "jdbc:h2:mem:play;DB_CLOSE_DELAY=-1")
-				.configure("play.evolutions.db.default.autoApply", true)
+				.disable(play.db.ebean.EbeanModule.class)
 				.build();
 
 		try {

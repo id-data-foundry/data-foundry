@@ -63,9 +63,8 @@ public class SecurityTxtTest extends WithApplication {
 	@Test
 	public void testExplicitConfigurationOverrides() {
 		Application customApp = new GuiceApplicationBuilder()
-				.configure("db.default.driver", "org.h2.Driver")
-				.configure("db.default.url", "jdbc:h2:mem:play;DB_CLOSE_DELAY=-1")
-				.configure("play.evolutions.db.default.autoApply", true)
+				.disable(play.db.ebean.EbeanModule.class)
+				.configure("df.base_url", "https://data-foundry.net")
 				.configure("df.securitytxt.expires", "2029-01-01T00:00:00.000Z")
 				.configure("df.securitytxt.contact", "mailto:custom-sec@data-foundry.net")
 				.configure("df.securitytxt.policy", "https://example.com/custom-policy")
