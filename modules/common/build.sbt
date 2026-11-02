@@ -23,8 +23,8 @@ libraryDependencies ++= Seq(
   "com.google.zxing" % "javase" % "3.4.1",
   
   // https://mvnrepository.com/artifact/com.typesafe.play/play-mailer_2.12/8.0.1
-  "org.playframework" %% "play-mailer" % "10.0.0",
-  "org.playframework" %% "play-mailer-guice" % "10.0.0",
+  "org.playframework" %% "play-mailer" % "10.1.0",
+  "org.playframework" %% "play-mailer-guice" % "10.1.0",
   
   // https://mvnrepository.com/artifact/com.h2database/h2
   "com.h2database" % "h2" % "1.4.199", 
@@ -65,7 +65,7 @@ libraryDependencies ++= Seq(
   // "org.javadelight" % "delight-graaljs-sandbox" % "0.2.0" excludeAll(ExclusionRule(organization = "org.javadelight", name = "delight-nashorn-sandbox")),
 
   // openAPI
-  "org.webjars" %% "webjars-play" % "3.0.1",
+  "org.webjars" %% "webjars-play" % "3.0.10",
   "org.webjars" % "swagger-ui" % "4.15.5",
   
   // // swagger testing with java client
