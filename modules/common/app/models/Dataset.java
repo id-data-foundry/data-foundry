@@ -361,6 +361,10 @@ public class Dataset extends Model {
 			return true;
 		}
 
+		if (reference == null) {
+			return false;
+		}
+
 		// other datasets are handled here
 		Date terminal = this.end();
 		if (this.getDsType().equals(DatasetType.FITBIT) || this.getDsType().equals(DatasetType.GOOGLEFIT)) {

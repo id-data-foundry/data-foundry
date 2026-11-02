@@ -743,7 +743,7 @@ public class TelegramSession extends Model {
 								Optional<Dataset> ds = project.getStudyManagementDataset();
 								if (ds.isPresent()) {
 									String token = ds.get().configuration(Dataset.TELEGRAM_PROJECT_TOKEN, "");
-									if (token.equals(trimmedText.toUpperCase())) {
+									if (!token.isEmpty() && utils.auth.Hash.constantTimeEquals(token, trimmedText.toUpperCase())) {
 										// open participation and ready to go
 										User user = userOpt.get();
 

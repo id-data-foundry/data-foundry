@@ -374,6 +374,111 @@ public class DatasetTest extends WithApplication {
 		assertEquals(601, projLines.length);
 	}
 
+	@Test
+	public void testDatasetIsActiveNullSafety() {
+		Person user = createPerson("ActiveTest");
+		Project project = Project.create("Active Project", user, "Intro", false, false);
+		project.save();
+
+		Dataset ds = datasetConnector.create("Active DS", DatasetType.IOT, project, "Desc", "Target", "true");
+		ds.save();
+
+		// Reference null should safely fail closed without throwing NullPointerException
+		assertFalse(ds.isActive(null));
+
+		// Expired dataset (end date in past) must be inactive
+		ds.setStart(new Date(System.currentTimeMillis() - 200000000));
+		ds.setEnd(new Date(System.currentTimeMillis() - 100000000));
+		ds.save();
+		assertFalse(ds.isActive(new Date()));
+		assertFalse(ds.isActive(null));
+
+		// Future dataset (start date in future) must be inactive
+		ds.setStart(new Date(System.currentTimeMillis() + 100000000));
+		ds.setEnd(new Date(System.currentTimeMillis() + 200000000));
+		ds.save();
+		assertFalse(ds.isActive(new Date()));
+		assertFalse(ds.isActive(null));
+
+		// Currently active dataset
+		ds.setStart(new Date(System.currentTimeMillis() - 100000));
+		ds.setEnd(new Date(System.currentTimeMillis() + 100000));
+		ds.save();
+		assertFalse(ds.isActive(null));
+		assertTrue(ds.isActive(new Date()));
+
+		// Study management datasets are always active
+		Dataset smDs = datasetConnector.create("SM DS", DatasetType.COMPLETE, project, "Desc", "Target", "true");
+		smDs.setCollectorType(Dataset.STUDY_MANAGEMENT);
+		smDs.save();
+		assertTrue(smDs.isActive(null));
+		assertTrue(smDs.isActive(new Date()));
+	}
+
+	@Test
+	public void testMediaDatasetExportEmptyClusterReturnsZeroDataRows() {
+		Person user = createPerson("MediaExportTest");
+		Project project = Project.create("Media Project", user, "Intro", false, false);
+		project.save();
+
+		Dataset ds = datasetConnector.create("Media DS", DatasetType.MEDIA, project, "Desc", "Target", "true");
+		ds.save();
+
+		MediaDS meds = (MediaDS) datasetConnector.getDatasetDS(ds);
+		models.sr.Participant p = new models.sr.Participant("p1@example.com");
+		p.setRefId("part-1");
+		p.setProject(project);
+		p.save();
+		project.getParticipants().add(p);
+		project.update();
+
+		meds.importFileContents(p, "https://example.com/test.jpg", "image/jpeg", "test desc", new Date());
+
+		// 1. Unfiltered export (null participantIds) exports header + data
+		CapturingQueue unfilteredQueue = new CapturingQueue();
+		meds.export(unfilteredQueue, java.util.function.Function.identity(), (List<Long>) null, -1, -1, -1);
+		StringBuilder unfilteredText = new StringBuilder();
+		for (ByteString chunk : unfilteredQueue.chunks) {
+			unfilteredText.append(chunk.utf8String());
+		}
+		String[] unfilteredLines = unfilteredText.toString().trim().split("\n");
+		assertEquals("Unfiltered export should include header + 1 record", 2, unfilteredLines.length);
+
+		// 2. Empty cluster export (empty participantIds) exports header only (0 data rows)
+		CapturingQueue emptyClusterQueue = new CapturingQueue();
+		meds.export(emptyClusterQueue, java.util.function.Function.identity(), Collections.emptyList(), -1, -1, -1);
+		StringBuilder emptyClusterText = new StringBuilder();
+		for (ByteString chunk : emptyClusterQueue.chunks) {
+			emptyClusterText.append(chunk.utf8String());
+		}
+		String[] emptyClusterLines = emptyClusterText.toString().trim().split("\n");
+		assertEquals("Empty cluster export should include only the CSV header", 1, emptyClusterLines.length);
+
+		// 3. retrieveProjected with empty cluster returns empty ArrayNode
+		models.sr.Cluster emptyCluster = new models.sr.Cluster("EmptyCluster");
+		emptyCluster.setProject(project);
+		emptyCluster.save();
+		com.fasterxml.jackson.databind.node.ArrayNode projected = meds.retrieveProjected(emptyCluster, -1, -1, -1);
+		assertEquals("Projected query for empty cluster must have 0 elements", 0, projected.size());
+	}
+
+	@Test
+	public void testTelegramTokenVerificationConstantTimeComparison() {
+		String validToken = "ABCDEF123456";
+		String candidateUpper = "ABCDEF123456";
+		String candidateWrong = "ABCDEF999999";
+		String emptyToken = "";
+
+		assertTrue("Matching token must verify successfully",
+				!validToken.isEmpty() && utils.auth.Hash.constantTimeEquals(validToken, candidateUpper));
+		assertFalse("Mismatched token must fail verification",
+				!validToken.isEmpty() && utils.auth.Hash.constantTimeEquals(validToken, candidateWrong));
+		assertFalse("Empty token must not match",
+				!emptyToken.isEmpty() && utils.auth.Hash.constantTimeEquals(emptyToken, candidateUpper));
+		assertFalse("Candidate with different length must fail",
+				!validToken.isEmpty() && utils.auth.Hash.constantTimeEquals(validToken, "ABC"));
+	}
+
 	private static class CapturingQueue implements SourceQueueWithComplete<ByteString> {
 		final List<ByteString> chunks = new ArrayList<>();
 		boolean completed = false;
