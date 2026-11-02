@@ -72,14 +72,15 @@ public class GraalSandboxImpl extends NashornSandboxImpl implements GraalSandbox
 	private static final java.util.concurrent.atomic.AtomicReference<Source> BEAUTIFIER_SOURCE = new java.util.concurrent.atomic.AtomicReference<>();
 
 	private static boolean isBeautifierSource(Source src) {
-		if (src.getLength() != 221041 && src.getLength() != 221087) {
+		if (src == null || src.isInternal() || src.getLength() < 20000) {
 			return false;
 		}
 		CharSequence chars = src.getCharacters();
 		if (chars == null || chars.length() < 100) {
 			return false;
 		}
-		return chars.subSequence(0, 100).toString().startsWith("(function webpackUniversalModuleDefinition");
+		String header = chars.subSequence(0, Math.min(chars.length(), 300)).toString();
+		return header.contains("webpackUniversalModuleDefinition") && header.contains("beautifier");
 	}
 
 	public GraalSandboxImpl(Engine engine, String... params) {
