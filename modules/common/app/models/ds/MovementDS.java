@@ -444,15 +444,17 @@ public class MovementDS extends CompleteDS {
 
 	@Override
 	public void export(SourceQueueWithComplete<ByteString> queue, Cluster cluster, long limit, long start, long end) {
-		export(queue, cluster.getParticipantList(), limit, start, end);
+		export(queue, cluster != null ? cluster.getParticipantList() : null, limit, start, end);
 	}
 
 	public void export(SourceQueueWithComplete<ByteString> queue, List<Long> participantIds, long limit, long start,
 			long end) {
 
 		final String whereClause;
-		if (participantIds.isEmpty()) {
+		if (participantIds == null) {
 			whereClause = timeFilterWhereClause(start, end);
+		} else if (participantIds.isEmpty()) {
+			whereClause = " WHERE 1 = 0";
 		} else {
 			whereClause = " WHERE participant_id IN ("
 					+ participantIds.stream().map(l -> l.toString()).collect(Collectors.joining(",")) + ") "
@@ -546,8 +548,10 @@ public class MovementDS extends CompleteDS {
 	public ArrayNode retrieveProjected(Cluster cluster, long limit, long start, long end) {
 
 		final String whereClause;
-		if (cluster.getParticipants().isEmpty()) {
+		if (cluster == null) {
 			whereClause = timeFilterWhereClause(start, end);
+		} else if (cluster.getParticipants().isEmpty()) {
+			whereClause = " WHERE 1 = 0";
 		} else {
 			whereClause = " WHERE participant_id IN ("
 					+ cluster.getParticipants().stream().map(p -> p.getId().toString()).collect(Collectors.joining(","))

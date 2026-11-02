@@ -303,7 +303,7 @@ public class ExpSamplingDSController extends AbstractDSController {
 	}
 
 	public CompletionStage<Result> downloadExternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
-		final List<Long> participantIds = cluster != null ? cluster.getParticipantList() : Collections.emptyList();
+		final List<Long> participantIds = cluster != null ? cluster.getParticipantList() : null;
 		return CompletableFuture.supplyAsync(() -> internalExport(ds, participantIds, limit, start, end), dbExecutor())
 				.thenApplyAsync(chunks -> ok().chunked(chunks)
 						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
@@ -311,7 +311,7 @@ public class ExpSamplingDSController extends AbstractDSController {
 	}
 
 	public CompletionStage<Result> downloadInternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
-		final List<Long> participantIds = cluster != null ? cluster.getParticipantList() : Collections.emptyList();
+		final List<Long> participantIds = cluster != null ? cluster.getParticipantList() : null;
 		return CompletableFuture.supplyAsync(() -> internalExport(ds, participantIds, limit, start, end), dbExecutor())
 				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"), dbExecutor());
 	}

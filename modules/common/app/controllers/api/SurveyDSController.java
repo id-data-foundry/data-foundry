@@ -387,7 +387,7 @@ public class SurveyDSController extends AbstractDSController {
 	}
 
 	public CompletionStage<Result> downloadExternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
-		final List<Long> participantIds = cluster != null ? cluster.getParticipantList() : Collections.emptyList();
+		final List<Long> participantIds = cluster != null ? cluster.getParticipantList() : null;
 		return CompletableFuture.supplyAsync(() -> internalExport(ds, participantIds, limit, start, end), dbExecutor())
 				.thenApplyAsync(chunks -> ok().chunked(chunks)
 						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
@@ -395,7 +395,7 @@ public class SurveyDSController extends AbstractDSController {
 	}
 
 	public CompletionStage<Result> downloadInternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
-		final List<Long> participantIds = cluster != null ? cluster.getParticipantList() : Collections.emptyList();
+		final List<Long> participantIds = cluster != null ? cluster.getParticipantList() : null;
 		return CompletableFuture.supplyAsync(() -> internalExport(ds, participantIds, limit, start, end), dbExecutor())
 				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"), dbExecutor());
 	}
@@ -454,7 +454,7 @@ public class SurveyDSController extends AbstractDSController {
 	private Source<ByteString, ?> internalExportRaw(Dataset ds, long limit, long start, long end) {
 		SurveyDS fmsc = (SurveyDS) datasetConnector.getDatasetDS(ds);
 		return createStream().mapMaterializedValue(sourceActor -> {
-			CompletableFuture.runAsync(() -> fmsc.export(sourceActor, Collections.emptyList(), limit, start, end), dbExecutor());
+			CompletableFuture.runAsync(() -> fmsc.export(sourceActor, (List<Long>) null, limit, start, end), dbExecutor());
 			return sourceActor;
 		});
 	}

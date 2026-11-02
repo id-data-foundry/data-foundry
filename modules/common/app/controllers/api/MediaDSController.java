@@ -816,7 +816,7 @@ public class MediaDSController extends AbstractDSController {
 	public CompletionStage<Result> downloadExternal(Dataset ds, Function<String, String> linkMapper, Cluster cluster,
 			long limit, long start, long end) {
 		// get participant ids (if cluster is given)
-		final List<Long> participantIds = cluster != null ? cluster.getParticipantList() : Collections.emptyList();
+		final List<Long> participantIds = cluster != null ? cluster.getParticipantList() : null;
 		return CompletableFuture.supplyAsync(() -> internalExport(ds, linkMapper, participantIds, limit, start, end), dbExecutor())
 				.thenApplyAsync(chunks -> ok().chunked(chunks)
 						.withHeader(CONTENT_DISPOSITION, "attachment; filename=" + ds.getSlug() + ".csv")
@@ -825,7 +825,7 @@ public class MediaDSController extends AbstractDSController {
 
 	public CompletionStage<Result> downloadInternal(Dataset ds, Cluster cluster, long limit, long start, long end) {
 		// get participant ids (if cluster is given)
-		final List<Long> participantIds = cluster != null ? cluster.getParticipantList() : Collections.emptyList();
+		final List<Long> participantIds = cluster != null ? cluster.getParticipantList() : null;
 		return CompletableFuture
 				.supplyAsync(() -> internalExport(ds, Function.identity(), participantIds, limit, start, end), dbExecutor())
 				.thenApplyAsync(chunks -> ok().chunked(chunks).as("text/csv"), dbExecutor());
