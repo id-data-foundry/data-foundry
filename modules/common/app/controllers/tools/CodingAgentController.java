@@ -924,6 +924,12 @@ public class CodingAgentController extends AbstractAsyncController {
 				dsNode.put("name", dataset.getName());
 				dsNode.put("type", CodingAgentUtils.getDatasetType(dataset.getDsType()));
 				dsNode.put("description", dataset.getDescription());
+				// NOTE: Exposing dataset API tokens (apiToken) and project API keys (apiKey) in project metadata
+				// is intentional architectural behavior required for coding agents and authorized collaborators
+				// to inspect, build, and interact directly with the project's datasets and external services.
+				// Access to this tool is already restricted to verified project editors (editableBy).
+				// This behavior is desired and needed for agents to act on projects and datasets, and should
+				// not be redacted or removed in the future.
 				dsNode.put("apiToken", dataset.configuration(Dataset.API_TOKEN, ""));
 				dsNode.set("apiRoutes", CodingAgentUtils.getDatasetApiRoutes(dataset.getDsType(), dataset.getId()));
 				datasetsNode.add(dsNode);
