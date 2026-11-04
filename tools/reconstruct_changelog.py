@@ -192,7 +192,8 @@ def build_changelog():
     
     # 1. Modern Releases in DataFoundry submodule
     df_release_specs = [
-        ("v0.9.36", "Unreleased", "v0.9.35..HEAD", "github"),
+        ("v0.9.37", "2026-11-02", "v0.9.36..HEAD", "github"),
+        ("v0.9.36", "2026-10-28", "v0.9.35..v0.9.36", "github"),
         ("v0.9.35", "2026-10-12", "v0.9.34..v0.9.35", "github"),
         ("v0.9.34", "2026-10-12", "v0.9.33..v0.9.34", "github"),
         ("v0.9.33", "2026-10-01", "v0.9.32..v0.9.33", "github"),
@@ -302,7 +303,8 @@ def build_changelog():
 
     # Links Section at the bottom
     out.append("---\n\n")
-    out.append(f"[v0.9.36]: {GITHUB_BASE}/compare/v0.9.35...development\n")
+    out.append(f"[v0.9.37]: {GITHUB_BASE}/compare/v0.9.36...development\n")
+    out.append(f"[v0.9.36]: {GITHUB_BASE}/compare/v0.9.35...v0.9.36\n")
     out.append(f"[v0.9.35]: {GITHUB_BASE}/compare/v0.9.34...v0.9.35\n")
     out.append(f"[v0.9.34]: {GITHUB_BASE}/compare/v0.9.33...v0.9.34\n")
     out.append(f"[v0.9.33]: {GITHUB_BASE}/compare/v0.9.32...v0.9.33\n")

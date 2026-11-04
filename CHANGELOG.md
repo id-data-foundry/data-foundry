@@ -5,7 +5,61 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v0.9.36] - Unreleased
+## [v0.9.37] - 2026-11-02
+### Security
+- Identify beautifier library via structural UMD header instead of exact file length ([d81fc68](https://github.com/id-data-foundry/data-foundry/commit/d81fc68ec509c593651727b1386ff3f0cf2d5074))
+- Verify event.source matches the sandbox iframe contentWindow in editNotebook message listeners before processing notebook responses or trigger saves. ([532ee84](https://github.com/id-data-foundry/data-foundry/commit/532ee845b4066ea5dae4d010f206c7acb049acc6))
+- Implement AutoCloseable on GraalSandbox and GraalSandboxImpl to close polyglot contexts. ([53a8175](https://github.com/id-data-foundry/data-foundry/commit/53a8175473a350adf9ffb40873c913e9f84ddc7c))
+- Guard trial sandbox reset in JSActor.runTrial with semaphore acquisition to prevent nulling active sandboxes and permit inflation. ([53a8175](https://github.com/id-data-foundry/data-foundry/commit/53a8175473a350adf9ffb40873c913e9f84ddc7c))
+- Harden chatbot runtime, session isolation, markdown rendering, and media subprocesses ([27cb2fa](https://github.com/id-data-foundry/data-foundry/commit/27cb2fa2408b34463ec04bb26ea3203dded182ab))
+- Enforce dataset access checks, CSRF protection, and rate limiting across chatbot chat, test, and user memory endpoints; restrict the test view strictly to dataset editors. ([27cb2fa](https://github.com/id-data-foundry/data-foundry/commit/27cb2fa2408b34463ec04bb26ea3203dded182ab))
+- Sanitize stored user prompts via MarkdownRenderer(true), replace raw HTML insertion in chat view with textContent, and strip control-character obfuscation and unsafe URI schemes in MarkdownRenderer. ([27cb2fa](https://github.com/id-data-foundry/data-foundry/commit/27cb2fa2408b34463ec04bb26ea3203dded182ab))
+- Append a short SHA-256 suffix in ChatbotMemoryUtils.sanitizeUserId to prevent email normalization collisions while automatically migrating legacy user directories. ([27cb2fa](https://github.com/id-data-foundry/data-foundry/commit/27cb2fa2408b34463ec04bb26ea3203dded182ab))
+- Harden token resolution, scope dataset tokens, and restrict public download CORS ([dc29ae2](https://github.com/id-data-foundry/data-foundry/commit/dc29ae2b68da0d6abe3b75a94d8ebaee7e39e810))
+
+### Added
+- Add unit tests for Dataset.isActive null safety, empty cluster export filtering, and constant-time token comparison. ([fd0adb6](https://github.com/id-data-foundry/data-foundry/commit/fd0adb6c6c5319888f1cf007121f098b9c2e2f12))
+- Add Cross-Origin-Opener-Policy: same-origin header to CompleteDSController.editFile for Starboard notebook responses. ([532ee84](https://github.com/id-data-foundry/data-foundry/commit/532ee845b4066ea5dae4d010f206c7acb049acc6))
+- Add unit test verifying COOP header delivery and iframe source validation. ([532ee84](https://github.com/id-data-foundry/data-foundry/commit/532ee845b4066ea5dae4d010f206c7acb049acc6))
+- Add unit tests verifying statement limits on padded scripts and clean context disposal. ([53a8175](https://github.com/id-data-foundry/data-foundry/commit/53a8175473a350adf9ffb40873c913e9f84ddc7c))
+- Add unit test verifying DatabaseExecutionContext wiring on async controllers. ([0f407a4](https://github.com/id-data-foundry/data-foundry/commit/0f407a4a693f3921f357a4b91ec5555dc5c5e778))
+- Add unit test verifying per-turn user attribution updates. ([8ee5fa4](https://github.com/id-data-foundry/data-foundry/commit/8ee5fa4d201759e4cef7ac872477a5168f5ced72))
+- Added ghub templates ([9d6d6e8](https://github.com/id-data-foundry/data-foundry/commit/9d6d6e83924edbd09333c2c482b48853dfc296c6))
+
+### Changed
+- Disable ebean module in standalone static routing test applications ([3dbbb41](https://github.com/id-data-foundry/data-foundry/commit/3dbbb419b4237e4e61c88b2df4ee7c67ab117a7b))
+- Document intentional apiToken inclusion in project metadata ([5c77b08](https://github.com/id-data-foundry/data-foundry/commit/5c77b080fc9be9eda36b248a3930c128908d6971))
+- Bump Play platform to 3.0.12 and update dependencies ([ce78e59](https://github.com/id-data-foundry/data-foundry/commit/ce78e590349f889bb70efe8dfdf7a2238aec757c))
+- Bump org.playframework:sbt-plugin to 3.0.12 ([ce78e59](https://github.com/id-data-foundry/data-foundry/commit/ce78e590349f889bb70efe8dfdf7a2238aec757c))
+- Bump org.playframework:sbt-play-ebean to 8.6.0 (Ebean 19.6.0) ([ce78e59](https://github.com/id-data-foundry/data-foundry/commit/ce78e590349f889bb70efe8dfdf7a2238aec757c))
+- Bump io.github.play-swagger:sbt-play-swagger to 2.0.6 ([ce78e59](https://github.com/id-data-foundry/data-foundry/commit/ce78e590349f889bb70efe8dfdf7a2238aec757c))
+- Bump org.playframework:play-mailer and play-mailer-guice to 10.1.0 ([ce78e59](https://github.com/id-data-foundry/data-foundry/commit/ce78e590349f889bb70efe8dfdf7a2238aec757c))
+- Bump org.webjars:webjars-play to 3.0.10 ([ce78e59](https://github.com/id-data-foundry/data-foundry/commit/ce78e590349f889bb70efe8dfdf7a2238aec757c))
+- Guard reference date against null in Dataset.isActive to fail closed and eliminate NullPointerException. ([fd0adb6](https://github.com/id-data-foundry/data-foundry/commit/fd0adb6c6c5319888f1cf007121f098b9c2e2f12))
+- Use Hash.constantTimeEquals in TelegramSession to mitigate timing attacks against project verification tokens, and ensure token is non-empty before comparison. ([fd0adb6](https://github.com/id-data-foundry/data-foundry/commit/fd0adb6c6c5319888f1cf007121f098b9c2e2f12))
+- Differentiate unfiltered exports (participantIds == null) from empty-cluster exports (participantIds.isEmpty()) across MediaDS, MovementDS, ExpSamplingDS, DiaryDS, and SurveyDS. ([f0cefbf](https://github.com/id-data-foundry/data-foundry/commit/f0cefbf003416550b95601c3995674308473e8cc))
+- In export() queries and retrieveProjected(), restrict empty clusters with WHERE 1 = 0 so clusters with zero participants return 0 data rows instead of all dataset records. ([f0cefbf](https://github.com/id-data-foundry/data-foundry/commit/f0cefbf003416550b95601c3995674308473e8cc))
+- Pass null for participantIds in downloadExternal and downloadInternal controllers when cluster is null, preserving unfiltered full-dataset downloads. ([f0cefbf](https://github.com/id-data-foundry/data-foundry/commit/f0cefbf003416550b95601c3995674308473e8cc))
+- Replace size-only statement limit exemption (>2000 lines or >50000 chars) with specific identification of the internal js-beautify library so padded user scripts cannot evade statement limits. ([53a8175](https://github.com/id-data-foundry/data-foundry/commit/53a8175473a350adf9ffb40873c913e9f84ddc7c))
+- Inject DatabaseExecutionContext into AbstractAsyncController with a dbExecutor() helper that falls back to ForkJoinPool.commonPool() in standalone unit tests. ([0f407a4](https://github.com/id-data-foundry/data-foundry/commit/0f407a4a693f3921f357a4b91ec5555dc5c5e778))
+- Route blocking CompletableFuture.supplyAsync and runAsync database and dataset export calls across 26 controllers through dbExecutor() to prevent ForkJoinPool.commonPool() starvation under load. ([0f407a4](https://github.com/id-data-foundry/data-foundry/commit/0f407a4a693f3921f357a4b91ec5555dc5c5e778))
+- Track activeUserEmail on DatasetContext and refresh HarnessAgent and subAgent X-API-User headers in checkAndReloadAgent whenever a different collaborator summons the coding agent. ([8ee5fa4](https://github.com/id-data-foundry/data-foundry/commit/8ee5fa4d201759e4cef7ac872477a5168f5ced72))
+- Synchronize concurrent agent turns and team chat state updates on the shared DatasetContext. ([8ee5fa4](https://github.com/id-data-foundry/data-foundry/commit/8ee5fa4d201759e4cef7ac872477a5168f5ced72))
+- Isolate AgentScope HarnessAgent state per dataset, cap reasoning iterations, and disable built-in memory/subagent/path-expansion hooks. ([27cb2fa](https://github.com/id-data-foundry/data-foundry/commit/27cb2fa2408b34463ec04bb26ea3203dded182ab))
+- Resolve API callers in ChatbotController.chatApi to their actual Person owner or scoped synthetic identities for dataset and study participant tokens instead of impersonating the project owner. ([27cb2fa](https://github.com/id-data-foundry/data-foundry/commit/27cb2fa2408b34463ec04bb26ea3203dded182ab))
+- Validate conversation IDs against path traversal, enforce per-user transcript ownership with lazy migration for existing sessions, and fence RAG/memory context against indirect prompt injection. ([27cb2fa](https://github.com/id-data-foundry/data-foundry/commit/27cb2fa2408b34463ec04bb26ea3203dded182ab))
+- Drain OCR/STT subprocess output on a bounded background thread in MediaProcessingService so timeouts cannot deadlock on open pipes, and forcibly terminate child process trees on timeout. ([27cb2fa](https://github.com/id-data-foundry/data-foundry/commit/27cb2fa2408b34463ec04bb26ea3203dded182ab))
+
+### Fixed
+- Register channel validator and protect against reserved broker system channels ([098a955](https://github.com/id-data-foundry/data-foundry/commit/098a955c324d6182107274c698f60300ea753bbb))
+- Guard dataset active date null checks and use constant-time telegram token comparison ([fd0adb6](https://github.com/id-data-foundry/data-foundry/commit/fd0adb6c6c5319888f1cf007121f098b9c2e2f12))
+- Add COOP header and verify postMessage source window in starboard editor ([532ee84](https://github.com/id-data-foundry/data-foundry/commit/532ee845b4066ea5dae4d010f206c7acb049acc6))
+- Scope empty cluster exports to prevent full dataset leakage ([f0cefbf](https://github.com/id-data-foundry/data-foundry/commit/f0cefbf003416550b95601c3995674308473e8cc))
+- Enforce statement limits on padded scripts and close polyglot contexts ([53a8175](https://github.com/id-data-foundry/data-foundry/commit/53a8175473a350adf9ffb40873c913e9f84ddc7c))
+- Offload blocking controller DB and export futures to DatabaseExecutionContext ([0f407a4](https://github.com/id-data-foundry/data-foundry/commit/0f407a4a693f3921f357a4b91ec5555dc5c5e778))
+- Track per-turn active user attribution on shared DatasetContext ([8ee5fa4](https://github.com/id-data-foundry/data-foundry/commit/8ee5fa4d201759e4cef7ac872477a5168f5ced72))
+
+## [v0.9.36] - 2026-10-28
 ### Security
 - Set frameOptions to null and enforce frame-ancestors 'self' in CSP to support Firefox sandboxed iframes without breaking clickjacking protection ([1054db0](https://github.com/id-data-foundry/data-foundry/commit/1054db0b23df2687068ee6135260ac84cf2df915))
 - Add worker-src 'self' blob:; to Starboard runner CSP ([1054db0](https://github.com/id-data-foundry/data-foundry/commit/1054db0b23df2687068ee6135260ac84cf2df915))
@@ -82,6 +136,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add unit tests in AbstractAIApiServiceMaxTokensTest and LocalModelMetadataTest ([0a28109](https://github.com/id-data-foundry/data-foundry/commit/0a2810944c4a6118eea42b1ca40e225ce14df359))
 
 ### Changed
+- Record Starboard browser compatibility and reference.conf unification ([d952c7d](https://github.com/id-data-foundry/data-foundry/commit/d952c7d0cde47d3b8bc02e758ebdb47a92bf8995))
 - Enable allowActionSpecificHeaders = true to permit custom controller framing policies ([1054db0](https://github.com/id-data-foundry/data-foundry/commit/1054db0b23df2687068ee6135260ac84cf2df915))
 - Increase Nginx request rate-limiting burst capacity to 150 for editor chunk loading ([1054db0](https://github.com/id-data-foundry/data-foundry/commit/1054db0b23df2687068ee6135260ac84cf2df915))
 - Append ?view=tab to 'open in tab' and 'Open' links in view.scala.html and editFile.scala.html ([add3cbf](https://github.com/id-data-foundry/data-foundry/commit/add3cbfe508b70f349f09be0ab08a95ecb636141))
@@ -1545,7 +1600,8 @@ Fixed: Improved text used in HostingTour ([42c6e02](https://gitlab.tue.nl/id-dep
 
 ---
 
-[v0.9.36]: https://github.com/id-data-foundry/data-foundry/compare/v0.9.35...development
+[v0.9.37]: https://github.com/id-data-foundry/data-foundry/compare/v0.9.36...development
+[v0.9.36]: https://github.com/id-data-foundry/data-foundry/compare/v0.9.35...v0.9.36
 [v0.9.35]: https://github.com/id-data-foundry/data-foundry/compare/v0.9.34...v0.9.35
 [v0.9.34]: https://github.com/id-data-foundry/data-foundry/compare/v0.9.33...v0.9.34
 [v0.9.33]: https://github.com/id-data-foundry/data-foundry/compare/v0.9.32...v0.9.33
